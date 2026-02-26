@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Control - Dosya Yükle</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0A0F14 0%, #151C24 100%);
+            color: #FFFFFF;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .upload-card {
+            background: rgba(30, 38, 48, 0.95);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(61, 174, 168, 0.15);
+            margin-bottom: 24px;
+            animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+            color: #FFFFFF;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #AAAAAA;
+            font-weight: 400;
+        }
+        .upload-area {
+            margin: 32px 0;
+        }
+        .file-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .file-input-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 40px;
+            background: rgba(61, 174, 168, 0.05);
+            border: 2px dashed rgba(61, 174, 168, 0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 200px;
+        }
+        .file-input-label:hover {
+            background: rgba(61, 174, 168, 0.1);
+            border-color: rgba(61, 174, 168, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(61, 174, 168, 0.2);
+        }
+        .file-input-label.dragover {
+            background: rgba(61, 174, 168, 0.15);
+            border-color: #3DAEA8;
+            transform: scale(1.02);
+            box-shadow: 0 12px 32px rgba(61, 174, 168, 0.3);
+        }
+        .file-input-label.has-file {
+            background: rgba(61, 174, 168, 0.1);
+            border-color: #3DAEA8;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.7;
+            transition: transform 0.3s ease;
+        }
+        .file-input-label:hover .upload-icon {
+            transform: scale(1.1);
+        }
+        .upload-text {
+            font-size: 18px;
+            color: #CCCCCC;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .upload-hint {
+            font-size: 14px;
+            color: #888888;
+        }
+        input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+        }
+        .file-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(61, 174, 168, 0.1);
+            border-radius: 16px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+        .file-info.active {
+            display: block;
+        }
+        .file-name {
+            font-size: 15px;
+            color: #3DAEA8;
+            font-weight: 500;
+            word-break: break-all;
+            margin-bottom: 4px;
+        }
+        .file-size {
+            font-size: 13px;
+            color: #AAAAAA;
+        }
+        .progress-container {
+            margin: 24px 0;
+            display: none;
+        }
+        .progress-container.active {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #CCCCCC;
+        }
+        .progress-percent {
+            color: #3DAEA8;
+            font-weight: 600;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3DAEA8 0%, #2d8a85 100%);
+            border-radius: 10px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 0%;
+            position: relative;
+        }
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .upload-btn {
+            background: linear-gradient(135deg, #3DAEA8 0%, #2d8a85 100%);
+            color: #FFFFFF;
+            border: none;
+            padding: 18px 32px;
+            font-size: 17px;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(61, 174, 168, 0.4);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .upload-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .upload-btn:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(61, 174, 168, 0.5);
+        }
+        .upload-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+        .upload-btn:disabled {
+            background: #555555;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 24px;
+            padding: 12px 20px;
+            background: rgba(61, 174, 168, 0.1);
+            border-radius: 24px;
+            font-size: 14px;
+            color: #3DAEA8;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3DAEA8;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(30, 38, 48, 0.98);
+            border: 1px solid rgba(61, 174, 168, 0.3);
+            border-radius: 16px;
+            padding: 16px 20px;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: toastSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .toast::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: currentColor;
+        }
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(400px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .toast.success {
+            color: #4CAF50;
+        }
+        .toast.error {
+            color: #F44336;
+        }
+        .toast.info {
+            color: #3DAEA8;
+        }
+        .toast-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .toast-close {
+            background: none;
+            border: none;
+            color: currentColor;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toast-close:hover {
+            opacity: 1;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal {
+            background: rgba(30, 38, 48, 0.98);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(61, 174, 168, 0.2);
+            animation: modalSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #FFFFFF;
+            margin-bottom: 8px;
+        }
+        .modal-message {
+            font-size: 15px;
+            color: #CCCCCC;
+            line-height: 1.6;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+        .modal-btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+        }
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #3DAEA8 0%, #2d8a85 100%);
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(61, 174, 168, 0.3);
+        }
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(61, 174, 168, 0.4);
+        }
+        .modal-btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #CCCCCC;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .modal-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .files-section {
+            margin-top: 32px;
+        }
+        .files-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .files-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #FFFFFF;
+        }
+        .refresh-btn {
+            background: rgba(61, 174, 168, 0.1);
+            border: 1px solid rgba(61, 174, 168, 0.3);
+            color: #3DAEA8;
+            padding: 10px 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .refresh-btn:hover {
+            background: rgba(61, 174, 168, 0.2);
+            transform: translateY(-2px);
+        }
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+        .files-list {
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(61, 174, 168, 0.3) transparent;
+        }
+        .files-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .files-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .files-list::-webkit-scrollbar-thumb {
+            background: rgba(61, 174, 168, 0.3);
+            border-radius: 3px;
+        }
+        .files-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(61, 174, 168, 0.5);
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            margin-bottom: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(4px);
+            border-color: rgba(61, 174, 168, 0.2);
+        }
+        .file-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-item-name {
+            font-size: 15px;
+            color: #FFFFFF;
+            font-weight: 500;
+            word-break: break-all;
+            margin-bottom: 6px;
+        }
+        .file-item-meta {
+            font-size: 13px;
+            color: #AAAAAA;
+        }
+        .file-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 16px;
+        }
+        .delete-btn {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #F44336;
+            padding: 10px 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .delete-btn:hover {
+            background: rgba(244, 67, 54, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+        }
+        .delete-btn:active {
+            transform: translateY(0);
+        }
+        .install-btn {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+            padding: 10px 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .install-btn:hover {
+            background: rgba(76, 175, 80, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        .install-btn:active {
+            transform: translateY(0);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #888888;
+            font-size: 15px;
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px 40px;
+            color: #3DAEA8;
+            font-size: 15px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(61, 174, 168, 0.3);
+            border-top-color: #3DAEA8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle"></div>
+                <div class="modal-message" id="modalMessage"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" id="modalCancel">İptal</button>
+                <button class="modal-btn modal-btn-primary" id="modalConfirm">Onayla</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="upload-card">
+            <div class="header">
+                <span class="icon">📤</span>
+                <h1>Dosya Yükle</h1>
+                <p class="subtitle">Dosyanızı seçin ve yükleyin</p>
+            </div>
+            
+            <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
+                <div class="upload-area">
+                    <div class="file-input-wrapper">
+                        <label for="fileInput" class="file-input-label" id="fileLabel">
+                            <span class="upload-icon">📁</span>
+                            <span class="upload-text">Dosya Seç veya Sürükle</span>
+                            <span class="upload-hint">APK, ZIP, PDF ve diğer dosya türleri desteklenir</span>
+                        </label>
+                        <input type="file" id="fileInput" name="file" required>
+                    </div>
+                    
+                    <div class="file-info" id="fileInfo">
+                        <div class="file-name" id="fileName"></div>
+                        <div class="file-size" id="fileSize"></div>
+                    </div>
+                    
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-label">
+                            <span>Yükleniyor...</span>
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="upload-btn" id="uploadBtn">
+                    <span id="btnText">Dosya Yükle</span>
+                </button>
+            </form>
+            
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span>Çevrimiçi</span>
+            </div>
+        </div>
+        
+        <div class="upload-card">
+            <div class="files-section">
+                <div class="files-header">
+                    <h2 class="files-title">📂 Yüklenen Dosyalar</h2>
+                    <button class="refresh-btn" id="refreshBtn">
+                        <span>🔄</span>
+                        <span>Yenile</span>
+                    </button>
+                </div>
+                <div class="files-list" id="filesList">
+                    <div class="loading">
+                        <span class="loading-spinner"></span>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="upload-card">
+            <div class="files-section">
+                <div class="files-header">
+                    <h2 class="files-title">📱 Yüklü Uygulamalar</h2>
+                    <button class="refresh-btn" id="refreshAppsBtn">
+                        <span>🔄</span>
+                        <span>Yenile</span>
+                    </button>
+                </div>
+                <div class="files-list" id="appsList">
+                    <div class="loading">
+                        <span class="loading-spinner"></span>
+                        Yükleniyor...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const serverUrl = '{{SERVER_URL}}';
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const btnText = document.getElementById('btnText');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const filesList = document.getElementById('filesList');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const appsList = document.getElementById('appsList');
+        const refreshAppsBtn = document.getElementById('refreshAppsBtn');
+        const toastContainer = document.getElementById('toastContainer');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCancel = document.getElementById('modalCancel');
+        const modalConfirm = document.getElementById('modalConfirm');
+        
+        let currentModalResolve = null;
+        
+        // Sayfa yüklendiğinde dosya listesini getir
+        loadFilesList();
+        
+        // Dosya seçildiğinde
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.add('active');
+                fileLabel.classList.add('has-file');
+            } else {
+                fileInfo.classList.remove('active');
+                fileLabel.classList.remove('has-file');
+            }
+        });
+        
+        // Drag & Drop
+        fileLabel.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.add('dragover');
+        });
+        
+        fileLabel.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.remove('dragover');
+        });
+        
+        fileLabel.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                const file = files[0];
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.classList.add('active');
+                fileLabel.classList.add('has-file');
+            }
+        });
+        
+        // Form gönderimi
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                showToast('Lütfen bir dosya seçin', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            uploadBtn.disabled = true;
+            btnText.textContent = 'Yükleniyor...';
+            progressContainer.classList.add('active');
+            
+            // Progress bar animasyonu
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 10;
+                    if (progress > 90) progress = 90;
+                    updateProgress(progress);
+                }
+            }, 200);
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        updateProgress(percentComplete);
+                    }
+                });
+                
+                xhr.addEventListener('load', function() {
+                    clearInterval(progressInterval);
+                    updateProgress(100);
+                    
+                    if (xhr.status === 200) {
+                        setTimeout(() => {
+                            showToast('✓ Dosya başarıyla yüklendi!', 'success');
+                            resetForm();
+                            loadFilesList();
+                        }, 500);
+                    } else {
+                        showToast('✗ Yükleme hatası: ' + xhr.responseText, 'error');
+                        uploadBtn.disabled = false;
+                        btnText.textContent = 'Dosya Yükle';
+                        progressContainer.classList.remove('active');
+                    }
+                });
+                
+                xhr.addEventListener('error', function() {
+                    clearInterval(progressInterval);
+                    showToast('✗ Bağlantı hatası', 'error');
+                    uploadBtn.disabled = false;
+                    btnText.textContent = 'Dosya Yükle';
+                    progressContainer.classList.remove('active');
+                });
+                
+                xhr.open('POST', serverUrl + '/upload');
+                xhr.send(formData);
+                
+            } catch (error) {
+                clearInterval(progressInterval);
+                showToast('✗ Hata: ' + error.message, 'error');
+                uploadBtn.disabled = false;
+                btnText.textContent = 'Dosya Yükle';
+                progressContainer.classList.remove('active');
+            }
+        });
+        
+        // Dosya listesini yükle
+        async function loadFilesList() {
+            filesList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>Yükleniyor...</div>';
+            
+            try {
+                const response = await fetch(serverUrl + '/files');
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    filesList.innerHTML = '';
+                    data.files.forEach((file, index) => {
+                        setTimeout(() => {
+                            const fileItem = document.createElement('div');
+                            fileItem.className = 'file-item';
+                            fileItem.style.opacity = '0';
+                            fileItem.style.transform = 'translateY(20px)';
+                            
+                            const isApk = file.name.toLowerCase().endsWith('.apk');
+                            const installButton = isApk ? `
+                                <button class="install-btn" onclick="installApk('${escapeHtml(file.name)}')">
+                                    <span>📱</span>
+                                    <span>Kur</span>
+                                </button>
+                            ` : '';
+                            
+                            fileItem.innerHTML = `
+                                <div class="file-item-info">
+                                    <div class="file-item-name">${escapeHtml(file.name)}</div>
+                                    <div class="file-item-meta">${file.sizeFormatted}</div>
+                                </div>
+                                <div class="file-item-actions">
+                                    ${installButton}
+                                    <button class="delete-btn" onclick="deleteFile('${escapeHtml(file.name)}')">
+                                        <span>🗑️</span>
+                                        <span>Sil</span>
+                                    </button>
+                                </div>
+                            `;
+                            filesList.appendChild(fileItem);
+                            
+                            // Fade in animasyonu
+                            setTimeout(() => {
+                                fileItem.style.transition = 'all 0.3s ease';
+                                fileItem.style.opacity = '1';
+                                fileItem.style.transform = 'translateY(0)';
+                            }, 10);
+                        }, index * 50);
+                    });
+                } else {
+                    filesList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div><div>Henüz dosya yüklenmedi</div></div>';
+                }
+            } catch (error) {
+                filesList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>Dosya listesi yüklenemedi</div></div>';
+            }
+        }
+        
+        // Dosya sil
+        async function deleteFile(fileName) {
+            const confirmed = await showModal(
+                'Dosyayı Sil',
+                `Bu dosyayı silmek istediğinize emin misiniz?\n\n<strong>${escapeHtml(fileName)}</strong>`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                const response = await fetch(serverUrl + '/files?filename=' + encodeURIComponent(fileName), {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('✓ Dosya başarıyla silindi', 'success');
+                    loadFilesList();
+                } else {
+                    const errorText = await response.text();
+                    showToast('✗ Silme hatası: ' + errorText, 'error');
+                }
+            } catch (error) {
+                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+            }
+        }
+        
+        // APK kur
+        async function installApk(fileName) {
+            try {
+                showToast('📦 APK kurulumu başlatılıyor...', 'info');
+                
+                const response = await fetch(serverUrl + '/install?filename=' + encodeURIComponent(fileName), {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showToast('✓ Kurulum başlatıldı', 'success');
+                } else {
+                    const errorText = await response.text();
+                    showToast('✗ Kurulum hatası: ' + errorText, 'error');
+                }
+            } catch (error) {
+                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+            }
+        }
+        
+        // Global fonksiyonlar (onclick için)
+        window.deleteFile = deleteFile;
+        window.installApk = installApk;
+        
+        // Yenile butonu
+        refreshBtn.addEventListener('click', () => {
+            refreshBtn.style.transform = 'rotate(360deg)';
+            setTimeout(() => {
+                refreshBtn.style.transform = 'rotate(0deg)';
+            }, 500);
+            loadFilesList();
+        });
+        
+        // Uygulamalar yenile butonu
+        refreshAppsBtn.addEventListener('click', () => {
+            refreshAppsBtn.style.transform = 'rotate(360deg)';
+            setTimeout(() => {
+                refreshAppsBtn.style.transform = 'rotate(0deg)';
+            }, 500);
+            loadAppsList();
+        });
+        
+        // Sayfa yüklendiğinde uygulama listesini getir
+        loadAppsList();
+        
+        // Toast göster
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✗',
+                info: 'ℹ️'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Otomatik kaldır
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.3s reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+        
+        // Modal göster
+        function showModal(title, message) {
+            return new Promise((resolve) => {
+                currentModalResolve = resolve;
+                modalTitle.textContent = title;
+                modalMessage.innerHTML = message;
+                modalOverlay.classList.add('active');
+                
+                modalCancel.onclick = () => {
+                    modalOverlay.classList.remove('active');
+                    resolve(false);
+                };
+                
+                modalConfirm.onclick = () => {
+                    modalOverlay.classList.remove('active');
+                    resolve(true);
+                };
+                
+                // Overlay'e tıklayınca kapat
+                modalOverlay.onclick = (e) => {
+                    if (e.target === modalOverlay) {
+                        modalOverlay.classList.remove('active');
+                        resolve(false);
+                    }
+                };
+            });
+        }
+        
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+            progressPercent.textContent = Math.round(percent) + '%';
+        }
+        
+        function resetForm() {
+            setTimeout(() => {
+                fileInput.value = '';
+                fileInfo.classList.remove('active');
+                fileLabel.classList.remove('has-file');
+                uploadBtn.disabled = false;
+                btnText.textContent = 'Dosya Yükle';
+                progressContainer.classList.remove('active');
+                updateProgress(0);
+            }, 1500);
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Uygulama listesini yükle
+        async function loadAppsList() {
+            appsList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>Yükleniyor...</div>';
+            
+            try {
+                const response = await fetch(serverUrl + '/apps');
+                const data = await response.json();
+                
+                if (data.apps && data.apps.length > 0) {
+                    appsList.innerHTML = '';
+                    data.apps.forEach((app, index) => {
+                        setTimeout(() => {
+                            const appItem = document.createElement('div');
+                            appItem.className = 'file-item';
+                            appItem.style.opacity = '0';
+                            appItem.style.transform = 'translateY(20px)';
+                            
+                            appItem.innerHTML = `
+                                <div class="file-item-info">
+                                    <div class="file-item-name">${escapeHtml(app.name)}</div>
+                                    <div class="file-item-meta">${escapeHtml(app.package)}</div>
+                                </div>
+                                <div class="file-item-actions">
+                                    <button class="install-btn" onclick="launchApp('${escapeHtml(app.package)}')">
+                                        <span>▶️</span>
+                                        <span>Aç</span>
+                                    </button>
+                                    <button class="delete-btn" onclick="deleteApp('${escapeHtml(app.package)}', '${escapeHtml(app.name)}')">
+                                        <span>🗑️</span>
+                                        <span>Sil</span>
+                                    </button>
+                                </div>
+                            `;
+                            appsList.appendChild(appItem);
+                            
+                            // Fade in animasyonu
+                            setTimeout(() => {
+                                appItem.style.transition = 'all 0.3s ease';
+                                appItem.style.opacity = '1';
+                                appItem.style.transform = 'translateY(0)';
+                            }, 10);
+                        }, index * 50);
+                    });
+                } else {
+                    appsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📱</div><div>Henüz uygulama yüklenmedi</div></div>';
+                }
+            } catch (error) {
+                appsList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>Uygulama listesi yüklenemedi</div></div>';
+            }
+        }
+        
+        // Uygulama sil
+        async function deleteApp(packageName, appName) {
+            const confirmed = await showModal(
+                'Uygulamayı Sil',
+                `Bu uygulamayı silmek istediğinize emin misiniz?\n\n<strong>${escapeHtml(appName)}</strong>\n<small>${escapeHtml(packageName)}</small>`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                const response = await fetch(serverUrl + '/app/delete?package=' + encodeURIComponent(packageName), {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showToast('✓ Uygulama silme başlatıldı', 'success');
+                    setTimeout(() => {
+                        loadAppsList();
+                    }, 1000);
+                } else {
+                    const errorText = await response.text();
+                    showToast('✗ Silme hatası: ' + errorText, 'error');
+                }
+            } catch (error) {
+                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+            }
+        }
+        
+        // Uygulama aç
+        async function launchApp(packageName) {
+            try {
+                showToast('▶️ Uygulama açılıyor...', 'info');
+                
+                const response = await fetch(serverUrl + '/app/launch?package=' + encodeURIComponent(packageName), {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showToast('✓ Uygulama açıldı', 'success');
+                } else {
+                    const errorText = await response.text();
+                    showToast('✗ Açma hatası: ' + errorText, 'error');
+                }
+            } catch (error) {
+                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+            }
+        }
+        
+        // Global fonksiyonlar (onclick için)
+        window.deleteApp = deleteApp;
+        window.launchApp = launchApp;
+    </script>
+</body>
+</html>

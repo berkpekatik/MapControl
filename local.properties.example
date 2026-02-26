@@ -1,0 +1,9 @@
+# Copy this file to local.properties and fill in the values.
+# Do NOT commit local.properties (it is in .gitignore).
+#
+# Android Studio usually creates local.properties with sdk.dir.
+# Add the two lines below for release signing.
+
+# Release keystore passwords (required for signed release builds)
+RELEASE_STORE_PASSWORD=your_keystore_password
+RELEASE_KEY_PASSWORD=your_key_password

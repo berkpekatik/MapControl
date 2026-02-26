@@ -1,0 +1,26 @@
+# Local configuration (keystore passwords – do not commit)
+local.properties
+
+# Build outputs
+build/
+*.apk
+*.aab
+*.ap_
+*.dex
+outputs/
+
+# Android Studio
+.idea/
+*.iml
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore — never commit (signing keys)
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db

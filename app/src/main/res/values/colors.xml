@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material Design Primary Colors -->
+    <color name="primaryColor">#1976D2</color>
+    <color name="primaryDarkColor">#0D47A1</color>
+    <color name="primaryLightColor">#42A5F5</color>
+    <color name="accentColor">#FFA726</color>
+    
+    <!-- Background Colors -->
+    <color name="backgroundColor">#121212</color>
+    <color name="surfaceColor">#1E1E1E</color>
+    <color name="cardColor">#2C2C2C</color>
+    
+    <!-- Text Colors -->
+    <color name="textPrimary">#FFFFFF</color>
+    <color name="textSecondary">#B0B0B0</color>
+    <color name="textAccent">#FFA726</color>
+    
+    <!-- Button Colors -->
+    <color name="buttonPrimary">#1976D2</color>
+    <color name="buttonSuccess">#2E7D32</color>
+    <color name="buttonDanger">#D32F2F</color>
+    <color name="buttonNeutral">#424242</color>
+    <color name="buttonActive">#1976D2</color>
+    <color name="buttonInactive">#424242</color>
+    
+    <!-- Log Colors -->
+    <color name="logBackground">#0D0D0D</color>
+    <color name="logText">#00FF00</color>
+    
+    <!-- WiFi Item Colors -->
+    <color name="wifiItemBackground">#2C2C2C</color>
+    <color name="wifiItemPressed">#3C3C3C</color>
+    
+    <!-- Status Colors -->
+    <color name="statusSuccess">#4CAF50</color>
+    <color name="statusWarning">#FF9800</color>
+    <color name="statusError">#F44336</color>
+    <color name="statusInfo">#2196F3</color>
+    
+    <!-- Divider -->
+    <color name="dividerColor">#303030</color>
+</resources>

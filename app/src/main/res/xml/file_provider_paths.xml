@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="downloads" path="downloads/" />
+    <external-cache-path name="external_downloads" path="downloads/" />
+    <!-- Download klasörü için root tanımı (Yerel mod) -->
+    <!-- external-path root'u genellikle /storage/emulated/0/ veya /sdcard/ olur -->
+    <external-path name="external_download" path="Download/" />
+    <!-- Alternatif: Tüm external storage'a erişim (daha geniş ama güvenli) -->
+    <external-path name="external_storage" path="." />
+</paths>
+

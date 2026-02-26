@@ -1,0 +1,68 @@
+plugins {
+    id 'com.android.application'
+}
+
+def localProperties = new Properties()
+def localFile = rootProject.file("local.properties")
+if (localFile.exists()) {
+    localProperties.load(localFile.newDataInputStream())
+}
+def releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD", "")
+def releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD", "")
+
+android {
+    namespace 'com.mapcontrol'
+    compileSdk 34
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+        disable 'ExpiredTargetSdkVersion'
+    }
+
+    defaultConfig {
+        applicationId "com.mapcontrol"
+        minSdk 29
+        targetSdk 28
+        versionCode 1
+        versionName "1.1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("mapcontrol-release.keystore")
+            storePassword releaseStorePassword
+            keyAlias "mapcontrol"
+            keyPassword releaseKeyPassword
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseStorePassword?.trim() && releaseKeyPassword?.trim()) {
+                signingConfig signingConfigs.release
+            }
+            debuggable false
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.zxing:core:3.5.2'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+}

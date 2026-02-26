@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Map Control</string>
+    <string name="accessibility_service_description">Floating Back Button için global BACK tuşu simülasyonu yapar. Bu servis, yüzen geri tuşunun çalışması için gereklidir.</string>
+</resources>
+
