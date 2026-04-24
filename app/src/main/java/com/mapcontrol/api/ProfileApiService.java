@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.api;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -11,6 +10,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import com.mapcontrol.ui.activity.MainActivity;
 
 /**
  * Profile API Service - API işlemleri için ayrı servis sınıfı

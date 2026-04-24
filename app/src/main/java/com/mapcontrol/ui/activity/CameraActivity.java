@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.ui.activity;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
@@ -32,6 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import com.mapcontrol.R;
 
 public class CameraActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener {
     private static final String TAG = CameraActivity.class.getSimpleName();

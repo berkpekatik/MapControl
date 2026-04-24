@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.service;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Intent;

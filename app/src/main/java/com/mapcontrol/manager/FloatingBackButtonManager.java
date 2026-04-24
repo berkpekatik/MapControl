@@ -1,11 +1,11 @@
-package com.mapcontrol;
-
+package com.mapcontrol.manager;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -14,6 +14,9 @@ import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.Toast;
+import com.mapcontrol.service.GlobalBackService;
+
+import java.util.ArrayList;
 
 /**
  * Floating Back Button Manager
@@ -22,6 +25,15 @@ import android.widget.Toast;
 public class FloatingBackButtonManager {
     private static final String PREFS_NAME = "MapControlPrefs";
     private static final String KEY_FLOATING_BACK_BUTTON_ENABLED = "floatingBackButtonEnabled";
+    private static final String KEY_FLOATING_BACK_POS_SAVED = "floatingBackPosSaved";
+    private static final String KEY_FLOATING_BACK_POS_X = "floatingBackPosX";
+    private static final String KEY_FLOATING_BACK_POS_Y = "floatingBackPosY";
+
+    /** MapControlService vb. süreci açık tutunca Activity ölse bile overlay referansı korunur; aksi halde her açılışta ikinci buton eklenirdi. */
+    private static volatile FloatingBackButtonManager sInstance;
+    /** setLogCallback öncesi üretilen satırlar; Log ekranına flush edilir */
+    private static final int PENDING_LOG_MAX = 32;
+    private static final ArrayList<String> sPendingForUi = new ArrayList<>();
     
     private Context context;
     private WindowManager windowManager;
@@ -34,6 +46,9 @@ public class FloatingBackButtonManager {
     private int initialY;
     private float initialTouchX;
     private float initialTouchY;
+    /** Sürüklerken log spam’ini sınırlamak için (ms) */
+    private long lastDragLogUptimeMs;
+    private static final int DRAG_LOG_MIN_INTERVAL_MS = 120;
     
     // Log callback interface
     public interface LogCallback {
@@ -41,10 +56,25 @@ public class FloatingBackButtonManager {
     }
     
     private LogCallback logCallback;
-    
-    public FloatingBackButtonManager(Context context) {
-        this.context = context;
-        this.windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+
+    private FloatingBackButtonManager(Context appContext) {
+        this.context = appContext.getApplicationContext();
+        this.windowManager = (WindowManager) this.context.getSystemService(Context.WINDOW_SERVICE);
+    }
+
+    /**
+     * Süreç başına tek manager; böylece Activity yenilense bile önceki yüzen pencere {@link #show()} içinde kaldırılabilir.
+     */
+    public static FloatingBackButtonManager getInstance(Context anyContext) {
+        if (sInstance == null) {
+            synchronized (FloatingBackButtonManager.class) {
+                if (sInstance == null) {
+                    sInstance = new FloatingBackButtonManager(anyContext);
+                    sInstance.log("[INFO] tekil FloatingBackButtonManager oluşturuldu");
+                }
+            }
+        }
+        return sInstance;
     }
     
     /**
@@ -52,27 +82,91 @@ public class FloatingBackButtonManager {
      */
     public void setLogCallback(LogCallback callback) {
         this.logCallback = callback;
+        if (callback != null) {
+            synchronized (FloatingBackButtonManager.class) {
+                for (int i = 0; i < sPendingForUi.size(); i++) {
+                    callback.log(sPendingForUi.get(i));
+                }
+                sPendingForUi.clear();
+            }
+        }
     }
     
     /**
-     * Log mesajı gönder
+     * Uygulama Log sekmesi (callback); Logcat yok. Callback yoksa kuyruk, setLogCallback ile flush
      */
     private void log(String message) {
         if (logCallback != null) {
             logCallback.log(message);
+        } else {
+            synchronized (FloatingBackButtonManager.class) {
+                if (sPendingForUi.size() < PENDING_LOG_MAX) {
+                    sPendingForUi.add(message);
+                }
+            }
+        }
+    }
+
+    private static int getEdgeMarginPx(Context ctx) {
+        return (int) (8 * ctx.getResources().getDisplayMetrics().density);
+    }
+
+    /**
+     * TOP|START penceresini ekran içinde tutar (sürükleme ile aynı kurallar).
+     */
+    private int[] clampButtonPosition(int x, int y, int screenWidth, int screenHeight, int buttonSize) {
+        int m = getEdgeMarginPx(context);
+        if (x < m) {
+            x = m;
+        } else if (x > screenWidth - buttonSize - m) {
+            x = screenWidth - buttonSize - m;
+        }
+        if (y < m) {
+            y = m;
+        } else if (y > screenHeight - buttonSize - m) {
+            y = screenHeight - buttonSize - m;
+        }
+        return new int[] {x, y};
+    }
+
+    private void saveButtonPosition() {
+        if (params == null) {
+            return;
+        }
+        // commit: radyo ile hemen kapatıp açınca apply() bitmeden show() okuyabiliyordu; konum yüklenmiyordu
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_FLOATING_BACK_POS_SAVED, true)
+                .putInt(KEY_FLOATING_BACK_POS_X, params.x)
+                .putInt(KEY_FLOATING_BACK_POS_Y, params.y)
+                .commit();
+    }
+
+    private void applyInitialPosition(int screenWidth, int screenHeight, int buttonSize, float density) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_FLOATING_BACK_POS_SAVED, false)) {
+            int x = prefs.getInt(KEY_FLOATING_BACK_POS_X, 0);
+            int y = prefs.getInt(KEY_FLOATING_BACK_POS_Y, 0);
+            int[] c = clampButtonPosition(x, y, screenWidth, screenHeight, buttonSize);
+            params.x = c[0];
+            params.y = c[1];
+        } else {
+            params.x = screenWidth - buttonSize - (int) (16 * density);
+            params.y = screenHeight - buttonSize - (int) (100 * density);
         }
     }
     
     /**
      * Floating back button'ı göster
      */
-    public void show() {
+    public synchronized void show() {
+        log("[INFO] Floating Back show() çağrıldı");
         // Her zaman önce mevcut view'ı temizle (güvenli başlangıç)
         cleanupExistingView();
         
         // Overlay permission kontrolü
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(context)) {
+                log("[WARN] Floating Back: 'Diğer uygulamaların üzerinde görüntüleme' izni yok; buton eklenmiyor. Ayarlarda MapControl için açın.");
                 android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
                 mainHandler.post(() -> {
                     // İzin isteği için Settings'e yönlendir
@@ -132,13 +226,17 @@ public class FloatingBackButtonManager {
         floatingButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
+                switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
                         // İlk dokunma pozisyonunu kaydet
                         initialX = params.x;
                         initialY = params.y;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
+                        log(String.format(
+                                java.util.Locale.US,
+                                "[DEBUG] FloatingBack dokun: pencere (x=%d, y=%d) raw=(%.1f, %.1f)",
+                                initialX, initialY, initialTouchX, initialTouchY));
                         return true;
                         
                     case MotionEvent.ACTION_MOVE:
@@ -149,35 +247,31 @@ public class FloatingBackButtonManager {
                         
                         int newX = initialX + deltaX;
                         int newY = initialY + deltaY;
-                        
-                        // Ekran sınırlarını kontrol et
                         android.util.DisplayMetrics displayMetrics = new android.util.DisplayMetrics();
                         windowManager.getDefaultDisplay().getMetrics(displayMetrics);
                         int screenWidth = displayMetrics.widthPixels;
                         int screenHeight = displayMetrics.heightPixels;
-                        
-                        // X sınırları (soldan ve sağdan)
-                        int margin = (int)(8 * context.getResources().getDisplayMetrics().density); // 8dp margin
-                        if (newX < margin) {
-                            newX = margin;
-                        } else if (newX > screenWidth - buttonSize - margin) {
-                            newX = screenWidth - buttonSize - margin;
-                        }
-                        
-                        // Y sınırları (üstten ve alttan)
-                        if (newY < margin) {
-                            newY = margin;
-                        } else if (newY > screenHeight - buttonSize - margin) {
-                            newY = screenHeight - buttonSize - margin;
-                        }
-                        
-                        params.x = newX;
-                        params.y = newY;
+                        int[] c = clampButtonPosition(newX, newY, screenWidth, screenHeight, buttonSize);
+                        params.x = c[0];
+                        params.y = c[1];
                         
                         try {
                             windowManager.updateViewLayout(floatingButton, params);
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            log("[ERROR] FloatingBack updateViewLayout: " + e.getMessage());
+                        }
+                        long now = SystemClock.uptimeMillis();
+                        if (now - lastDragLogUptimeMs >= DRAG_LOG_MIN_INTERVAL_MS) {
+                            lastDragLogUptimeMs = now;
+                            log(String.format(
+                                    java.util.Locale.US,
+                                    "[DEBUG] FloatingBack sürükle: pencere (x=%d, y=%d) parmak ekran (rawX=%.1f, rawY=%.1f) ekran %dx%d",
+                                    params.x,
+                                    params.y,
+                                    event.getRawX(),
+                                    event.getRawY(),
+                                    screenWidth,
+                                    screenHeight));
                         }
                         return true;
                         
@@ -192,19 +286,19 @@ public class FloatingBackButtonManager {
                             // BACK tuşunu simüle et
                             simulateBackButton();
                         }
+                        saveButtonPosition();
                         return true;
                 }
                 return false;
             }
         });
         
-        // Başlangıç pozisyonunu ayarla (sağ alt köşe)
+        // Başlangıç: kayıtlı konum veya sağ alt varsayılan
         android.util.DisplayMetrics displayMetrics = new android.util.DisplayMetrics();
         windowManager.getDefaultDisplay().getMetrics(displayMetrics);
         int screenWidth = displayMetrics.widthPixels;
         int screenHeight = displayMetrics.heightPixels;
-        params.x = screenWidth - buttonSize - (int)(16 * density); // Sağdan 16dp içeride
-        params.y = screenHeight - buttonSize - (int)(100 * density); // Alttan 100dp yukarı
+        applyInitialPosition(screenWidth, screenHeight, buttonSize, density);
         
         // WindowManager'a ekle
         try {
@@ -246,8 +340,12 @@ public class FloatingBackButtonManager {
     /**
      * Floating back button'ı gizle
      */
-    public void hide() {
+    public synchronized void hide() {
         if (floatingButton != null || isShowing) {
+            // Son görünen konum ACTION_UP dışında (ör. sadece radyo ile kapatma) diske gitsin; açılışta applyInitialPosition doğru okusun
+            if (params != null) {
+                saveButtonPosition();
+            }
             cleanupExistingView();
             log("[INFO] Floating Back Button gizlendi");
         }
@@ -387,12 +485,11 @@ public class FloatingBackButtonManager {
     
     /**
      * Ayarları yükle
-     * Default değer: false (kapalı)
+     * Default değer: true (açık) — {@link com.mapcontrol.service.MapControlService} uygulama açılışında overlay'i başlatır; kullanıcı ayrıca ayarlara girmek zorunda değil
      */
     public static boolean loadEnabledState(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        // Default değer false - ilk yüklemede kapalı
-        return prefs.getBoolean(KEY_FLOATING_BACK_BUTTON_ENABLED, false);
+        return prefs.getBoolean(KEY_FLOATING_BACK_BUTTON_ENABLED, true);
     }
 }
 

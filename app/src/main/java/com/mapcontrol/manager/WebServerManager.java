@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.manager;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -22,6 +21,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.os.Environment;
+import com.mapcontrol.ui.activity.MainActivity;
 
 /**
  * Basit HTTP Server Manager

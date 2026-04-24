@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.ui.activity;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;

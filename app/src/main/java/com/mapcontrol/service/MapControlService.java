@@ -1,5 +1,4 @@
-package com.mapcontrol;
-
+package com.mapcontrol.service;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -25,9 +24,7 @@ import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayArea;
 import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
-import android.hardware.display.DisplayManager;
 import android.view.Display;
-import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 
@@ -40,6 +37,12 @@ import java.io.File;
 import java.io.IOException;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.ui.activity.MainActivity;
+import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.util.DisplayHelper;
+import com.mapcontrol.manager.FloatingBackButtonManager;
+import com.mapcontrol.R;
 
 public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
@@ -94,8 +97,26 @@ public class MapControlService extends Service {
 
         startForeground(NOTIFICATION_ID, notification);
 
+        // Yüzen geri tuşu: ayarlara girmek zorunda kalmadan, servis her çalıştığında (uygulama açılışı) göster
+        ensureFloatingBackButtonIfEnabled();
+
         // Service'i restart etme (STICKY)
         return START_STICKY;
+    }
+
+    /**
+     * Ayarlarda açık kayıtlıysa (varsayılan: açık) overlay'i ana iş parçacığında çizer.
+     */
+    private void ensureFloatingBackButtonIfEnabled() {
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            if (!FloatingBackButtonManager.loadEnabledState(this)) {
+                return;
+            }
+            FloatingBackButtonManager.getInstance(this).show();
+        });
     }
 
     @Override
@@ -674,10 +695,10 @@ public class MapControlService extends Service {
         new Thread(() -> {
 
                     // Önce "Uygulama Hazırlanıyor" mesajını göster
-                    showPreparingMessageOnDisplay(getClusterDisplayId());
+                    DisplayHelper.showPreparingMessageOnDisplay(getApplicationContext(), AppLaunchHelper.getClusterDisplayId(getApplicationContext()));
                     Runnable timeoutRunnable = () -> {
                         log("⚠️ İşlem zaman aşımına uğradı, mesaj gizleniyor.");
-                        hidePreparingMessage();
+                        DisplayHelper.hidePreparingMessage();
                     };
                     handler.postDelayed(timeoutRunnable, 7000);
             try {
@@ -719,10 +740,22 @@ public class MapControlService extends Service {
                     String targetPackage = getTargetPackage();
                     if (targetPackage != null && !targetPackage.trim().isEmpty()) {
                             log("🚀 Seçilen uygulama cluster'da başlatılıyor: " + targetPackage);
-                        launchSelectedAppOnCluster(targetPackage);
+                            try {
+                                PackageManager pm = getPackageManager();
+                                Intent launchIntent = pm.getLaunchIntentForPackage(targetPackage.trim());
+                                if (launchIntent == null) {
+                                    log("⚠️ Uygulama intent bulunamadı: " + targetPackage);
+                                } else {
+                                    int clusterDisplayId = AppLaunchHelper.getClusterDisplayId(MapControlService.this);
+                                    AppLaunchHelper.launchAppOnDisplay(MapControlService.this, targetPackage.trim(), clusterDisplayId, Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                    log("✅ Uygulama cluster'da başlatıldı: " + targetPackage);
+                                }
+                            } catch (Exception e) {
+                                log("❌ Uygulama başlatma hatası: " + e.getMessage());
+                            }
                     }
                     handler.postDelayed(() -> {
-                        hidePreparingMessage();
+                        DisplayHelper.hidePreparingMessage();
                     }, 1000);
                 }, 600);
                 }, 1000);
@@ -756,68 +789,6 @@ public class MapControlService extends Service {
         } catch (Exception e) {
             log("❌ getPowerModeSetting hatası: " + e.getMessage());
             return 2; // Varsayılan
-        }
-    }
-
-    /**
-     * Seçilen uygulamayı cluster display'de başlat
-     */
-    private void launchSelectedAppOnCluster(String packageName) {
-        try {
-            PackageManager pm = getPackageManager();
-            Intent intent = pm.getLaunchIntentForPackage(packageName);
-            
-            if (intent == null) {
-                log("⚠️ Uygulama intent bulunamadı: " + packageName);
-                return;
-            }
-
-            // Cluster display ID'yi bul
-            int clusterDisplayId = getClusterDisplayId();
-            if (clusterDisplayId < 0) {
-                log("⚠️ Cluster display bulunamadı");
-                return;
-            }
-
-            
-            // Uygulamayı hemen aç
-            ActivityOptions options = ActivityOptions.makeBasic();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                options.setLaunchDisplayId(clusterDisplayId);
-            }
-
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            
-            startActivity(intent, options.toBundle());
-            log("✅ Uygulama cluster'da başlatıldı: " + packageName);
-        } catch (Exception e) {
-            log("❌ Uygulama başlatma hatası: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Cluster display ID'yi bul
-     */
-    private int getClusterDisplayId() {
-        try {
-            DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-            if (displayManager == null) {
-                return -1;
-            }
-
-            Display[] displays = displayManager.getDisplays();
-            for (Display display : displays) {
-                int displayId = display.getDisplayId();
-                // Display 0 = default, diğerleri genellikle cluster
-                if (displayId != Display.DEFAULT_DISPLAY) {
-                    return displayId;
-                }
-            }
-            return -1;
-        } catch (Exception e) {
-            log("❌ getClusterDisplayId hatası: " + e.getMessage());
-            return -1;
         }
     }
 
@@ -864,7 +835,21 @@ public class MapControlService extends Service {
                 // Eğer bir uygulama seçilmişse, onu default display'e (0) taşı
                 if (targetPackage != null && !targetPackage.trim().isEmpty()) {
                     handler.postDelayed(() -> {
-                        moveAppToDefaultDisplay(targetPackage);
+                        try {
+                            if ("com.mapcontrol".equals(targetPackage)) {
+                                return;
+                            }
+                            PackageManager pm = getPackageManager();
+                            Intent intent = pm.getLaunchIntentForPackage(targetPackage);
+                            if (intent == null) {
+                                log("⚠️ Uygulama intent bulunamadı: " + targetPackage);
+                            } else {
+                                AppLaunchHelper.moveAppToDefaultDisplay(MapControlService.this, targetPackage);
+                                log("✅ Uygulama default display'e taşındı: " + targetPackage);
+                            }
+                        } catch (Exception e) {
+                            log("❌ moveAppToDefaultDisplay hatası: " + e.getMessage());
+                        }
                     }, 300);
                 }
 
@@ -972,32 +957,6 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Seçilen uygulamayı cluster display'den default display'e (0) taşır
-     */
-    private void moveAppToDefaultDisplay(String packageName) {
-        try {
-            PackageManager pm = getPackageManager();
-            Intent intent = pm.getLaunchIntentForPackage(packageName);
-            
-            if (intent == null) {
-                log("⚠️ Uygulama intent bulunamadı: " + packageName);
-                return;
-            }
-
-            // Default display'de (0) başlat
-            ActivityOptions opts = ActivityOptions.makeBasic();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                opts.setLaunchDisplayId(Display.DEFAULT_DISPLAY);
-            }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-            startActivity(intent, opts.toBundle());
-            log("✅ Uygulama default display'e taşındı: " + packageName);
-        } catch (Exception e) {
-            log("❌ moveAppToDefaultDisplay hatası: " + e.getMessage());
-        }
-    }
-    
-    /**
      * Hoşgeldin ses dosyasını çal (powerMode == 2 olduğunda)
      */
     private void playWelcomeAudio() {
@@ -1054,166 +1013,4 @@ public class MapControlService extends Service {
         }
     }
     
-    /**
-     * İkinci ekranda "Uygulama Hazırlanıyor" mesajını göster
-     * İkinci display için Context oluşturup WindowManager'ı o Context ile alır
-     */
-    private android.view.View preparingMessageView = null;
-    private android.view.WindowManager preparingWindowManager = null;
-    private android.view.WindowManager.LayoutParams preparingParams = null;
-    private Context displayContext = null;
-    
-    private void showPreparingMessageOnDisplay(int displayId) {
-        try {
-            // Önce mevcut mesajı kaldır (varsa)
-            hidePreparingMessage();
-            
-            // İkinci display için Context oluştur
-            DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-            if (displayManager == null) {
-                log("DisplayManager bulunamadı");
-                return;
-            }
-            
-            Display targetDisplay = null;
-            Display[] displays = displayManager.getDisplays();
-            for (Display display : displays) {
-                if (display.getDisplayId() == displayId) {
-                    targetDisplay = display;
-                    break;
-                }
-            }
-            
-            if (targetDisplay == null) {
-                log("Display " + displayId + " bulunamadı");
-                return;
-            }
-            
-            // İkinci display için Context oluştur
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                displayContext = createDisplayContext(targetDisplay);
-            } else {
-                // Android 4.2 altı için default Context kullan
-                displayContext = this;
-            }
-            
-            // İkinci display için WindowManager al
-            preparingWindowManager = (android.view.WindowManager) displayContext.getSystemService(Context.WINDOW_SERVICE);
-            
-            // Mesaj view'ı oluştur (ikinci display Context'i ile)
-            android.widget.LinearLayout messageContainer = new android.widget.LinearLayout(displayContext);
-            messageContainer.setOrientation(android.widget.LinearLayout.VERTICAL);
-            messageContainer.setGravity(android.view.Gravity.CENTER);
-            messageContainer.setBackgroundColor(0xE6000000); // Yarı şeffaf siyah arka plan
-            messageContainer.setPadding(40, 40, 40, 40);
-            
-            android.widget.TextView messageText = new android.widget.TextView(displayContext);
-            messageText.setText("Uygulama Hazırlanıyor...");
-            messageText.setTextSize(24);
-            messageText.setTextColor(0xFFFFFFFF);
-            messageText.setTypeface(null, android.graphics.Typeface.BOLD);
-            messageText.setGravity(android.view.Gravity.CENTER);
-            
-            messageContainer.addView(messageText, new android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
-            
-            preparingMessageView = messageContainer;
-            
-            // WindowManager parametreleri
-            int type;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-            } else {
-                type = android.view.WindowManager.LayoutParams.TYPE_PHONE;
-            }
-            
-            preparingParams = new android.view.WindowManager.LayoutParams(
-                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                    type,
-                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                    android.graphics.PixelFormat.TRANSLUCENT);
-            
-            preparingParams.gravity = android.view.Gravity.CENTER;
-            
-            // WindowManager'a ekle (ikinci ekranda görünecek)
-            preparingWindowManager.addView(preparingMessageView, preparingParams);
-            
-            // Smooth fade-in animasyonu (sadece alpha)
-            preparingMessageView.setAlpha(0f);
-            
-            preparingMessageView.animate()
-                    .alpha(1f)
-                    .setDuration(300)
-                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                    .start();
-            
-            // Heartbeat efekti (yazıya kalp atışı animasyonu)
-            android.animation.ObjectAnimator scaleX = android.animation.ObjectAnimator.ofFloat(messageText, "scaleX", 1.0f, 1.1f);
-            android.animation.ObjectAnimator scaleY = android.animation.ObjectAnimator.ofFloat(messageText, "scaleY", 1.0f, 1.1f);
-            scaleX.setDuration(600);
-            scaleY.setDuration(600);
-            scaleX.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
-            scaleY.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
-            scaleX.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-            scaleY.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-            scaleX.setRepeatMode(android.animation.ValueAnimator.REVERSE);
-            scaleY.setRepeatMode(android.animation.ValueAnimator.REVERSE);
-            android.animation.AnimatorSet heartbeatAnim = new android.animation.AnimatorSet();
-            heartbeatAnim.playTogether(scaleX, scaleY);
-            heartbeatAnim.start();
-            
-            log("Uygulama Hazırlanıyor mesajı gösterildi (displayId=" + displayId + ")");
-        } catch (Exception e) {
-            log("showPreparingMessageOnDisplay hatası: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * "Uygulama Hazırlanıyor" mesajını kaldır (smooth fade-out animasyonu ile)
-     */
-    private void hidePreparingMessage() {
-        if (preparingMessageView != null && preparingWindowManager != null) {
-            try {
-                // Smooth fade-out animasyonu (sadece alpha)
-                preparingMessageView.animate()
-                        .alpha(0f)
-                        .setDuration(200)
-                        .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                        .withEndAction(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    if (preparingWindowManager != null && preparingMessageView != null) {
-                                        preparingWindowManager.removeView(preparingMessageView);
-                                    }
-                                } catch (Exception e) {
-                                    // View zaten kaldırılmış olabilir
-                                }
-                                preparingMessageView = null;
-                                preparingWindowManager = null;
-                                preparingParams = null;
-                                displayContext = null;
-                                log("Uygulama Hazırlanıyor mesajı kaldırıldı");
-                            }
-                        })
-                        .start();
-            } catch (Exception e) {
-                // Animasyon başarısız olursa direkt kaldır
-                try {
-                    preparingWindowManager.removeView(preparingMessageView);
-                } catch (Exception ex) {
-                    // View zaten kaldırılmış olabilir
-                }
-                preparingMessageView = null;
-                preparingWindowManager = null;
-                preparingParams = null;
-                displayContext = null;
-            }
-        }
-    }
 }
-
