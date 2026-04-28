@@ -2,15 +2,24 @@ package com.mapcontrol.ui.builder;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.content.ContextCompat;
+
+import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 
 public class SideRailBuilder {
     public interface SideRailCallback {
@@ -49,15 +58,15 @@ public class SideRailBuilder {
     public LinearLayout build() {
         LinearLayout sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
-        sideRail.setBackgroundColor(0xFF1C2630);
+        UiStyles.setRailPanelBackground(sideRail);
         sideRail.setPadding(0, 0, 0, 0);
 
         LinearLayout sideRailTopBar = new LinearLayout(context);
         sideRailTopBar.setOrientation(LinearLayout.HORIZONTAL);
-        sideRailTopBar.setBackgroundColor(0xFF1C2630);
-        sideRailTopBar.setPadding(24, 16, 16, 16);
+        sideRailTopBar.setBackgroundColor(Color.TRANSPARENT);
+        sideRailTopBar.setPadding(36, 26, 28, 22);
         sideRailTopBar.setGravity(Gravity.CENTER_VERTICAL);
-        sideRailTopBar.setMinimumHeight((int) (48 * context.getResources().getDisplayMetrics().density));
+        sideRailTopBar.setMinimumHeight((int) (76 * context.getResources().getDisplayMetrics().density));
 
         TextView appTitleText = new TextView(context);
         try {
@@ -72,7 +81,7 @@ public class SideRailBuilder {
             int versionStart = spannableText.toString().indexOf("(");
             int versionEnd = spannableText.length();
             if (versionStart >= 0) {
-                spannableText.setSpan(new RelativeSizeSpan(0.75f),
+                spannableText.setSpan(new RelativeSizeSpan(0.82f),
                         versionStart, versionEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
             appTitleText.setText(spannableText);
@@ -86,8 +95,8 @@ public class SideRailBuilder {
             }
             appTitleText.setText(spannableText);
         }
-        appTitleText.setTextSize(20);
-        appTitleText.setTextColor(0xFFFFFFFF);
+        appTitleText.setTextSize(28);
+        appTitleText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
         appTitleText.setTypeface(null, android.graphics.Typeface.BOLD);
         sideRailTopBar.addView(appTitleText);
 
@@ -96,21 +105,21 @@ public class SideRailBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         ScrollView menuScrollView = new ScrollView(context);
-        menuScrollView.setBackgroundColor(0xFF1C2630);
+        menuScrollView.setBackgroundColor(Color.TRANSPARENT);
         menuScrollView.setFillViewport(false);
 
         LinearLayout menuContainer = new LinearLayout(context);
         menuContainer.setOrientation(LinearLayout.VERTICAL);
-        menuContainer.setBackgroundColor(0xFF1C2630);
+        menuContainer.setBackgroundColor(Color.TRANSPARENT);
 
-        menuWifi = createRailMenuItemView("📶", "Wi-Fi Yönetimi", true);
-        menuApps = createRailMenuItemView("📱", "Uygulama Yönetimi", false);
-        menuFileUpload = createRailMenuItemView("📤", "Dosya Yükle", false);
-        menuProfile = createRailMenuItemView("👤", "Profil", false);
-        menuDriveMode = createRailMenuItemView("🚗", "Hafıza Modu", false);
-        menuTest = createRailMenuItemView("📷", "Kamera Test", false);
-        menuProjection = createRailMenuItemView("🗺️", "Yansıtma", false);
-        menuSettings = createRailMenuItemView("⚙️", "Ayarlar", false);
+        menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, "Wi-Fi Yönetimi");
+        menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, "Uygulama Yönetimi");
+        menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, "Web Yönetimi");
+        menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, "Profil");
+        menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, "Hafıza Modu");
+        menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, "Kamera Test");
+        menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, "Yansıtma");
+        menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, "Ayarlar");
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
@@ -132,13 +141,15 @@ public class SideRailBuilder {
                 1.0f);
         sideRail.addView(menuScrollView, menuScrollParams);
 
+        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+
         menuWifi.setOnClickListener(v -> {
             callback.onTabSelected(TAB_WIFI, "Wi-Fi Yönetimi");
             updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
         });
 
         menuFileUpload.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_FILE, "Dosya Yükle");
+            callback.onTabSelected(TAB_FILE, "Web Yönetimi");
             updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
         });
 
@@ -210,123 +221,83 @@ public class SideRailBuilder {
         }
     }
 
-    private LinearLayout createRailMenuItemView(String icon, String text, boolean isSelected) {
+    private LinearLayout createRailMenuItemView(int iconResId, String text) {
         float density = context.getResources().getDisplayMetrics().density;
-        int minTouchSizePx = 80;
-        int minTouchSizeDp = (int) (minTouchSizePx / density);
+        int minTouchPx = Math.round(context.getResources().getDimension(R.dimen.rail_row_min_height));
 
         LinearLayout itemLayout = new LinearLayout(context);
         itemLayout.setOrientation(LinearLayout.HORIZONTAL);
-        itemLayout.setPadding(0, Math.max(32, minTouchSizeDp / 2), 24, Math.max(32, minTouchSizeDp / 2));
+        int padH = (int) (26 * density);
+        int padV = (int) (20 * density);
+        itemLayout.setPadding(padH, padV, padH, padV);
         itemLayout.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         itemLayout.setClickable(true);
         itemLayout.setFocusable(true);
-        itemLayout.setMinimumHeight(minTouchSizePx);
-
-        if (isSelected) {
-            itemLayout.setBackgroundColor(0xFF1A4A6B);
-        } else {
-            itemLayout.setBackgroundColor(0x00000000);
-        }
-
-        LinearLayout leftPaddingContainer = new LinearLayout(context);
-        leftPaddingContainer.setOrientation(LinearLayout.HORIZONTAL);
-        leftPaddingContainer.setPadding(24, 0, 0, 0);
-        leftPaddingContainer.setGravity(Gravity.CENTER_VERTICAL);
-
-        if (isSelected) {
-            View accentBar = new View(context);
-            accentBar.setBackgroundColor(0xFF3DAEA8);
-            LinearLayout.LayoutParams accentBarParams = new LinearLayout.LayoutParams(
-                    5,
-                    LinearLayout.LayoutParams.MATCH_PARENT);
-            accentBarParams.setMargins(0, 12, 16, 12);
-            leftPaddingContainer.addView(accentBar, accentBarParams);
-        }
-
-        LinearLayout iconContainer = new LinearLayout(context);
-        iconContainer.setOrientation(LinearLayout.HORIZONTAL);
-        iconContainer.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        LinearLayout.LayoutParams iconContainerParams = new LinearLayout.LayoutParams(
-                64,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        leftPaddingContainer.addView(iconContainer, iconContainerParams);
-
-        TextView iconView = new TextView(context);
-        iconView.setText(icon);
-        iconView.setTextSize(28);
-        iconView.setTextColor(0xFFFFFFFF);
-        iconView.setGravity(Gravity.START);
-        iconContainer.addView(iconView);
-
-        itemLayout.addView(leftPaddingContainer);
-
-        TextView textView = new TextView(context);
-        textView.setText(text);
-        textView.setTextSize(18);
-        textView.setTextColor(0xFFFFFFFF);
-        textView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        textView.setTypeface(null, android.graphics.Typeface.NORMAL);
-        if (isSelected) {
-            textView.setTextColor(0xE6FFFFFF);
-        }
-        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1.0f);
-        textParams.setMargins(16, 0, 0, 0);
-        itemLayout.addView(textView, textParams);
+        itemLayout.setMinimumHeight(minTouchPx);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
+        int mH = (int) (12 * density);
+        int mV = (int) (6 * density);
+        params.setMargins(mH, mV, mH, mV);
         itemLayout.setLayoutParams(params);
+
+        int iconSize = (int) (36 * density);
+        AppCompatImageView iconView = new AppCompatImageView(context);
+        iconView.setImageResource(iconResId);
+        iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        iconView.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textSecondary)));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        iconLp.gravity = Gravity.CENTER_VERTICAL;
+        itemLayout.addView(iconView, iconLp);
+
+        TextView textView = new TextView(context);
+        textView.setText(text);
+        textView.setTextSize(22);
+        textView.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+        textView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1.0f);
+        textParams.setMargins((int) (16 * density), 0, 0, 0);
+        itemLayout.addView(textView, textParams);
+
+        itemLayout.setTag(R.id.side_rail_icon, iconView);
+        itemLayout.setTag(R.id.side_rail_label, textView);
 
         return itemLayout;
     }
 
+    private void applyRailRowSelectedState(LinearLayout row, boolean selected) {
+        AppCompatImageView icon = (AppCompatImageView) row.getTag(R.id.side_rail_icon);
+        TextView label = (TextView) row.getTag(R.id.side_rail_label);
+        if (selected) {
+            row.setBackgroundResource(R.drawable.bg_nav_pill_selected);
+            if (icon != null) {
+                icon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.oemAccent)));
+            }
+            if (label != null) {
+                label.setTextColor(ContextCompat.getColor(context, R.color.oemAccent));
+                label.setTypeface(null, android.graphics.Typeface.BOLD);
+            }
+        } else {
+            row.setBackgroundColor(Color.TRANSPARENT);
+            if (icon != null) {
+                icon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textSecondary)));
+            }
+            if (label != null) {
+                label.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+                label.setTypeface(null, android.graphics.Typeface.NORMAL);
+            }
+        }
+    }
+
     private void updateMenuSelection(LinearLayout selected, LinearLayout... others) {
-        selected.setBackgroundColor(0xFF1A4A6B);
-
-        if (selected.getChildCount() > 0 && selected.getChildAt(0) instanceof LinearLayout) {
-            LinearLayout leftPaddingContainer = (LinearLayout) selected.getChildAt(0);
-            if (leftPaddingContainer.getChildCount() > 0) {
-                View firstChild = leftPaddingContainer.getChildAt(0);
-                if (firstChild.getLayoutParams() != null && firstChild.getLayoutParams().width == 5) {
-                    firstChild.setBackgroundColor(0xFF3DAEA8);
-                } else {
-                    View accentBar = new View(context);
-                    accentBar.setBackgroundColor(0xFF3DAEA8);
-                    LinearLayout.LayoutParams accentBarParams = new LinearLayout.LayoutParams(
-                            5, LinearLayout.LayoutParams.MATCH_PARENT);
-                    accentBarParams.setMargins(0, 8, 12, 8);
-                    leftPaddingContainer.addView(accentBar, 0, accentBarParams);
-                }
-            }
-        }
-
-        TextView selectedText = (TextView) selected.getChildAt(selected.getChildCount() - 1);
-        if (selectedText != null) {
-            selectedText.setTypeface(null, android.graphics.Typeface.NORMAL);
-            selectedText.setTextColor(0xE6FFFFFF);
-        }
-
+        applyRailRowSelectedState(selected, true);
         for (LinearLayout other : others) {
-            other.setBackgroundColor(0x00000000);
-            if (other.getChildCount() > 0 && other.getChildAt(0) instanceof LinearLayout) {
-                LinearLayout otherLeftPaddingContainer = (LinearLayout) other.getChildAt(0);
-                if (otherLeftPaddingContainer.getChildCount() > 0) {
-                    View firstChild = otherLeftPaddingContainer.getChildAt(0);
-                    if (firstChild.getLayoutParams() != null && firstChild.getLayoutParams().width == 5) {
-                        otherLeftPaddingContainer.removeViewAt(0);
-                    }
-                }
-            }
-            TextView otherText = (TextView) other.getChildAt(other.getChildCount() - 1);
-            if (otherText != null) {
-                otherText.setTypeface(null, android.graphics.Typeface.NORMAL);
-                otherText.setTextColor(0xFFFFFFFF);
-            }
+            applyRailRowSelectedState(other, false);
         }
     }
 }

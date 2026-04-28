@@ -3,6 +3,11 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.os.Handler;
+import android.os.Looper;
+import android.graphics.Typeface;
+import android.util.TypedValue;
 import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.SystemClock;
@@ -14,6 +19,11 @@ import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+
+import com.mapcontrol.R;
 import com.mapcontrol.service.GlobalBackService;
 
 import java.util.ArrayList;
@@ -40,6 +50,9 @@ public class FloatingBackButtonManager {
     private View floatingButton;
     private WindowManager.LayoutParams params;
     private boolean isShowing = false;
+
+    /** Sistem (gece) teması dönünce renklerin güncel kalması için. */
+    private android.content.ComponentCallbacks2 mThemeConfigCallback;
     
     // Sürükleme için değişkenler
     private int initialX;
@@ -184,23 +197,27 @@ public class FloatingBackButtonManager {
             }
         }
         
-        // Floating button oluştur (oval, küçük, yumuşak köşeler)
+        float density = context.getResources().getDisplayMetrics().density;
+        final int buttonSize = FloatingOverlayBarSpec.uniformCellSidePx(context);
+        int innerPad = FloatingOverlayBarSpec.rowInnerPadPx(context);
+
+        // OEM kart; hızlı/yansıtma barı ile aynı köşe ve tipografi
         Button button = new Button(context);
+        button.setAllCaps(false);
         button.setText("◀");
-        button.setTextSize(18); // Orta boyut
-        button.setTextColor(0xFFFFFFFF);
-        
-        // Oval arka plan (GradientDrawable ile)
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xFF3DAEA8); // Accent rengi
-        bg.setShape(android.graphics.drawable.GradientDrawable.OVAL); // Oval şekil
-        button.setBackground(bg);
-        
-        button.setPadding(14, 14, 14, 14); // Daha küçük padding
-        button.setAlpha(0.9f); // Biraz şeffaf
-        
+        button.setMaxLines(1);
+        button.setMinWidth(0);
+        button.setMinHeight(0);
+        button.setIncludeFontPadding(false);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
+        button.setTypeface(null, Typeface.BOLD);
+        button.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        button.setPadding(innerPad, innerPad, innerPad, innerPad);
+        FloatingOverlayBarSpec.applyLikeFloatingBackButton(
+                button, ContextCompat.getColor(context, R.color.surfaceCard));
+
         floatingButton = button;
-        
+
         // WindowManager parametreleri
         int type;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -208,13 +225,10 @@ public class FloatingBackButtonManager {
         } else {
             type = WindowManager.LayoutParams.TYPE_PHONE;
         }
-        
-        float density = context.getResources().getDisplayMetrics().density;
-        final int buttonSize = (int)(56 * density); // 56dp - daha küçük ve oval
-        
+
         params = new WindowManager.LayoutParams(
-                buttonSize, // Sabit genişlik (56dp)
-                buttonSize, // Sabit yükseklik (56dp) - oval için eşit
+                buttonSize,
+                buttonSize,
                 type,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
@@ -305,6 +319,7 @@ public class FloatingBackButtonManager {
             if (windowManager != null && floatingButton != null && params != null) {
                 windowManager.addView(floatingButton, params);
                 isShowing = true;
+                registerThemeConfigCallback();
                 log("[SUCCESS] Floating Back Button gösterildi");
             }
         } catch (Exception e) {
@@ -319,10 +334,56 @@ public class FloatingBackButtonManager {
         }
     }
     
+    private void unregisterThemeConfigCallback() {
+        if (mThemeConfigCallback != null) {
+            try {
+                context.getApplicationContext().unregisterComponentCallbacks(mThemeConfigCallback);
+            } catch (Exception ignored) {
+            }
+            mThemeConfigCallback = null;
+        }
+    }
+
+    private void registerThemeConfigCallback() {
+        unregisterThemeConfigCallback();
+        mThemeConfigCallback = new android.content.ComponentCallbacks2() {
+            @Override
+            public void onConfigurationChanged(@NonNull Configuration newConfig) {
+                new Handler(Looper.getMainLooper()).post(() -> reapplyBackButtonTheme());
+            }
+
+            @Override
+            public void onLowMemory() {
+            }
+
+            @Override
+            public void onTrimMemory(int level) {
+            }
+        };
+        context.getApplicationContext().registerComponentCallbacks(mThemeConfigCallback);
+    }
+
+    private void reapplyBackButtonTheme() {
+        if (floatingButton == null || !(floatingButton instanceof Button) || !isShowing) {
+            return;
+        }
+        Button b = (Button) floatingButton;
+        float d = context.getResources().getDisplayMetrics().density;
+        int innerPad = FloatingOverlayBarSpec.rowInnerPadPx(context);
+        int textC = ContextCompat.getColor(context, R.color.textPrimary);
+        int cardC = ContextCompat.getColor(context, R.color.surfaceCard);
+        b.setTextColor(textC);
+        b.setIncludeFontPadding(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
+        b.setPadding(innerPad, innerPad, innerPad, innerPad);
+        FloatingOverlayBarSpec.applyLikeFloatingBackButton(b, cardC);
+    }
+    
     /**
      * Mevcut view'ı temizle (güvenli temizleme)
      */
     private void cleanupExistingView() {
+        unregisterThemeConfigCallback();
         if (floatingButton != null) {
             try {
                 // View'ın hala windowManager'da olup olmadığını kontrol et
@@ -360,7 +421,7 @@ public class FloatingBackButtonManager {
         ObjectAnimator scaleY = ObjectAnimator.ofFloat(button, "scaleY", 1.0f, 0.85f, 1.0f);
         
         // Alpha animasyonu (parlaklık değişimi)
-        ObjectAnimator alpha = ObjectAnimator.ofFloat(button, "alpha", 0.9f, 0.6f, 0.9f);
+        ObjectAnimator alpha = ObjectAnimator.ofFloat(button, "alpha", 0.96f, 0.65f, 0.96f);
         
         // Animasyon seti
         AnimatorSet animatorSet = new AnimatorSet();
@@ -384,17 +445,38 @@ public class FloatingBackButtonManager {
             return;
         }
         
-        // GlobalBackService kontrolü
-        if (!GlobalBackService.isServiceEnabled()) {
-            log("[WARN] Floating Back Button: GlobalBackService aktif değil, ayarlara yönlendiriliyor");
+        // instance yoksa: ayarlarda açık olabilir ama onServiceConnected henüz gelmedi (gecikme)
+        if (GlobalBackService.isServiceEnabled()) {
+            // bağlı, devam
+        } else if (GlobalBackService.isRegisteredInSystemAccessibilitySettings(context)) {
+            log("[INFO] Floating Back: erişilebilirlik açık, servis bağlantısı kısa sürede deneniyor");
+            android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+            h.postDelayed(() -> {
+                if (GlobalBackService.isServiceEnabled()) {
+                    if (GlobalBackService.performBackAction()) {
+                        log("[SUCCESS] Floating Back Button: BACK (gecikmeli bağlantı sonrası)");
+                    }
+                } else {
+                    Toast.makeText(
+                            context,
+                            "Erişilebilirlik servisi henüz yanıt vermiyor; birkaç sn sonra tekrar deneyin",
+                            Toast.LENGTH_LONG).show();
+                }
+            }, 400);
+            return;
+        } else {
+            log("[WARN] Floating Back Button: GlobalBackService ayarlarda kapalı, yönlendiriliyor");
             android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
             mainHandler.post(() -> {
                 try {
-                    // Accessibility ayarlarına yönlendir
-                    android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                    android.content.Intent intent = new android.content.Intent(
+                            android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(intent);
-                    Toast.makeText(context, "Lütfen 'Global Back Service' erişilebilirlik servisini açın", Toast.LENGTH_LONG).show();
+                    Toast.makeText(
+                            context,
+                            "Lütfen 'Global Back Service' (MapControl) erişilebilirlik servisini açın",
+                            Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
                     log("[ERROR] Floating Back Button: Accessibility ayarlarına gidilemedi - " + e.getMessage());
                 }

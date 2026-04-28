@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -19,14 +20,9 @@ import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.vdb.client.VDBus;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
-import com.desaysv.ivi.vdb.event.id.carlan.VDEventCarLan;
-import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayArea;
-import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
-import android.view.Display;
 import android.content.Context;
-import android.content.Intent;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,17 +37,52 @@ import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
+import com.mapcontrol.util.NetworkWifiHelper;
+import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.util.WebServerWifiToastHelper;
+import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
+import com.mapcontrol.manager.FloatingProjectionControlsManager;
+import com.mapcontrol.manager.FloatingQuickActionsManager;
 import com.mapcontrol.R;
 
 public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
     private static final int NOTIFICATION_ID = 1;
     private static final String TAG = "MapControlService";
+
+    /** Bench: {@link com.mapcontrol.manager.ClusterVDBusBenchManager} — power modu olmadan cluster aç. */
+    public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
+    /** Bench: cluster kapat (servis içi yol). */
+    public static final String ACTION_BENCH_CLOSE_CLUSTER = "com.mapcontrol.action.BENCH_CLOSE_CLUSTER";
+    /**
+     * {@link #ACTION_BENCH_CLOSE_CLUSTER} ile: {@code false} = HOME yok, uygulama önde kalır (yüzen yansıtma çubuğu).
+     * Varsayılan {@code true} (yansıtma sekmesi Durdur / bench / güç modu).
+     */
+    public static final String EXTRA_CLUSTER_CLOSE_SEND_BACKGROUND = "com.mapcontrol.extra.CLUSTER_CLOSE_SEND_BACKGROUND";
+    /** Kullanıcı: yüzen Wi‑Fi tazele; boot gecikmesi olmadan aynı stabilize zinciri. */
+    public static final String ACTION_USER_WIFI_STABILIZE = "com.mapcontrol.action.USER_WIFI_STABILIZE";
     private static final String ACTION_LOG = "com.mapcontrol.LOG_MESSAGE";
     private static final String EXTRA_LOG_MESSAGE = "log_message";
+    /** Açılış: servis ayaklandıktan sonra bu kadar bekle, sonra Wi-Fi stabilize zincirine gir. */
+    private static final long WIFI_STATUS_OVERLAY_DELAY_MS = 5000L;
+    /** Radyo kapandıktan sonra açmadan önce (ms). */
+    private static final long WIFI_STABILIZE_AFTER_OFF_MS = 5000L;
+    /** Açtıktan hemen sonra tarama + internet dinlemeye gecikme (sürücü için, ms). */
+    private static final long WIFI_STABILIZE_AFTER_ON_BEFORE_ACTION_MS = 400L;
+    /**
+     * Aç + taramadan sonra: sabit 5+5 bekleme yok; buna benzer aralıkla
+     * {@link NetworkWifiHelper#isWifiConnectedWithInternet} dene, süre dolarsa hata.
+     */
+    private static final long WIFI_INTERNET_PROBE_INTERVAL_MS = 450L;
+    private static final long WIFI_INTERNET_PROBE_MAX_MS = 30000L;
+    private int mWifiStabilizeToken = 0;
+    private Runnable mGlobalWifiStatusRunnable;
+    private Runnable mWifiInternetProbeRunnable;
     private ScheduledExecutorService scheduler;
     private Handler handler;
+    /** Yansıtma paneli / yüzen kontroller / power modu ile aynı cluster VDBus ve taşıma mantığı ({@link ClusterDisplayManager}). */
+    private ClusterDisplayManager clusterDisplayHelper;
     private int lastPowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
     
@@ -74,9 +105,179 @@ public class MapControlService extends Service {
         createNotificationChannel();
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        
+        requestWifiStabilizeChain(WIFI_STATUS_OVERLAY_DELAY_MS);
+        scheduleClusterBootSplash();
+
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
+    }
+
+    /**
+     * Boot/servis başlangıcında cluster (QNX) ekranı siyah kalmasın diye animasyonlu welcome
+     * overlay'i bastırır. Display henüz hazır değilse birkaç kez retry eder. Kullanıcı
+     * uygulamadan harita yansıttığında {@link ClusterDisplayManager} bu splash'i kapatır.
+     */
+    private void scheduleClusterBootSplash() {
+        if (handler == null) {
+            return;
+        }
+        final Context appCtx = getApplicationContext();
+        final int[] attempt = {0};
+        final int maxAttempts = 8;
+        final long retryDelayMs = 1500L;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                if (DisplayHelper.isBootSplashShowing()) {
+                    return;
+                }
+                int clusterDisplayId = AppLaunchHelper.getClusterDisplayId(appCtx);
+                if (clusterDisplayId != 0 && clusterDisplayId != android.view.Display.DEFAULT_DISPLAY) {
+                    DisplayHelper.showBootSplashOnDisplay(MapControlService.this, clusterDisplayId);
+                    if (DisplayHelper.isBootSplashShowing()) {
+                        return;
+                    }
+                }
+                if (++attempt[0] < maxAttempts && handler != null) {
+                    handler.postDelayed(this, retryDelayMs);
+                }
+            }
+        };
+        handler.postDelayed(r, 800L);
+    }
+
+    /**
+     * Wi-Fi kapat-aç + tarama + internet sondası — boot gecikmesi veya kullanıcı hızlı (0) ile
+     * {@code delayBeforeStartMs} gecikmesinden sonra aynı zincir.
+     */
+    private void requestWifiStabilizeChain(long delayBeforeStartMs) {
+        if (handler == null) {
+            return;
+        }
+        if (mGlobalWifiStatusRunnable != null) {
+            handler.removeCallbacks(mGlobalWifiStatusRunnable);
+            mGlobalWifiStatusRunnable = null;
+        }
+        int runId = ++mWifiStabilizeToken;
+        // Önce hazırlık overlay, sonra aynı zincir (boot: 5 sn, kullanıcı: 0).
+        handler.post(() -> {
+            if (runId != mWifiStabilizeToken) {
+                return;
+            }
+            WebServerWifiToastHelper.showWifiStabilizePreparingOverlay(this);
+            mGlobalWifiStatusRunnable = () -> {
+                mGlobalWifiStatusRunnable = null;
+                if (runId != mWifiStabilizeToken) {
+                    return;
+                }
+                onWifiStabilizeWifiOff(runId);
+            };
+            long delay = Math.max(0L, delayBeforeStartMs);
+            if (delay > 0) {
+                handler.postDelayed(mGlobalWifiStatusRunnable, delay);
+            } else {
+                handler.post(mGlobalWifiStatusRunnable);
+            }
+        });
+    }
+
+    private void onWifiStabilizeWifiOff(int runId) {
+        if (runId != mWifiStabilizeToken) {
+            return;
+        }
+        try {
+            NetworkWifiHelper.setWifiEnabled(this, false);
+        } catch (Exception e) {
+            log("Wi-Fi stabilize (kapat): " + e.getMessage());
+        }
+        if (runId != mWifiStabilizeToken) {
+            return;
+        }
+        handler.postDelayed(() -> onWifiStabilizeAfterOffWait(runId), WIFI_STABILIZE_AFTER_OFF_MS);
+    }
+
+    private void onWifiStabilizeAfterOffWait(int runId) {
+        if (runId != mWifiStabilizeToken) {
+            return;
+        }
+        try {
+            NetworkWifiHelper.setWifiEnabled(this, true);
+        } catch (Exception e) {
+            log("Wi-Fi stabilize (aç): " + e.getMessage());
+        }
+        if (runId != mWifiStabilizeToken || handler == null) {
+            return;
+        }
+        handler.postDelayed(
+                () -> onWifiStabilizeScanAndProbeForInternet(runId),
+                WIFI_STABILIZE_AFTER_ON_BEFORE_ACTION_MS);
+    }
+
+    private void onWifiStabilizeScanAndProbeForInternet(int runId) {
+        if (runId != mWifiStabilizeToken) {
+            return;
+        }
+        try {
+            NetworkWifiHelper.startWifiScan(this);
+        } catch (Exception e) {
+            log("Wi-Fi stabilize (tarama): " + e.getMessage());
+        }
+        if (runId != mWifiStabilizeToken) {
+            return;
+        }
+        scheduleWifiInternetProbe(runId);
+    }
+
+    private void scheduleWifiInternetProbe(int runId) {
+        if (handler == null) {
+            return;
+        }
+        if (mWifiInternetProbeRunnable != null) {
+            handler.removeCallbacks(mWifiInternetProbeRunnable);
+        }
+        final long deadline = SystemClock.uptimeMillis() + WIFI_INTERNET_PROBE_MAX_MS;
+        mWifiInternetProbeRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (runId != mWifiStabilizeToken) {
+                    mWifiInternetProbeRunnable = null;
+                    return;
+                }
+                try {
+                    if (NetworkWifiHelper.isWifiConnectedWithInternet(MapControlService.this)) {
+                        mWifiInternetProbeRunnable = null;
+                        WebServerWifiToastHelper.showSystemOverlay(
+                                getApplicationContext(), true);
+                        return;
+                    }
+                } catch (Exception e) {
+                    mWifiInternetProbeRunnable = null;
+                    log("Wi-Fi durum bildirimi: " + e.getMessage());
+                    try {
+                        if (runId == mWifiStabilizeToken) {
+                            WebServerWifiToastHelper.showSystemOverlay(
+                                    getApplicationContext(), false);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    return;
+                }
+                if (SystemClock.uptimeMillis() >= deadline) {
+                    mWifiInternetProbeRunnable = null;
+                    try {
+                        WebServerWifiToastHelper.showSystemOverlay(
+                                getApplicationContext(), false);
+                    } catch (Exception e) {
+                        log("Wi-Fi durum bildirimi: " + e.getMessage());
+                    }
+                    return;
+                }
+                if (handler != null) {
+                    handler.postDelayed(mWifiInternetProbeRunnable, WIFI_INTERNET_PROBE_INTERVAL_MS);
+                }
+            }
+        };
+        handler.postDelayed(mWifiInternetProbeRunnable, 300L);
     }
 
     @Override
@@ -99,6 +300,25 @@ public class MapControlService extends Service {
 
         // Yüzen geri tuşu: ayarlara girmek zorunda kalmadan, servis her çalıştığında (uygulama açılışı) göster
         ensureFloatingBackButtonIfEnabled();
+        ensureFloatingProjectionControlsIfEnabled();
+        ensureFloatingQuickActionsIfEnabled();
+
+        if (intent != null && ACTION_USER_WIFI_STABILIZE.equals(intent.getAction())) {
+            log("[User] ACTION_USER_WIFI_STABILIZE (Wi-Fi stabilize)");
+            requestWifiStabilizeChain(0);
+            return START_STICKY;
+        }
+        if (intent != null && ACTION_BENCH_OPEN_CLUSTER.equals(intent.getAction())) {
+            log("[Bench] ACTION_BENCH_OPEN_CLUSTER");
+            openClusterDisplay();
+            return START_STICKY;
+        }
+        if (intent != null && ACTION_BENCH_CLOSE_CLUSTER.equals(intent.getAction())) {
+            boolean sendBackground = intent.getBooleanExtra(EXTRA_CLUSTER_CLOSE_SEND_BACKGROUND, true);
+            log("[Bench] ACTION_BENCH_CLOSE_CLUSTER (sendBackground=" + sendBackground + ")");
+            closeClusterDisplay(sendBackground);
+            return START_STICKY;
+        }
 
         // Service'i restart etme (STICKY)
         return START_STICKY;
@@ -119,9 +339,43 @@ public class MapControlService extends Service {
         });
     }
 
+    private void ensureFloatingProjectionControlsIfEnabled() {
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            if (!FloatingProjectionControlsManager.loadEnabledState(this)) {
+                return;
+            }
+            FloatingProjectionControlsManager.getInstance(this).show();
+        });
+    }
+
+    private void ensureFloatingQuickActionsIfEnabled() {
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            if (!FloatingQuickActionsManager.loadEnabledState(this)) {
+                return;
+            }
+            FloatingQuickActionsManager.getInstance(this).show();
+        });
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mWifiStabilizeToken++;
+        WebServerWifiToastHelper.dismissWifiStabilizePreparingOverlay(this);
+        if (handler != null && mGlobalWifiStatusRunnable != null) {
+            handler.removeCallbacks(mGlobalWifiStatusRunnable);
+            mGlobalWifiStatusRunnable = null;
+        }
+        if (handler != null && mWifiInternetProbeRunnable != null) {
+            handler.removeCallbacks(mWifiInternetProbeRunnable);
+            mWifiInternetProbeRunnable = null;
+        }
         if (scheduler != null) {
             scheduler.shutdown();
         }
@@ -251,7 +505,7 @@ public class MapControlService extends Service {
                             
                             if (autoCloseOnPowerOff) {
                                 log("Araç kapanınca otomatik kapatma aktif, navigasyon kapatılıyor...");
-                            closeClusterDisplay();
+                            closeClusterDisplay(true);
                             } else {
                                 log("Araç kapanınca otomatik kapatma devre dışı, navigasyon kapatılmıyor");
                             }
@@ -689,81 +943,43 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Cluster display'i aç (MainActivity'deki openClusterDisplay() ile aynı mantık)
+     * Ana ekrandaki Yansıtma sekmesiyle aynı uygulama: {@link ClusterDisplayManager#openClusterDisplay()}.
      */
+    private ClusterDisplayManager getClusterDisplayHelper() {
+        if (clusterDisplayHelper == null) {
+            clusterDisplayHelper = new ClusterDisplayManager(getApplicationContext(),
+                    new ClusterDisplayManager.ClusterCallback() {
+                        @Override
+                        public void onNavigationStateChanged(boolean isOpen) {
+                            // MainActivity ayrı tutar; servis yolu yalnızca cluster komutu gönderir
+                        }
+
+                        @Override
+                        public String getTargetPackage() {
+                            return MapControlService.this.getTargetPackage();
+                        }
+
+                        @Override
+                        public void log(String message) {
+                            MapControlService.this.log(message);
+                        }
+                    });
+        }
+        return clusterDisplayHelper;
+    }
+
     private void openClusterDisplay() {
-        new Thread(() -> {
-
-                    // Önce "Uygulama Hazırlanıyor" mesajını göster
-                    DisplayHelper.showPreparingMessageOnDisplay(getApplicationContext(), AppLaunchHelper.getClusterDisplayId(getApplicationContext()));
-                    Runnable timeoutRunnable = () -> {
-                        log("⚠️ İşlem zaman aşımına uğradı, mesaj gizleniyor.");
-                        DisplayHelper.hidePreparingMessage();
-                    };
-                    handler.postDelayed(timeoutRunnable, 7000);
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            log("🔌 Cluster display açılıyor (ClusterDisplayManager)...");
             try {
-                log("🔌 Cluster display açılıyor...");
-
-                // 1. Wake up event gönder
-                    VDNaviDisplayCluster payloadwakeUp = new VDNaviDisplayCluster();
-                    payloadwakeUp.setNaviFrontDeskStatus("true");
-                    payloadwakeUp.setDisplayCluster("true");
-                    payloadwakeUp.setPerspective(0);
-                    payloadwakeUp.setPerspectiveResult("false");
-                    payloadwakeUp.setRequestDisplayNaviArea("true");
-                    VDEvent eventwakeUp = VDNaviDisplayCluster.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_TO_CLUSTER, payloadwakeUp);
-                    VDBus.getDefault().set(eventwakeUp);
-
-                // 1000ms gecikme (Thread.sleep yerine Handler.postDelayed)
-                handler.postDelayed(() -> {
-                // 2. Display Area event
-                VDNaviDisplayArea payloadDA = new VDNaviDisplayArea();
-                payloadDA.setNaviDisplayArea(10);
-                payloadDA.setNaviDisplayAreaResult("true");
-                VDEvent eventDA = VDNaviDisplayArea.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_AREA, payloadDA);
-                VDBus.getDefault().set(eventDA);
-
-                // 3. Display Cluster event
-                VDNaviDisplayCluster payload = new VDNaviDisplayCluster();
-                payload.setNaviFrontDeskStatus("true");
-                payload.setDisplayCluster("true");
-                payload.setPerspective(0);
-                payload.setPerspectiveResult("false");
-                payload.setRequestDisplayNaviArea("false");
-                VDEvent event = VDNaviDisplayCluster.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_TO_CLUSTER, payload);
-                VDBus.getDefault().set(event);
-
-                log("✅ Navigasyon paneli açıldı");
-
-                // 4. Eğer bir uygulama seçilmişse, cluster'da başlat (600ms gecikme ile)
-                handler.postDelayed(() -> {
-                    String targetPackage = getTargetPackage();
-                    if (targetPackage != null && !targetPackage.trim().isEmpty()) {
-                            log("🚀 Seçilen uygulama cluster'da başlatılıyor: " + targetPackage);
-                            try {
-                                PackageManager pm = getPackageManager();
-                                Intent launchIntent = pm.getLaunchIntentForPackage(targetPackage.trim());
-                                if (launchIntent == null) {
-                                    log("⚠️ Uygulama intent bulunamadı: " + targetPackage);
-                                } else {
-                                    int clusterDisplayId = AppLaunchHelper.getClusterDisplayId(MapControlService.this);
-                                    AppLaunchHelper.launchAppOnDisplay(MapControlService.this, targetPackage.trim(), clusterDisplayId, Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                                    log("✅ Uygulama cluster'da başlatıldı: " + targetPackage);
-                                }
-                            } catch (Exception e) {
-                                log("❌ Uygulama başlatma hatası: " + e.getMessage());
-                            }
-                    }
-                    handler.postDelayed(() -> {
-                        DisplayHelper.hidePreparingMessage();
-                    }, 1000);
-                }, 600);
-                }, 1000);
-
+                getClusterDisplayHelper().openClusterDisplay();
             } catch (Exception e) {
                 log("❌ Cluster display açma hatası: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     /**
@@ -771,8 +987,8 @@ public class MapControlService extends Service {
      */
     private String getTargetPackage() {
         try {
-            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-            return prefs.getString("targetPackage", null);
+            String v = TargetPackageStore.read(this);
+            return v.isEmpty() ? null : v;
         } catch (Exception e) {
             log("❌ getTargetPackage hatası: " + e.getMessage());
             return null;
@@ -793,109 +1009,21 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Cluster display'i kapat (MainActivity'deki closeClusterDisplay() ile aynı mantık)
+     * @param sendBackground {@code true}: sekmedeki Durdur gibi HOME ile arka plan;
+     *                     {@code false}: cluster kapanır, hedef uygulama önde kalır (yüzen çubuk).
      */
-    private void closeClusterDisplay() {
-        new Thread(() -> {
+    private void closeClusterDisplay(boolean sendBackground) {
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            log("🔴 Cluster display kapatılıyor (ClusterDisplayManager, sendBackground=" + sendBackground + ")...");
             try {
-                log("🔴 Cluster display kapatılıyor...");
-
-                // Eğer bir uygulama seçilmişse, önce display kontrolü yap
-                String targetPackage = getTargetPackage();
-                if (targetPackage != null && !targetPackage.trim().isEmpty()) {
-                    int currentDisplay = getAppCurrentDisplay(targetPackage);
-                    log("ℹ️ Uygulama mevcut display: " + currentDisplay);
-                    
-                    // Eğer uygulama display 0 veya 2'de değilse, işlem yapma
-                    if (currentDisplay != Display.DEFAULT_DISPLAY && currentDisplay != 2) {
-                        log("ℹ️ Uygulama display " + currentDisplay + "'de, işlem yapılmıyor");
-                        return;
-                    }
-                }
-
-                // VDBus event ile display area'yı kapat
-                VDNaviDisplayArea payloadDA = new VDNaviDisplayArea();
-                payloadDA.setNaviDisplayArea(0);
-                payloadDA.setNaviDisplayAreaResult("true");
-                VDEvent eventDA = VDNaviDisplayArea.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_AREA, payloadDA);
-                VDBus.getDefault().set(eventDA);
-
-
-                VDNaviDisplayCluster payload = new VDNaviDisplayCluster();
-                payload.setNaviFrontDeskStatus("false");
-                payload.setDisplayCluster("false");
-                payload.setPerspective(0);
-                payload.setPerspectiveResult("false");
-                payload.setRequestDisplayNaviArea("false");
-                VDEvent event = VDNaviDisplayCluster.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_TO_CLUSTER, payload);
-                VDBus.getDefault().set(event);
-
-                log("✅ Navigasyon paneli kapatıldı");
-
-                // Eğer bir uygulama seçilmişse, onu default display'e (0) taşı
-                if (targetPackage != null && !targetPackage.trim().isEmpty()) {
-                    handler.postDelayed(() -> {
-                        try {
-                            if ("com.mapcontrol".equals(targetPackage)) {
-                                return;
-                            }
-                            PackageManager pm = getPackageManager();
-                            Intent intent = pm.getLaunchIntentForPackage(targetPackage);
-                            if (intent == null) {
-                                log("⚠️ Uygulama intent bulunamadı: " + targetPackage);
-                            } else {
-                                AppLaunchHelper.moveAppToDefaultDisplay(MapControlService.this, targetPackage);
-                                log("✅ Uygulama default display'e taşındı: " + targetPackage);
-                            }
-                        } catch (Exception e) {
-                            log("❌ moveAppToDefaultDisplay hatası: " + e.getMessage());
-                        }
-                    }, 300);
-                }
-
+                getClusterDisplayHelper().closeClusterDisplay(sendBackground);
             } catch (Exception e) {
                 log("❌ Cluster display kapatma hatası: " + e.getMessage());
             }
-        }).start();
-    }
-
-    /**
-     * Uygulamanın şu anda hangi display'de çalıştığını kontrol et
-     */
-    private int getAppCurrentDisplay(String packageName) {
-        try {
-            // dumpsys window komutu ile kontrol et
-            Process process = Runtime.getRuntime().exec("dumpsys window windows");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            int currentDisplay = -1;
-            
-            while ((line = reader.readLine()) != null) {
-                // Package name'i içeren satırları bul
-                if (line.contains(packageName)) {
-                    // Display ID'yi bul (mDisplayId=...)
-                    int displayIndex = line.indexOf("mDisplayId=");
-                    if (displayIndex != -1) {
-                        int start = displayIndex + 11; // "mDisplayId=".length()
-                        int end = line.indexOf(" ", start);
-                        if (end == -1) end = line.length();
-                        try {
-                            currentDisplay = Integer.parseInt(line.substring(start, end));
-                            break;
-                        } catch (NumberFormatException e) {
-                            // Ignore
-                        }
-                    }
-                }
-            }
-            reader.close();
-            process.destroy();
-            
-            return currentDisplay != -1 ? currentDisplay : Display.DEFAULT_DISPLAY;
-        } catch (Exception e) {
-            log("❌ getAppCurrentDisplay hatası: " + e.getMessage());
-            return Display.DEFAULT_DISPLAY; // Varsayılan olarak 0 döndür
-        }
+        });
     }
 
     /**

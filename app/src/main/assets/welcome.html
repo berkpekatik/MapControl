@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Control - Dosya Yükle</title>
+    <title>Map Control - Web Yönetimi</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #0A0F14 0%, #151C24 100%);
+            background: linear-gradient(135deg, #10141B 0%, #1A212C 100%);
             color: #FFFFFF;
             min-height: 100vh;
             padding: 20px;
@@ -24,7 +24,7 @@
             padding: 48px 40px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(61, 174, 168, 0.15);
+            border: 1px solid rgba(115, 178, 245, 0.15);
             margin-bottom: 24px;
             animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -77,28 +77,28 @@
             align-items: center;
             justify-content: center;
             padding: 60px 40px;
-            background: rgba(61, 174, 168, 0.05);
-            border: 2px dashed rgba(61, 174, 168, 0.3);
+            background: rgba(115, 178, 245, 0.05);
+            border: 2px dashed rgba(115, 178, 245, 0.3);
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             min-height: 200px;
         }
         .file-input-label:hover {
-            background: rgba(61, 174, 168, 0.1);
-            border-color: rgba(61, 174, 168, 0.5);
+            background: rgba(115, 178, 245, 0.1);
+            border-color: rgba(115, 178, 245, 0.5);
             transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(61, 174, 168, 0.2);
+            box-shadow: 0 8px 24px rgba(115, 178, 245, 0.2);
         }
         .file-input-label.dragover {
-            background: rgba(61, 174, 168, 0.15);
-            border-color: #3DAEA8;
+            background: rgba(115, 178, 245, 0.15);
+            border-color: #73B2F5;
             transform: scale(1.02);
-            box-shadow: 0 12px 32px rgba(61, 174, 168, 0.3);
+            box-shadow: 0 12px 32px rgba(115, 178, 245, 0.3);
         }
         .file-input-label.has-file {
-            background: rgba(61, 174, 168, 0.1);
-            border-color: #3DAEA8;
+            background: rgba(115, 178, 245, 0.1);
+            border-color: #73B2F5;
         }
         .upload-icon {
             font-size: 48px;
@@ -131,7 +131,7 @@
         .file-info {
             margin-top: 20px;
             padding: 20px;
-            background: rgba(61, 174, 168, 0.1);
+            background: rgba(115, 178, 245, 0.1);
             border-radius: 16px;
             display: none;
             animation: slideDown 0.3s ease;
@@ -141,7 +141,7 @@
         }
         .file-name {
             font-size: 15px;
-            color: #3DAEA8;
+            color: #73B2F5;
             font-weight: 500;
             word-break: break-all;
             margin-bottom: 4px;
@@ -166,7 +166,7 @@
             color: #CCCCCC;
         }
         .progress-percent {
-            color: #3DAEA8;
+            color: #73B2F5;
             font-weight: 600;
         }
         .progress-bar {
@@ -179,7 +179,7 @@
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #3DAEA8 0%, #2d8a85 100%);
+            background: linear-gradient(90deg, #73B2F5 0%, #4586C5 100%);
             border-radius: 10px;
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             width: 0%;
@@ -200,7 +200,7 @@
             100% { transform: translateX(100%); }
         }
         .upload-btn {
-            background: linear-gradient(135deg, #3DAEA8 0%, #2d8a85 100%);
+            background: linear-gradient(135deg, #4586C5 0%, #73B2F5 100%);
             color: #FFFFFF;
             border: none;
             padding: 18px 32px;
@@ -210,7 +210,7 @@
             cursor: pointer;
             width: 100%;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 16px rgba(61, 174, 168, 0.4);
+            box-shadow: 0 4px 16px rgba(115, 178, 245, 0.4);
             letter-spacing: 0.3px;
             position: relative;
             overflow: hidden;
@@ -233,7 +233,7 @@
         }
         .upload-btn:hover:not(:disabled) {
             transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(61, 174, 168, 0.5);
+            box-shadow: 0 8px 24px rgba(115, 178, 245, 0.5);
         }
         .upload-btn:active:not(:disabled) {
             transform: translateY(-1px);
@@ -250,17 +250,17 @@
             justify-content: center;
             margin-top: 24px;
             padding: 12px 20px;
-            background: rgba(61, 174, 168, 0.1);
+            background: rgba(115, 178, 245, 0.1);
             border-radius: 24px;
             font-size: 14px;
-            color: #3DAEA8;
+            color: #73B2F5;
             gap: 8px;
         }
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #3DAEA8;
+            background: #73B2F5;
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
@@ -279,7 +279,7 @@
         }
         .toast {
             background: rgba(30, 38, 48, 0.98);
-            border: 1px solid rgba(61, 174, 168, 0.3);
+            border: 1px solid rgba(115, 178, 245, 0.3);
             border-radius: 16px;
             padding: 16px 20px;
             min-width: 300px;
@@ -320,7 +320,7 @@
             color: #F44336;
         }
         .toast.info {
-            color: #3DAEA8;
+            color: #73B2F5;
         }
         .toast-icon {
             font-size: 24px;
@@ -377,7 +377,7 @@
             max-width: 500px;
             width: 90%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(61, 174, 168, 0.2);
+            border: 1px solid rgba(115, 178, 245, 0.2);
             animation: modalSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
         }
@@ -421,13 +421,13 @@
             border: none;
         }
         .modal-btn-primary {
-            background: linear-gradient(135deg, #3DAEA8 0%, #2d8a85 100%);
+            background: linear-gradient(135deg, #4586C5 0%, #73B2F5 100%);
             color: #FFFFFF;
-            box-shadow: 0 4px 12px rgba(61, 174, 168, 0.3);
+            box-shadow: 0 4px 12px rgba(115, 178, 245, 0.3);
         }
         .modal-btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(61, 174, 168, 0.4);
+            box-shadow: 0 6px 20px rgba(115, 178, 245, 0.4);
         }
         .modal-btn-secondary {
             background: rgba(255, 255, 255, 0.1);
@@ -452,9 +452,9 @@
             color: #FFFFFF;
         }
         .refresh-btn {
-            background: rgba(61, 174, 168, 0.1);
-            border: 1px solid rgba(61, 174, 168, 0.3);
-            color: #3DAEA8;
+            background: rgba(115, 178, 245, 0.1);
+            border: 1px solid rgba(115, 178, 245, 0.3);
+            color: #73B2F5;
             padding: 10px 18px;
             border-radius: 12px;
             cursor: pointer;
@@ -465,7 +465,7 @@
             gap: 6px;
         }
         .refresh-btn:hover {
-            background: rgba(61, 174, 168, 0.2);
+            background: rgba(115, 178, 245, 0.2);
             transform: translateY(-2px);
         }
         .refresh-btn:active {
@@ -475,7 +475,7 @@
             max-height: 400px;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: rgba(61, 174, 168, 0.3) transparent;
+            scrollbar-color: rgba(115, 178, 245, 0.3) transparent;
         }
         .files-list::-webkit-scrollbar {
             width: 6px;
@@ -484,11 +484,11 @@
             background: transparent;
         }
         .files-list::-webkit-scrollbar-thumb {
-            background: rgba(61, 174, 168, 0.3);
+            background: rgba(115, 178, 245, 0.3);
             border-radius: 3px;
         }
         .files-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(61, 174, 168, 0.5);
+            background: rgba(115, 178, 245, 0.5);
         }
         .file-item {
             display: flex;
@@ -504,7 +504,7 @@
         .file-item:hover {
             background: rgba(255, 255, 255, 0.06);
             transform: translateX(4px);
-            border-color: rgba(61, 174, 168, 0.2);
+            border-color: rgba(115, 178, 245, 0.2);
         }
         .file-item-info {
             flex: 1;
@@ -582,15 +582,15 @@
         .loading {
             text-align: center;
             padding: 60px 40px;
-            color: #3DAEA8;
+            color: #73B2F5;
             font-size: 15px;
         }
         .loading-spinner {
             display: inline-block;
             width: 24px;
             height: 24px;
-            border: 3px solid rgba(61, 174, 168, 0.3);
-            border-top-color: #3DAEA8;
+            border: 3px solid rgba(115, 178, 245, 0.3);
+            border-top-color: #73B2F5;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin-right: 12px;
@@ -599,6 +599,39 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .app-brand { text-align: center; margin-bottom: 8px; }
+        .app-brand .brand-eyebrow { font-size: 12px; color: #9CA3AF; letter-spacing: 0.12em; text-transform: uppercase; }
+        .app-brand .brand-name { font-size: 20px; font-weight: 600; color: #E6E6E6; margin-top: 4px; }
+        .web-nav { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 0 0 20px; }
+        .web-nav button {
+            display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px;
+            border: 1px solid rgba(115, 178, 245, 0.28);
+            background: rgba(30, 38, 48, 0.75); color: #E6E6E6; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .web-nav button svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .web-nav button .nav-ico { fill: #73B2F5; }
+        .web-nav button:hover { background: rgba(115, 178, 245, 0.08); border-color: rgba(115, 178, 245, 0.5); }
+        .web-nav button.active { background: rgba(69, 134, 197, 0.15); border-color: #73B2F5; color: #FFFFFF; }
+        .web-panel { display: none; animation: fadeInUp 0.4s ease; }
+        .web-panel.is-visible { display: block; }
+        .icon-header { display: flex; justify-content: center; margin-bottom: 12px; }
+        .icon-header svg, .icon-svg { width: 48px; height: 48px; fill: #73B2F5; }
+        .form-row { margin: 20px 0; }
+        .text-like-input, .textarea-in {
+            width: 100%; box-sizing: border-box; padding: 14px 16px; border-radius: 14px;
+            border: 1px solid rgba(115, 178, 245, 0.3); background: rgba(0,0,0,0.2); color: #fff;
+            font-size: 14px; min-height: 48px; font-family: inherit;
+        }
+        .textarea-in { min-height: 120px; resize: vertical; }
+        .help-text { font-size: 12px; color: #9CA3AF; margin-top: 8px; line-height: 1.45; }
+        .lock-badge { font-size: 12px; color: #6B8EBF; margin-left: 6px; }
+        .inline-check {
+            display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 8px;
+            font-size: 13px; color: #E6E6E6; cursor: pointer; user-select: none;
+        }
+        .inline-check input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #73B2F5; cursor: pointer; }
+        .inline-check span { line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -618,20 +651,40 @@
     </div>
     
     <div class="container">
+        <div class="app-brand">
+            <div class="brand-eyebrow">OEM stil</div>
+            <div class="brand-name">Map Control — Web Yönetimi</div>
+        </div>
+        <nav class="web-nav" id="webNav" aria-label="Bölümler">
+            <button type="button" class="active" data-panel="files" id="navFiles">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" /></svg>
+                <span>Dosyalar</span>
+            </button>
+            <button type="button" data-panel="maps" id="navMaps">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z" /></svg>
+                <span>Link aç</span>
+            </button>
+            <button type="button" data-panel="keyboard" id="navKeyboard">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M4,5A2,2 0 0,0 2,7V17A2,2 0 0,0 4,19H20A2,2 0 0,0 22,17V7A2,2 0 0,0 20,5H4M4,7H20V17H4V7M5,8V10H7V8H5M8,8V10H10V8H8M11,8V10H13V8H11M14,8V10H16V8H14M17,8V10H19V8H17M5,11V13H7V11H5M8,11V13H10V11H8M11,11V13H19V11H11M5,14V16H15V14H5" /></svg>
+                <span>Klavye</span>
+            </button>
+        </nav>
+        <div class="web-panel is-visible" id="panelFiles">
         <div class="upload-card">
             <div class="header">
-                <span class="icon">📤</span>
-                <h1>Dosya Yükle</h1>
-                <p class="subtitle">Dosyanızı seçin ve yükleyin</p>
+                <div class="icon-header" aria-hidden="true">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" /></svg>
+                </div>
+                <h1>Dosyalar</h1>
+                <p class="subtitle">Araç indirme klasörüne dosya yükleyin</p>
             </div>
             
             <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-area">
                     <div class="file-input-wrapper">
                         <label for="fileInput" class="file-input-label" id="fileLabel">
-                            <span class="upload-icon">📁</span>
-                            <span class="upload-text">Dosya Seç veya Sürükle</span>
-                            <span class="upload-hint">APK, ZIP, PDF ve diğer dosya türleri desteklenir</span>
+                            <span class="upload-text">Dosya seç veya sürükle</span>
+                            <span class="upload-hint">APK, ZIP, PDF ve diğer türler</span>
                         </label>
                         <input type="file" id="fileInput" name="file" required>
                     </div>
@@ -653,7 +706,7 @@
                 </div>
                 
                 <button type="submit" class="upload-btn" id="uploadBtn">
-                    <span id="btnText">Dosya Yükle</span>
+                    <span id="btnText">Gönder</span>
                 </button>
             </form>
             
@@ -666,9 +719,8 @@
         <div class="upload-card">
             <div class="files-section">
                 <div class="files-header">
-                    <h2 class="files-title">📂 Yüklenen Dosyalar</h2>
-                    <button class="refresh-btn" id="refreshBtn">
-                        <span>🔄</span>
+                    <h2 class="files-title">Yüklenen dosyalar</h2>
+                    <button class="refresh-btn" id="refreshBtn" type="button">
                         <span>Yenile</span>
                     </button>
                 </div>
@@ -684,9 +736,8 @@
         <div class="upload-card">
             <div class="files-section">
                 <div class="files-header">
-                    <h2 class="files-title">📱 Yüklü Uygulamalar</h2>
-                    <button class="refresh-btn" id="refreshAppsBtn">
-                        <span>🔄</span>
+                    <h2 class="files-title">Yüklü uygulamalar</h2>
+                    <button class="refresh-btn" id="refreshAppsBtn" type="button">
                         <span>Yenile</span>
                     </button>
                 </div>
@@ -695,6 +746,45 @@
                         <span class="loading-spinner"></span>
                         Yükleniyor...
                     </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div class="web-panel" id="panelMaps">
+            <div class="upload-card">
+                <div class="header">
+                    <div class="icon-header" aria-hidden="true">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z" /></svg>
+                    </div>
+                    <h1>Araçta link aç</h1>
+                    <p class="subtitle">http ve https linkleri araçtaki varsayılan tarayıcıda (veya sistem uygun uygulamada) açılır — paylaşım ve yönlendirme adresleri desteklenir.</p>
+                </div>
+                <div class="form-row">
+                    <label for="mapUrlInput" class="help-text" style="display:block;margin-bottom:6px">Bağlantı</label>
+                    <textarea class="textarea-in" id="mapUrlInput" placeholder="https://… (herhangi bir site veya paylaşım linki)" rows="4"></textarea>
+                    <p class="help-text">Sunucu yalnızca http/https (geçerli alan adı), geo ve google.navigation kabul eder; javascript / file / data / content engellenir.</p>
+                    <button type="button" class="upload-btn" id="mapOpenBtn" style="margin-top:16px">Araçta aç</button>
+                </div>
+            </div>
+        </div>
+        <div class="web-panel" id="panelKeyboard">
+            <div class="upload-card">
+                <div class="header">
+                    <div class="icon-header" aria-hidden="true">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4,5A2,2 0 0,0 2,7V17A2,2 0 0,0 4,19H20A2,2 0 0,0 22,17V7A2,2 0 0,0 20,5H4M4,7H20V17H4V7M5,8V10H7V8H5M8,8V10H10V8H8M11,8V10H13V8H11M14,8V10H16V8H14M17,8V10H19V8H17M5,11V13H7V11H5M8,11V13H10V11H8M11,11V13H19V11H11M5,14V16H15V14H5" /></svg>
+                    </div>
+                    <h1>Klavye gönderimi</h1>
+                    <p class="subtitle">Odaklı metin alanına yazmayı dener. Erişilebilirlikte Map Control <strong>Global Back</strong> hizmetinin açık olması gerekir; her OEM arayüzünde çalışmayabilir</p>
+                </div>
+                <div class="form-row">
+                    <label for="keyboardTextInput" class="help-text" style="display:block;margin-bottom:6px">Metin</label>
+                    <textarea class="textarea-in" id="keyboardTextInput" placeholder="Araç ekranındaki alana aktarılacak metin" rows="5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+                    <label class="inline-check" for="keyboardLiveMode">
+                        <input type="checkbox" id="keyboardLiveMode" />
+                        <span><strong>Anlık yazma</strong> — yazdıkça araca aynen gönder (araçtaki girdi alanının odaklı olması gerekir; başarı/hata bildirimi gürültü yapmamak için kısılır)</span>
+                    </label>
+                    <p class="help-text" id="keyboardLiveHelp" style="display:none">Anlık mod: her değişiklik gönderilir. Hızlı yazımda sadece son metin uygulanır. Tek seferde gönder için kutuyu kapatın.</p>
+                    <button type="button" class="upload-btn" id="keyboardSendBtn" style="margin-top:16px">Metni gönder (tek sefer)</button>
                 </div>
             </div>
         </div>
@@ -717,6 +807,18 @@
         const refreshBtn = document.getElementById('refreshBtn');
         const appsList = document.getElementById('appsList');
         const refreshAppsBtn = document.getElementById('refreshAppsBtn');
+        const webNav = document.getElementById('webNav');
+        const panelFiles = document.getElementById('panelFiles');
+        const panelMaps = document.getElementById('panelMaps');
+        const panelKeyboard = document.getElementById('panelKeyboard');
+        const mapUrlInput = document.getElementById('mapUrlInput');
+        const mapOpenBtn = document.getElementById('mapOpenBtn');
+        const keyboardTextInput = document.getElementById('keyboardTextInput');
+        const keyboardSendBtn = document.getElementById('keyboardSendBtn');
+        const keyboardLiveMode = document.getElementById('keyboardLiveMode');
+        const keyboardLiveHelp = document.getElementById('keyboardLiveHelp');
+        let keyboardSendAbort = null;
+        let liveKeyboardErrorAt = 0;
         const toastContainer = document.getElementById('toastContainer');
         const modalOverlay = document.getElementById('modalOverlay');
         const modalTitle = document.getElementById('modalTitle');
@@ -725,6 +827,160 @@
         const modalConfirm = document.getElementById('modalConfirm');
         
         let currentModalResolve = null;
+        
+        function showWebPanel(name) {
+            [panelFiles, panelMaps, panelKeyboard].forEach(p => p.classList.remove('is-visible'));
+            document.querySelectorAll('.web-nav button').forEach(b => b.classList.remove('active'));
+            if (name === 'files') {
+                panelFiles.classList.add('is-visible');
+                document.getElementById('navFiles').classList.add('active');
+            } else if (name === 'maps') {
+                panelMaps.classList.add('is-visible');
+                document.getElementById('navMaps').classList.add('active');
+            } else if (name === 'keyboard') {
+                panelKeyboard.classList.add('is-visible');
+                document.getElementById('navKeyboard').classList.add('active');
+            }
+        }
+        if (webNav) {
+            webNav.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-panel]');
+                if (!btn) return;
+                showWebPanel(btn.getAttribute('data-panel'));
+            });
+        }
+        function jsQuote(s) {
+            return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+        }
+        if (mapOpenBtn) {
+            mapOpenBtn.addEventListener('click', async () => {
+                const url = (mapUrlInput && mapUrlInput.value) ? mapUrlInput.value.trim() : '';
+                if (!url) {
+                    showToast('Bir link girin', 'error');
+                    return;
+                }
+                mapOpenBtn.disabled = true;
+                try {
+                    const response = await fetch(serverUrl + '/action/open-maps', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
+                    });
+                    if (response.ok) {
+                        showToast('Açılıyor…', 'success');
+                    } else {
+                        const t = await response.text();
+                        showToast('Açılamadı: ' + t, 'error');
+                    }
+                } catch (err) {
+                    showToast('Bağlantı hatası: ' + err.message, 'error');
+                }
+                mapOpenBtn.disabled = false;
+            });
+        }
+        function updateKeyboardLiveUi() {
+            const on = keyboardLiveMode && keyboardLiveMode.checked;
+            if (keyboardLiveHelp) {
+                keyboardLiveHelp.style.display = on ? 'block' : 'none';
+            }
+            if (keyboardSendBtn) {
+                keyboardSendBtn.disabled = !!on;
+                keyboardSendBtn.style.opacity = on ? '0.5' : '1';
+            }
+        }
+        async function postKeyboardText(text, options) {
+            const silent = options && options.silent;
+            const notifyDevice = !silent;
+            if (keyboardSendAbort) {
+                try {
+                    keyboardSendAbort.abort();
+                } catch (e) { /* */ }
+            }
+            keyboardSendAbort = new AbortController();
+            const signal = keyboardSendAbort.signal;
+            const response = await fetch(serverUrl + '/action/keyboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text == null ? '' : text, notify: notifyDevice }),
+                signal: signal
+            });
+            if (!response.ok) {
+                const t = await response.text();
+                if (silent) {
+                    const now = Date.now();
+                    if (now - liveKeyboardErrorAt > 2000) {
+                        liveKeyboardErrorAt = now;
+                        showToast('Anlık gönderim: ' + t, 'error');
+                    }
+                } else {
+                    showToast('Gönderilemedi: ' + t, 'error');
+                }
+            } else if (!silent) {
+                showToast('Metin gönderildi (odak yoksa başarısız olabilir)', 'success');
+            }
+        }
+        if (keyboardSendBtn) {
+            keyboardSendBtn.addEventListener('click', async () => {
+                if (keyboardLiveMode && keyboardLiveMode.checked) {
+                    return;
+                }
+                const text = (keyboardTextInput && keyboardTextInput.value) ? keyboardTextInput.value : '';
+                if (text.length === 0) {
+                    showToast('Metin girin', 'error');
+                    return;
+                }
+                keyboardSendBtn.disabled = true;
+                try {
+                    await postKeyboardText(text, { silent: false });
+                } catch (err) {
+                    if (err && err.name === 'AbortError') {
+                        return;
+                    }
+                    showToast('Bağlantı hatası: ' + (err && err.message ? err.message : ''), 'error');
+                } finally {
+                    updateKeyboardLiveUi();
+                }
+            });
+        }
+        if (keyboardLiveMode) {
+            keyboardLiveMode.addEventListener('change', () => {
+                updateKeyboardLiveUi();
+            });
+            updateKeyboardLiveUi();
+        }
+        (function wireLiveKeyboard() {
+            if (!keyboardTextInput) {
+                return;
+            }
+            let comp = false;
+            const sendLive = () => {
+                if (!keyboardLiveMode || !keyboardLiveMode.checked) {
+                    return;
+                }
+                const text = keyboardTextInput.value != null ? keyboardTextInput.value : '';
+                postKeyboardText(text, { silent: true }).catch((err) => {
+                    if (err && err.name === 'AbortError') {
+                        return;
+                    }
+                    const now = Date.now();
+                    if (now - liveKeyboardErrorAt > 2000) {
+                        liveKeyboardErrorAt = now;
+                        showToast('Anlık: ' + (err && err.message ? err.message : 'ağ hatası'), 'error');
+                    }
+                });
+            };
+            keyboardTextInput.addEventListener('compositionstart', () => { comp = true; });
+            keyboardTextInput.addEventListener('compositionend', () => {
+                comp = false;
+                sendLive();
+            });
+            keyboardTextInput.addEventListener('input', (e) => {
+                if (e.isComposing || comp) {
+                    return;
+                }
+                sendLive();
+            });
+        })();
         
         // Sayfa yüklendiğinde dosya listesini getir
         loadFilesList();
@@ -821,7 +1077,7 @@
                     } else {
                         showToast('✗ Yükleme hatası: ' + xhr.responseText, 'error');
                         uploadBtn.disabled = false;
-                        btnText.textContent = 'Dosya Yükle';
+                        btnText.textContent = 'Gönder';
                         progressContainer.classList.remove('active');
                     }
                 });
@@ -830,7 +1086,7 @@
                     clearInterval(progressInterval);
                     showToast('✗ Bağlantı hatası', 'error');
                     uploadBtn.disabled = false;
-                    btnText.textContent = 'Dosya Yükle';
+                    btnText.textContent = 'Gönder';
                     progressContainer.classList.remove('active');
                 });
                 
@@ -841,7 +1097,7 @@
                 clearInterval(progressInterval);
                 showToast('✗ Hata: ' + error.message, 'error');
                 uploadBtn.disabled = false;
-                btnText.textContent = 'Dosya Yükle';
+                btnText.textContent = 'Gönder';
                 progressContainer.classList.remove('active');
             }
         });
@@ -1038,7 +1294,7 @@
                 fileInfo.classList.remove('active');
                 fileLabel.classList.remove('has-file');
                 uploadBtn.disabled = false;
-                btnText.textContent = 'Dosya Yükle';
+                btnText.textContent = 'Gönder';
                 progressContainer.classList.remove('active');
                 updateProgress(0);
             }, 1500);
@@ -1074,21 +1330,20 @@
                             appItem.className = 'file-item';
                             appItem.style.opacity = '0';
                             appItem.style.transform = 'translateY(20px)';
-                            
+                            const locked = app.locked === true;
+                            const delHtml = locked
+                                ? '<span class="lock-badge" title="Map Control kaldırılamaz">Kilitli</span>'
+                                : `<button class="delete-btn" onclick="deleteApp('${jsQuote(app.package)}', '${jsQuote(app.name)}')">Sil</button>`;
                             appItem.innerHTML = `
                                 <div class="file-item-info">
                                     <div class="file-item-name">${escapeHtml(app.name)}</div>
                                     <div class="file-item-meta">${escapeHtml(app.package)}</div>
                                 </div>
                                 <div class="file-item-actions">
-                                    <button class="install-btn" onclick="launchApp('${escapeHtml(app.package)}')">
-                                        <span>▶️</span>
+                                    <button class="install-btn" onclick="launchApp('${jsQuote(app.package)}')">
                                         <span>Aç</span>
                                     </button>
-                                    <button class="delete-btn" onclick="deleteApp('${escapeHtml(app.package)}', '${escapeHtml(app.name)}')">
-                                        <span>🗑️</span>
-                                        <span>Sil</span>
-                                    </button>
+                                    ${delHtml}
                                 </div>
                             `;
                             appsList.appendChild(appItem);

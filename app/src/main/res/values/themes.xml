@@ -1,36 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Modern Dark Theme - Material Design -->
-    <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <!-- Shared: Material DayNight + app colors (status bar flag in Theme.MapControl) -->
+    <style name="Theme.MapControl.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:windowBackground">@color/backgroundColor</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowContentOverlay">@null</item>
-        
-        <!-- Status Bar -->
+
         <item name="android:statusBarColor">@color/backgroundColor</item>
-        <item name="android:windowLightStatusBar">false</item>
-        
-        <!-- Navigation Bar -->
         <item name="android:navigationBarColor">@color/backgroundColor</item>
-        
-        <!-- Colors -->
+
         <item name="colorPrimary">@color/primaryColor</item>
         <item name="colorPrimaryDark">@color/primaryDarkColor</item>
         <item name="colorAccent">@color/accentColor</item>
-        
-        <!-- Text Colors -->
+
         <item name="android:textColorPrimary">@color/textPrimary</item>
         <item name="android:textColorSecondary">@color/textSecondary</item>
-        
-        <!-- Dialog Theme -->
+
         <item name="alertDialogTheme">@style/CustomAlertDialog</item>
         <item name="android:alertDialogTheme">@style/CustomAlertDialog</item>
     </style>
-    
-    <!-- Custom Alert Dialog Style -->
-    <style name="CustomAlertDialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+
+    <!-- Light UI: dark icons in status bar -->
+    <style name="Theme.MapControl" parent="Theme.MapControl.Base">
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Legacy name: follows system day/night via Theme.MapControl parent -->
+    <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.MapControl" />
+
+    <style name="CustomAlertDialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
         <item name="android:windowBackground">@color/surfaceColor</item>
         <item name="android:background">@color/surfaceColor</item>
         <item name="colorAccent">@color/accentColor</item>
@@ -40,12 +40,10 @@
         <item name="buttonBarNegativeButtonStyle">@style/CustomAlertDialogButton</item>
         <item name="buttonBarNeutralButtonStyle">@style/CustomAlertDialogButton</item>
     </style>
-    
-    <!-- Custom Alert Dialog Button Style -->
+
     <style name="CustomAlertDialogButton" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
         <item name="android:textColor">@color/accentColor</item>
         <item name="android:textSize">16sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 </resources>
-

@@ -5,13 +5,13 @@
     android:id="@+id/root_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0F14">
+    android:background="@color/backgroundPage">
     <!-- Geri Dön Butonu Bar -->
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#1C2630"
+        android:background="@color/surfaceBar"
         android:padding="16dp"
         android:gravity="center_vertical">
         <Button
@@ -20,8 +20,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#3DAEA8"
+            android:textColor="@color/textPrimary"
+            android:backgroundTint="@color/buttonPrimary"
             android:padding="12dp"
             android:paddingLeft="20dp"
             android:paddingRight="20dp"
@@ -45,7 +45,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera1"
                 android:layout_width="match_parent"
@@ -63,7 +63,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera2"
                 android:layout_width="match_parent"
@@ -87,7 +87,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera3"
                 android:layout_width="match_parent"
@@ -105,7 +105,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera4"
                 android:layout_width="match_parent"
@@ -131,7 +131,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera5"
                 android:layout_width="match_parent"
@@ -149,7 +149,7 @@
                 android:padding="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"/>
+                android:textColor="@color/textPrimary"/>
             <TextureView
                 android:id="@+id/tv_surface_camera6"
                 android:layout_width="match_parent"

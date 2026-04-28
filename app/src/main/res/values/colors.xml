@@ -1,43 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material Design Primary Colors -->
-    <color name="primaryColor">#1976D2</color>
-    <color name="primaryDarkColor">#0D47A1</color>
-    <color name="primaryLightColor">#42A5F5</color>
-    <color name="accentColor">#FFA726</color>
-    
-    <!-- Background Colors -->
-    <color name="backgroundColor">#121212</color>
-    <color name="surfaceColor">#1E1E1E</color>
-    <color name="cardColor">#2C2C2C</color>
-    
-    <!-- Text Colors -->
-    <color name="textPrimary">#FFFFFF</color>
-    <color name="textSecondary">#B0B0B0</color>
-    <color name="textAccent">#FFA726</color>
-    
-    <!-- Button Colors -->
-    <color name="buttonPrimary">#1976D2</color>
-    <color name="buttonSuccess">#2E7D32</color>
-    <color name="buttonDanger">#D32F2F</color>
-    <color name="buttonNeutral">#424242</color>
-    <color name="buttonActive">#1976D2</color>
-    <color name="buttonInactive">#424242</color>
-    
-    <!-- Log Colors -->
-    <color name="logBackground">#0D0D0D</color>
-    <color name="logText">#00FF00</color>
-    
-    <!-- WiFi Item Colors -->
-    <color name="wifiItemBackground">#2C2C2C</color>
-    <color name="wifiItemPressed">#3C3C3C</color>
-    
-    <!-- Status Colors -->
-    <color name="statusSuccess">#4CAF50</color>
-    <color name="statusWarning">#FF9800</color>
-    <color name="statusError">#F44336</color>
-    <color name="statusInfo">#2196F3</color>
-    
-    <!-- Divider -->
-    <color name="dividerColor">#303030</color>
+    <!-- Light / not-night palette (same names as values-night/) -->
+    <color name="oemAccent">#3568A0</color>
+    <color name="oemAccentPressed">#2B5582</color>
+    <color name="glassFill">#CCF0F3F8</color>
+    <color name="glassStroke">#503568A0</color>
+    <color name="segmentTrackFill">#D0D6E0</color>
+    <color name="surfaceRail">#DCE3ED</color>
+    <color name="outlineSubtle">#14000000</color>
+    <color name="tabContentScrim">#00000000</color>
+
+    <!-- Ana ekran kök gradienti (bg_root_gradient) — light -->
+    <color name="root_gradient_start">#EDF1F6</color>
+    <color name="root_gradient_center">#E6EBF2</color>
+    <color name="root_gradient_end">#D8E1ED</color>
+    <!-- Sol menü seçili satır (bg_nav_pill_selected) — light -->
+    <color name="nav_pill_selected_start">#D2E3F5</color>
+    <color name="nav_pill_selected_end">#B9D0EE</color>
+
+    <color name="primaryColor">#3568A0</color>
+    <color name="primaryDarkColor">#2B5582</color>
+    <color name="primaryLightColor">#4586C5</color>
+    <color name="accentColor">#4586C5</color>
+    <color name="accent">#3568A0</color>
+    <color name="accentPressed">#2B5582</color>
+    <color name="accentHighlight">#4586C5</color>
+
+    <color name="backgroundColor">#E8ECF3</color>
+    <color name="backgroundPage">#E2E8F0</color>
+    <color name="surfaceColor">#FFFFFF</color>
+    <color name="surfaceBar">#F4F6FA</color>
+    <color name="surfaceCard">#FFFFFF</color>
+    <color name="surfaceCardInner">#F0F3F9</color>
+    <color name="surfaceCardElevated">#DDE4EF</color>
+    <color name="cardColor">#FFFFFF</color>
+
+    <color name="textPrimary">#171A20</color>
+    <color name="textSecondary">#5C6470</color>
+    <color name="textSecondaryCool">#55606C</color>
+    <color name="textAccent">#3568A0</color>
+    <color name="textMuted">#7A8494</color>
+    <color name="textMessage">#2D3340</color>
+    <color name="textHint">#99000000</color>
+    <color name="textPrimary87">#DE000000</color>
+    <color name="textPrimary85">#D9000000</color>
+    <color name="textPrimary70">#B3000000</color>
+    <color name="textPrimary80">#CC000000</color>
+    <color name="textDialogButtonSecondary">#99000000</color>
+    <color name="textDestructive">#B83232</color>
+    <color name="textLoading">#8A6A20</color>
+
+    <color name="buttonPrimary">#3568A0</color>
+    <color name="buttonSuccess">#4A7A58</color>
+    <color name="buttonSuccessBright">#3D8A4E</color>
+    <color name="buttonDanger">#A34040</color>
+    <color name="buttonNeutral">#C5CCD8</color>
+    <color name="buttonActive">#3568A0</color>
+    <color name="buttonInactive">#B8C0CE</color>
+    <color name="buttonDestructiveBg">#F3E8E8</color>
+    <color name="chipOn">#3D7A52</color>
+
+    <color name="selectionRow">#E2E8F0</color>
+    <color name="selectionBar">#4586C5</color>
+    <color name="driveModeSelected">#D5DCE8</color>
+    <color name="driveModeUnselected">#EDF1F6</color>
+
+    <color name="assistCardActive">#D8E4F5</color>
+    <color name="assistStrokeActive">#5A7FC0</color>
+    <color name="assistCardIdle">#E8EDF5</color>
+    <color name="assistStrokeIdle">#C5CEDC</color>
+
+    <color name="outline">#C5CEDC</color>
+    <color name="outlineMuted">#B0B8C4</color>
+    <color name="dividerColor">#D0D8E4</color>
+    <color name="dividerWhite12">#1F000000</color>
+
+    <color name="logBackground">#F4F6FA</color>
+    <color name="logText">#2D6A4F</color>
+    <color name="logPanelBg">#ECEFF5</color>
+    <color name="logButtonBg">#D0D6E0</color>
+
+    <color name="wifiItemBackground">#FFFFFF</color>
+    <color name="wifiItemPressed">#E2E8F0</color>
+
+    <color name="statusSuccess">#4A7A58</color>
+    <color name="statusWarning">#8A6A20</color>
+    <color name="statusError">#A34040</color>
+    <color name="statusInfo">#3568A0</color>
+    <color name="statusErrorBright">#D32F2F</color>
+    <color name="statusNeutralGray">#6B7280</color>
+
+    <color name="transparent">#00000000</color>
+
+    <color name="logFieldBg">#F0F2F7</color>
+    <color name="logTerminalChrome">#E8ECF3</color>
+    <color name="outlineStrong">#B8C4D4</color>
+    <color name="textTertiary">#374151</color>
+    <color name="buttonSecondaryMuted">#D0D6E0</color>
+    <color name="buttonWelcome">#3568A0</color>
+    <color name="buttonIflyPtt">#4A5F8A</color>
+    <color name="buttonGold">#8A6A20</color>
+    <color name="textOnGold">#F8FAFC</color>
+    <color name="terminalDotRed">#A34040</color>
+    <color name="terminalDotYellow">#8A6A20</color>
+    <color name="terminalDotGreen">#4A7A58</color>
+    <color name="wifiScreenBg">#00000000</color>
+
+    <color name="wifi_toast_global_eyebrow_ok">#2D6A4F</color>
+    <color name="wifi_toast_global_eyebrow_fail">#8B4518</color>
+    <color name="wifi_toast_global_text_primary">#171A20</color>
+    <color name="wifi_toast_global_icon_tint_ok">#3D8A5E</color>
+    <color name="wifi_toast_global_icon_tint_fail">#B85C40</color>
+    <color name="wifi_toast_preparing_eyebrow">#3568A0</color>
+    <color name="wifi_toast_preparing_icon">#4586C5</color>
+
+    <!-- Wi-Fi global toast card + halo (bg_global_wifi_toast_*) — light -->
+    <color name="wifi_toast_success_grad_start">#FFF2FAF6</color>
+    <color name="wifi_toast_success_grad_center">#FFE8F4ED</color>
+    <color name="wifi_toast_success_grad_end">#FFDCEEE4</color>
+    <color name="wifi_toast_success_stroke">#6688B898</color>
+    <color name="wifi_toast_error_grad_start">#FFFDF3F3</color>
+    <color name="wifi_toast_error_grad_center">#FFF5E8E8</color>
+    <color name="wifi_toast_error_grad_end">#FFEBDCDC</color>
+    <color name="wifi_toast_error_stroke">#70D08080</color>
+    <color name="wifi_toast_preparing_grad_start">#FFF0F5FA</color>
+    <color name="wifi_toast_preparing_grad_center">#FFE6EEF8</color>
+    <color name="wifi_toast_preparing_grad_end">#FFDCE6F2</color>
+    <color name="wifi_toast_preparing_stroke">#7080A8D0</color>
+    <color name="wifi_toast_halo_ok_grad_start">#88C8E8D8</color>
+    <color name="wifi_toast_halo_ok_grad_center">#55A0C8B0</color>
+    <color name="wifi_toast_halo_ok_grad_end">#30687870</color>
+    <color name="wifi_toast_halo_ok_stroke">#6690C8B8</color>
+    <color name="wifi_toast_halo_error_grad_start">#90F0C8C8</color>
+    <color name="wifi_toast_halo_error_grad_center">#60E0A0A0</color>
+    <color name="wifi_toast_halo_error_grad_end">#40C08080</color>
+    <color name="wifi_toast_halo_error_stroke">#70F0B0A8</color>
+    <color name="wifi_toast_halo_preparing_grad_start">#88B8D8F0</color>
+    <color name="wifi_toast_halo_preparing_grad_center">#5598B8D8</color>
+    <color name="wifi_toast_halo_preparing_grad_end">#307898C0</color>
+    <color name="wifi_toast_halo_preparing_stroke">#66A0C0E8</color>
+
+    <color name="preparing_overlay_root">#E6E8ECF3</color>
+    <color name="boot_splash_gradient_edge">#FFF8FAFC</color>
+    <color name="boot_splash_gradient_mid">#FFE8ECF3</color>
+    <color name="map_grid_line_accent">#304586C5</color>
+    <color name="map_grid_glow_accent">#504586C5</color>
+    <color name="map_grid_vignette_edge">#CCDCE4F0</color>
+    <color name="boot_splash_pin_dot">#FF2D3748</color>
+    <color name="boot_splash_pin_shadow">#55000000</color>
+
+    <color name="modal_overlay_scrim">#99000000</color>
 </resources>

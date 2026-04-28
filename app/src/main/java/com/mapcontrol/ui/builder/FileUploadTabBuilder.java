@@ -13,19 +13,24 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.mapcontrol.R;
 import com.mapcontrol.manager.WebServerManager;
+import com.mapcontrol.ui.theme.UiStyles;
 
 public class FileUploadTabBuilder {
     private final Context context;
     private final WebServerManager webServerManager;
 
     private ScrollView scrollView;
+    private LinearLayout fileUploadTabContent;
     private Button btnWebServerToggle;
     private TextView webServerStatusText;
     private ImageView qrCodeImageView;
@@ -39,19 +44,25 @@ public class FileUploadTabBuilder {
 
     public ScrollView build() {
         scrollView = new ScrollView(context);
-        scrollView.setBackgroundColor(0xFF0A0F14);
+        scrollView.setBackgroundColor(Color.TRANSPARENT);
         scrollView.setPadding(0, 0, 0, 0);
         scrollView.setFillViewport(true);
 
-        LinearLayout fileUploadTabContent = new LinearLayout(context);
+        LinearLayout outer = new LinearLayout(context);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
+        outer.setPadding(margin, margin, margin, margin);
+
+        fileUploadTabContent = new LinearLayout(context);
         fileUploadTabContent.setOrientation(LinearLayout.VERTICAL);
-        fileUploadTabContent.setPadding(0, 0, 0, 0);
-        fileUploadTabContent.setBackgroundColor(0xFF0A0F14);
+        int inner = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
+        fileUploadTabContent.setPadding(inner, inner, inner, inner);
+        UiStyles.setGlassCardBackground(fileUploadTabContent);
 
         TextView fileUploadTitle = new TextView(context);
-        fileUploadTitle.setText("Dosya Yükle");
+        fileUploadTitle.setText("Web Yönetimi");
         fileUploadTitle.setTextSize(18);
-        fileUploadTitle.setTextColor(0xFFFFFFFF);
+        fileUploadTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
         fileUploadTitle.setTypeface(null, Typeface.BOLD);
         fileUploadTitle.setPadding(16, 16, 16, 8);
         fileUploadTabContent.addView(fileUploadTitle, new LinearLayout.LayoutParams(
@@ -59,25 +70,25 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView fileUploadDesc = new TextView(context);
-        fileUploadDesc.setText("Web Server'ı başlatarak aynı ağdaki cihazlardan dosya yükleyebilirsiniz.");
+        fileUploadDesc.setText("Web sunucusunu başlatarak aynı ağdaki cihazlardan dosya yükleyebilir, harita ve klavye denetimi kullanabilirsiniz.");
         fileUploadDesc.setTextSize(13);
-        fileUploadDesc.setTextColor(0xAAFFFFFF);
+        fileUploadDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
         fileUploadDesc.setPadding(16, 0, 16, 16);
         fileUploadTabContent.addView(fileUploadDesc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         btnWebServerToggle = new Button(context);
-        btnWebServerToggle.setText("▶ Web Server Başlat");
-        btnWebServerToggle.setTextColor(0xFFFFFFFF);
+        btnWebServerToggle.setText("Web Server Başlat");
+        btnWebServerToggle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
         btnWebServerToggle.setTextSize(16);
         btnWebServerToggle.setTypeface(null, Typeface.BOLD);
-        btnWebServerToggle.setBackgroundColor(0xFF3DAEA8);
+        UiStyles.styleOemButton(btnWebServerToggle, ContextCompat.getColor(context, R.color.buttonPrimary));
         btnWebServerToggle.setPadding(16, 20, 16, 20);
         LinearLayout.LayoutParams webServerToggleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        webServerToggleParams.setMargins(16, 0, 16, 16);
+        webServerToggleParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
         fileUploadTabContent.addView(btnWebServerToggle, webServerToggleParams);
 
         LinearLayout urlQrContainer = new LinearLayout(context);
@@ -88,7 +99,7 @@ public class FileUploadTabBuilder {
         webServerStatusText = new TextView(context);
         webServerStatusText.setText("Sunucu durduruldu");
         webServerStatusText.setTextSize(20);
-        webServerStatusText.setTextColor(0xAAFFFFFF);
+        webServerStatusText.setTextColor(ContextCompat.getColor(context, R.color.textHint));
         webServerStatusText.setGravity(Gravity.CENTER);
         webServerStatusText.setPadding(16, 16, 16, 16);
         webServerStatusText.setTypeface(null, Typeface.BOLD);
@@ -120,11 +131,18 @@ public class FileUploadTabBuilder {
             }
         });
 
-        scrollView.addView(fileUploadTabContent, new LinearLayout.LayoutParams(
+        outer.addView(fileUploadTabContent, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        scrollView.addView(outer, new ScrollView.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         return scrollView;
+    }
+
+    public LinearLayout getFileUploadTabContent() {
+        return fileUploadTabContent;
     }
 
     public ScrollView getScrollView() {

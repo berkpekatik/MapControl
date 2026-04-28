@@ -1,10 +1,17 @@
 package com.mapcontrol.ui.builder;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
+
+import com.mapcontrol.R;
 
 public class TopBarBuilder {
     public interface TopBarCallback {
@@ -32,21 +39,29 @@ public class TopBarBuilder {
 
     public LinearLayout build() {
         topBar = new LinearLayout(context);
-        topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setBackgroundColor(0xFF1C2630);
-        topBar.setPadding(24, 16, 16, 16);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setOrientation(LinearLayout.VERTICAL);
+        topBar.setBackgroundColor(Color.TRANSPARENT);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBackgroundColor(Color.TRANSPARENT);
+        row.setPadding(
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, context.getResources().getDisplayMetrics()),
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 14, context.getResources().getDisplayMetrics()),
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, context.getResources().getDisplayMetrics()),
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, context.getResources().getDisplayMetrics()));
+        row.setGravity(Gravity.CENTER_VERTICAL);
 
         titleView = new TextView(context);
         titleView.setText("Wi-Fi Yönetimi");
-        titleView.setTextSize(20);
-        titleView.setTextColor(0xFFFFFFFF);
+        titleView.setTextSize(18);
+        titleView.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleView.setClickable(true);
         titleView.setFocusable(true);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        topBar.addView(titleView, titleParams);
+        row.addView(titleView, titleParams);
 
         buttonsContainer = new LinearLayout(context);
         buttonsContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -54,7 +69,18 @@ public class TopBarBuilder {
         LinearLayout.LayoutParams buttonsContainerParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        topBar.addView(buttonsContainer, buttonsContainerParams);
+        row.addView(buttonsContainer, buttonsContainerParams);
+
+        topBar.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        View divider = new View(context);
+        divider.setBackgroundResource(R.drawable.bg_topbar_divider);
+        int oneDp = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1, context.getResources().getDisplayMetrics());
+        topBar.addView(divider, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                oneDp));
 
         titleView.setOnClickListener(v -> {
             titleClickCount++;

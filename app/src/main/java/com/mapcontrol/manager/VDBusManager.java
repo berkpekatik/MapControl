@@ -2,6 +2,8 @@ package com.mapcontrol.manager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.desaysv.ivi.vdb.IVDBusNotify;
 import com.desaysv.ivi.vdb.client.VDBus;
@@ -10,20 +12,28 @@ import com.desaysv.ivi.vdb.client.listener.VDBindListener;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.base.VDKey;
 import com.desaysv.ivi.vdb.event.id.sms.VDEventSms;
-import com.mapcontrol.ui.activity.MainActivity;
 
 public class VDBusManager {
     public interface VDBusCallback {
-        void onNavKeyOpen();
-        void onNavKeyClose();
+        /** keyCode 26 + action 4: tek olay — cluster açık/kapalı durumuna göre toggle. */
+        void onNavKeyToggle();
         void onAlertTone();
         void log(String message);
+        /**
+         * keyCode 7 veya 8 + action 1: picker kapalıysa aç; zaten açıksa yok say (kapatmaz).
+         */
+        void onProjectionTargetPickerToggle();
+        /** keyCode 7 + action 4: sağ — picker açıksa bir sonraki öğe. */
+        void onProjectionTargetPickerKeyRight();
+        /** keyCode 8 + action 4: sol — picker açıksa bir önceki öğe. */
+        void onProjectionTargetPickerKeyLeft();
     }
 
-    private static final int[] VDBUS_KEY_SUBSCRIBE_CODES = new int[]{10, 14, 26};
+    private static final int[] VDBUS_KEY_SUBSCRIBE_CODES = new int[]{10, 14, 26, 7, 8};
 
     private final Context context;
     private final VDBusCallback callback;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private final Object vdbusKeyLock = new Object();
     private VDBus vdbusKeyBus;
@@ -45,15 +55,15 @@ public class VDBusManager {
             callback.log("VDBus KeyEvent: keyCode=" + keyCode + " action=" + action);
 
             if (keyCode == 26 && action == 1) {
-                callback.onAlertTone();
-            }
-
-            if (keyCode == 26 && action == 3) {
-                callback.log("VDBus NAV key tespit edildi (keyCode=26, action=3)");
-                // isNavigationOpen durumu buraya enjekte edilmez.
-                // MainActivity callback içinde kendi state'ine göre open/close kararını verir.
-                callback.onNavKeyOpen();
-                callback.onNavKeyClose();
+                mainHandler.post(() -> callback.onAlertTone());
+            } else if (keyCode == 26 && action == 4) {
+                mainHandler.post(() -> callback.onNavKeyToggle());
+            } else if ((keyCode == 7 || keyCode == 8) && action == 4) {
+                mainHandler.post(() -> callback.onProjectionTargetPickerToggle());
+            } else if (keyCode == 7 && action == 1) {
+                mainHandler.post(() -> callback.onProjectionTargetPickerKeyRight());
+            } else if (keyCode == 8 && action == 1) {
+                mainHandler.post(() -> callback.onProjectionTargetPickerKeyLeft());
             }
         }
     };

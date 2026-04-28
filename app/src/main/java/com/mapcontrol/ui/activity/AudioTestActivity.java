@@ -8,8 +8,6 @@ import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +15,10 @@ import android.content.SharedPreferences;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +34,6 @@ public class AudioTestActivity extends AppCompatActivity {
     private MediaPlayer mediaPlayer;
     private String selectedFilePath;
     private Handler handler;
-    private RadioGroup autoPlayRadioGroup;
     private SharedPreferences prefs;
 
     @Override
@@ -46,12 +47,12 @@ public class AudioTestActivity extends AppCompatActivity {
         // Ana container
         LinearLayout rootView = new LinearLayout(this);
         rootView.setOrientation(LinearLayout.VERTICAL);
-        rootView.setBackgroundColor(0xFF0A0F14); // CameraActivity ile aynı arka plan
+        rootView.setBackgroundColor(ContextCompat.getColor(this, R.color.backgroundPage));
         
         // Geri Dön Butonu Bar (CameraActivity ile aynı tasarım)
         LinearLayout backButtonBar = new LinearLayout(this);
         backButtonBar.setOrientation(LinearLayout.HORIZONTAL);
-        backButtonBar.setBackgroundColor(0xFF1C2630); // CameraActivity ile aynı renk
+        backButtonBar.setBackgroundColor(ContextCompat.getColor(this, R.color.surfaceBar));
         backButtonBar.setPadding(16, 16, 16, 16);
         backButtonBar.setGravity(android.view.Gravity.CENTER_VERTICAL);
         
@@ -59,9 +60,9 @@ public class AudioTestActivity extends AppCompatActivity {
         Button btnBack = new Button(this);
         btnBack.setText("← Geri Dön");
         btnBack.setTextSize(16);
-        btnBack.setTextColor(0xFFFFFFFF);
+        btnBack.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         android.graphics.drawable.GradientDrawable backBtnBg = new android.graphics.drawable.GradientDrawable();
-        backBtnBg.setColor(0xFF3DAEA8);
+        backBtnBg.setColor(ContextCompat.getColor(this, R.color.buttonPrimary));
         backBtnBg.setCornerRadius(0); // Köşe yuvarlatma yok
         btnBack.setBackground(backBtnBg);
         btnBack.setPadding(20, 12, 20, 12);
@@ -75,19 +76,19 @@ public class AudioTestActivity extends AppCompatActivity {
         
         // İçerik container (ScrollView)
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF0A0F14);
+        scrollView.setBackgroundColor(ContextCompat.getColor(this, R.color.backgroundPage));
         scrollView.setFillViewport(true);
         
         LinearLayout mainContainer = new LinearLayout(this);
         mainContainer.setOrientation(LinearLayout.VERTICAL);
         mainContainer.setPadding(24, 24, 24, 24);
-        mainContainer.setBackgroundColor(0xFF0A0F14);
+        mainContainer.setBackgroundColor(ContextCompat.getColor(this, R.color.backgroundPage));
         
         // Başlık
         TextView titleText = new TextView(this);
         titleText.setText("Hoşgeldin Ses Test");
         titleText.setTextSize(24);
-        titleText.setTextColor(0xFFFFFFFF);
+        titleText.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         titleText.setTypeface(null, android.graphics.Typeface.BOLD);
         titleText.setPadding(0, 0, 0, 24);
         mainContainer.addView(titleText);
@@ -96,9 +97,9 @@ public class AudioTestActivity extends AppCompatActivity {
         btnSelectFile = new Button(this);
         btnSelectFile.setText("Dosya Seç");
         btnSelectFile.setTextSize(16);
-        btnSelectFile.setTextColor(0xFFFFFFFF);
+        btnSelectFile.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         android.graphics.drawable.GradientDrawable selectBtnBg = new android.graphics.drawable.GradientDrawable();
-        selectBtnBg.setColor(0xFF3DAEA8);
+        selectBtnBg.setColor(ContextCompat.getColor(this, R.color.buttonPrimary));
         selectBtnBg.setCornerRadius(8);
         btnSelectFile.setBackground(selectBtnBg);
         btnSelectFile.setPadding(24, 16, 24, 16);
@@ -113,19 +114,19 @@ public class AudioTestActivity extends AppCompatActivity {
         TextView filePathLabel = new TextView(this);
         filePathLabel.setText("Seçilen Dosya:");
         filePathLabel.setTextSize(14);
-        filePathLabel.setTextColor(0xFFB0B0B0);
+        filePathLabel.setTextColor(ContextCompat.getColor(this, R.color.textSecondary));
         filePathLabel.setPadding(0, 0, 0, 8);
         mainContainer.addView(filePathLabel);
         
         tvFilePath = new TextView(this);
         tvFilePath.setText("Henüz dosya seçilmedi");
         tvFilePath.setTextSize(14);
-        tvFilePath.setTextColor(0xFFFFFFFF);
+        tvFilePath.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         tvFilePath.setPadding(16, 12, 16, 12);
         android.graphics.drawable.GradientDrawable filePathBg = new android.graphics.drawable.GradientDrawable();
-        filePathBg.setColor(0xFF151C24);
+        filePathBg.setColor(ContextCompat.getColor(this, R.color.surfaceCard));
         filePathBg.setCornerRadius(8);
-        filePathBg.setStroke(1, 0xFF2A3A47);
+        filePathBg.setStroke(1, ContextCompat.getColor(this, R.color.outline));
         tvFilePath.setBackground(filePathBg);
         LinearLayout.LayoutParams filePathParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -142,9 +143,9 @@ public class AudioTestActivity extends AppCompatActivity {
         btnPlay = new Button(this);
         btnPlay.setText("Çal");
         btnPlay.setTextSize(16);
-        btnPlay.setTextColor(0xFFFFFFFF);
+        btnPlay.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         android.graphics.drawable.GradientDrawable playBtnBg = new android.graphics.drawable.GradientDrawable();
-        playBtnBg.setColor(0xFF4CAF50);
+        playBtnBg.setColor(ContextCompat.getColor(this, R.color.buttonSuccessBright));
         playBtnBg.setCornerRadius(8);
         btnPlay.setBackground(playBtnBg);
         btnPlay.setPadding(24, 16, 24, 16);
@@ -159,9 +160,9 @@ public class AudioTestActivity extends AppCompatActivity {
         btnStop = new Button(this);
         btnStop.setText("Durdur");
         btnStop.setTextSize(16);
-        btnStop.setTextColor(0xFFFFFFFF);
+        btnStop.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
         android.graphics.drawable.GradientDrawable stopBtnBg = new android.graphics.drawable.GradientDrawable();
-        stopBtnBg.setColor(0xFFF44336);
+        stopBtnBg.setColor(ContextCompat.getColor(this, R.color.statusErrorBright));
         stopBtnBg.setCornerRadius(8);
         btnStop.setBackground(stopBtnBg);
         btnStop.setPadding(24, 16, 24, 16);
@@ -173,11 +174,11 @@ public class AudioTestActivity extends AppCompatActivity {
         
         mainContainer.addView(buttonsContainer);
         
-        // Açılışta otomatik çal RadioGroup
+        // Açılışta otomatik çal (OEM segmented)
         TextView autoPlayTitle = new TextView(this);
         autoPlayTitle.setText("Açılışta Otomatik Çal");
         autoPlayTitle.setTextSize(15);
-        autoPlayTitle.setTextColor(0xE6FFFFFF); // %90 opaklık
+        autoPlayTitle.setTextColor(ContextCompat.getColor(this, R.color.textPrimary87));
         autoPlayTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
         autoPlayTitle.setPadding(0, 24, 0, 8);
         mainContainer.addView(autoPlayTitle);
@@ -185,137 +186,22 @@ public class AudioTestActivity extends AppCompatActivity {
         TextView autoPlayDesc = new TextView(this);
         autoPlayDesc.setText("Araç açıldığında otomatik çal");
         autoPlayDesc.setTextSize(13);
-        autoPlayDesc.setTextColor(0xAAFFFFFF); // %67 opaklık
+        autoPlayDesc.setTextColor(ContextCompat.getColor(this, R.color.textHint));
         autoPlayDesc.setPadding(0, 0, 0, 12);
         mainContainer.addView(autoPlayDesc);
         
-        autoPlayRadioGroup = new RadioGroup(this);
-        autoPlayRadioGroup.setOrientation(LinearLayout.VERTICAL);
-        autoPlayRadioGroup.setPadding(20, 0, 20, 0);
-        
-        // RadioButton 1: Açık
-        LinearLayout option1Container = new LinearLayout(this);
-        option1Container.setOrientation(LinearLayout.HORIZONTAL);
-        option1Container.setPadding(16, 16, 16, 16);
-        option1Container.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        option1Container.setClickable(true);
-        option1Container.setFocusable(true);
-        
-        LinearLayout iconCircle1 = new LinearLayout(this);
-        iconCircle1.setOrientation(LinearLayout.VERTICAL);
-        iconCircle1.setBackgroundColor(0xFF1A2330);
-        iconCircle1.setGravity(android.view.Gravity.CENTER);
-        iconCircle1.setPadding(10, 10, 10, 10);
-        
-        TextView icon1 = new TextView(this);
-        icon1.setText("✓");
-        icon1.setTextSize(20);
-        icon1.setTextColor(0xFFFFFFFF);
-        iconCircle1.addView(icon1);
-        
-        LinearLayout.LayoutParams iconCircle1Params = new LinearLayout.LayoutParams(48, 48);
-        iconCircle1Params.setMargins(0, 0, 12, 0);
-        option1Container.addView(iconCircle1, iconCircle1Params);
-        
-        LinearLayout textColumn1 = new LinearLayout(this);
-        textColumn1.setOrientation(LinearLayout.VERTICAL);
-        
-        TextView title1 = new TextView(this);
-        title1.setText("Açık");
-        title1.setTextColor(0xFFFFFFFF);
-        title1.setTextSize(16);
-        title1.setTypeface(null, android.graphics.Typeface.NORMAL);
-        textColumn1.addView(title1);
-        
-        TextView desc1 = new TextView(this);
-        desc1.setText("Araç açıldığında otomatik çal");
-        desc1.setTextColor(0xAAFFFFFF);
-        desc1.setTextSize(13);
-        desc1.setPadding(0, 2, 0, 0);
-        textColumn1.addView(desc1);
-        
-        LinearLayout.LayoutParams textParams1 = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        option1Container.addView(textColumn1, textParams1);
-        
-        RadioButton radio1 = new RadioButton(this);
-        radio1.setId(1);
-        radio1.setClickable(false);
-        radio1.setFocusable(false);
-        option1Container.addView(radio1);
-        
-        option1Container.setOnClickListener(v -> {
-            autoPlayRadioGroup.check(1);
-            saveAutoPlaySetting(true);
-        });
-        
-        autoPlayRadioGroup.addView(option1Container);
-        
-        // Ayırıcı çizgi
-        android.view.View divider1 = new android.view.View(this);
-        divider1.setBackgroundColor(0x1FFFFFFF);
-        autoPlayRadioGroup.addView(divider1, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1));
-        
-        // RadioButton 2: Kapalı
-        LinearLayout option2Container = new LinearLayout(this);
-        option2Container.setOrientation(LinearLayout.HORIZONTAL);
-        option2Container.setPadding(16, 16, 16, 16);
-        option2Container.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        option2Container.setClickable(true);
-        option2Container.setFocusable(true);
-        
-        LinearLayout iconCircle2 = new LinearLayout(this);
-        iconCircle2.setOrientation(LinearLayout.VERTICAL);
-        iconCircle2.setBackgroundColor(0xFF1A2330);
-        iconCircle2.setGravity(android.view.Gravity.CENTER);
-        iconCircle2.setPadding(10, 10, 10, 10);
-        
-        TextView icon2 = new TextView(this);
-        icon2.setText("✗");
-        icon2.setTextSize(20);
-        icon2.setTextColor(0xFFFFFFFF);
-        iconCircle2.addView(icon2);
-        
-        LinearLayout.LayoutParams iconCircle2Params = new LinearLayout.LayoutParams(48, 48);
-        iconCircle2Params.setMargins(0, 0, 12, 0);
-        option2Container.addView(iconCircle2, iconCircle2Params);
-        
-        LinearLayout textColumn2 = new LinearLayout(this);
-        textColumn2.setOrientation(LinearLayout.VERTICAL);
-        
-        TextView title2 = new TextView(this);
-        title2.setText("Kapalı");
-        title2.setTextColor(0xFFFFFFFF);
-        title2.setTextSize(16);
-        title2.setTypeface(null, android.graphics.Typeface.NORMAL);
-        textColumn2.addView(title2);
-        
-        TextView desc2 = new TextView(this);
-        desc2.setText("Otomatik çalma kapalı");
-        desc2.setTextColor(0xAAFFFFFF);
-        desc2.setTextSize(13);
-        desc2.setPadding(0, 2, 0, 0);
-        textColumn2.addView(desc2);
-        
-        LinearLayout.LayoutParams textParams2 = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        option2Container.addView(textColumn2, textParams2);
-        
-        RadioButton radio2 = new RadioButton(this);
-        radio2.setId(0);
-        radio2.setClickable(false);
-        radio2.setFocusable(false);
-        option2Container.addView(radio2);
-        
-        option2Container.setOnClickListener(v -> {
-            autoPlayRadioGroup.check(0);
-            saveAutoPlaySetting(false);
-        });
-        
-        autoPlayRadioGroup.addView(option2Container);
-        
-        mainContainer.addView(autoPlayRadioGroup);
+        boolean autoPlayInitial = prefs.getBoolean("welcomeAudioAutoPlay", false);
+        LinearLayout autoPlayBlock = new LinearLayout(this);
+        autoPlayBlock.setOrientation(LinearLayout.VERTICAL);
+        autoPlayBlock.setPadding(0, 0, 0, 0);
+        UiStyles.addBinarySegmentedControl(this, autoPlayBlock,
+                null,
+                "Açık", "Kapalı",
+                "Araç açıldığında otomatik çal.",
+                "Otomatik çalma kapalı.",
+                autoPlayInitial,
+                this::saveAutoPlaySetting);
+        mainContainer.addView(autoPlayBlock);
         
         // Kaydedilmiş ayarları yükle
         loadSavedSettings();
@@ -549,13 +435,6 @@ public class AudioTestActivity extends AppCompatActivity {
             }
         }
         
-        // Kaydedilmiş otomatik çal ayarını yükle
-        boolean autoPlayEnabled = prefs.getBoolean("welcomeAudioAutoPlay", false);
-        if (autoPlayEnabled) {
-            autoPlayRadioGroup.check(1);
-        } else {
-            autoPlayRadioGroup.check(0);
-        }
     }
 }
 

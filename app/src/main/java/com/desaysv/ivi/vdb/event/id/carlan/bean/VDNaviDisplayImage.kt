@@ -112,7 +112,7 @@ class VDNaviDisplayImage : Parcelable {
         fun createTestImage(
             width: Int = 300,
             height: Int = 200,
-            color: Int = 0xFF2196F3.toInt(),
+            color: Int = 0xFF85B6FF.toInt(),
             showOnCluster: Boolean = true
         ): VDNaviDisplayImage {
             val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)

@@ -16,6 +16,7 @@ import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
 
@@ -29,6 +30,8 @@ public class ClusterDisplayManager {
     private final Context context;
     private final ClusterCallback callback;
     private final Handler handler;
+    /** Kapatma veya yeni açılış, bekleyen openClusterDisplay postDelayed zincirini iptal eder. */
+    private final AtomicInteger openSessionId = new AtomicInteger(0);
 
     public ClusterDisplayManager(Context context, ClusterCallback callback) {
         this.context = context;
@@ -37,11 +40,16 @@ public class ClusterDisplayManager {
     }
 
     public void openClusterDisplay() {
+        final int session = openSessionId.incrementAndGet();
         try {
             int targetDisplay = AppLaunchHelper.getClusterDisplayId(context);
             if (targetDisplay != 0) {
+                DisplayHelper.hideBootSplash();
                 DisplayHelper.showPreparingMessageOnDisplay(context, targetDisplay);
                 Runnable timeoutRunnable = () -> {
+                    if (session != openSessionId.get()) {
+                        return;
+                    }
                     callback.log("⚠️ İşlem zaman aşımına uğradı, mesaj gizleniyor.");
                     DisplayHelper.hidePreparingMessage();
                 };
@@ -85,6 +93,9 @@ public class ClusterDisplayManager {
             VDBus.getDefault().set(eventwakeUp);
 
             handler.postDelayed(() -> {
+                if (session != openSessionId.get()) {
+                    return;
+                }
                 VDNaviDisplayArea payloadDA = new VDNaviDisplayArea();
                 payloadDA.setNaviDisplayArea(10);
                 payloadDA.setNaviDisplayAreaResult("true");
@@ -106,6 +117,9 @@ public class ClusterDisplayManager {
                 String targetPackage = callback.getTargetPackage();
                 if (targetPackage != null && !targetPackage.trim().isEmpty()) {
                     handler.postDelayed(() -> {
+                        if (session != openSessionId.get()) {
+                            return;
+                        }
                         callback.log("Seçilen uygulama cluster'da başlatılıyor: " + targetPackage);
                         try {
                             String tp = targetPackage != null ? targetPackage.trim() : "";
@@ -133,7 +147,23 @@ public class ClusterDisplayManager {
         }
     }
 
+    /**
+     * Cluster'da (display 2) ön planda üçüncü taraf uygulama yoksa boot splash basar.
+     * "Ana Ekrana Al" sonrası boş cluster için {@link DisplayHelper#showBootSplashOnDisplay} ile aynı yol.
+     */
+    public void showBootSplashOnClusterIfNoForegroundApp() {
+        String appOnDisplay2 = getAppOnDisplay2();
+        if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
+            return;
+        }
+        int clusterId = AppLaunchHelper.getClusterDisplayId(context);
+        if (clusterId != 0) {
+            DisplayHelper.showBootSplashOnDisplay(context, clusterId);
+        }
+    }
+
     public void closeClusterDisplay(boolean sendBackground) {
+        openSessionId.incrementAndGet();
         try {
             VDNaviDisplayArea payloadDA = new VDNaviDisplayArea();
             payloadDA.setNaviDisplayArea(0);
@@ -149,7 +179,7 @@ public class ClusterDisplayManager {
             payload.setRequestDisplayNaviArea("false");
             VDEvent event = VDNaviDisplayCluster.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_TO_CLUSTER, payload);
             VDBus.getDefault().set(event);
-
+            DisplayHelper.showBootSplashOnDisplay(context, AppLaunchHelper.getClusterDisplayId(context));
             callback.onNavigationStateChanged(false);
             callback.log("Navigasyon paneli kapatıldı");
 

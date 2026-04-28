@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="side_rail_icon" type="id"/>
+    <item name="side_rail_label" type="id"/>
+    <item name="preparing_card" type="id"/>
+    <item name="preparing_spinner" type="id"/>
+    <item name="preparing_halo" type="id"/>
+    <item name="preparing_title" type="id"/>
+    <item name="preparing_dots" type="id"/>
+    <item name="boot_splash_grid" type="id"/>
+    <item name="boot_splash_halo" type="id"/>
+    <item name="boot_splash_center" type="id"/>
+    <item name="boot_splash_logo" type="id"/>
+    <item name="boot_splash_wordmark" type="id"/>
+    <item name="boot_splash_tagline" type="id"/>
+    <item name="boot_splash_bar" type="id"/>
+</resources>

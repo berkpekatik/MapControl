@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Map Control</string>
-    <string name="accessibility_service_description">Floating Back Button için global BACK tuşu simülasyonu yapar. Bu servis, yüzen geri tuşunun çalışması için gereklidir.</string>
+    <string name="accessibility_service_description">Yüzen Geri: global BACK. Web yönetiminden hedef uygulamaya metin göndermek için odakta olan metin alanını okumak üzere pencere içeriğine (erişim) gerekir. Yapılandırmayı değiştirdikten sonra servisi kapatıp açmanız gerekir.</string>
+    <string name="log_tts_hint">Okunacak metni yazın</string>
+    <string name="log_tts_welcome_phrase">MapControl kayıt ekranına hoş geldiniz</string>
+    <string name="web_server_toast_wifi_ok_title">Wi‑Fi bağlı</string>
+    <string name="web_server_toast_wifi_ok_sub">İnternet bağlantısı aktif.</string>
+    <string name="web_server_toast_wifi_off_title">Wi‑Fi’ye bağlanılamadı</string>
+    <string name="web_server_toast_wifi_off_sub">Ağ yok veya henüz bağlanılamadı. Açılışta Wi‑Fi’yi veya erişim noktasını kontrol edin.</string>
+    <string name="wifi_global_status_internet_ok">İnternet bağlantısı aktif</string>
+    <string name="wifi_global_status_wifi_failed">Wi-Fi bağlantısı kurulamadı</string>
+    <string name="wifi_global_toast_eyebrow_ok">Çevrimiçi</string>
+    <string name="wifi_global_toast_eyebrow_fail">Çevrimdışı</string>
+    <string name="wifi_global_stabilize_eyebrow">Hazırlanıyor</string>
+    <string name="wifi_global_stabilize_title">Wi‑Fi tazeleniyor</string>
+    <string name="floating_qa_no_apps_on_display">Bu ekran için açık uygulama bulunamadı (dumpsys eşleşmedi).</string>
+    <string name="floating_qa_usage_access_required">Açık uygulamalar listesi için Ayarlar’da uygulama kullanım erişimine izin verin; yönlendiriliyorsunuz.</string>
+    <string name="floating_qa_no_recent_apps">Son 1 saatte eşleşen (ön plandaki) uygulama yok. Uygulamaları açıp tekrar deneyin.</string>
+    <string name="floating_qa_open_apps">Açık uygulamalar</string>
+    <string name="floating_qa_tap_for_app_info">Kısa tık: uygulamayı zorla durdur. Uzun bas: uygulama bilgisi.</string>
+    <string name="floating_qa_force_stop_ok">Durduruldu: %1$s</string>
+    <string name="floating_qa_force_stop_fail">Zorla durdurulamadı (cihaz izni gerekir). Uzun basıp ayarlardan kapatın.</string>
+    <string name="floating_qa_force_stop_protected">Bu paket korumalı veya MapControl; zorla durdurulmaz.</string>
+    <string name="floating_qa_title_display1">1. ekran — açık uygulamalar</string>
+    <string name="floating_qa_title_display2">2. ekran — açık uygulamalar</string>
+    <string name="floating_qa_label_display1">Ekran 1</string>
+    <string name="floating_qa_label_display2">Ekran 2</string>
+    <string name="floating_qa_label_wifi">Wi‑Fi</string>
+    <string name="floating_qa_label_toggle">Hızlı</string>
+    <string name="floating_qa_settings_title">Yüzen hızlı işlemler</string>
+    <string name="floating_qa_settings_desc">1. ve 2. ekran açık uygulamaları ve Wi‑Fi tazele. Tek düğmeyi (⚡) tıklayınca genişler, « ile kapanır. Sürüklenebilir.</string>
 </resources>
 

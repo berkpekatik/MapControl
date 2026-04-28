@@ -1,5 +1,6 @@
 package com.mapcontrol.manager;
 import android.content.Context;
+import android.net.Uri;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.wifi.WifiInfo;
@@ -17,17 +18,25 @@ import org.json.JSONObject;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.os.Environment;
-import com.mapcontrol.ui.activity.MainActivity;
+
+import androidx.core.content.ContextCompat;
+
+import com.mapcontrol.R;
 
 /**
  * Basit HTTP Server Manager
  * 7462 portunda HTTP servisi başlatır ve welcome sayfası gösterir
  */
 public class WebServerManager {
+    private static final int MAX_JSON_POST_BYTES = 65536;
+    /** open-maps JSON içindeki url alanı: POST üst sınırına yakın; Yandex sctx gibi çok uzun paylaşım linklerine izin */
+    private static final int MAX_OPEN_URL_CHARS = MAX_JSON_POST_BYTES - 200;
+    private static final int MAX_KEYBOARD_TEXT_CHARS = 8000;
     private ServerSocket serverSocket;
     private Thread serverThread;
     private AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -43,6 +52,13 @@ public class WebServerManager {
         void onDeleteApp(String packageName);
         void onLaunchApp(String packageName);
         void onLog(String message);
+        /** Araçtaki tarayıcı / uygun uygulama: {@link android.content.Intent#ACTION_VIEW} (http(s) için {@code BROWSABLE}). */
+        void onOpenMapUrl(String url);
+        /**
+         * Odaklı metin alanına (erişilebilirlik) yazdırma.
+         * @param showDeviceFeedback {@code true} ise araçta kısa başarı/hata tostu; anlık yazma için genelde {@code false}
+         */
+        void onTypeKeyboardText(String text, boolean showDeviceFeedback);
     }
 
     public WebServerManager(Context context) {
@@ -141,6 +157,44 @@ public class WebServerManager {
     }
 
     /**
+     * HTTP istek satırı: {@code GET /yol?a=1 HTTP/1.1} veya mutlak form {@code GET http://host:port/yol?a=1 HTTP/1.1}.
+     * @return [method, path, queryString] — sorgu yoksa üçüncü alan "".
+     */
+    private static String[] parseHttpRequestLine(String requestLine) {
+        if (requestLine == null || requestLine.isEmpty()) {
+            return null;
+        }
+        int sp1 = requestLine.indexOf(' ');
+        if (sp1 < 0) {
+            return null;
+        }
+        int sp2 = requestLine.indexOf(' ', sp1 + 1);
+        if (sp2 < 0) {
+            return null;
+        }
+        String method = requestLine.substring(0, sp1);
+        String uriToken = requestLine.substring(sp1 + 1, sp2);
+        if (uriToken.startsWith("http://") || uriToken.startsWith("https://")) {
+            try {
+                URL u = new URL(uriToken);
+                String p = u.getPath();
+                if (p == null || p.isEmpty()) {
+                    p = "/";
+                }
+                String q = u.getQuery();
+                return new String[] { method, p, q != null ? q : "" };
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        int queryIndex = uriToken.indexOf('?');
+        if (queryIndex != -1) {
+            return new String[] { method, uriToken.substring(0, queryIndex), uriToken.substring(queryIndex + 1) };
+        }
+        return new String[] { method, uriToken, "" };
+    }
+
+    /**
      * Client isteğini işle
      */
     private void handleClient(Socket clientSocket) {
@@ -187,48 +241,38 @@ public class WebServerManager {
                 }
 
                 String requestLine = requestLines[0];
-                String[] parts = requestLine.split(" ");
-                if (parts.length < 2) {
+                String[] parsed = parseHttpRequestLine(requestLine);
+                if (parsed == null) {
                     clientSocket.close();
                     return;
                 }
-
-                String method = parts[0];
-                String path = parts[1];
-                
-                // Query string'i ayır
-                String queryString = "";
-                int queryIndex = path.indexOf('?');
-                if (queryIndex != -1) {
-                    queryString = path.substring(queryIndex + 1);
-                    path = path.substring(0, queryIndex);
-                }
+                String method = parsed[0];
+                String path = parsed[1];
+                String queryString = parsed[2] != null ? parsed[2] : "";
 
                 if (listener != null) listener.onLog("HTTP Request: " + method + " " + path);
 
-                // POST request (dosya yükleme)
-                if ("POST".equals(method) && "/upload".equals(path)) {
+                if ("OPTIONS".equals(method)) {
+                    sendOptionsResponse(output);
+                } else if ("POST".equals(method) && "/upload".equals(path)) {
                     handleFileUpload(input, output, requestHeader);
+                } else if ("POST".equals(method) && "/action/open-maps".equals(path)) {
+                    handleOpenMaps(input, output, requestHeader);
+                } else if ("POST".equals(method) && "/action/keyboard".equals(path)) {
+                    handleKeyboard(input, output, requestHeader);
                 } else if ("GET".equals(method) && "/files".equals(path)) {
-                    // GET request (dosya listesi)
                     handleFileList(output);
                 } else if ("DELETE".equals(method) && "/files".equals(path)) {
-                    // DELETE request (dosya silme)
                     handleFileDelete(output, queryString);
                 } else if ("POST".equals(method) && "/install".equals(path)) {
-                    // POST request (APK kurulum)
                     handleInstallApk(output, queryString);
                 } else if ("GET".equals(method) && "/apps".equals(path)) {
-                    // GET request (uygulama listesi)
                     handleAppList(output);
                 } else if ("POST".equals(method) && "/app/delete".equals(path)) {
-                    // POST request (uygulama silme)
                     handleAppDelete(output, queryString);
                 } else if ("POST".equals(method) && "/app/launch".equals(path)) {
-                    // POST request (uygulama açma)
                     handleAppLaunch(output, queryString);
-                } else {
-                    // GET request (welcome sayfası)
+                } else if ("GET".equals(method) || "HEAD".equals(method)) {
                     String response = generateWelcomePage();
                     String httpResponse = "HTTP/1.1 200 OK\r\n" +
                             "Content-Type: text/html; charset=UTF-8\r\n" +
@@ -237,6 +281,8 @@ public class WebServerManager {
                             response;
                     output.write(httpResponse.getBytes(StandardCharsets.UTF_8));
                     output.flush();
+                } else {
+                    sendErrorResponse(output, 405, "Method not allowed");
                 }
                 clientSocket.close();
 
@@ -274,10 +320,12 @@ public class WebServerManager {
             if (listener != null) listener.onLog("[ERROR] HTML dosyası okuma hatası: " + e.getMessage());
             // Fallback: basit HTML
             String localIp = getLocalIpAddress();
+            String bg = String.format("#%06X", 0xFFFFFF & ContextCompat.getColor(context, R.color.backgroundPage));
+            String fg = String.format("#%06X", 0xFFFFFF & ContextCompat.getColor(context, R.color.textPrimary));
             return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Map Control</title></head>" +
-                   "<body style=\"font-family: sans-serif; background: #0A0F14; color: #FFF; padding: 40px; text-align: center;\">" +
+                   "<body style=\"font-family: sans-serif; background: " + bg + "; color: " + fg + "; padding: 40px; text-align: center;\">" +
                    "<h1>Hoş Geldiniz!</h1>" +
-                   "<p>Map Control Dosya Yükleme Servisi</p>" +
+                   "<p>Map Control Web Yönetimi</p>" +
                    "<p><code>http://" + localIp + ":" + serverPort + "</code></p>" +
                    "</body></html>";
         }
@@ -628,6 +676,195 @@ public class WebServerManager {
         }
     }
 
+    private void sendOptionsResponse(OutputStream output) {
+        try {
+            String r = "HTTP/1.1 204 No Content\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Access-Control-Allow-Methods: GET, POST, DELETE, HEAD, OPTIONS\r\n" +
+                    "Access-Control-Allow-Headers: Content-Type\r\n" +
+                    "Access-Control-Max-Age: 86400\r\n" +
+                    "Connection: close\r\n\r\n";
+            output.write(r.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        } catch (IOException e) {
+            if (listener != null) listener.onLog("[ERROR] OPTIONS yanıtı: " + e.getMessage());
+        }
+    }
+
+    private int parseContentLengthFromHeaders(String requestHeader) {
+        if (requestHeader == null) {
+            return -1;
+        }
+        for (String line : requestHeader.split("\r\n")) {
+            String l = line.trim();
+            if (l.isEmpty()) {
+                break;
+            }
+            if (l.toLowerCase().startsWith("content-length:")) {
+                try {
+                    return Integer.parseInt(l.substring(15).trim());
+                } catch (NumberFormatException e) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private byte[] readFixedBodyFromStream(InputStream input, int contentLength) throws IOException {
+        if (contentLength < 0) {
+            throw new IOException("Content-Length yok");
+        }
+        if (contentLength > MAX_JSON_POST_BYTES) {
+            throw new IOException("İstek çok büyük");
+        }
+        byte[] buf = new byte[contentLength];
+        int off = 0;
+        while (off < contentLength) {
+            int n = input.read(buf, off, contentLength - off);
+            if (n == -1) {
+                throw new IOException("Beklenmeyen son");
+            }
+            off += n;
+        }
+        return buf;
+    }
+
+    /**
+     * Web textarea'dan gelen paylaşım linki: sınır ve görünmez karakterler, istenmeyen satır kırılmaları.
+     */
+    private static String normalizeOpenMapUrlString(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.trim()
+                .replace("\u200B", "")
+                .replace("\uFEFF", "")
+                .replaceAll("[\r\n]+", "");
+    }
+
+    /**
+     * Araçta {@link android.content.Intent#ACTION_VIEW} ile açılabilecek linkler.
+     * Tüm http ve https URI'ları (en az bir host ile); kısa link, yönlendirme, arama, harita sitesi — sistem uygun uygulamayı veya tarayıcıyı açar.
+     * Ayrıca {@code geo:} ve {@code google.navigation:}.
+     * Engelli şemalar: {@code javascript}, {@code file}, {@code data}, {@code content}.
+     */
+    static boolean isAllowedMapUrl(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String t = raw.trim();
+        if (t.isEmpty() || t.length() > MAX_OPEN_URL_CHARS) {
+            return false;
+        }
+        Uri u = Uri.parse(t);
+        String scheme = u.getScheme();
+        if (scheme == null) {
+            return false;
+        }
+        String s = scheme.toLowerCase();
+        if ("javascript".equals(s) || "file".equals(s) || "data".equals(s) || "content".equals(s)) {
+            return false;
+        }
+        if ("geo".equals(s) || "google.navigation".equals(s)) {
+            return true;
+        }
+        if ("http".equals(s) || "https".equals(s)) {
+            String host = u.getHost();
+            return host != null && !host.isEmpty();
+        }
+        return false;
+    }
+
+    private void handleOpenMaps(InputStream input, OutputStream output, String requestHeader) {
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0) {
+                sendErrorResponse(output, 400, "Content-Length gerekli");
+                return;
+            }
+            byte[] body = readFixedBodyFromStream(input, cl);
+            JSONObject o = new JSONObject(new String(body, StandardCharsets.UTF_8));
+            if (!o.has("url")) {
+                sendErrorResponse(output, 400, "url alanı gerekli");
+                return;
+            }
+            String url = normalizeOpenMapUrlString(o.getString("url"));
+            if (!isAllowedMapUrl(url)) {
+                if (listener != null) {
+                    listener.onLog("[WARN] Engellenen link: " + url);
+                }
+                sendErrorResponse(output, 400, "Geçersiz veya izin verilmeyen link (http/https, geo, google.navigation; javascript/file/data/content yok)");
+                return;
+            }
+            if (listener == null) {
+                sendErrorResponse(output, 500, "Listener yok");
+                return;
+            }
+            listener.onOpenMapUrl(url);
+            if (listener != null) {
+                listener.onLog("Link isteği: " + url);
+            }
+            String json = new JSONObject().put("ok", true).put("url", url).toString();
+            sendJson200(output, json);
+        } catch (Exception e) {
+            if (listener != null) {
+                listener.onLog("[ERROR] open-maps: " + e.getMessage());
+            }
+            sendErrorResponse(output, 400, "open-maps: " + e.getMessage());
+        }
+    }
+
+    private void handleKeyboard(InputStream input, OutputStream output, String requestHeader) {
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0) {
+                sendErrorResponse(output, 400, "Content-Length gerekli");
+                return;
+            }
+            byte[] body = readFixedBodyFromStream(input, cl);
+            JSONObject o = new JSONObject(new String(body, StandardCharsets.UTF_8));
+            if (!o.has("text")) {
+                sendErrorResponse(output, 400, "text alanı gerekli");
+                return;
+            }
+            String text = o.getString("text");
+            if (text.length() > MAX_KEYBOARD_TEXT_CHARS) {
+                sendErrorResponse(output, 400, "Metin çok uzun (max " + MAX_KEYBOARD_TEXT_CHARS + ")");
+                return;
+            }
+            if (listener == null) {
+                sendErrorResponse(output, 500, "Listener yok");
+                return;
+            }
+            boolean showDeviceFeedback = o.optBoolean("notify", true);
+            listener.onTypeKeyboardText(text, showDeviceFeedback);
+            if (listener != null) {
+                if (showDeviceFeedback) {
+                    listener.onLog("Klavye metni " + text.length() + " karakter");
+                }
+            }
+            String json = new JSONObject().put("ok", true).toString();
+            sendJson200(output, json);
+        } catch (Exception e) {
+            if (listener != null) {
+                listener.onLog("[ERROR] keyboard: " + e.getMessage());
+            }
+            sendErrorResponse(output, 400, "keyboard: " + e.getMessage());
+        }
+    }
+
+    private void sendJson200(OutputStream output, String json) throws IOException {
+        String http = "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: application/json; charset=UTF-8\r\n" +
+                "Access-Control-Allow-Origin: *\r\n" +
+                "Content-Length: " + json.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
+                "Connection: close\r\n\r\n" +
+                json;
+        output.write(http.getBytes(StandardCharsets.UTF_8));
+        output.flush();
+    }
+
     /**
      * Hata yanıtı gönder
      */
@@ -635,6 +872,7 @@ public class WebServerManager {
         try {
             String response = "HTTP/1.1 " + statusCode + " " + getStatusText(statusCode) + "\r\n" +
                     "Content-Type: text/plain; charset=UTF-8\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
                     "Content-Length: " + message.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                     "Connection: close\r\n\r\n" +
                     message;
@@ -851,6 +1089,7 @@ public class WebServerManager {
                     JSONObject appObj = new JSONObject();
                     appObj.put("name", appName);
                     appObj.put("package", packageName);
+                    appObj.put("locked", "com.mapcontrol".equals(packageName));
                     appArray.put(appObj);
                 } catch (Exception e) {
                     // Uygulama bilgisi alınamazsa atla
@@ -1057,6 +1296,7 @@ public class WebServerManager {
         switch (statusCode) {
             case 400: return "Bad Request";
             case 404: return "Not Found";
+            case 405: return "Method Not Allowed";
             case 500: return "Internal Server Error";
             default: return "Error";
         }

@@ -22,13 +22,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -38,6 +37,9 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 import org.json.JSONObject;
+import com.mapcontrol.R;
+import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.activity.MainActivity;
 
@@ -67,9 +69,7 @@ public class ProfileTabBuilder {
     private Button profileSaveDataButton;
     private Button profileLoadDataButton; // Son Değişiklikleri Getir butonu
     private Button profileSaveLocationButton;
-    private RadioGroup profileAutoLocationRadioGroup; // Otomatik konum kaydetme RadioGroup
-    private LinearLayout profileAutoLocationIconCircle1; // Evet icon circle
-    private LinearLayout profileAutoLocationIconCircle2; // Hayır icon circle
+    private UiStyles.BinarySegmentHandle profileAutoLocationSegmentHandle;
 
     private LinearLayout profileTabContent;
     private ScrollView profileScrollView;
@@ -91,34 +91,40 @@ public class ProfileTabBuilder {
 
     private void createProfileTab() {
         profileScrollView = new ScrollView(context);
-        profileScrollView.setBackgroundColor(0xFF1E1E1E);
+        profileScrollView.setBackgroundColor(Color.TRANSPARENT);
         profileScrollView.setFillViewport(true);
+
+        LinearLayout outer = new LinearLayout(context);
+        outer.setOrientation(LinearLayout.VERTICAL);
+        int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
+        outer.setPadding(margin, margin, margin, margin);
 
         profileTabContent = new LinearLayout(context);
         profileTabContent.setOrientation(LinearLayout.VERTICAL);
-        profileTabContent.setPadding(0, 0, 0, 0);
-        profileTabContent.setBackgroundColor(0xFF1E1E1E);
+        int inner = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
+        profileTabContent.setPadding(inner, inner, inner, inner);
+        UiStyles.setGlassCardBackground(profileTabContent);
 
         // Giriş kartı
         LinearLayout loginCard = new LinearLayout(context);
         loginCard.setOrientation(LinearLayout.VERTICAL);
         loginCard.setPadding(20, 20, 20, 20);
         android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
-        cardBg.setColor(0xFF151C24);
-        cardBg.setCornerRadius(12);
-        cardBg.setStroke(1, 0xFF2A3A47);
+        cardBg.setColor(ContextCompat.getColor(context, R.color.surfaceCard));
+        cardBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
+        cardBg.setStroke(1, ContextCompat.getColor(context, R.color.outline));
         loginCard.setBackground(cardBg);
 
         profileLoginStatusText = new TextView(context);
         profileLoginStatusText.setTextSize(15);
-        profileLoginStatusText.setTextColor(0xE6FFFFFF);
+        profileLoginStatusText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
         profileLoginStatusText.setPadding(0, 0, 0, 20);
         profileLoginStatusText.setLineSpacing(4, 1.2f);
 
         profileEmailLabel = new TextView(context);
         profileEmailLabel.setText("E-posta Adresi");
         profileEmailLabel.setTextSize(14);
-        profileEmailLabel.setTextColor(0xFFB0B0B0);
+        profileEmailLabel.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
         profileEmailLabel.setPadding(0, 0, 0, 8);
         loginCard.addView(profileEmailLabel);
 
@@ -128,12 +134,12 @@ public class ProfileTabBuilder {
         profileEmailInput.setTextSize(16);
         profileEmailInput.setPadding(16, 16, 16, 16);
         android.graphics.drawable.GradientDrawable inputBg = new android.graphics.drawable.GradientDrawable();
-        inputBg.setColor(0xFF1E1E1E);
-        inputBg.setCornerRadius(8);
-        inputBg.setStroke(1, 0xFF404040);
+        inputBg.setColor(ContextCompat.getColor(context, R.color.surfaceColor));
+        inputBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
+        inputBg.setStroke(1, ContextCompat.getColor(context, R.color.outlineMuted));
         profileEmailInput.setBackground(inputBg);
-        profileEmailInput.setTextColor(0xFFFFFFFF);
-        profileEmailInput.setHintTextColor(0xAAFFFFFF);
+        profileEmailInput.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        profileEmailInput.setHintTextColor(ContextCompat.getColor(context, R.color.textHint));
         LinearLayout.LayoutParams emailParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -143,7 +149,7 @@ public class ProfileTabBuilder {
         profileCodeLabel = new TextView(context);
         profileCodeLabel.setText("Doğrulama Kodu");
         profileCodeLabel.setTextSize(14);
-        profileCodeLabel.setTextColor(0xFFB0B0B0);
+        profileCodeLabel.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
         profileCodeLabel.setPadding(0, 0, 0, 8);
         loginCard.addView(profileCodeLabel);
 
@@ -153,8 +159,8 @@ public class ProfileTabBuilder {
         profileCodeInput.setTextSize(16);
         profileCodeInput.setPadding(16, 16, 16, 16);
         profileCodeInput.setBackground(inputBg);
-        profileCodeInput.setTextColor(0xFFFFFFFF);
-        profileCodeInput.setHintTextColor(0xAAFFFFFF);
+        profileCodeInput.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        profileCodeInput.setHintTextColor(ContextCompat.getColor(context, R.color.textHint));
         LinearLayout.LayoutParams codeParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -168,25 +174,20 @@ public class ProfileTabBuilder {
         profileSendCodeButton = new Button(context);
         profileSendCodeButton.setText("Kod Gönder");
         profileSendCodeButton.setTextSize(14);
-        profileSendCodeButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable sendBtnBg = new android.graphics.drawable.GradientDrawable();
-        sendBtnBg.setColor(0xFF3DAEA8);
-        sendBtnBg.setCornerRadius(8);
-        profileSendCodeButton.setBackground(sendBtnBg);
+        profileSendCodeButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSendCodeButton, ContextCompat.getColor(context, R.color.buttonPrimary));
         profileSendCodeButton.setPadding(20, 14, 20, 14);
         LinearLayout.LayoutParams sendBtnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
         sendBtnParams.setMargins(0, 0, 8, 0);
         profileButtonsContainer.addView(profileSendCodeButton, sendBtnParams);
+        styleSendCodeButtonDefault();
 
         profileLoginButton = new Button(context);
         profileLoginButton.setText("Giriş Yap");
         profileLoginButton.setTextSize(14);
-        profileLoginButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable loginBtnBg = new android.graphics.drawable.GradientDrawable();
-        loginBtnBg.setColor(0xFF4CAF50);
-        loginBtnBg.setCornerRadius(8);
-        profileLoginButton.setBackground(loginBtnBg);
+        profileLoginButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLoginButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
         profileLoginButton.setPadding(20, 14, 20, 14);
         LinearLayout.LayoutParams loginBtnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
@@ -199,11 +200,8 @@ public class ProfileTabBuilder {
         profileLogoutButton = new Button(context);
         profileLogoutButton.setText("Çıkış Yap");
         profileLogoutButton.setTextSize(14);
-        profileLogoutButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable logoutBtnBg = new android.graphics.drawable.GradientDrawable();
-        logoutBtnBg.setColor(0xFFFF5722);
-        logoutBtnBg.setCornerRadius(8);
-        profileLogoutButton.setBackground(logoutBtnBg);
+        profileLogoutButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLogoutButton, ContextCompat.getColor(context, R.color.buttonDanger));
         profileLogoutButton.setPadding(20, 14, 20, 14);
         profileLogoutButton.setVisibility(android.view.View.GONE);
         LinearLayout.LayoutParams logoutBtnParams = new LinearLayout.LayoutParams(
@@ -215,11 +213,8 @@ public class ProfileTabBuilder {
         profilePlatformButton = new Button(context);
         profilePlatformButton.setText("Platforma Gir");
         profilePlatformButton.setTextSize(14);
-        profilePlatformButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable platformBtnBg = new android.graphics.drawable.GradientDrawable();
-        platformBtnBg.setColor(0xFF3DAEA8);
-        platformBtnBg.setCornerRadius(8);
-        profilePlatformButton.setBackground(platformBtnBg);
+        profilePlatformButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profilePlatformButton, ContextCompat.getColor(context, R.color.buttonPrimary));
         profilePlatformButton.setPadding(20, 14, 20, 14);
         profilePlatformButton.setVisibility(android.view.View.GONE);
         LinearLayout.LayoutParams platformBtnParams = new LinearLayout.LayoutParams(
@@ -260,6 +255,7 @@ public class ProfileTabBuilder {
             }
 
             profileSendCodeButton.setEnabled(false);
+            UiStyles.clearButtonCompoundDrawables(profileSendCodeButton);
             profileSendCodeButton.setText("Gönderiliyor...");
 
             if (apiService != null) {
@@ -268,10 +264,11 @@ public class ProfileTabBuilder {
                     public void onSuccess(String message, JSONObject data) {
                         handler.post(() -> {
                             profileSendCodeButton.setEnabled(true);
+                            UiStyles.clearButtonCompoundDrawables(profileSendCodeButton);
                             profileSendCodeButton.setText("Kod Gönderildi");
-                            Toast.makeText(context, "✅ " + message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Doğrulama kodu gönderildi: " + email);
-                            handler.postDelayed(() -> profileSendCodeButton.setText("📧 Kod Gönder"), 3000);
+                            handler.postDelayed(() -> styleSendCodeButtonDefault(), 3000);
                         });
                     }
 
@@ -279,8 +276,8 @@ public class ProfileTabBuilder {
                     public void onError(String error) {
                         handler.post(() -> {
                             profileSendCodeButton.setEnabled(true);
-                            profileSendCodeButton.setText("Kod Gönder");
-                            Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                            styleSendCodeButtonDefault();
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Kod gönderme hatası: " + error);
                         });
                     }
@@ -312,7 +309,7 @@ public class ProfileTabBuilder {
                             profileLoginButton.setEnabled(true);
                             profileLoginButton.setText("Giriş Yap");
                             updateProfileLoginStatus();
-                            Toast.makeText(context, "✅ " + message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Giriş başarılı: " + email);
                         });
                     }
@@ -322,7 +319,7 @@ public class ProfileTabBuilder {
                         handler.post(() -> {
                             profileLoginButton.setEnabled(true);
                             profileLoginButton.setText("Giriş Yap");
-                            Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Giriş hatası: " + error);
                         });
                     }
@@ -346,15 +343,15 @@ public class ProfileTabBuilder {
         actionsCard.setOrientation(LinearLayout.VERTICAL);
         actionsCard.setPadding(20, 20, 20, 20);
         android.graphics.drawable.GradientDrawable actionsCardBg = new android.graphics.drawable.GradientDrawable();
-        actionsCardBg.setColor(0xFF151C24);
-        actionsCardBg.setCornerRadius(12);
-        actionsCardBg.setStroke(1, 0xFF2A3A47);
+        actionsCardBg.setColor(ContextCompat.getColor(context, R.color.surfaceCard));
+        actionsCardBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
+        actionsCardBg.setStroke(1, ContextCompat.getColor(context, R.color.outline));
         actionsCard.setBackground(actionsCardBg);
 
         TextView actionsTitle = new TextView(context);
         actionsTitle.setText("Veri Yönetimi");
         actionsTitle.setTextSize(17);
-        actionsTitle.setTextColor(0xFFFFFFFF);
+        actionsTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
         actionsTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
         actionsTitle.setPadding(0, 0, 0, 16);
         actionsCard.addView(actionsTitle);
@@ -366,11 +363,8 @@ public class ProfileTabBuilder {
         profileSaveDataButton = new Button(context);
         profileSaveDataButton.setText("Son Değişiklikleri Sakla");
         profileSaveDataButton.setTextSize(14);
-        profileSaveDataButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable saveBtnBg = new android.graphics.drawable.GradientDrawable();
-        saveBtnBg.setColor(0xFF3DAEA8);
-        saveBtnBg.setCornerRadius(8);
-        profileSaveDataButton.setBackground(saveBtnBg);
+        profileSaveDataButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSaveDataButton, ContextCompat.getColor(context, R.color.buttonPrimary));
         profileSaveDataButton.setPadding(16, 14, 16, 14);
         profileSaveDataButton.setEnabled(apiService != null && apiService.isLoggedIn());
         profileSaveDataButton.setVisibility(android.view.View.VISIBLE);
@@ -383,11 +377,8 @@ public class ProfileTabBuilder {
         profileLoadDataButton = new Button(context);
         profileLoadDataButton.setText("Son Değişiklikleri Getir");
         profileLoadDataButton.setTextSize(14);
-        profileLoadDataButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable loadBtnBg = new android.graphics.drawable.GradientDrawable();
-        loadBtnBg.setColor(0xFF4CAF50);
-        loadBtnBg.setCornerRadius(8);
-        profileLoadDataButton.setBackground(loadBtnBg);
+        profileLoadDataButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLoadDataButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
         profileLoadDataButton.setPadding(16, 14, 16, 14);
         profileLoadDataButton.setEnabled(apiService != null && apiService.isLoggedIn());
         profileLoadDataButton.setVisibility(android.view.View.VISIBLE);
@@ -449,7 +440,7 @@ public class ProfileTabBuilder {
                         handler.post(() -> {
                             profileSaveDataButton.setEnabled(true);
                             profileSaveDataButton.setText("Son Değişiklikleri Sakla");
-                            Toast.makeText(context, "✅ " + message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Veriler başarıyla kaydedildi: " + message);
                         });
                     }
@@ -459,7 +450,7 @@ public class ProfileTabBuilder {
                         handler.post(() -> {
                             profileSaveDataButton.setEnabled(true);
                             profileSaveDataButton.setText("Son Değişiklikleri Sakla");
-                            Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Veri kaydetme hatası: " + error);
                         });
                     }
@@ -468,7 +459,7 @@ public class ProfileTabBuilder {
                 handler.post(() -> {
                     profileSaveDataButton.setEnabled(true);
                     profileSaveDataButton.setText("Son Değişiklikleri Sakla");
-                    Toast.makeText(context, "❌ Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     callback.log("Veri kaydetme hatası: " + e.getMessage());
                 });
             }
@@ -495,7 +486,12 @@ public class ProfileTabBuilder {
             actionsCard.setVisibility(android.view.View.GONE);
         }
 
-        profileScrollView.addView(profileTabContent);
+        outer.addView(profileTabContent, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        profileScrollView.addView(outer, new ScrollView.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
     }
 
     // MainActivity'deki profil kartının kalan dev bloklarını korumak için ayrıştırdım.
@@ -527,7 +523,7 @@ public class ProfileTabBuilder {
                             try {
                                 JSONObject data = responseData;
                                 if (data == null) {
-                                    Toast.makeText(context, "❌ Veri bulunamadı", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(context, "Veri bulunamadı", Toast.LENGTH_SHORT).show();
                                     callback.log("Sunucudan veri alınamadı: data objesi yok");
                                     profileLoadDataButton.setEnabled(true);
                                     profileLoadDataButton.setText("Son Değişiklikleri Getir");
@@ -546,15 +542,18 @@ public class ProfileTabBuilder {
                                 if (data.has("targetPackage")) {
                                     String targetPackage = data.getString("targetPackage");
                                     if (targetPackage != null && !targetPackage.isEmpty()) {
-                                        editor.putString("targetPackage", targetPackage);
+                                        editor.putString(TargetPackageStore.KEY_TARGET_PACKAGE, targetPackage);
                                     }
                                 }
                                 editor.apply();
+                                if (data.has("targetPackage")) {
+                                    TargetPackageStore.broadcast(context);
+                                }
 
                                 callback.log("Sunucudan veriler başarıyla yüklendi ve SharedPreferences'a kaydedildi");
 
                                 AlertDialog.Builder restartBuilder = new AlertDialog.Builder(context);
-                                restartBuilder.setTitle("🔄 Uygulama Yeniden Başlatılacak");
+                                restartBuilder.setTitle("Uygulama Yeniden Başlatılacak");
                                 restartBuilder.setMessage("Son kayıtlı verileriniz başarıyla yüklendi.\n\nAyarların etkin olması için uygulamanın yeniden başlatılması gerekiyor.\n\nYeniden başlatmak istiyor musunuz?");
                                 restartBuilder.setPositiveButton("Yeniden Başlat", (d2, w2) -> {
                                     Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
@@ -563,17 +562,17 @@ public class ProfileTabBuilder {
                                         context.startActivity(intent);
                                         android.os.Process.killProcess(android.os.Process.myPid());
                                     } else {
-                                        Toast.makeText(context, "❌ Uygulama yeniden başlatılamadı", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(context, "Uygulama yeniden başlatılamadı", Toast.LENGTH_SHORT).show();
                                     }
                                 });
                                 restartBuilder.setNegativeButton("İptal", (d2, w2) -> {
                                     d2.dismiss();
-                                    Toast.makeText(context, "ℹ️ Veriler yüklendi, uygulamayı manuel olarak yeniden başlatabilirsiniz", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(context, "Veriler yüklendi, uygulamayı manuel olarak yeniden başlatabilirsiniz", Toast.LENGTH_LONG).show();
                                 });
                                 restartBuilder.setCancelable(false);
                                 restartBuilder.show();
                             } catch (Exception e) {
-                                Toast.makeText(context, "❌ Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                                 callback.log("Veri yükleme hatası: " + e.getMessage());
                             } finally {
                                 profileLoadDataButton.setEnabled(true);
@@ -587,7 +586,7 @@ public class ProfileTabBuilder {
                         handler.post(() -> {
                             profileLoadDataButton.setEnabled(true);
                             profileLoadDataButton.setText("Son Değişiklikleri Getir");
-                            Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Veri getirme hatası: " + error);
                         });
                     }
@@ -599,15 +598,12 @@ public class ProfileTabBuilder {
         });
 
         profileSaveLocationButton = new Button(context);
-        profileSaveLocationButton.setText("📍 Mevcut Konumu Kaydet");
         profileSaveLocationButton.setTextSize(16);
-        profileSaveLocationButton.setTextColor(0xFFFFFFFF);
-        android.graphics.drawable.GradientDrawable locationBtnBg = new android.graphics.drawable.GradientDrawable();
-        locationBtnBg.setColor(0xFF3DAEA8);
-        locationBtnBg.setCornerRadius(8);
-        profileSaveLocationButton.setBackground(locationBtnBg);
+        profileSaveLocationButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSaveLocationButton, ContextCompat.getColor(context, R.color.buttonPrimary));
         profileSaveLocationButton.setPadding(24, 18, 24, 18);
         profileSaveLocationButton.setEnabled(apiService != null && apiService.isLoggedIn());
+        styleSaveLocationButtonDefault();
 
         LinearLayout.LayoutParams locationBtnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -618,7 +614,7 @@ public class ProfileTabBuilder {
         TextView autoLocationTitle = new TextView(context);
         autoLocationTitle.setText("Araç Kapanınca Otomatik Konum Kaydet");
         autoLocationTitle.setTextSize(15);
-        autoLocationTitle.setTextColor(0xE6FFFFFF);
+        autoLocationTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
         autoLocationTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
         autoLocationTitle.setPadding(0, 0, 0, 8);
         actionsCard.addView(autoLocationTitle);
@@ -626,179 +622,34 @@ public class ProfileTabBuilder {
         TextView autoLocationDesc = new TextView(context);
         autoLocationDesc.setText("Araç kapanınca ne olsun?");
         autoLocationDesc.setTextSize(13);
-        autoLocationDesc.setTextColor(0xAAFFFFFF);
+        autoLocationDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
         autoLocationDesc.setPadding(0, 0, 0, 12);
         actionsCard.addView(autoLocationDesc);
 
-        profileAutoLocationRadioGroup = new RadioGroup(context);
-        profileAutoLocationRadioGroup.setOrientation(LinearLayout.VERTICAL);
-        profileAutoLocationRadioGroup.setPadding(20, 0, 20, 0);
-
-        LinearLayout autoLocationOption1Container = new LinearLayout(context);
-        autoLocationOption1Container.setOrientation(LinearLayout.HORIZONTAL);
-        autoLocationOption1Container.setPadding(16, 16, 16, 16);
-        autoLocationOption1Container.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        autoLocationOption1Container.setClickable(true);
-        autoLocationOption1Container.setFocusable(true);
-
-        profileAutoLocationIconCircle1 = new LinearLayout(context);
-        profileAutoLocationIconCircle1.setOrientation(LinearLayout.VERTICAL);
-        profileAutoLocationIconCircle1.setBackgroundColor(0xFF1A2330);
-        profileAutoLocationIconCircle1.setGravity(android.view.Gravity.CENTER);
-        profileAutoLocationIconCircle1.setPadding(10, 10, 10, 10);
-        profileAutoLocationIconCircle1.setId(android.view.View.generateViewId());
-
-        TextView autoLocationIcon1 = new TextView(context);
-        autoLocationIcon1.setText("✅");
-        autoLocationIcon1.setTextSize(20);
-        autoLocationIcon1.setTextColor(0xFFFFFFFF);
-        profileAutoLocationIconCircle1.addView(autoLocationIcon1);
-
-        LinearLayout.LayoutParams autoLocationIconCircle1Params = new LinearLayout.LayoutParams(48, 48);
-        autoLocationIconCircle1Params.setMargins(0, 0, 12, 0);
-        autoLocationOption1Container.addView(profileAutoLocationIconCircle1, autoLocationIconCircle1Params);
-
-        LinearLayout autoLocationTextColumn1 = new LinearLayout(context);
-        autoLocationTextColumn1.setOrientation(LinearLayout.VERTICAL);
-
-        TextView autoLocationTitle1 = new TextView(context);
-        autoLocationTitle1.setText("Açık");
-        autoLocationTitle1.setTextColor(0xFFFFFFFF);
-        autoLocationTitle1.setTextSize(16);
-        autoLocationTitle1.setTypeface(null, android.graphics.Typeface.NORMAL);
-        autoLocationTextColumn1.addView(autoLocationTitle1);
-
-        TextView autoLocationDesc1 = new TextView(context);
-        autoLocationDesc1.setText("Araç kapanınca otomatik konum kaydet");
-        autoLocationDesc1.setTextColor(0xAAFFFFFF);
-        autoLocationDesc1.setTextSize(13);
-        autoLocationDesc1.setPadding(0, 2, 0, 0);
-        autoLocationTextColumn1.addView(autoLocationDesc1);
-
-        LinearLayout.LayoutParams autoLocationTextParams1 = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        autoLocationOption1Container.addView(autoLocationTextColumn1, autoLocationTextParams1);
-
-        RadioButton autoLocationRadio1 = new RadioButton(context);
-        autoLocationRadio1.setId(300);
-        autoLocationRadio1.setButtonDrawable(null);
-        autoLocationRadio1.setBackground(null);
-        autoLocationRadio1.setPadding(0, 0, 0, 0);
-        autoLocationRadio1.setClickable(true);
-        autoLocationRadio1.setEnabled(true);
-        autoLocationOption1Container.addView(autoLocationRadio1);
-
-        autoLocationOption1Container.setOnClickListener(v -> {
-            if (profileAutoLocationRadioGroup.isEnabled()) {
-                profileAutoLocationRadioGroup.check(300);
-            }
-        });
-        profileAutoLocationRadioGroup.addView(autoLocationOption1Container);
-
-        LinearLayout autoLocationOption2Container = new LinearLayout(context);
-        autoLocationOption2Container.setOrientation(LinearLayout.HORIZONTAL);
-        autoLocationOption2Container.setPadding(16, 16, 16, 16);
-        autoLocationOption2Container.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        autoLocationOption2Container.setClickable(true);
-        autoLocationOption2Container.setFocusable(true);
-
-        profileAutoLocationIconCircle2 = new LinearLayout(context);
-        profileAutoLocationIconCircle2.setOrientation(LinearLayout.VERTICAL);
-        profileAutoLocationIconCircle2.setBackgroundColor(0xFF1A2330);
-        profileAutoLocationIconCircle2.setGravity(android.view.Gravity.CENTER);
-        profileAutoLocationIconCircle2.setPadding(10, 10, 10, 10);
-        profileAutoLocationIconCircle2.setId(android.view.View.generateViewId());
-
-        TextView autoLocationIcon2 = new TextView(context);
-        autoLocationIcon2.setText("❌");
-        autoLocationIcon2.setTextSize(20);
-        autoLocationIcon2.setTextColor(0xFFFFFFFF);
-        profileAutoLocationIconCircle2.addView(autoLocationIcon2);
-
-        LinearLayout.LayoutParams autoLocationIconCircle2Params = new LinearLayout.LayoutParams(48, 48);
-        autoLocationIconCircle2Params.setMargins(0, 0, 12, 0);
-        autoLocationOption2Container.addView(profileAutoLocationIconCircle2, autoLocationIconCircle2Params);
-
-        LinearLayout autoLocationTextColumn2 = new LinearLayout(context);
-        autoLocationTextColumn2.setOrientation(LinearLayout.VERTICAL);
-
-        TextView autoLocationTitle2 = new TextView(context);
-        autoLocationTitle2.setText("Kapalı");
-        autoLocationTitle2.setTextColor(0xFFFFFFFF);
-        autoLocationTitle2.setTextSize(16);
-        autoLocationTitle2.setTypeface(null, android.graphics.Typeface.NORMAL);
-        autoLocationTextColumn2.addView(autoLocationTitle2);
-
-        TextView autoLocationDesc2 = new TextView(context);
-        autoLocationDesc2.setText("Otomatik konum kaydetme kapalı");
-        autoLocationDesc2.setTextColor(0xAAFFFFFF);
-        autoLocationDesc2.setTextSize(13);
-        autoLocationDesc2.setPadding(0, 2, 0, 0);
-        autoLocationTextColumn2.addView(autoLocationDesc2);
-
-        LinearLayout.LayoutParams autoLocationTextParams2 = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        autoLocationOption2Container.addView(autoLocationTextColumn2, autoLocationTextParams2);
-
-        RadioButton autoLocationRadio2 = new RadioButton(context);
-        autoLocationRadio2.setId(301);
-        autoLocationRadio2.setButtonDrawable(null);
-        autoLocationRadio2.setBackground(null);
-        autoLocationRadio2.setPadding(0, 0, 0, 0);
-        autoLocationOption2Container.addView(autoLocationRadio2);
-
-        autoLocationOption2Container.setOnClickListener(v -> {
-            if (profileAutoLocationRadioGroup.isEnabled()) {
-                profileAutoLocationRadioGroup.check(301);
-            }
-        });
-        profileAutoLocationRadioGroup.addView(autoLocationOption2Container);
-
-        final LinearLayout[] autoLocationIconCircles = {profileAutoLocationIconCircle1, profileAutoLocationIconCircle2};
-        profileAutoLocationRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            boolean isEnabled = (checkedId == 300);
-            prefs.edit().putBoolean("autoLocationSaveOnPowerOff", isEnabled).apply();
-            callback.log(isEnabled ? "Otomatik konum kaydetme açıldı" : "Otomatik konum kaydetme kapatıldı");
-            for (int i = 0; i < autoLocationIconCircles.length; i++) {
-                LinearLayout iconCircle = autoLocationIconCircles[i];
-                if (iconCircle != null) {
-                    if ((isEnabled && i == 0) || (!isEnabled && i == 1)) {
-                        iconCircle.setBackgroundColor(0xFF3DAEA8);
-                    } else {
-                        iconCircle.setBackgroundColor(0xFF1A2330);
-                    }
-                }
-            }
-        });
+        LinearLayout autoLocationSegmentBlock = new LinearLayout(context);
+        autoLocationSegmentBlock.setOrientation(LinearLayout.VERTICAL);
 
         boolean autoLocationEnabled = prefs.getBoolean("autoLocationSaveOnPowerOff", false);
         boolean isLoggedIn = apiService != null && apiService.isLoggedIn();
-        profileAutoLocationRadioGroup.setEnabled(isLoggedIn);
-        for (int i = 0; i < profileAutoLocationRadioGroup.getChildCount(); i++) {
-            android.view.View child = profileAutoLocationRadioGroup.getChildAt(i);
-            if (child instanceof LinearLayout) {
-                child.setEnabled(isLoggedIn);
-                child.setClickable(isLoggedIn);
-                child.setFocusable(isLoggedIn);
-                child.setAlpha(isLoggedIn ? 1.0f : 0.5f);
-                for (int j = 0; j < ((LinearLayout) child).getChildCount(); j++) {
-                    android.view.View innerChild = ((LinearLayout) child).getChildAt(j);
-                    if (innerChild instanceof RadioButton) {
-                        innerChild.setEnabled(isLoggedIn);
-                        innerChild.setClickable(isLoggedIn);
-                    }
-                }
-            }
-        }
+
+        profileAutoLocationSegmentHandle = UiStyles.addBinarySegmentedControl(context, autoLocationSegmentBlock,
+                null,
+                "Açık", "Kapalı",
+                "Araç kapanınca otomatik konum kaydet.",
+                "Otomatik konum kaydetme kapalı.",
+                autoLocationEnabled,
+                isEnabled -> {
+                    prefs.edit().putBoolean("autoLocationSaveOnPowerOff", isEnabled).apply();
+                    callback.log(isEnabled ? "Otomatik konum kaydetme açıldı" : "Otomatik konum kaydetme kapatıldı");
+                });
+        profileAutoLocationSegmentHandle.setInteractionEnabled(isLoggedIn);
 
         handler.post(() -> {
-            profileAutoLocationRadioGroup.check(autoLocationEnabled ? 300 : 301);
-            if (autoLocationEnabled) {
-                profileAutoLocationIconCircle1.setBackgroundColor(0xFF3DAEA8);
-                profileAutoLocationIconCircle2.setBackgroundColor(0xFF1A2330);
-            } else {
-                profileAutoLocationIconCircle1.setBackgroundColor(0xFF1A2330);
-                profileAutoLocationIconCircle2.setBackgroundColor(0xFF3DAEA8);
+            if (profileAutoLocationSegmentHandle != null) {
+                profileAutoLocationSegmentHandle.syncVisualWithoutCommit(
+                        prefs.getBoolean("autoLocationSaveOnPowerOff", false));
+                profileAutoLocationSegmentHandle.setInteractionEnabled(
+                        apiService != null && apiService.isLoggedIn());
             }
         });
 
@@ -806,7 +657,7 @@ public class ProfileTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         autoLocationRadioGroupParams.setMargins(0, 0, 0, 0);
-        actionsCard.addView(profileAutoLocationRadioGroup, autoLocationRadioGroupParams);
+        actionsCard.addView(autoLocationSegmentBlock, autoLocationRadioGroupParams);
 
         profileSaveLocationButton.setOnClickListener(v -> {
             if (apiService == null || !apiService.isLoggedIn()) {
@@ -820,6 +671,7 @@ public class ProfileTabBuilder {
             }
 
             profileSaveLocationButton.setEnabled(false);
+            UiStyles.clearButtonCompoundDrawables(profileSaveLocationButton);
             profileSaveLocationButton.setText("Konum alınıyor...");
 
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -827,7 +679,7 @@ public class ProfileTabBuilder {
                 ActivityCompat.requestPermissions((android.app.Activity) context,
                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1001);
                 profileSaveLocationButton.setEnabled(true);
-                profileSaveLocationButton.setText("📍 Mevcut Konumu Kaydet");
+                styleSaveLocationButtonDefault();
                 Toast.makeText(context, "Konum izni gerekli", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -851,8 +703,8 @@ public class ProfileTabBuilder {
                         public void onSuccess(String message, JSONObject data) {
                             handler.post(() -> {
                                 profileSaveLocationButton.setEnabled(true);
-                                profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
-                                Toast.makeText(context, "✅ " + message, Toast.LENGTH_SHORT).show();
+                                styleSaveLocationButtonDefault();
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                                 callback.log("Konum kaydedildi: " + latitude + ", " + longitude);
                             });
                         }
@@ -861,13 +713,14 @@ public class ProfileTabBuilder {
                         public void onError(String error) {
                             handler.post(() -> {
                                 profileSaveLocationButton.setEnabled(true);
-                                profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
-                                Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                                styleSaveLocationButtonDefault();
+                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                                 callback.log("Konum kaydetme hatası: " + error);
                             });
                         }
                     });
                 } else {
+                    UiStyles.clearButtonCompoundDrawables(profileSaveLocationButton);
                     profileSaveLocationButton.setText("Konum bekleniyor...");
                     locationListener = new LocationListener() {
                         @Override
@@ -880,8 +733,8 @@ public class ProfileTabBuilder {
                                     public void onSuccess(String message, JSONObject data) {
                                         handler.post(() -> {
                                             profileSaveLocationButton.setEnabled(true);
-                                            profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
-                                            Toast.makeText(context, "✅ " + message, Toast.LENGTH_SHORT).show();
+                                            styleSaveLocationButtonDefault();
+                                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                                             callback.log("Konum kaydedildi: " + latitude + ", " + longitude);
                                         });
                                     }
@@ -890,8 +743,8 @@ public class ProfileTabBuilder {
                                     public void onError(String error) {
                                         handler.post(() -> {
                                             profileSaveLocationButton.setEnabled(true);
-                                            profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
-                                            Toast.makeText(context, "❌ " + error, Toast.LENGTH_SHORT).show();
+                                            styleSaveLocationButtonDefault();
+                                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                                             callback.log("Konum kaydetme hatası: " + error);
                                         });
                                     }
@@ -919,14 +772,14 @@ public class ProfileTabBuilder {
                             locationManager.removeUpdates(locationListener);
                         }
                         profileSaveLocationButton.setEnabled(true);
-                        profileSaveLocationButton.setText("📍 Mevcut Konumu Kaydet");
+                        styleSaveLocationButtonDefault();
                         Toast.makeText(context, "Konum alınamadı, lütfen GPS'in açık olduğundan emin olun", Toast.LENGTH_LONG).show();
                     }, 10000);
                 }
             } catch (Exception e) {
                 profileSaveLocationButton.setEnabled(true);
-                profileSaveLocationButton.setText("📍 Mevcut Konumu Kaydet");
-                Toast.makeText(context, "❌ Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                styleSaveLocationButtonDefault();
+                Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 callback.log("Konum alma hatası: " + e.getMessage());
             }
         });
@@ -955,24 +808,8 @@ public class ProfileTabBuilder {
             if (profileSaveDataButton != null) profileSaveDataButton.setEnabled(true);
             if (profileLoadDataButton != null) profileLoadDataButton.setEnabled(true);
             if (profileSaveLocationButton != null) profileSaveLocationButton.setEnabled(true);
-            if (profileAutoLocationRadioGroup != null) {
-                profileAutoLocationRadioGroup.setEnabled(true);
-                for (int i = 0; i < profileAutoLocationRadioGroup.getChildCount(); i++) {
-                    android.view.View child = profileAutoLocationRadioGroup.getChildAt(i);
-                    if (child instanceof LinearLayout) {
-                        child.setEnabled(true);
-                        child.setClickable(true);
-                        child.setFocusable(true);
-                        child.setAlpha(1.0f);
-                        for (int j = 0; j < ((LinearLayout) child).getChildCount(); j++) {
-                            android.view.View innerChild = ((LinearLayout) child).getChildAt(j);
-                            if (innerChild instanceof RadioButton) {
-                                innerChild.setEnabled(true);
-                                innerChild.setClickable(true);
-                            }
-                        }
-                    }
-                }
+            if (profileAutoLocationSegmentHandle != null) {
+                profileAutoLocationSegmentHandle.setInteractionEnabled(true);
             }
 
             if (profileTabContent != null) {
@@ -1011,15 +848,8 @@ public class ProfileTabBuilder {
             if (profileSaveDataButton != null) profileSaveDataButton.setEnabled(false);
             if (profileLoadDataButton != null) profileLoadDataButton.setEnabled(false);
             if (profileSaveLocationButton != null) profileSaveLocationButton.setEnabled(false);
-            if (profileAutoLocationRadioGroup != null) {
-                profileAutoLocationRadioGroup.setEnabled(false);
-                for (int i = 0; i < profileAutoLocationRadioGroup.getChildCount(); i++) {
-                    android.view.View child = profileAutoLocationRadioGroup.getChildAt(i);
-                    if (child instanceof LinearLayout) {
-                        child.setEnabled(false);
-                        child.setAlpha(0.5f);
-                    }
-                }
+            if (profileAutoLocationSegmentHandle != null) {
+                profileAutoLocationSegmentHandle.setInteractionEnabled(false);
             }
 
             if (profileTabContent != null) {
@@ -1093,6 +923,20 @@ public class ProfileTabBuilder {
                 });
             }
         }).start();
+    }
+
+    private void styleSendCodeButtonDefault() {
+        profileSendCodeButton.setText("Kod Gönder");
+        UiStyles.setButtonStartIconTinted(profileSendCodeButton, R.drawable.ic_mdi_email_outline,
+                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.dimenPx(context, R.dimen.spacing_small));
+    }
+
+    private void styleSaveLocationButtonDefault() {
+        profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
+        UiStyles.setButtonStartIconTinted(profileSaveLocationButton, R.drawable.ic_mdi_map_marker,
+                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.dimenPx(context, R.dimen.spacing_small));
     }
 
     private String getBluetoothName() {

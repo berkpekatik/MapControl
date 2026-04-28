@@ -17,12 +17,28 @@
     
     <!-- Button -->
     <dimen name="button_height">48dp</dimen>
-    <dimen name="button_corner_radius">8dp</dimen>
+    <dimen name="button_corner_radius">14dp</dimen>
     <dimen name="button_elevation">4dp</dimen>
     
     <!-- Card -->
     <dimen name="card_corner_radius">12dp</dimen>
     <dimen name="card_elevation">6dp</dimen>
+
+    <!-- OEM shell / glass -->
+    <dimen name="oem_card_radius">26dp</dimen>
+    <dimen name="oem_nav_pill_radius">22dp</dimen>
+    <dimen name="oem_button_radius">14dp</dimen>
+    <dimen name="oem_segment_track_radius">16dp</dimen>
+    <dimen name="oem_segment_thumb_radius">12dp</dimen>
+    <dimen name="oem_content_padding">16dp</dimen>
+    <dimen name="oem_card_margin">12dp</dimen>
+    <dimen name="oem_card_inner_padding">18dp</dimen>
+
+    <!-- Sol rail: 10,25" araç ekranı — geniş şerit (~%30–35 ekran), büyük dokunma -->
+    <dimen name="rail_min_width">300dp</dimen>
+    <dimen name="rail_max_width">520dp</dimen>
+    <!-- Araç içi: ~76dp satır ≈ OEM / Android Automotive önerilerine yakın dokunma -->
+    <dimen name="rail_row_min_height">80dp</dimen>
     
     <!-- Icon -->
     <dimen name="icon_size_small">16dp</dimen>

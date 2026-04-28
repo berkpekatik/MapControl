@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DisplayHelper boot splash: RadialHaloDrawable alpha on accent RGB -->
+    <integer name="boot_splash_halo_center_alpha">120</integer>
+    <integer name="boot_splash_halo_mid_alpha">40</integer>
+    <!-- Map grid animated glow line peak alpha (0–255) -->
+    <integer name="map_grid_glow_pulse_alpha_max">160</integer>
+    <!-- Radar pin expanding wave peak alpha -->
+    <integer name="boot_splash_radar_wave_alpha_max">180</integer>
+</resources>
