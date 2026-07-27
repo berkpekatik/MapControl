@@ -1,8 +1,56 @@
 # Map Control
 
+> ⚠️ **v1.1.4 — Performans raporu (DesaySV, Android 11)**  
+> Launcher modu (3D araç modeli) en büyük kaynak tüketicisidir. Optimizasyon sonrası ölçümler (cihaz `29115210`):
+>
+> | Durum | CPU | Bellek (PSS) |
+> |-------|-----|--------------|
+> | Launcher **açık** (önce → sonra) | %70 → **%25–58** | 449 MB → **~370 MB** |
+> | Launcher **kapalı** | **%7** | **111 MB** |
+> | GPU gecikme (90. yüzdelik) | 4950 ms → **17 ms** | — |
+>
+> **Özet:** Yandex scrape yalnızca navigasyon aktifken çalışır; 3D model post-processing kapatıldı (Saf GLB + FXAA). Launcher'ı kapatmak bellekte **~%70**, CPU'da **~%87** kazanç sağlar. Detaylar aşağıda.
+
 Araç ana ünitesinde (IVI) çalışan bir kontrol merkezi uygulaması. Desay SV tabanlı sistemlerde hem araçla entegre çalışır hem de aynı ağdaki cihazlardan yönetim sağlar.
 
 Bu proje **eğlence ve kişisel ihtiyaç** amacıyla geliştirilmiştir.
+
+---
+
+## v1.1.4 — Performans optimizasyonu
+
+**Cihaz:** DesaySV (Android 11) — `29115210` · **Tarih:** 26–27 Temmuz 2026
+
+### Yapılan değişiklikler
+
+**Yandex navigasyon scrape (`GlobalBackService`)**
+- Nav **aktif:** 750 ms throttle + içerik değişimi dinlenir
+- Nav **pasif:** yalnızca pencere değişimi, 2000 ms throttle
+- Nav bitince cluster overlay otomatik kapanır
+- *Önce:* 350 ms throttle, tüm Yandex içerik değişimlerinde scrape
+
+**3D araç modeli (`VehicleGlbView`)**
+- Post-processing kapatıldı (SSAO, bloom, HDR grading yok)
+- DRS kapalı — tam çözünürlük, net görüntü
+- Yalnızca hafif FXAA + GLB materyalleri
+
+### Ölçüm sonuçları
+
+| Metrik | Launcher açık (önce → sonra) | Launcher kapalı |
+|--------|-------------------------------|-----------------|
+| CPU | %70 → **%25–58** | **%7** |
+| PSS | 449 MB → **~370 MB** | **111 MB** |
+| Render thread (`FEngine::loop`) | 2556 → **1259 jiffies** (~%51 ↓) | Durdu |
+| GPU 90. yüzdelik | 4950 ms → **17 ms** | — |
+| GPU medyan | 14 ms → **6 ms** | — |
+
+### Bulgular
+
+1. **3D model (Filament)** launcher açıkken CPU ve belleğin büyük kısmını tüketir.
+2. **Saf GLB modu** hem performansı artırdı hem görüntüyü netleştirdi.
+3. **Launcher'ı kapatmak** en büyük kazanç: bellek **−%70**, CPU **−%87**.
+4. Launcher kapalıyken kalan yük (~111 MB, %7 CPU): ana UI + floating overlay'ler + arka plan servisleri.
+5. UI jank büyük ölçüde floating overlay'lerden (`ViewRootImpl`); 3D GPU süreleri iyi (medyan 6 ms).
 
 ---
 
