@@ -44,4 +44,48 @@
     <dimen name="icon_size_small">16dp</dimen>
     <dimen name="icon_size_medium">24dp</dimen>
     <dimen name="icon_size_large">32dp</dimen>
+
+    <!-- Launcher modu -->
+    <dimen name="launcher_icon_size">58dp</dimen>
+    <dimen name="launcher_icon_slot_size">76dp</dimen>
+    <dimen name="launcher_tile_spacing">6dp</dimen>
+    <dimen name="launcher_tile_label_min_height">36dp</dimen>
+    <dimen name="launcher_section_gap">14dp</dimen>
+    <dimen name="launcher_dashboard_speed_text">56sp</dimen>
+    <!-- Sürüş / Yakıt: hızlı erişim ile aynı okunabilirlik ölçeği (tam ekranı bozmaz) -->
+    <dimen name="launcher_dashboard_drive_unit">16sp</dimen>
+    <dimen name="launcher_dashboard_drive_gear">16sp</dimen>
+    <dimen name="launcher_dashboard_drive_status">14sp</dimen>
+    <dimen name="launcher_dashboard_drive_metric_label">12sp</dimen>
+    <dimen name="launcher_dashboard_drive_metric_value">16sp</dimen>
+    <dimen name="launcher_dashboard_fuel_section_title">12sp</dimen>
+    <dimen name="launcher_dashboard_fuel_label">12sp</dimen>
+    <dimen name="launcher_dashboard_stat_value">18sp</dimen>
+    <dimen name="launcher_dashboard_card_min_height">300dp</dimen>
+    <dimen name="launcher_dashboard_card_gap">10dp</dimen>
+    <dimen name="launcher_dashboard_media_art_size">64dp</dimen>
+    <dimen name="launcher_dashboard_media_title">20sp</dimen>
+    <dimen name="launcher_dashboard_media_artist">14sp</dimen>
+    <dimen name="launcher_dashboard_media_time">12sp</dimen>
+    <!-- Medya tuşları = hızlı erişim slot/icon ölçeği -->
+    <dimen name="launcher_dashboard_media_control_size">72dp</dimen>
+    <dimen name="launcher_dashboard_media_control_icon_size">44dp</dimen>
+    <dimen name="launcher_dashboard_control_size">40dp</dimen>
+    <dimen name="launcher_dashboard_quick_slot_size">72dp</dimen>
+    <dimen name="launcher_dashboard_quick_icon_size">44dp</dimen>
+    <dimen name="launcher_dashboard_model_loading_icon">40dp</dimen>
+    <dimen name="launcher_dashboard_model_loading_bar_width">160dp</dimen>
+    <dimen name="launcher_dashboard_lite_clock">56sp</dimen>
+    <dimen name="launcher_lite_clock">64sp</dimen>
+    <dimen name="launcher_lite_date">15sp</dimen>
+    <dimen name="launcher_lite_weather_glyph">28sp</dimen>
+    <dimen name="launcher_lite_weather_temp">22sp</dimen>
+    <dimen name="launcher_lite_weather_label">15sp</dimen>
+    <dimen name="launcher_lite_stat_value">28sp</dimen>
+    <dimen name="launcher_lite_stat_label">11sp</dimen>
+    <dimen name="launcher_lite_divider_height">1dp</dimen>
+    <dimen name="launcher_dashboard_vehicle_height">300dp</dimen>
+    <dimen name="launcher_quick_control_size">48dp</dimen>
+    <dimen name="vehicle_picker_tile_min">128dp</dimen>
+    <dimen name="vehicle_picker_tile_max">172dp</dimen>
 </resources>

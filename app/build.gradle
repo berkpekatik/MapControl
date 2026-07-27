@@ -2,14 +2,6 @@ plugins {
     id 'com.android.application'
 }
 
-def localProperties = new Properties()
-def localFile = rootProject.file("local.properties")
-if (localFile.exists()) {
-    localProperties.load(localFile.newDataInputStream())
-}
-def releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD", "")
-def releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD", "")
-
 android {
     namespace 'com.mapcontrol'
     compileSdk 34
@@ -24,14 +16,14 @@ android {
         applicationId "com.mapcontrol"
         minSdk 29
         targetSdk 28
-        versionCode 1
-        versionName "1.1.0"
+        versionCode 2
+        versionName "1.1.4"
     }
 
     signingConfigs {
         release {
             storeFile file("mapcontrol-release.keystore")
-            storePassword releaseStorePassword
+            storePassword releaseKeyPassword
             keyAlias "mapcontrol"
             keyPassword releaseKeyPassword
         }
@@ -39,9 +31,7 @@ android {
 
     buildTypes {
         release {
-            if (releaseStorePassword?.trim() && releaseKeyPassword?.trim()) {
-                signingConfig signingConfigs.release
-            }
+            signingConfig signingConfigs.release
             debuggable false
             minifyEnabled false
             shrinkResources false
@@ -57,9 +47,20 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    packaging {
+        jniLibs {
+            pickFirsts += ['**/libc++_shared.so']
+        }
+    }
 }
 
 dependencies {
+    def filamentVersion = '1.53.4'
+    implementation "com.google.android.filament:filament-android:${filamentVersion}"
+    implementation "com.google.android.filament:gltfio-android:${filamentVersion}"
+    implementation "com.google.android.filament:filament-utils-android:${filamentVersion}"
+
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'

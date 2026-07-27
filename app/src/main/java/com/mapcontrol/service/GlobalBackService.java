@@ -5,6 +5,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import java.util.List;
 
@@ -12,9 +13,13 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
+import com.mapcontrol.nav.YandexClusterNavOverlay;
+import com.mapcontrol.nav.YandexNavScraper;
+import com.mapcontrol.nav.YandexNavSnapshot;
+
 /**
  * Global Back Service
- * AccessibilityService kullanarak global BACK tuşu simülasyonu yapar
+ * AccessibilityService: global BACK, odak alanına metin, Yandex nav scrape → cluster overlay.
  * Singleton mantığıyla çalışır
  */
 public class GlobalBackService extends AccessibilityService {
@@ -25,10 +30,17 @@ public class GlobalBackService extends AccessibilityService {
      */
     public static final String ACCESSIBILITY_FLAT_COMPONENT =
             "com.mapcontrol/com.mapcontrol.service.GlobalBackService";
+
+    /** Navigasyon aktifken güncelleme aralığı. */
+    private static final long YANDEX_SCRAPE_THROTTLE_ACTIVE_MS = 750L;
+    /** Nav başlamadan önce pencere değişiminde kontrol aralığı. */
+    private static final long YANDEX_SCRAPE_THROTTLE_IDLE_MS = 2000L;
+    private long lastYandexScrapeMs = 0L;
+    private boolean lastGuidanceActive = false;
     
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Event'leri dinlememize gerek yok, sadece BACK tuşu göndermek için kullanıyoruz
+        maybeScrapeYandexNav(event);
     }
     
     @Override
@@ -40,12 +52,163 @@ public class GlobalBackService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        if (YandexClusterNavOverlay.isEnabled(this)) {
+            performYandexNavSync();
+        }
     }
     
     @Override
     public void onDestroy() {
         super.onDestroy();
+        try {
+            YandexClusterNavOverlay.getInstance(this).hide();
+        } catch (Exception ignored) {
+        }
+        lastGuidanceActive = false;
         instance = null;
+    }
+
+    /**
+     * Yandex Maps navigasyon kartlarını okuyup cluster overlay'e yansıtır.
+     * Nav aktif değilken yalnızca pencere değişimlerinde seyrek kontrol eder;
+     * nav aktifken içerik değişimlerini throttle ile izler.
+     */
+    private void maybeScrapeYandexNav(AccessibilityEvent event) {
+        if (!YandexClusterNavOverlay.isEnabled(this)) {
+            return;
+        }
+        if (event != null && !shouldHandleYandexEvent(event)) {
+            return;
+        }
+
+        long now = SystemClock.uptimeMillis();
+        long throttleMs = lastGuidanceActive
+                ? YANDEX_SCRAPE_THROTTLE_ACTIVE_MS
+                : YANDEX_SCRAPE_THROTTLE_IDLE_MS;
+        if (now - lastYandexScrapeMs < throttleMs) {
+            return;
+        }
+        lastYandexScrapeMs = now;
+
+        performYandexNavSync();
+    }
+
+    public enum YandexSyncResult {
+        OK,
+        YANDEX_NOT_OPEN,
+        NAV_INACTIVE,
+        SERVICE_NOT_CONNECTED,
+        DISABLED
+    }
+
+    /**
+     * Ayar açıldığında veya manuel tetiklemede Yandex penceresini okuyup overlay'i günceller.
+     */
+    public static YandexSyncResult syncYandexClusterNav(Context context) {
+        if (!YandexClusterNavOverlay.isEnabled(context)) {
+            return YandexSyncResult.DISABLED;
+        }
+        GlobalBackService inst = getInstance();
+        if (inst == null) {
+            return YandexSyncResult.SERVICE_NOT_CONNECTED;
+        }
+        return inst.performYandexNavSync();
+    }
+
+    private YandexSyncResult performYandexNavSync() {
+        AccessibilityNodeInfo root = findYandexRoot();
+        try {
+            if (root == null) {
+                if (lastGuidanceActive) {
+                    lastGuidanceActive = false;
+                    YandexClusterNavOverlay.getInstance(this).hide();
+                }
+                return YandexSyncResult.YANDEX_NOT_OPEN;
+            }
+            YandexNavSnapshot snap = YandexNavScraper.scrape(root);
+            lastGuidanceActive = snap.guidanceActive;
+            if (!snap.guidanceActive) {
+                YandexClusterNavOverlay.getInstance(this).hide();
+                return YandexSyncResult.NAV_INACTIVE;
+            }
+            YandexClusterNavOverlay.getInstance(this).apply(snap);
+            return YandexSyncResult.OK;
+        } catch (Exception ignored) {
+            return YandexSyncResult.YANDEX_NOT_OPEN;
+        } finally {
+            if (root != null) {
+                try {
+                    root.recycle();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private boolean shouldHandleYandexEvent(AccessibilityEvent event) {
+        CharSequence pkg = event.getPackageName();
+        int type = event.getEventType();
+        boolean yandexPkg = pkg != null
+                && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(pkg);
+        boolean windowChange = type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
+        if (windowChange) {
+            return true;
+        }
+        if (!yandexPkg) {
+            return false;
+        }
+        if (lastGuidanceActive && type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            return true;
+        }
+        return type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
+    }
+
+    /**
+     * Önce aktif pencere, yoksa tüm pencerelerde Yandex Maps kök düğümü.
+     */
+    private AccessibilityNodeInfo findYandexRoot() {
+        AccessibilityNodeInfo active = getRootInActiveWindow();
+        if (active != null) {
+            CharSequence p = active.getPackageName();
+            if (p != null && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(p)) {
+                return active;
+            }
+            try {
+                active.recycle();
+            } catch (Exception ignored) {
+            }
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return null;
+        }
+        try {
+            List<AccessibilityWindowInfo> wins = getWindows();
+            if (wins == null) {
+                return null;
+            }
+            for (int i = 0; i < wins.size(); i++) {
+                AccessibilityWindowInfo w = wins.get(i);
+                if (w == null) {
+                    continue;
+                }
+                try {
+                    AccessibilityNodeInfo r = w.getRoot();
+                    if (r == null) {
+                        continue;
+                    }
+                    CharSequence p = r.getPackageName();
+                    if (p != null && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(p)) {
+                        return r;
+                    }
+                    r.recycle();
+                } finally {
+                    w.recycle();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
     
     /**

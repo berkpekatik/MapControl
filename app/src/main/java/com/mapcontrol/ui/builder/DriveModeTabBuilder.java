@@ -75,13 +75,13 @@ public class DriveModeTabBuilder {
         int titleIconPx = (int) (28 * densityTitle);
         driveTitleIcon.setLayoutParams(new LinearLayout.LayoutParams(titleIconPx, titleIconPx));
         driveTitleIcon.setImageTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(context, R.color.textPrimary)));
+                UiStyles.color(context, R.color.textPrimary)));
         driveTitleRow.addView(driveTitleIcon);
 
         TextView driveModeTitle = new TextView(context);
         driveModeTitle.setText("Sürüş Modları");
         driveModeTitle.setTextSize(20);
-        driveModeTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        driveModeTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         driveModeTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams titleRowTextLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -176,14 +176,14 @@ public class DriveModeTabBuilder {
             modeIconLp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
             modeIconLp.bottomMargin = (int) (4 * density);
             modeIcon.setLayoutParams(modeIconLp);
-            modeIcon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
+            modeIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                     isSelected ? R.color.textPrimary : R.color.textPrimary85)));
             modeIcons[i] = modeIcon;
             titleBand.addView(modeIcon);
 
             TextView modeTitle = new TextView(context);
             modeTitle.setText(modeName);
-            modeTitle.setTextColor(ContextCompat.getColor(context, isSelected ? R.color.textPrimary : R.color.textPrimary85));
+            modeTitle.setTextColor(UiStyles.color(context, isSelected ? R.color.textPrimary : R.color.textPrimary85));
             modeTitle.setTextSize(12);
             modeTitle.setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             modeTitle.setGravity(android.view.Gravity.CENTER);
@@ -196,7 +196,7 @@ public class DriveModeTabBuilder {
             titleBand.addView(modeTitle, titleLp);
 
             android.view.View indicator = new android.view.View(context);
-            indicator.setBackgroundColor(ContextCompat.getColor(context, R.color.oemAccent));
+            indicator.setBackgroundColor(UiStyles.color(context, R.color.oemAccent));
             LinearLayout.LayoutParams indicatorParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     indicatorHpx);
@@ -259,11 +259,11 @@ public class DriveModeTabBuilder {
                             modeCards[i].setBackgroundColor(Color.TRANSPARENT);
                         }
                         if (modeIcons[i] != null) {
-                            modeIcons[i].setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
+                            modeIcons[i].setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                                     isSelected ? R.color.textPrimary : R.color.textPrimary85)));
                         }
                         if (modeTitles[i] != null) {
-                            modeTitles[i].setTextColor(ContextCompat.getColor(context, isSelected ? R.color.textPrimary : R.color.textPrimary85));
+                            modeTitles[i].setTextColor(UiStyles.color(context, isSelected ? R.color.textPrimary : R.color.textPrimary85));
                             modeTitles[i].setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
                         }
                         if (indicators[i] != null) {

@@ -23,6 +23,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 
 /**
  * Sistem üstü ince Wi-Fi bantları: hazırlık (tazeleme) ve sonuç (başarı / hata) aynı kompakt düzende.
@@ -238,7 +239,7 @@ public final class WebServerWifiToastHelper {
         AppCompatImageView ico = new AppCompatImageView(app);
         FrameLayout.LayoutParams iconFl = new FrameLayout.LayoutParams(iconPx, iconPx, Gravity.CENTER);
         ico.setImageResource(icon);
-        ico.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(app, iconColor)));
+        ico.setImageTintList(ColorStateList.valueOf(UiStyles.color(app, iconColor)));
         ico.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         haloFl.addView(ico, iconFl);
 
@@ -256,14 +257,14 @@ public final class WebServerWifiToastHelper {
                 TypedValue.COMPLEX_UNIT_SP,
                 mode == StatusBanner.STABILIZING ? 11.5f : 12f);
         eyebrow.setLetterSpacing(0.08f);
-        eyebrow.setTextColor(ContextCompat.getColor(app, eyebrowColor));
+        eyebrow.setTextColor(UiStyles.color(app, eyebrowColor));
         setMediumTypeface(eyebrow);
         textCol.addView(eyebrow);
 
         TextView main = new TextView(app);
         main.setText(mainId);
         main.setTextSize(TypedValue.COMPLEX_UNIT_SP, mainSizeSp);
-        main.setTextColor(ContextCompat.getColor(app, R.color.wifi_toast_global_text_primary));
+        main.setTextColor(UiStyles.color(app, R.color.wifi_toast_global_text_primary));
         setNormalTypeface(main);
         main.setLineSpacing(2.2f * d, 1f);
         LinearLayout.LayoutParams mainLp = new LinearLayout.LayoutParams(

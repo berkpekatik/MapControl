@@ -26,6 +26,7 @@ import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 
 import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.DialogHelper;
 import com.mapcontrol.util.ProjectionTargetApps;
 
@@ -52,7 +53,7 @@ public class ProjectionTabBuilder {
     private ScrollView scrollView;
     private LinearLayout projectionTabContent;
     private TextView targetAppLabel;
-    private boolean isNavigationOpenLocal = false;
+    private TextView projectionStatusText;
 
     public ProjectionTabBuilder(Context context, SharedPreferences prefs, ProjectionCallback callback) {
         this.context = context;
@@ -89,7 +90,7 @@ public class ProjectionTabBuilder {
         TextView projectionTitle = new TextView(context);
         projectionTitle.setText("Yansıtma Kontrolü");
         projectionTitle.setTextSize(18);
-        projectionTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        projectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         projectionTitle.setTypeface(null, Typeface.BOLD);
         projectionTitle.setPadding(16, 16, 16, 8);
         projectionTabContent.addView(projectionTitle, new LinearLayout.LayoutParams(
@@ -99,12 +100,13 @@ public class ProjectionTabBuilder {
         TextView projectionStatus = new TextView(context);
         projectionStatus.setText("Yansıtma kapalı");
         projectionStatus.setTextSize(13);
-        projectionStatus.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        projectionStatus.setTextColor(UiStyles.color(context, R.color.textHint));
         projectionStatus.setPadding(16, 0, 16, 16);
         projectionStatus.setId(View.generateViewId());
         projectionTabContent.addView(projectionStatus, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+        projectionStatusText = projectionStatus;
 
         LinearLayout controlButtonContainer = new LinearLayout(context);
         controlButtonContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -112,10 +114,10 @@ public class ProjectionTabBuilder {
 
         Button btnOpen = new Button(context);
         btnOpen.setText("Yansıt");
-        btnOpen.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnOpen.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnOpen.setTextSize(16);
         btnOpen.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnOpen, ContextCompat.getColor(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnOpen, UiStyles.color(context, R.color.buttonPrimary));
         btnOpen.setPadding(16, 20, 16, 20);
         LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -125,10 +127,10 @@ public class ProjectionTabBuilder {
 
         Button btnClose = new Button(context);
         btnClose.setText("Durdur");
-        btnClose.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnClose.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnClose.setTextSize(16);
         btnClose.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnClose, ContextCompat.getColor(context, R.color.statusErrorBright));
+        UiStyles.styleOemButton(btnClose, UiStyles.color(context, R.color.statusErrorBright));
         btnClose.setPadding(16, 20, 16, 20);
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -141,24 +143,22 @@ public class ProjectionTabBuilder {
 
         btnOpen.setOnClickListener(v -> {
             callback.onOpenCluster();
-            isNavigationOpenLocal = true;
-            updateProjectionUI(projectionStatus);
+            refreshProjectionStatusUi();
             handleButtonClickWithDelay(btnOpen, "Yansıt", "Yansıtılıyor...");
         });
 
         btnClose.setOnClickListener(v -> {
             callback.onCloseCluster();
-            isNavigationOpenLocal = false;
-            updateProjectionUI(projectionStatus);
+            refreshProjectionStatusUi();
             handleButtonClickWithDelay(btnClose, "Durdur", "Durduruluyor...");
         });
 
-        handler.post(() -> updateProjectionUI(projectionStatus));
+        handler.post(this::refreshProjectionStatusUi);
 
         TextView appTitle = new TextView(context);
         appTitle.setText("Uygulama");
         appTitle.setTextSize(18);
-        appTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        appTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         appTitle.setTypeface(null, Typeface.BOLD);
         appTitle.setPadding(16, 16, 16, 8);
         projectionTabContent.addView(appTitle, new LinearLayout.LayoutParams(
@@ -168,7 +168,7 @@ public class ProjectionTabBuilder {
         LinearLayout appCard = new LinearLayout(context);
         appCard.setOrientation(LinearLayout.VERTICAL);
         UiStyles.applySolidRoundedBackgroundDp(appCard,
-                ContextCompat.getColor(context, R.color.surfaceCard), 16f);
+                UiStyles.color(context, R.color.surfaceCard), 16f);
         appCard.setPadding(20, 20, 20, 20);
         LinearLayout.LayoutParams appCardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -182,7 +182,7 @@ public class ProjectionTabBuilder {
         LinearLayout iconBox = new LinearLayout(context);
         iconBox.setOrientation(LinearLayout.VERTICAL);
         UiStyles.applySolidRoundedBackgroundDp(iconBox,
-                ContextCompat.getColor(context, R.color.surfaceCardInner), 12f);
+                UiStyles.color(context, R.color.surfaceCardInner), 12f);
         iconBox.setGravity(Gravity.CENTER);
         iconBox.setPadding(16, 16, 16, 16);
 
@@ -191,7 +191,7 @@ public class ProjectionTabBuilder {
         mapIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         int mapIconPx = Math.round(36 * context.getResources().getDisplayMetrics().density);
         mapIcon.setLayoutParams(new LinearLayout.LayoutParams(mapIconPx, mapIconPx));
-        mapIcon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textPrimary)));
+        mapIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textPrimary)));
         iconBox.addView(mapIcon);
 
         LinearLayout.LayoutParams iconBoxParams = new LinearLayout.LayoutParams(80, 80);
@@ -204,7 +204,7 @@ public class ProjectionTabBuilder {
 
         targetAppLabel = new TextView(context);
         targetAppLabel.setText("(seçilmedi)");
-        targetAppLabel.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        targetAppLabel.setTextColor(UiStyles.color(context, R.color.textPrimary));
         targetAppLabel.setTextSize(17);
         targetAppLabel.setTypeface(null, Typeface.NORMAL);
         LinearLayout.LayoutParams targetLabelParams = new LinearLayout.LayoutParams(
@@ -215,7 +215,7 @@ public class ProjectionTabBuilder {
 
         TextView appDesc = new TextView(context);
         appDesc.setText("Seçili uygulamayı araç ekranına yansıt");
-        appDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        appDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         appDesc.setTextSize(13);
         textInfo.addView(appDesc);
 
@@ -228,10 +228,10 @@ public class ProjectionTabBuilder {
 
         Button btnSelectApp = new Button(context);
         btnSelectApp.setText("Değiştir");
-        btnSelectApp.setTextColor(ContextCompat.getColor(context, R.color.textPrimary80));
+        btnSelectApp.setTextColor(UiStyles.color(context, R.color.textPrimary80));
         btnSelectApp.setTextSize(14);
         btnSelectApp.setTypeface(null, Typeface.NORMAL);
-        UiStyles.styleOemButton(btnSelectApp, ContextCompat.getColor(context, R.color.surfaceCardInner));
+        UiStyles.styleOemButton(btnSelectApp, UiStyles.color(context, R.color.surfaceCardInner));
         btnSelectApp.setPadding(16, 14, 16, 14);
         LinearLayout.LayoutParams selectParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -241,10 +241,10 @@ public class ProjectionTabBuilder {
 
         Button btnLaunchOnCluster = new Button(context);
         btnLaunchOnCluster.setText("Ana Ekrana Al");
-        btnLaunchOnCluster.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnLaunchOnCluster.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnLaunchOnCluster.setTextSize(14);
         btnLaunchOnCluster.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnLaunchOnCluster, ContextCompat.getColor(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnLaunchOnCluster, UiStyles.color(context, R.color.buttonPrimary));
         btnLaunchOnCluster.setPadding(16, 14, 16, 14);
         LinearLayout.LayoutParams launchParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -279,7 +279,7 @@ public class ProjectionTabBuilder {
         TextView mainGroupTitle = new TextView(context);
         mainGroupTitle.setText("Navigasyon Davranışı");
         mainGroupTitle.setTextSize(18);
-        mainGroupTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        mainGroupTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         mainGroupTitle.setTypeface(null, Typeface.BOLD);
         mainGroupTitle.setPadding(16, 24, 16, 8);
         projectionTabContent.addView(mainGroupTitle, new LinearLayout.LayoutParams(
@@ -289,7 +289,7 @@ public class ProjectionTabBuilder {
         LinearLayout mainCardContainer = new LinearLayout(context);
         mainCardContainer.setOrientation(LinearLayout.VERTICAL);
         UiStyles.applySolidRoundedBackgroundDp(mainCardContainer,
-                ContextCompat.getColor(context, R.color.surfaceCard), 16f);
+                UiStyles.color(context, R.color.surfaceCard), 16f);
         LinearLayout.LayoutParams mainCardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -298,7 +298,7 @@ public class ProjectionTabBuilder {
         TextView section1Title = new TextView(context);
         section1Title.setText("Başlatma");
         section1Title.setTextSize(17);
-        section1Title.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        section1Title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         section1Title.setTypeface(null, Typeface.BOLD);
         section1Title.setPadding(20, 20, 20, 8);
         mainCardContainer.addView(section1Title);
@@ -306,7 +306,7 @@ public class ProjectionTabBuilder {
         TextView section1Desc = new TextView(context);
         section1Desc.setText("Ne zaman başlasın?");
         section1Desc.setTextSize(13);
-        section1Desc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        section1Desc.setTextColor(UiStyles.color(context, R.color.textHint));
         section1Desc.setPadding(20, 0, 20, 12);
         mainCardContainer.addView(section1Desc);
 
@@ -330,7 +330,7 @@ public class ProjectionTabBuilder {
         handler.post(() -> powerHandle[0].syncVisualFromModeId(prefs.getInt("powerModeSetting", 2)));
 
         View sectionDivider1 = new View(context);
-        sectionDivider1.setBackgroundColor(ContextCompat.getColor(context, R.color.dividerWhite12));
+        sectionDivider1.setBackgroundColor(UiStyles.color(context, R.color.dividerWhite12));
         LinearLayout.LayoutParams dividerParams1 = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 1);
         dividerParams1.setMargins(20, 24, 20, 24);
@@ -339,7 +339,7 @@ public class ProjectionTabBuilder {
         TextView section2Title = new TextView(context);
         section2Title.setText("Kapanış");
         section2Title.setTextSize(15);
-        section2Title.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
+        section2Title.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         section2Title.setTypeface(null, Typeface.NORMAL);
         section2Title.setPadding(20, 0, 20, 8);
         mainCardContainer.addView(section2Title);
@@ -347,7 +347,7 @@ public class ProjectionTabBuilder {
         TextView section2Desc = new TextView(context);
         section2Desc.setText("Araç kapanınca ne olsun?");
         section2Desc.setTextSize(13);
-        section2Desc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        section2Desc.setTextColor(UiStyles.color(context, R.color.textHint));
         section2Desc.setPadding(20, 0, 20, 12);
         mainCardContainer.addView(section2Desc);
 
@@ -370,7 +370,7 @@ public class ProjectionTabBuilder {
                 });
 
         View sectionDivider2 = new View(context);
-        sectionDivider2.setBackgroundColor(ContextCompat.getColor(context, R.color.dividerWhite12));
+        sectionDivider2.setBackgroundColor(UiStyles.color(context, R.color.dividerWhite12));
         LinearLayout.LayoutParams dividerParams2 = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 1);
         dividerParams2.setMargins(20, 24, 20, 24);
@@ -379,7 +379,7 @@ public class ProjectionTabBuilder {
         TextView mapKeyTitle = new TextView(context);
         mapKeyTitle.setText("Harita kontrol tuşu");
         mapKeyTitle.setTextSize(15);
-        mapKeyTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
+        mapKeyTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         mapKeyTitle.setTypeface(null, Typeface.NORMAL);
         mapKeyTitle.setPadding(20, 0, 20, 8);
         mainCardContainer.addView(mapKeyTitle);
@@ -387,7 +387,7 @@ public class ProjectionTabBuilder {
         TextView mapKeyDesc = new TextView(context);
         mapKeyDesc.setText("Donanım tuşu ile harita kontrolü");
         mapKeyDesc.setTextSize(13);
-        mapKeyDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        mapKeyDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         mapKeyDesc.setPadding(20, 0, 20, 12);
         mainCardContainer.addView(mapKeyDesc);
 
@@ -418,9 +418,13 @@ public class ProjectionTabBuilder {
         return scrollView;
     }
 
-    private void updateProjectionUI(TextView statusText) {
-        if (statusText == null) return;
-        statusText.setText(isNavigationOpenLocal ? "Yansıtma aktif" : "Yansıtma kapalı");
+    /** {@link ClusterNavigationState} ile uyumlu durum metni (servis/tuş/sekme ortak). */
+    public void refreshProjectionStatusUi() {
+        if (projectionStatusText == null) {
+            return;
+        }
+        projectionStatusText.setText(
+                ClusterNavigationState.getLastKnownOpen() ? "Yansıtma aktif" : "Yansıtma kapalı");
     }
 
     private void handleButtonClickWithDelay(Button button, String originalText, String loadingText) {

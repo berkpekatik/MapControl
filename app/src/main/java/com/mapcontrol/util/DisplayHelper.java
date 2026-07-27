@@ -30,6 +30,7 @@ import com.mapcontrol.R;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.mapcontrol.ui.theme.UiStyles;
 
 public final class DisplayHelper {
     private static View preparingMessageView = null;
@@ -104,7 +105,7 @@ public final class DisplayHelper {
 
     private static View buildPreparingOverlay(Context ctx) {
         FrameLayout root = new FrameLayout(ctx);
-        root.setBackgroundColor(ContextCompat.getColor(ctx, R.color.preparing_overlay_root));
+        root.setBackgroundColor(UiStyles.color(ctx, R.color.preparing_overlay_root));
 
         LinearLayout card = new LinearLayout(ctx);
         card.setId(R.id.preparing_card);
@@ -137,7 +138,7 @@ public final class DisplayHelper {
         ImageView spinner = new ImageView(ctx);
         spinner.setId(R.id.preparing_spinner);
         spinner.setImageDrawable(ContextCompat.getDrawable(ctx, R.drawable.ic_mdi_loading));
-        spinner.setColorFilter(ContextCompat.getColor(ctx, R.color.accentColor));
+        spinner.setColorFilter(UiStyles.color(ctx, R.color.accentColor));
         int spinnerSize = dp(ctx, 40);
         FrameLayout.LayoutParams spLp = new FrameLayout.LayoutParams(spinnerSize, spinnerSize);
         spLp.gravity = Gravity.CENTER;
@@ -148,7 +149,7 @@ public final class DisplayHelper {
         TextView title = new TextView(ctx);
         title.setId(R.id.preparing_title);
         title.setText("Uygulama Hazırlanıyor");
-        title.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
+        title.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setTypeface(null, Typeface.BOLD);
         title.setLetterSpacing(0.02f);
@@ -162,7 +163,7 @@ public final class DisplayHelper {
 
         TextView sub = new TextView(ctx);
         sub.setText("Lütfen bekleyin");
-        sub.setTextColor(ContextCompat.getColor(ctx, R.color.textSecondaryCool));
+        sub.setTextColor(UiStyles.color(ctx, R.color.textSecondaryCool));
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         sub.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -184,7 +185,7 @@ public final class DisplayHelper {
 
         int dotSize = dp(ctx, 7);
         int dotGap = dp(ctx, 6);
-        int accent = ContextCompat.getColor(ctx, R.color.accentColor);
+        int accent = UiStyles.color(ctx, R.color.accentColor);
         for (int i = 0; i < 3; i++) {
             View dot = new View(ctx);
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
@@ -497,18 +498,31 @@ public final class DisplayHelper {
         return bootSplashView != null;
     }
 
+    /**
+     * MainActivity cold start — cluster overlay'den bağımsız uygulama açılış splash'i.
+     * Logo + harita grid + light/dark gradient (mevcut boot splash görseli).
+     */
+    public static View createAppLaunchSplashView(Context ctx) {
+        View overlay = buildBootSplashOverlay(ctx);
+        TextView tagline = overlay.findViewById(R.id.boot_splash_tagline);
+        if (tagline != null) {
+            tagline.setText(R.string.launch_splash_loading);
+        }
+        startBootSplashAnimations(overlay);
+        return overlay;
+    }
+
+    /** Uygulama splash animasyonlarını durdurur (cluster splash ayrı kalabilir). */
+    public static void stopAppLaunchSplashAnimations() {
+        cancelBootSplashAnimations();
+    }
+
     private static View buildBootSplashOverlay(Context ctx) {
         FrameLayout root = new FrameLayout(ctx);
 
-        // Katman 1: derin gradient arka plan
-        View bgGradient = new View(ctx);
-        android.graphics.drawable.GradientDrawable bgDr = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                new int[]{
-                        ContextCompat.getColor(ctx, R.color.boot_splash_gradient_edge),
-                        ContextCompat.getColor(ctx, R.color.boot_splash_gradient_mid),
-                        ContextCompat.getColor(ctx, R.color.boot_splash_gradient_edge)});
-        bgGradient.setBackground(bgDr);
+        // Katman 1: soft, renkler arası lerp yapan gradient
+        AnimatedGradientView bgGradient = new AnimatedGradientView(ctx);
+        bgGradient.setId(R.id.boot_splash_gradient);
         root.addView(bgGradient, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
@@ -525,8 +539,8 @@ public final class DisplayHelper {
         halo.setId(R.id.boot_splash_halo);
         android.content.res.Resources res = ctx.getResources();
         halo.setBackground(new RadialHaloDrawable(
-                ContextCompat.getColor(ctx, R.color.accentColor),
-                ContextCompat.getColor(ctx, R.color.transparent),
+                UiStyles.color(ctx, R.color.accentColor),
+                UiStyles.color(ctx, R.color.transparent),
                 res.getInteger(R.integer.boot_splash_halo_center_alpha),
                 res.getInteger(R.integer.boot_splash_halo_mid_alpha)));
         int haloSize = dp(ctx, 480);
@@ -561,7 +575,7 @@ public final class DisplayHelper {
         TextView wordmark = new TextView(ctx);
         wordmark.setId(R.id.boot_splash_wordmark);
         wordmark.setText("Map Control");
-        wordmark.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
+        wordmark.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         wordmark.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32);
         wordmark.setTypeface(null, Typeface.BOLD);
         wordmark.setLetterSpacing(0.18f);
@@ -576,7 +590,7 @@ public final class DisplayHelper {
         TextView tagline = new TextView(ctx);
         tagline.setId(R.id.boot_splash_tagline);
         tagline.setText("Harita bekleniyor");
-        tagline.setTextColor(ContextCompat.getColor(ctx, R.color.textSecondaryCool));
+        tagline.setTextColor(UiStyles.color(ctx, R.color.textSecondaryCool));
         tagline.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         tagline.setLetterSpacing(0.12f);
         tagline.setGravity(Gravity.CENTER);
@@ -589,7 +603,7 @@ public final class DisplayHelper {
 
         // Konum pini + radar dalgaları
         RadarPinView radar = new RadarPinView(ctx,
-                ContextCompat.getColor(ctx, R.color.accentColor));
+                UiStyles.color(ctx, R.color.accentColor));
         radar.setId(R.id.boot_splash_bar);
         int radarW = dp(ctx, 96);
         int radarH = dp(ctx, 96);
@@ -615,12 +629,24 @@ public final class DisplayHelper {
         root.setAlpha(0f);
         root.animate().alpha(1f).setDuration(360).start();
 
+        View gradient = root.findViewById(R.id.boot_splash_gradient);
         View grid = root.findViewById(R.id.boot_splash_grid);
         View halo = root.findViewById(R.id.boot_splash_halo);
         View center = root.findViewById(R.id.boot_splash_center);
         View bar = root.findViewById(R.id.boot_splash_bar);
         View logo = root.findViewById(R.id.boot_splash_logo);
         View tagline = root.findViewById(R.id.boot_splash_tagline);
+
+        if (gradient instanceof AnimatedGradientView) {
+            ValueAnimator flow = ValueAnimator.ofFloat(0f, 1f);
+            flow.setDuration(10_000);
+            flow.setRepeatCount(ValueAnimator.INFINITE);
+            flow.setInterpolator(new LinearInterpolator());
+            final AnimatedGradientView g = (AnimatedGradientView) gradient;
+            flow.addUpdateListener(a -> g.setProgress((float) a.getAnimatedValue()));
+            flow.start();
+            bootSplashAnimators.add(flow);
+        }
 
         if (grid instanceof MapGridView) {
             ValueAnimator scroll = ValueAnimator.ofFloat(0f, 1f);
@@ -719,6 +745,95 @@ public final class DisplayHelper {
         bootSplashAnimators.clear();
     }
 
+    /**
+     * Soft çok-renkli gradient — progress 0→1 ile renkler ve açı kayar (light/dark palette).
+     */
+    private static final class AnimatedGradientView extends View {
+        private final int[] palette;
+        private final int[] frameColors = new int[4];
+        private final android.graphics.drawable.GradientDrawable drawable =
+                new android.graphics.drawable.GradientDrawable();
+        private float progress;
+
+        AnimatedGradientView(Context ctx) {
+            super(ctx);
+            palette = new int[]{
+                    UiStyles.color(ctx, R.color.boot_splash_grad_a),
+                    UiStyles.color(ctx, R.color.boot_splash_grad_b),
+                    UiStyles.color(ctx, R.color.boot_splash_grad_c),
+                    UiStyles.color(ctx, R.color.boot_splash_grad_d),
+                    UiStyles.color(ctx, R.color.boot_splash_grad_accent),
+            };
+            drawable.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+            drawable.setGradientType(android.graphics.drawable.GradientDrawable.LINEAR_GRADIENT);
+            setBackground(drawable);
+            setProgress(0f);
+        }
+
+        void setProgress(float p) {
+            progress = p - (float) Math.floor(p);
+            int n = palette.length;
+            float phase = progress * n;
+            int i0 = (int) phase % n;
+            int i1 = (i0 + 1) % n;
+            int i2 = (i0 + 2) % n;
+            int i3 = (i0 + 3) % n;
+            float t = phase - (int) phase;
+            // Smoothstep
+            t = t * t * (3f - 2f * t);
+            frameColors[0] = lerpColor(palette[i0], palette[i1], t);
+            frameColors[1] = lerpColor(palette[i1], palette[i2], t);
+            frameColors[2] = lerpColor(palette[i2], palette[i3], t);
+            frameColors[3] = lerpColor(palette[i3], palette[(i0) % n], t);
+            drawable.setColors(frameColors);
+            // Açı da yavaşça döner — daha canlı geçiş
+            float angle = (progress * 360f) % 360f;
+            drawable.setOrientation(orientationForAngle(angle));
+            invalidate();
+        }
+
+        private static android.graphics.drawable.GradientDrawable.Orientation orientationForAngle(
+                float degrees) {
+            int sector = ((int) ((degrees + 22.5f) / 45f)) % 8;
+            switch (sector) {
+                case 1:
+                    return android.graphics.drawable.GradientDrawable.Orientation.TL_BR;
+                case 2:
+                    return android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM;
+                case 3:
+                    return android.graphics.drawable.GradientDrawable.Orientation.TR_BL;
+                case 4:
+                    return android.graphics.drawable.GradientDrawable.Orientation.RIGHT_LEFT;
+                case 5:
+                    return android.graphics.drawable.GradientDrawable.Orientation.BR_TL;
+                case 6:
+                    return android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP;
+                case 7:
+                    return android.graphics.drawable.GradientDrawable.Orientation.BL_TR;
+                case 0:
+                default:
+                    return android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT;
+            }
+        }
+
+        private static int lerpColor(int a, int b, float t) {
+            t = Math.max(0f, Math.min(1f, t));
+            int aA = (a >> 24) & 0xFF;
+            int aR = (a >> 16) & 0xFF;
+            int aG = (a >> 8) & 0xFF;
+            int aB = a & 0xFF;
+            int bA = (b >> 24) & 0xFF;
+            int bR = (b >> 16) & 0xFF;
+            int bG = (b >> 8) & 0xFF;
+            int bB = b & 0xFF;
+            int rA = Math.round(aA + (bA - aA) * t);
+            int rR = Math.round(aR + (bR - aR) * t);
+            int rG = Math.round(aG + (bG - aG) * t);
+            int rB = Math.round(aB + (bB - aB) * t);
+            return (rA << 24) | (rR << 16) | (rG << 8) | rB;
+        }
+    }
+
     /** Hareketli izometrik harita grid'i — boot splash arkaplanı için. */
     private static final class MapGridView extends View {
         private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -734,15 +849,15 @@ public final class DisplayHelper {
             super(ctx);
             linePaint.setStyle(Paint.Style.STROKE);
             linePaint.setStrokeWidth(dp(ctx, 1));
-            linePaint.setColor(ContextCompat.getColor(ctx, R.color.map_grid_line_accent));
+            linePaint.setColor(UiStyles.color(ctx, R.color.map_grid_line_accent));
 
             glowPaint.setStyle(Paint.Style.STROKE);
             glowPaint.setStrokeWidth(dp(ctx, 1));
-            glowPaint.setColor(ContextCompat.getColor(ctx, R.color.map_grid_glow_accent));
+            glowPaint.setColor(UiStyles.color(ctx, R.color.map_grid_glow_accent));
 
             vignettePaint.setStyle(Paint.Style.FILL);
-            vignetteTransparent = ContextCompat.getColor(ctx, R.color.transparent);
-            vignetteEdge = ContextCompat.getColor(ctx, R.color.map_grid_vignette_edge);
+            vignetteTransparent = UiStyles.color(ctx, R.color.transparent);
+            vignetteEdge = UiStyles.color(ctx, R.color.map_grid_vignette_edge);
             glowPulseAlphaMax = ctx.getResources().getInteger(R.integer.map_grid_glow_pulse_alpha_max);
         }
 
@@ -851,10 +966,10 @@ public final class DisplayHelper {
             pinFillPaint.setColor(accent);
 
             pinDotPaint.setStyle(Paint.Style.FILL);
-            pinDotPaint.setColor(ContextCompat.getColor(ctx, R.color.boot_splash_pin_dot));
+            pinDotPaint.setColor(UiStyles.color(ctx, R.color.boot_splash_pin_dot));
 
             pinShadowPaint.setStyle(Paint.Style.FILL);
-            pinShadowPaint.setColor(ContextCompat.getColor(ctx, R.color.boot_splash_pin_shadow));
+            pinShadowPaint.setColor(UiStyles.color(ctx, R.color.boot_splash_pin_shadow));
         }
 
         void setProgress(float p) {

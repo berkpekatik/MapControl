@@ -3,6 +3,7 @@ import android.app.ActivityOptions;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.hardware.display.DisplayManager;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -52,15 +53,12 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
-import android.media.MediaPlayer;
-import android.media.AudioAttributes;
-import java.io.IOException;
 import com.mapcontrol.admin.MapControlDpmHelper;
 import com.mapcontrol.R;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
-import com.mapcontrol.manager.ProjectionVDBusTargetPickerManager;
-import com.mapcontrol.manager.VDBusManager;
+import com.mapcontrol.manager.MapControlVDBusKeyBridge;
+import com.mapcontrol.util.AlertSoundHelper;
 import com.mapcontrol.manager.WebServerManager;
 import com.mapcontrol.service.GlobalBackService;
 import com.mapcontrol.service.ServiceInitializer;
@@ -68,23 +66,33 @@ import com.mapcontrol.ui.builder.AppsTabBuilder;
 import com.mapcontrol.ui.builder.AssistTabBuilder;
 import com.mapcontrol.ui.builder.DriveModeTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
+import com.mapcontrol.ui.builder.LauncherTabBuilder;
 import com.mapcontrol.ui.builder.LogTabBuilder;
 import com.mapcontrol.ui.builder.ProfileTabBuilder;
 import com.mapcontrol.ui.builder.ProjectionTabBuilder;
 import com.mapcontrol.ui.builder.SettingsTabBuilder;
 import com.mapcontrol.ui.builder.SideRailBuilder;
 import com.mapcontrol.ui.builder.TopBarBuilder;
+import com.mapcontrol.ui.builder.VehicleInfoTabBuilder;
+import com.mapcontrol.ui.builder.WelcomeSoundTabBuilder;
 import com.mapcontrol.ui.builder.WifiTabBuilder;
 import com.mapcontrol.util.IflyOemTtsHelper;
 import com.mapcontrol.util.DialogHelper;
 import com.mapcontrol.util.DisplayHelper;
+import com.mapcontrol.util.ClusterNavigationState;
+import com.mapcontrol.util.ImmersiveFullscreenHelper;
+import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.vehicle.VehicleMetricsRepository;
+import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class MainActivity extends AppCompatActivity {
 
     /** Yüzen yansıtma çubuğundan hedef uygulama seçiciyi açmak için {@link Intent} extra anahtarı. */
     public static final String EXTRA_OPEN_PROJECTION_TARGET_PICKER = "com.mapcontrol.extra.OPEN_PROJECTION_TARGET_PICKER";
+    /** Araç Launcher Modu "Ana Ekran" karşılama sekmesinin {@code switchTab} indeksi. */
+    private static final int TAB_LAUNCHER = 10;
     private TextView tvLogs;
     private ScrollView scrollView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -93,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
     private String targetPackage = ""; // Seçilen uygulama paketi
     private ClusterDisplayManager clusterDisplayManager;
     private TextView targetAppLabel; // Seçilen uygulamayı gösteren TextView
-    private LinearLayout tabContentArea; // Tab içerik alanı
+    private FrameLayout tabContentArea; // Tab içerik alanı
     private LinearLayout settingsTabContent; // Ayarlar tab içeriği
     private ScrollView settingsScrollView; // Ayarlar tab ScrollView
     private LinearLayout projectionTabContent; // Yansıtma tab içeriği
@@ -108,14 +116,26 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout fileUploadTabContent; // Web Yönetimi tab içeriği
     private ScrollView fileUploadScrollView; // Web Yönetimi tab ScrollView
     private FileUploadTabBuilder fileUploadTabBuilder;
-    private int currentTab = 0; // 0 = Wi-Fi, 1 = Web Yönetimi, 2 = Profil, 3 = Yansıtma, 4 = LOG, 5 = Uygulamalar, 6 = Hafıza Modu, 7 = Ayarlar
+    private WelcomeSoundTabBuilder welcomeSoundTabBuilder;
+    private VehicleInfoTabBuilder vehicleInfoTabBuilder;
+    private VehicleMetricsRepository vehicleMetricsRepository;
+    private ScrollView vehicleInfoScrollView;
+    private ScrollView launcherScrollView; // Araç Launcher Modu "Ana Ekran" karşılama sekmesi
+    private LauncherTabBuilder launcherTabBuilder;
+    private SettingsTabBuilder settingsTabBuilder;
+    private ProfileTabBuilder profileTabBuilder;
+    private DriveModeTabBuilder driveModeTabBuilder;
+    private AssistTabBuilder assistTabBuilder;
+    private LogTabBuilder logTabBuilder;
+    /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
+    private boolean launchedAsHome;
+    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher)
     private WebServerManager webServerManager; // HTTP Server Manager
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
     private android.widget.ImageView qrCodeImageView; // QR kod görseli
     private ServiceInitializer serviceInitializer;
     private SideRailBuilder sideRailBuilder;
-    private VDBusManager vdbusManager;
     /** {@link ClusterVDBusTestActivity} bench — yalnızca görünürken; {@link #onResume()} atanır. */
     private static volatile MainActivity sBenchHost;
     /** Oturumda LOG sekmesine ilk geçişte hoşgeldin TTS bir kez */
@@ -125,10 +145,34 @@ public class MainActivity extends AppCompatActivity {
     private ScrollView profileScrollView; // Profil tab ScrollView
     private ProfileApiService profileApiService; // API servisi
     private FrameLayout mainRootContainer;
+    /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
+    private int lastNightModeUiBits = -1;
+    private LinearLayout sideRail; // Sol kenar çubuğu kök view'ı (Launcher modunda gizlenebilir)
+    private LinearLayout mainContent; // Ana içerik kök view'ı (Launcher modunda tam genişlik olur)
+    private FrameLayout.LayoutParams mainContentParams;
+    private int sidebarWidthPx;
+    private int screenWidthPx;
+    private TopBarBuilder topBarBuilder;
     private ProjectionTabBuilder projectionTabBuilder;
     /** Yüzen kontrolden veya tekilleştirilmiş intent ile hedef uygulama diyaloğu ertelenmiş. */
     private boolean deferredOpenProjectionTargetPicker;
     private boolean targetPackageBroadcastRegistered;
+    private boolean navigationClusterBroadcastRegistered;
+    private final BroadcastReceiver navigationClusterStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null
+                    || !ClusterNavigationState.ACTION_NAVIGATION_CLUSTER_STATE.equals(intent.getAction())) {
+                return;
+            }
+            boolean open = intent.getBooleanExtra(ClusterNavigationState.EXTRA_IS_OPEN, false);
+            if (handler != null) {
+                handler.post(() -> applyNavigationClusterOpenFromBus(open));
+            } else {
+                applyNavigationClusterOpenFromBus(open);
+            }
+        }
+    };
     private final BroadcastReceiver targetPackageUpdatedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -141,27 +185,31 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private View launchSplashRoot;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         handler = new Handler(Looper.getMainLooper());
+        launchedAsHome = LauncherModeManager.isHomeIntent(getIntent());
         if (savedInstanceState == null && getIntent() != null
                 && getIntent().getBooleanExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER, false)) {
             deferredOpenProjectionTargetPicker = true;
             getIntent().removeExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER);
         }
 
-        // Yasal uyarı ve onay ekranını göster (eğer daha önce kabul edilmediyse)
+        // Cold start: önce splash boyansın — initializeApp uzun sürer, siyah frame olmasın
+        launchSplashRoot = DisplayHelper.createAppLaunchSplashView(this);
+        setContentView(launchSplashRoot);
+
         SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
         boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
-        
+
         if (disclaimerAccepted) {
-            // Daha önce kabul edilmiş, direkt uygulamayı başlat
-            initializeApp();
+            handler.post(this::initializeApp);
         } else {
-            // İlk kez açılıyor, yasal uyarıyı göster
-            showLegalDisclaimer();
+            handler.post(this::showLegalDisclaimer);
         }
     }
 
@@ -205,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
         profileApiService = new ProfileApiService(this);
 
         // Profil tab içeriği (Builder)
-        ProfileTabBuilder profileTabBuilder = new ProfileTabBuilder(this, prefs, profileApiService,
+        profileTabBuilder = new ProfileTabBuilder(this, prefs, profileApiService,
                 new ProfileTabBuilder.ProfileCallback() {
                     @Override
                     public void log(String msg) {
@@ -222,6 +270,10 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onNavigationStateChanged(boolean isOpen) {
                         isNavigationOpen = isOpen;
+                        ClusterNavigationState.setLastKnownOpen(isOpen);
+                        if (projectionTabBuilder != null) {
+                            projectionTabBuilder.refreshProjectionStatusUi();
+                        }
                     }
 
                     @Override
@@ -234,7 +286,8 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.log(message);
                     }
                 });
-        
+        isNavigationOpen = ClusterNavigationState.getLastKnownOpen();
+
         // Servisleri başlat ve log alıcıyı kaydet
         serviceInitializer = new ServiceInitializer(this,
                 new ServiceInitializer.ServiceCallback() {
@@ -260,6 +313,8 @@ public class MainActivity extends AppCompatActivity {
         int screenWidth = displayMetrics.widthPixels;
         int sidebarWidth = computeSidebarWidthPx(screenWidth, displayMetrics.density);
         int mainContentWidth = screenWidth - sidebarWidth;
+        screenWidthPx = screenWidth;
+        sidebarWidthPx = sidebarWidth;
         
         // Sol sabit kenar çubuğu (Builder)
         sideRailBuilder = new SideRailBuilder(this, prefs,
@@ -283,6 +338,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
         LinearLayout sideRail = sideRailBuilder.build();
+        this.sideRail = sideRail;
         
         // Sol kenar çubuğunu ekle (%20 genişlik, tam yükseklik)
         FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
@@ -294,10 +350,11 @@ public class MainActivity extends AppCompatActivity {
         // Ana içerik alanı (ekranın %80'i, header dahil)
         LinearLayout mainContent = new LinearLayout(this);
         mainContent.setOrientation(LinearLayout.VERTICAL);
-        mainContent.setBackgroundColor(ContextCompat.getColor(this, R.color.transparent));
+        mainContent.setBackgroundColor(UiStyles.color(this, R.color.transparent));
+        this.mainContent = mainContent;
         
         // Üst başlık bar (Builder)
-        TopBarBuilder topBarBuilder = new TopBarBuilder(this,
+        topBarBuilder = new TopBarBuilder(this,
                 new TopBarBuilder.TopBarCallback() {
                     @Override
                     public void onLogTabToggle(boolean show) {
@@ -319,14 +376,14 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
         topBarButtonsContainer = topBarBuilder.getButtonsContainer();
+        topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
         
         mainContent.addView(topBar, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Tab içerik alanı
-        tabContentArea = new LinearLayout(this);
-        tabContentArea.setOrientation(LinearLayout.VERTICAL);
+        // Tab içerik alanı (FrameLayout: launcher park ederken SurfaceView GONE olmasın)
+        tabContentArea = new FrameLayout(this);
         tabContentArea.setPadding(0, 0, 0, 0);
         UiStyles.setTabContentBackdrop(tabContentArea);
         LinearLayout.LayoutParams tabContentParams = new LinearLayout.LayoutParams(
@@ -340,6 +397,7 @@ public class MainActivity extends AppCompatActivity {
                 FrameLayout.LayoutParams.MATCH_PARENT);
         mainContentParams.gravity = android.view.Gravity.END; // Sağa hizala
         mainRootContainer.addView(mainContent, mainContentParams);
+        this.mainContentParams = mainContentParams;
         
         // WebServerManager'ı başlat
         webServerManager = new WebServerManager(this);
@@ -350,7 +408,7 @@ public class MainActivity extends AppCompatActivity {
                     String serverUrl = "http://" + localIp + ":" + port;
                     if (webServerStatusText != null) {
                         webServerStatusText.setText(serverUrl);
-                        webServerStatusText.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.accentHighlight));
+                        webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.accentHighlight));
                     }
                     if (btnWebServerToggle != null) {
                         btnWebServerToggle.setText("■ Web Server Durdur");
@@ -366,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(() -> {
                     if (webServerStatusText != null) {
                         webServerStatusText.setText("Sunucu durduruldu");
-                        webServerStatusText.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.textDialogButtonSecondary));
+                        webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.textDialogButtonSecondary));
                     }
                     if (qrCodeImageView != null) {
                         qrCodeImageView.setVisibility(android.view.View.GONE);
@@ -383,7 +441,7 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(() -> {
                     if (webServerStatusText != null) {
                         webServerStatusText.setText("Hata: " + error);
-                        webServerStatusText.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.statusErrorBright));
+                        webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.statusErrorBright));
                     }
                     log("Web Server hatası: " + error);
                 });
@@ -510,16 +568,12 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onStartKeyEventListener() {
-                        if (vdbusManager != null) {
-                            vdbusManager.start();
-                        }
+                        MapControlVDBusKeyBridge.start();
                     }
 
                     @Override
                     public void onStopKeyEventListener() {
-                        if (vdbusManager != null) {
-                            vdbusManager.stop();
-                        }
+                        MapControlVDBusKeyBridge.stop();
                     }
 
                     @Override
@@ -557,7 +611,7 @@ public class MainActivity extends AppCompatActivity {
         tryConsumeDeferredProjectionTargetPicker();
 
         // === HAFIZA MODU TAB İÇERİĞİ ===
-        DriveModeTabBuilder driveModeTabBuilder = new DriveModeTabBuilder(this, prefs,
+        driveModeTabBuilder = new DriveModeTabBuilder(this, prefs,
                 new DriveModeTabBuilder.DriveModeCallback() {
                     @Override
                     public void onModeSelected(int modeValue) {
@@ -573,7 +627,7 @@ public class MainActivity extends AppCompatActivity {
         driveModeScrollView = driveModeTabBuilder.getScrollView();
         driveModeTabContent = driveModeTabBuilder.getTabContent();
 
-        AssistTabBuilder assistTabBuilder = new AssistTabBuilder(this, prefs,
+        assistTabBuilder = new AssistTabBuilder(this, prefs,
                 new AssistTabBuilder.AssistCallback() {
                     @Override
                     public void onSettingChanged(String key, int value) {
@@ -598,13 +652,12 @@ public class MainActivity extends AppCompatActivity {
         wifiTabBuilder = new WifiTabBuilder(this, msg -> MainActivity.this.log(msg));
         wifiTabContent = wifiTabBuilder.getTabContent();
 
-        final LogTabBuilder[] logTabBuilderHolder = new LogTabBuilder[1];
-        logTabBuilderHolder[0] = new LogTabBuilder(this, new LogTabBuilder.LogCallback() {
+        logTabBuilder = new LogTabBuilder(this, new LogTabBuilder.LogCallback() {
             @Override
             public void onClearLogs() {
                 logBuffer.setLength(0);
-                if (logTabBuilderHolder[0] != null && logTabBuilderHolder[0].getLogsTextView() != null) {
-                    logTabBuilderHolder[0].getLogsTextView().setText("");
+                if (logTabBuilder != null && logTabBuilder.getLogsTextView() != null) {
+                    logTabBuilder.getLogsTextView().setText("");
                 }
                 log("Loglar temizlendi");
             }
@@ -624,9 +677,17 @@ public class MainActivity extends AppCompatActivity {
                 speakTtsText(getString(R.string.log_tts_welcome_phrase));
             }
         });
-        logTabContent = logTabBuilderHolder[0].getTabContent();
-        tvLogs = logTabBuilderHolder[0].getLogsTextView();
-        scrollView = logTabBuilderHolder[0].getScrollView();
+        logTabContent = logTabBuilder.getTabContent();
+        tvLogs = logTabBuilder.getLogsTextView();
+        scrollView = logTabBuilder.getScrollView();
+
+        welcomeSoundTabBuilder = new WelcomeSoundTabBuilder(this, prefs);
+
+        vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
+
+        vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
+                msg -> MainActivity.this.log(msg));
+        vehicleInfoScrollView = vehicleInfoTabBuilder.getScrollView();
 
         appsTabBuilder = new AppsTabBuilder(this, new AppsTabBuilder.AppsCallback() {
             @Override
@@ -647,7 +708,7 @@ public class MainActivity extends AppCompatActivity {
         appsTabContent = MainActivity.this.appsTabBuilder.getTabContent();
 
         // Ayarlar tab içeriği (Builder) — initializeApp içinde bir kez oluşturulur
-        SettingsTabBuilder settingsTabBuilder = new SettingsTabBuilder(this, prefs,
+        settingsTabBuilder = new SettingsTabBuilder(this, prefs,
                 new SettingsTabBuilder.SettingsCallback() {
                     @Override
                     public void log(String msg) {
@@ -658,62 +719,75 @@ public class MainActivity extends AppCompatActivity {
                     public String getCarToken() {
                         return prefs.getString("carToken", null);
                     }
+
+                    @Override
+                    public void onLauncherModeChanged(boolean enabled) {
+                        if (enabled) {
+                            enterLauncherMode();
+                        } else {
+                            exitLauncherMode();
+                        }
+                    }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
         settingsTabContent = settingsTabBuilder.getSettingsTabContent();
 
-        setContentView(mainRootContainer);
-        
-        // İlk tab'ı göster (Wi-Fi)
-        switchTab(0);
+        // Araç Launcher Modu "Ana Ekran" karşılama sekmesi (Builder) — mevcut switchTab akışını kullanır
+        launcherTabBuilder = new LauncherTabBuilder(this, vehicleMetricsRepository,
+                new LauncherTabBuilder.LauncherCallback() {
+                    @Override
+                    public void onShortcutSelected(int tabIndex, String title) {
+                        switchTab(tabIndex);
+                        if (topBarTitle != null) topBarTitle.setText(title);
+                        if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
+                    }
+
+                    @Override
+                    public void onExitLauncherRequested() {
+                        exitLauncherMode();
+                    }
+
+                    @Override
+                    public void onAppLaunchRequested(String packageName) {
+                        if (appsTabBuilder != null) {
+                            appsTabBuilder.launchApp(packageName);
+                        }
+                    }
+                });
+        launcherScrollView = launcherTabBuilder.build();
+
+        presentMainUi(mainRootContainer);
+        lastNightModeUiBits = getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
+        UiStyles.setUiModeOverride(getResources().getConfiguration());
+
+        if (LauncherModeManager.isHomeIntent(getIntent())) {
+            LauncherModeManager.ensurePersistedFromHomeLaunch(this);
+            launchedAsHome = true;
+        }
+        if (LauncherModeManager.isEnabled(this)) {
+            applyLauncherChrome(true);
+            switchTab(TAB_LAUNCHER);
+        } else {
+            applyLauncherChrome(false);
+            switchTab(0);
+        }
         
         // Uygulamaları yükle
         if (appsTabBuilder != null) appsTabBuilder.loadAppsFromServer();
 
-        vdbusManager = new VDBusManager(this, new VDBusManager.VDBusCallback() {
-            @Override
-            public void onNavKeyToggle() {
-                if (isNavigationOpen) {
-                    clusterDisplayManager.closeClusterDisplay(false);
-                } else {
-                    clusterDisplayManager.openClusterDisplay();
-                }
-            }
-
-            @Override
-            public void onAlertTone() {
-                playSoftAlert();
-            }
-
-            @Override
-            public void log(String message) {
-                MainActivity.this.log(message);
-            }
-
-            @Override
-            public void onProjectionTargetPickerToggle() {
-                ProjectionVDBusTargetPickerManager.openIfClosed(MainActivity.this,
-                        message -> MainActivity.this.log(message));
-            }
-
-            @Override
-            public void onProjectionTargetPickerKeyRight() {
-                ProjectionVDBusTargetPickerManager.advanceSelectionIfOpen(MainActivity.this);
-            }
-
-            @Override
-            public void onProjectionTargetPickerKeyLeft() {
-                ProjectionVDBusTargetPickerManager.retreatSelectionIfOpen(MainActivity.this);
-            }
-        });
-
-        boolean mapControlKeyEnabled = prefs.getBoolean("mapControlKeyEnabled", true);
-        if (mapControlKeyEnabled) {
-            vdbusManager.init();
-        }
+        MapControlVDBusKeyBridge.acquire(this);
 
         // Otomatik seçim modu: Uygulama açıldığında önerilen uygulamayı otomatik seç
         autoSelectPreferredApp();
+    }
+
+    /** Splash → ana UI (splash initializeApp süresince zaten görünürdü). */
+    private void presentMainUi(View mainRoot) {
+        setTheme(R.style.Theme_MapControl);
+        DisplayHelper.stopAppLaunchSplashAnimations();
+        launchSplashRoot = null;
+        setContentView(mainRoot);
     }
 
     /**
@@ -723,117 +797,8 @@ public class MainActivity extends AppCompatActivity {
     private Thread keyEventLogcatThread;
     private volatile boolean keyEventLogcatRunning = false;
     
-    // VDBus üzerinden doğrudan key event dinleme (SMS key event subscribe)
-    private MediaPlayer alertMediaPlayer = null;
-    private final Object alertMediaPlayerLock = new Object();
-    
-    /**
-     * Navigation Display Cluster ve Display Area event'lerine subscribe olur.
-     */
-    /**
-     * soft_alert.mp3 dosyasını güvenli bir şekilde çalar.
-     * Programın çökmesini veya loop'ta kalmasını önler.
-     */
     private void playSoftAlert() {
-        // Arka plan thread'inde çalıştır (UI thread'i bloklamamak için)
-        new Thread(() -> {
-            synchronized (alertMediaPlayerLock) {
-                try {
-                    // Eğer zaten çalıyorsa durdur ve temizle
-                    if (alertMediaPlayer != null) {
-                        try {
-                            if (alertMediaPlayer.isPlaying()) {
-                                alertMediaPlayer.stop();
-                            }
-                            alertMediaPlayer.release();
-                        } catch (Exception e) {
-                            log("Alert MediaPlayer temizleme hatası: " + e.getMessage());
-                        }
-                        alertMediaPlayer = null;
-                    }
-
-                    // Yeni MediaPlayer oluştur
-                    alertMediaPlayer = new MediaPlayer();
-                    
-                    // AudioAttributes ayarla (ses çıkışı için)
-                    AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build();
-                    alertMediaPlayer.setAudioAttributes(audioAttributes);
-                    
-                    // Assets'ten dosyayı yükle
-                    android.content.res.AssetFileDescriptor afd = getAssets().openFd("soft_alert.mp3");
-                    alertMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                    afd.close();
-                    
-                    // Hazırla
-                    alertMediaPlayer.prepare();
-                    
-                    // Çalma bitince temizle (loop'ta kalmaması için)
-                    alertMediaPlayer.setOnCompletionListener(mp -> {
-                        synchronized (alertMediaPlayerLock) {
-                            try {
-                                if (mp != null) {
-                                    mp.release();
-                                }
-                            } catch (Exception e) {
-                                log("Alert MediaPlayer completion release hatası: " + e.getMessage());
-                            }
-                            if (alertMediaPlayer == mp) {
-                                alertMediaPlayer = null;
-                            }
-                        }
-                        log("soft_alert.mp3 çalma tamamlandı");
-                    });
-                    
-                    // Hata durumunda temizle
-                    alertMediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                        synchronized (alertMediaPlayerLock) {
-                            try {
-                                if (mp != null) {
-                                    mp.release();
-                                }
-                            } catch (Exception e) {
-                                log("Alert MediaPlayer error release hatası: " + e.getMessage());
-                            }
-                            if (alertMediaPlayer == mp) {
-                                alertMediaPlayer = null;
-                            }
-                        }
-                        log("soft_alert.mp3 çalma hatası: what=" + what + " extra=" + extra);
-                        return true; // Hatayı handle ettik
-                    });
-                    
-                    // Çal
-                    alertMediaPlayer.start();
-                    log("soft_alert.mp3 çalınıyor");
-                    
-                } catch (IOException e) {
-                    log("soft_alert.mp3 dosyası açılamadı: " + e.getMessage());
-                    // Hata durumunda MediaPlayer'ı temizle
-                    if (alertMediaPlayer != null) {
-                        try {
-                            alertMediaPlayer.release();
-                        } catch (Exception ex) {
-                            // Ignore
-                        }
-                        alertMediaPlayer = null;
-                    }
-                } catch (Exception e) {
-                    log("soft_alert.mp3 çalma hatası: " + e.getMessage());
-                    // Hata durumunda MediaPlayer'ı temizle
-                    if (alertMediaPlayer != null) {
-                        try {
-                            alertMediaPlayer.release();
-                        } catch (Exception ex) {
-                            // Ignore
-                        }
-                        alertMediaPlayer = null;
-                    }
-                }
-            }
-        }).start();
+        AlertSoundHelper.playSoftAlert(this, msg -> MainActivity.this.log(msg));
     }
 
     /**
@@ -986,45 +951,135 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Tab değiştirme metodu
-     * 0 = Wi-Fi, 1 = Web Yönetimi, 2 = Profil, 3 = Yansıtma, 4 = LOG, 5 = Uygulamalar, 6 = Hafıza Modu, 7 = Ayarlar
+     * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi
      */
     private void switchTab(int tabIndex) {
-        if (tabContentArea == null || projectionTabContent == null || wifiTabContent == null || logTabContent == null || appsTabContent == null || driveModeTabContent == null || fileUploadTabContent == null) {
+        if (tabContentArea == null || projectionTabContent == null || wifiTabContent == null || logTabContent == null || appsTabContent == null || driveModeTabContent == null || fileUploadTabContent == null || welcomeSoundTabBuilder == null || vehicleInfoScrollView == null) {
             return;
         }
 
+        welcomeSoundTabBuilder.onHostPause();
+
+        if (currentTab == 9 && tabIndex != 9 && vehicleInfoTabBuilder != null) {
+            vehicleInfoTabBuilder.stopListening();
+        }
+        if (currentTab == TAB_LAUNCHER && tabIndex != TAB_LAUNCHER && launcherTabBuilder != null) {
+            launcherTabBuilder.onTabHidden();
+        }
+
         currentTab = tabIndex;
-        tabContentArea.removeAllViews();
-        
+
         // TopBar buton container'ını temizle
         if (topBarButtonsContainer != null) {
             topBarButtonsContainer.removeAllViews();
         }
 
+        // Launcher modu açıkken sol menü her zaman gizli; kapalıyken görünür.
+        boolean launcherMode = LauncherModeManager.isEnabled(this);
+        applyLauncherChrome(launcherMode);
+
+        // Launcher modunda 3D modelin Engine'ini öldürmemek için Ana Ekran view'ını
+        // hierarchy'de VISIBLE tut (üstüne opak overlay) — geri gelince kaldığı yerden devam.
+        if (launcherMode && launcherScrollView != null) {
+            showTabContentKeepingLauncherParked(tabIndex);
+        } else {
+            tabContentArea.removeAllViews();
+            attachTabContent(tabIndex);
+        }
+
+        applyTabChrome(tabIndex);
+    }
+
+    /**
+     * Launcher ScrollView'ı VISIBLE tutar; diğer sekmeyi üstte opak katmanda gösterir.
+     * GONE kullanılmaz — SurfaceView deliği bozulunca dashboard arka planı değişmiş gibi görünür.
+     */
+    private void showTabContentKeepingLauncherParked(int tabIndex) {
+        FrameLayout.LayoutParams matchParent = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
+
+        for (int i = tabContentArea.getChildCount() - 1; i >= 0; i--) {
+            View child = tabContentArea.getChildAt(i);
+            if (child != launcherScrollView) {
+                tabContentArea.removeViewAt(i);
+            }
+        }
+
+        if (launcherScrollView.getParent() != tabContentArea) {
+            tabContentArea.addView(launcherScrollView, 0, matchParent);
+        }
+        launcherScrollView.setVisibility(View.VISIBLE);
+
+        if (tabIndex == TAB_LAUNCHER) {
+            launcherScrollView.bringToFront();
+            if (launcherTabBuilder != null) {
+                launcherTabBuilder.onTabVisible();
+            }
+            return;
+        }
+
+        // Opak host: altındaki canlı 3D / launcher gradient settings'ten sızmasın
+        FrameLayout overlay = new FrameLayout(this);
+        UiStyles.setRootBackground(overlay);
+        attachTabContent(overlay, tabIndex);
+        tabContentArea.addView(overlay, matchParent);
+    }
+
+    /** İçeriği verilen parent'a ekler; başlık / top-bar chrome {@link #applyTabChrome} ile. */
+    private void attachTabContent(int tabIndex) {
+        attachTabContent(tabContentArea, tabIndex);
+    }
+
+    private void attachTabContent(FrameLayout parent, int tabIndex) {
+        FrameLayout.LayoutParams matchParent = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
         if (tabIndex == 0) {
-            // Wi-Fi tab'ı aktif
-            tabContentArea.addView(wifiTabContent);
-            if (topBarTitle != null) topBarTitle.setText("Wi-Fi Yönetimi");
-            if (topBarButtonsContainer != null && wifiTabBuilder != null) topBarButtonsContainer.addView(wifiTabBuilder.buildTopBarIcon());
-            if (wifiTabBuilder != null) wifiTabBuilder.updateWifiStatus();
+            addTabChild(parent, wifiTabContent, matchParent);
         } else if (tabIndex == 1) {
-            // Web Yönetimi tab'ı aktif
-            tabContentArea.addView(fileUploadScrollView);
-            // Web Yönetimi tab'ında buton yok
+            addTabChild(parent, fileUploadScrollView, matchParent);
         } else if (tabIndex == 2) {
-            // Profil tab'ı aktif
-            tabContentArea.addView(profileScrollView);
-            // Profil tab'ında buton yok
+            addTabChild(parent, profileScrollView, matchParent);
         } else if (tabIndex == 3) {
-            // Yansıtma tab'ı aktif
-            tabContentArea.addView(projectionScrollView);
-            // Yansıtma tab'ında buton yok
+            addTabChild(parent, projectionScrollView, matchParent);
         } else if (tabIndex == 4) {
-            // LOG tab'ı aktif (Sistem Kayıtları) — kök yükseklik MATCH_PARENT olmalı; yoksa
-            // içteki terminal ScrollView (weight) ölçüde 0 kalır ve kaydırma çalışmaz.
-            tabContentArea.addView(logTabContent, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT));
+            addTabChild(parent, logTabContent, matchParent);
+        } else if (tabIndex == 5) {
+            addTabChild(parent, appsTabContent, matchParent);
+        } else if (tabIndex == 6) {
+            addTabChild(parent, driveModeScrollView, matchParent);
+        } else if (tabIndex == 7) {
+            addTabChild(parent, settingsScrollView, matchParent);
+        } else if (tabIndex == 8) {
+            addTabChild(parent, welcomeSoundTabBuilder.getScrollView(), matchParent);
+        } else if (tabIndex == 9) {
+            addTabChild(parent, vehicleInfoScrollView, matchParent);
+        } else if (tabIndex == TAB_LAUNCHER) {
+            if (launcherScrollView != null) {
+                addTabChild(parent, launcherScrollView, matchParent);
+            }
+            if (launcherTabBuilder != null) {
+                launcherTabBuilder.onTabVisible();
+            }
+        }
+    }
+
+    private static void addTabChild(FrameLayout parent, View child, FrameLayout.LayoutParams lp) {
+        if (child.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) child.getParent()).removeView(child);
+        }
+        parent.addView(child, lp);
+    }
+
+    private void applyTabChrome(int tabIndex) {
+        if (tabIndex == 0) {
+            if (topBarTitle != null) topBarTitle.setText("Wi-Fi Yönetimi");
+            if (topBarButtonsContainer != null && wifiTabBuilder != null) {
+                topBarButtonsContainer.addView(wifiTabBuilder.buildTopBarIcon());
+            }
+            if (wifiTabBuilder != null) wifiTabBuilder.updateWifiStatus();
+        } else if (tabIndex == 4) {
             if (topBarTitle != null) {
                 topBarTitle.setText("Sistem Kayıtları");
             }
@@ -1034,18 +1089,107 @@ public class MainActivity extends AppCompatActivity {
                         () -> speakTtsText(getString(R.string.log_tts_welcome_phrase)), 450);
             }
         } else if (tabIndex == 5) {
-            // Uygulamalar tab'ı aktif
-            tabContentArea.addView(appsTabContent);
             if (topBarTitle != null) topBarTitle.setText("Uygulamalar");
-            if (topBarButtonsContainer != null && appsTabBuilder != null) topBarButtonsContainer.addView(appsTabBuilder.buildTopBarButtons(this));
-        } else if (tabIndex == 6) {
-            // Hafıza Modu tab'ı aktif
-            tabContentArea.addView(driveModeScrollView);
-            // Hafıza Modu tab'ında buton yok
+            if (topBarButtonsContainer != null && appsTabBuilder != null) {
+                topBarButtonsContainer.addView(appsTabBuilder.buildTopBarButtons(this));
+            }
         } else if (tabIndex == 7) {
-            // Ayarlar tab'ı aktif
-            tabContentArea.addView(settingsScrollView);
-            // Ayarlar tab'ında buton yok
+            if (settingsTabBuilder != null) {
+                settingsTabBuilder.syncLauncherModeFromPrefs();
+            }
+        } else if (tabIndex == 8) {
+            if (topBarTitle != null) {
+                topBarTitle.setText(getString(R.string.welcome_sound_title));
+            }
+        } else if (tabIndex == 9) {
+            if (topBarTitle != null) {
+                topBarTitle.setText(getString(R.string.side_rail_vehicle_info));
+            }
+            if (vehicleInfoTabBuilder != null) {
+                vehicleInfoTabBuilder.startListening();
+            }
+        } else if (tabIndex == TAB_LAUNCHER) {
+            if (topBarTitle != null) {
+                topBarTitle.setText("Araç Ana Ekranı");
+            }
+        }
+    }
+
+    /**
+     * Launcher modu chrome'unu uygular: sol menü görünürlüğü, içerik genişliği ve TopBar geri düğmesi.
+     */
+    private void applyLauncherChrome(boolean active) {
+        if (sideRailBuilder != null) {
+            sideRailBuilder.setLauncherModeActive(active);
+        }
+        if (mainContent != null && mainContentParams != null) {
+            mainContentParams.width = active ? screenWidthPx : (screenWidthPx - sidebarWidthPx);
+            mainContent.setLayoutParams(mainContentParams);
+        }
+        if (topBarBuilder != null) {
+            boolean onLauncherHome = active && currentTab == TAB_LAUNCHER;
+            topBarBuilder.setTopBarVisible(!onLauncherHome);
+            topBarBuilder.setLauncherBackButtonVisible(active && !onLauncherHome);
+        }
+        ImmersiveFullscreenHelper.setImmersiveFullscreen(this, active);
+    }
+
+    /** Launcher modunda alt sekmeden ana ekran ızgarasına döner; modu kapatmaz. */
+    private void returnToLauncherHome() {
+        if (!LauncherModeManager.isEnabled(this)) {
+            return;
+        }
+        switchTab(TAB_LAUNCHER);
+        if (topBarTitle != null) {
+            topBarTitle.setText("Araç Ana Ekranı");
+        }
+    }
+
+    private void enterLauncherMode() {
+        LauncherModeManager.setEnabled(this, true);
+        launchedAsHome = true;
+        applyLauncherChrome(true);
+        switchTab(TAB_LAUNCHER);
+        syncLauncherModeSettingsUi();
+    }
+
+    /**
+     * Launcher modunu kapatır. Yalnızca araç paneli sekmesindeyken Wi-Fi sekmesine döner;
+     * Ayarlar gibi başka bir sekmeden kapatılırsa mevcut sekme korunur.
+     */
+    private void exitLauncherMode() {
+        boolean wasOnLauncherTab = currentTab == TAB_LAUNCHER;
+        LauncherModeManager.setEnabled(this, false);
+        launchedAsHome = false;
+        applyLauncherChrome(false);
+        syncLauncherModeSettingsUi();
+        // Park edilmiş Ana Ekran'ı hierarchy'den çıkar → 3D Engine serbest kalsın
+        detachParkedLauncher();
+        if (wasOnLauncherTab) {
+            switchTab(0);
+            if (topBarTitle != null) {
+                topBarTitle.setText("Wi-Fi Yönetimi");
+            }
+            if (sideRailBuilder != null) {
+                sideRailBuilder.setSelectionForTabIndex(0);
+            }
+        }
+    }
+
+    /** Launcher GONE park'tayken parent'tan koparır (ModelViewer detach destroy). */
+    private void detachParkedLauncher() {
+        if (launcherScrollView == null || tabContentArea == null) {
+            return;
+        }
+        if (launcherScrollView.getParent() == tabContentArea) {
+            tabContentArea.removeView(launcherScrollView);
+        }
+        launcherScrollView.setVisibility(View.VISIBLE);
+    }
+
+    private void syncLauncherModeSettingsUi() {
+        if (settingsTabBuilder != null) {
+            settingsTabBuilder.syncLauncherModeFromPrefs();
         }
     }
 
@@ -1099,6 +1243,37 @@ public class MainActivity extends AppCompatActivity {
             intent.removeExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER);
             deferredOpenProjectionTargetPicker = true;
         }
+        // Cihaz Ana Ekran (Home) tuşuna basılıp uygulama zaten açıkken (singleTop) tekrar
+        // çağrılırsa Araç Launcher karşılama ekranına dön.
+        if (LauncherModeManager.isHomeIntent(intent)) {
+            LauncherModeManager.ensurePersistedFromHomeLaunch(this);
+            enterLauncherMode();
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (LauncherModeManager.isEnabled(this)) {
+            // Ana Ekran (Home) olarak çalışırken geri tuşu uygulamayı kapatmamalı:
+            // Launcher ekranındaysak hiçbir şey yapma, başka sekmedeysek Launcher'a dön.
+            if (currentTab == TAB_LAUNCHER) {
+                return;
+            }
+            switchTab(TAB_LAUNCHER);
+            if (topBarTitle != null) {
+                topBarTitle.setText("Araç Ana Ekranı");
+            }
+            return;
+        }
+        super.onBackPressed();
     }
 
     private void tryConsumeDeferredProjectionTargetPicker() {
@@ -1110,16 +1285,194 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        int night = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (night == lastNightModeUiBits) {
+            return;
+        }
+        lastNightModeUiBits = night;
+        // AppCompat Activity Resources yapışmasın diye çözümlemeyi newConfig'e kilitle.
+        UiStyles.setUiModeOverride(newConfig);
+        // uiMode configChanges ile Activity ayakta kalır → GLB Engine yok edilmez.
+        reapplyUiModeTheme();
+    }
+
+    /**
+     * Sistem light/dark değişince chrome + tüm sekmeleri yeniler.
+     * Launcher / {@link com.mapcontrol.ui.widget.VehicleGlbView} yeniden kurulmaz.
+     */
+    private void reapplyUiModeTheme() {
+        if (mainRootContainer != null) {
+            UiStyles.setRootBackground(mainRootContainer);
+        }
+        if (tabContentArea != null) {
+            UiStyles.setTabContentBackdrop(tabContentArea);
+        }
+
+        rebuildSideRailForUiMode();
+        rebuildTopBarForUiMode();
+        rebuildNonLauncherTabsForUiMode();
+
+        if (launcherTabBuilder != null) {
+            launcherTabBuilder.onUiModeChanged();
+        }
+
+        int tab = currentTab;
+        boolean launcherMode = LauncherModeManager.isEnabled(this);
+        applyLauncherChrome(launcherMode);
+        if (sideRailBuilder != null && tab != TAB_LAUNCHER) {
+            sideRailBuilder.setSelectionForTabIndex(tab);
+        }
+        if (tabContentArea == null) {
+            return;
+        }
+        if (launcherMode && launcherScrollView != null) {
+            showTabContentKeepingLauncherParked(tab);
+        } else {
+            tabContentArea.removeAllViews();
+            attachTabContent(tab);
+            applyTabChrome(tab);
+        }
+    }
+
+    private void rebuildSideRailForUiMode() {
+        if (sideRailBuilder == null || mainRootContainer == null) {
+            return;
+        }
+        boolean launcherActive = LauncherModeManager.isEnabled(this);
+        int selectTab = currentTab == TAB_LAUNCHER ? 0 : currentTab;
+        if (sideRail != null) {
+            mainRootContainer.removeView(sideRail);
+        }
+        sideRail = sideRailBuilder.build();
+        FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
+                sidebarWidthPx > 0 ? sidebarWidthPx : FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
+        railParams.gravity = android.view.Gravity.START;
+        mainRootContainer.addView(sideRail, 0, railParams);
+        sideRailBuilder.setLauncherModeActive(launcherActive);
+        sideRailBuilder.setSelectionForTabIndex(selectTab);
+    }
+
+    private void rebuildTopBarForUiMode() {
+        if (topBarBuilder == null || mainContent == null) {
+            return;
+        }
+        CharSequence title = topBarTitle != null ? topBarTitle.getText() : null;
+        LinearLayout newTopBar = topBarBuilder.build();
+        if (mainContent.getChildCount() > 0) {
+            mainContent.removeViewAt(0);
+        }
+        mainContent.addView(newTopBar, 0, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        topBarTitle = topBarBuilder.getTitleView();
+        topBarButtonsContainer = topBarBuilder.getButtonsContainer();
+        topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
+        if (title != null && topBarTitle != null) {
+            topBarTitle.setText(title);
+        }
+    }
+
+    /**
+     * Launcher dışındaki sekmeleri taze renklerle yeniden kurar (GLB etkilenmez).
+     */
+    private void rebuildNonLauncherTabsForUiMode() {
+        if (profileTabBuilder != null) {
+            profileScrollView = profileTabBuilder.build();
+        }
+        if (wifiTabBuilder != null) {
+            wifiTabContent = wifiTabBuilder.build();
+        }
+        if (fileUploadTabBuilder != null) {
+            fileUploadScrollView = fileUploadTabBuilder.build();
+            fileUploadTabContent = fileUploadTabBuilder.getFileUploadTabContent();
+            btnWebServerToggle = fileUploadTabBuilder.getToggleButton();
+            webServerStatusText = fileUploadTabBuilder.getStatusText();
+            qrCodeImageView = fileUploadTabBuilder.getQrImageView();
+            if (webServerManager != null && webServerManager.isRunning()) {
+                if (btnWebServerToggle != null) {
+                    btnWebServerToggle.setText("■ Web Server Durdur");
+                }
+                if (webServerStatusText != null) {
+                    webServerStatusText.setTextColor(UiStyles.color(this, R.color.accentHighlight));
+                }
+            }
+        }
+        if (projectionTabBuilder != null) {
+            projectionScrollView = projectionTabBuilder.build();
+            projectionTabContent = projectionTabBuilder.getProjectionTabContent();
+            targetAppLabel = projectionTabBuilder.getTargetAppLabel();
+            updateTargetLabel();
+            projectionTabBuilder.refreshProjectionStatusUi();
+        }
+        if (driveModeTabBuilder != null && assistTabBuilder != null) {
+            driveModeScrollView = driveModeTabBuilder.build();
+            driveModeTabContent = driveModeTabBuilder.getTabContent();
+            driveModeTabContent.addView(assistTabBuilder.build(), new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
+        if (logTabBuilder != null) {
+            CharSequence logs = tvLogs != null ? tvLogs.getText() : logBuffer.toString();
+            logTabContent = logTabBuilder.build();
+            tvLogs = logTabBuilder.getLogsTextView();
+            scrollView = logTabBuilder.getScrollView();
+            if (tvLogs != null && logs != null) {
+                tvLogs.setText(logs);
+            }
+        }
+        if (appsTabBuilder != null) {
+            appsTabContent = appsTabBuilder.build();
+            appsTabBuilder.loadAppsFromServer();
+        }
+        if (settingsTabBuilder != null) {
+            settingsScrollView = settingsTabBuilder.build();
+            settingsTabContent = settingsTabBuilder.getSettingsTabContent();
+            settingsTabBuilder.syncLauncherModeFromPrefs();
+        }
+        if (welcomeSoundTabBuilder != null) {
+            welcomeSoundTabBuilder.rebuild();
+        }
+        if (vehicleInfoTabBuilder != null) {
+            boolean listening = currentTab == 9;
+            if (listening) {
+                vehicleInfoTabBuilder.stopListening();
+            }
+            vehicleInfoTabBuilder.rebuild();
+            vehicleInfoScrollView = vehicleInfoTabBuilder.getScrollView();
+            if (listening) {
+                vehicleInfoTabBuilder.startListening();
+            }
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
         sBenchHost = this;
+        // Arka plandayken Floating Back / overlay hedef seçimi prefs'e yazılır; yayın onPause'da
+        // alıcı kapatıldığı için kaçırılabilir — her öne gelişte disk ile bellek senkronu.
+        loadTargetPackage();
+        updateTargetLabel();
         tryConsumeDeferredProjectionTargetPicker();
         registerTargetPackageBroadcastReceiver();
+        registerNavigationClusterBroadcastReceiver();
+        isNavigationOpen = ClusterNavigationState.getLastKnownOpen();
+        if (projectionTabBuilder != null) {
+            projectionTabBuilder.refreshProjectionStatusUi();
+        }
     }
 
     @Override
     protected void onPause() {
         unregisterTargetPackageBroadcastReceiver();
+        unregisterNavigationClusterBroadcastReceiver();
+        if (welcomeSoundTabBuilder != null) {
+            welcomeSoundTabBuilder.onHostPause();
+        }
         super.onPause();
     }
 
@@ -1151,11 +1504,57 @@ public class MainActivity extends AppCompatActivity {
         targetPackageBroadcastRegistered = false;
     }
 
+    private void registerNavigationClusterBroadcastReceiver() {
+        if (navigationClusterBroadcastRegistered) {
+            return;
+        }
+        try {
+            IntentFilter filter = new IntentFilter(ClusterNavigationState.ACTION_NAVIGATION_CLUSTER_STATE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(navigationClusterStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(navigationClusterStateReceiver, filter);
+            }
+            navigationClusterBroadcastRegistered = true;
+        } catch (Exception e) {
+            log("Cluster durum yayını kaydı: " + e.getMessage());
+        }
+    }
+
+    private void unregisterNavigationClusterBroadcastReceiver() {
+        if (!navigationClusterBroadcastRegistered) {
+            return;
+        }
+        try {
+            unregisterReceiver(navigationClusterStateReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+        navigationClusterBroadcastRegistered = false;
+    }
+
+    private void applyNavigationClusterOpenFromBus(boolean open) {
+        isNavigationOpen = open;
+        ClusterNavigationState.setLastKnownOpen(open);
+        if (projectionTabBuilder != null) {
+            projectionTabBuilder.refreshProjectionStatusUi();
+        }
+    }
+
     @Override
     protected void onDestroy() {
         if (sBenchHost == this) {
             sBenchHost = null;
         }
+        if (welcomeSoundTabBuilder != null) {
+            welcomeSoundTabBuilder.releaseAudioFully();
+        }
+        if (vehicleInfoTabBuilder != null) {
+            vehicleInfoTabBuilder.release();
+        }
+        if (vehicleMetricsRepository != null) {
+            vehicleMetricsRepository.release();
+        }
+        VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
         // WebServerManager'ı durdur
         if (webServerManager != null) {
@@ -1166,21 +1565,7 @@ public class MainActivity extends AppCompatActivity {
         if (keyEventLogcatThread != null) {
             keyEventLogcatThread.interrupt();
         }
-        if (vdbusManager != null) vdbusManager.destroy();
-        // Alert MediaPlayer'ı temizle
-        synchronized (alertMediaPlayerLock) {
-            if (alertMediaPlayer != null) {
-                try {
-                    if (alertMediaPlayer.isPlaying()) {
-                        alertMediaPlayer.stop();
-                    }
-                    alertMediaPlayer.release();
-                } catch (Exception e) {
-                    // Ignore
-                }
-                alertMediaPlayer = null;
-            }
-        }
+        MapControlVDBusKeyBridge.release(this);
         if (serviceInitializer != null) serviceInitializer.onDestroy();
     }
 

@@ -172,13 +172,13 @@ public class FloatingQuickActionsManager {
             d = DrawableCompat.wrap(d).mutate();
             int iconPx = FloatingOverlayBarSpec.rowIconSizePx(context);
             d.setBounds(0, 0, iconPx, iconPx);
-            DrawableCompat.setTint(d, ContextCompat.getColor(context, R.color.textPrimary));
+            DrawableCompat.setTint(d, UiStyles.color(context, R.color.textPrimary));
         }
         btnToggle.setAllCaps(false);
         btnToggle.setIncludeFontPadding(false);
         btnToggle.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
         btnToggle.setTypeface(null, Typeface.BOLD);
-        btnToggle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnToggle.setText(context.getString(R.string.floating_qa_label_toggle));
         btnToggle.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));
         if (d != null) {
@@ -190,7 +190,7 @@ public class FloatingQuickActionsManager {
         btnToggle.setPadding(p, p, p, p);
         btnToggle.setMaxLines(2);
         btnToggle.setGravity(Gravity.CENTER);
-        UiStyles.styleOemButton(btnToggle, ContextCompat.getColor(context, R.color.surfaceCardInner));
+        UiStyles.styleOemButton(btnToggle, UiStyles.color(context, R.color.surfaceCardInner));
     }
 
     private void applyExpandUi() {
@@ -302,7 +302,7 @@ public class FloatingQuickActionsManager {
         }
         if (quickInner != null) {
             UiStyles.applySolidRoundedBackgroundDp(quickInner,
-                    ContextCompat.getColor(context, R.color.surfaceCard), FloatingOverlayBarSpec.BAR_CORNER_DP);
+                    UiStyles.color(context, R.color.surfaceCard), FloatingOverlayBarSpec.BAR_CORNER_DP);
             quickInner.setAlpha(0.95f);
         }
         if (btnToggle != null) {
@@ -321,7 +321,7 @@ public class FloatingQuickActionsManager {
         }
         b.setAllCaps(false);
         b.setGravity(Gravity.CENTER);
-        b.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        b.setTextColor(UiStyles.color(context, R.color.textPrimary));
         b.setIncludeFontPadding(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
         b.setText(context.getString(labelRes));
@@ -330,13 +330,13 @@ public class FloatingQuickActionsManager {
         if (d != null) {
             d = DrawableCompat.wrap(d).mutate();
             d.setBounds(0, 0, iconPx, iconPx);
-            DrawableCompat.setTint(d, ContextCompat.getColor(context, R.color.textPrimary));
+            DrawableCompat.setTint(d, UiStyles.color(context, R.color.textPrimary));
             b.setCompoundDrawables(null, d, null, null);
         }
         b.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));
         int pad = FloatingOverlayBarSpec.rowInnerPadPx(context);
         b.setPadding(pad, pad, pad, pad);
-        UiStyles.styleOemButton(b, ContextCompat.getColor(context, R.color.surfaceCardInner));
+        UiStyles.styleOemButton(b, UiStyles.color(context, R.color.surfaceCardInner));
     }
 
     private void cleanupExistingView() {
@@ -359,187 +359,11 @@ public class FloatingQuickActionsManager {
         isShowing = false;
     }
 
+    /**
+     * Hızlı işlemler artık {@link FloatingBackButtonManager} yan menüsündedir; ayrı çubuk yok.
+     */
     public synchronized void show() {
-        log("[INFO] Yüzen hızlı işlemler show()");
-        cleanupExistingView();
-        isExpanded = false;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(context)) {
-                log("[WARN] Yüzen hızlı işlemler: overlay izni yok");
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    try {
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                        intent.setData(android.net.Uri.parse("package:" + context.getPackageName()));
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(intent);
-                        Toast.makeText(context,
-                                "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın",
-                                Toast.LENGTH_LONG).show();
-                    } catch (Exception e) {
-                        Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-                return;
-            }
-        }
-
-        density = context.getResources().getDisplayMetrics().density;
-        int cellSide = FloatingOverlayBarSpec.uniformCellSidePx(context);
-        int padH = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_CARD_PAD_H_DP, density);
-        int padV = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_CARD_PAD_V_DP, density);
-
-        FrameLayout root = new FrameLayout(context);
-        LinearLayout inner = new LinearLayout(context);
-        inner.setOrientation(LinearLayout.HORIZONTAL);
-        inner.setPadding(padH, padV, padH, padV);
-        UiStyles.applySolidRoundedBackgroundDp(inner,
-                ContextCompat.getColor(context, R.color.surfaceCard), FloatingOverlayBarSpec.BAR_CORNER_DP);
-        inner.setAlpha(0.95f);
-
-        quickInner = inner;
-        btnToggle = makeActionButton(
-                R.string.floating_qa_label_toggle, R.drawable.ic_mdi_lightning_bolt);
-        applyToggleIconOnly(false);
-        LinearLayout.LayoutParams toggleLp = new LinearLayout.LayoutParams(cellSide, cellSide);
-        toggleLp.gravity = Gravity.CENTER_VERTICAL;
-        inner.addView(btnToggle, toggleLp);
-
-        actionsRow = new LinearLayout(context);
-        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-        int gap = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_COLUMN_GAP_DP, density);
-        actionsRow.setVisibility(View.GONE);
-        android.widget.LinearLayout.LayoutParams rowLp = new android.widget.LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowLp.setMargins(0, 0, 0, 0);
-        inner.addView(actionsRow, rowLp);
-
-        btnDisplay0 = makeActionButton(
-                R.string.floating_qa_label_display1, R.drawable.ic_mdi_cellphone);
-        btnDisplayCluster = makeActionButton(
-                R.string.floating_qa_label_display2, R.drawable.ic_mdi_inbox_outline);
-        btnWifi = makeActionButton(
-                R.string.floating_qa_label_wifi, R.drawable.ic_mdi_refresh);
-
-        LinearLayout.LayoutParams cell = new LinearLayout.LayoutParams(cellSide, cellSide);
-        cell.setMargins(gap / 2, 0, gap / 2, 0);
-        actionsRow.addView(btnDisplay0, cell);
-        actionsRow.addView(btnDisplayCluster, cell);
-        actionsRow.addView(btnWifi, cell);
-
-        btnDisplay0.setClickable(false);
-        btnDisplayCluster.setClickable(false);
-        btnWifi.setClickable(false);
-        btnDisplay0.setFocusable(false);
-        btnDisplayCluster.setFocusable(false);
-        btnWifi.setFocusable(false);
-        btnToggle.setClickable(false);
-        btnToggle.setFocusable(false);
-
-        root.addView(inner, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
-        barRoot = root;
-
-        android.util.DisplayMetrics displayMetrics = new android.util.DisplayMetrics();
-        windowManager.getDefaultDisplay().getMetrics(displayMetrics);
-        int widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-        int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-        barRoot.measure(widthSpec, heightSpec);
-        barWidthPx = barRoot.getMeasuredWidth();
-        barHeightPx = barRoot.getMeasuredHeight();
-
-        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE;
-
-        params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.TOP | Gravity.START;
-
-        root.setOnTouchListener((v, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    initialX = params.x;
-                    initialY = params.y;
-                    initialTouchX = event.getRawX();
-                    initialTouchY = event.getRawY();
-                    dragging = false;
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    int deltaX = (int) (event.getRawX() - initialTouchX);
-                    int deltaY = (int) (event.getRawY() - initialTouchY);
-                    if (!dragging && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
-                        dragging = true;
-                    }
-                    if (dragging) {
-                        android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
-                        windowManager.getDefaultDisplay().getMetrics(dm);
-                        int newX = initialX + deltaX;
-                        int newY = initialY + deltaY;
-                        int[] c = clampBarPosition(newX, newY, dm.widthPixels, dm.heightPixels);
-                        params.x = c[0];
-                        params.y = c[1];
-                        try {
-                            windowManager.updateViewLayout(barRoot, params);
-                        } catch (Exception e) {
-                            log("[ERROR] Yüzen hızlı işlemler updateViewLayout: " + e.getMessage());
-                        }
-                        long now = SystemClock.uptimeMillis();
-                        if (now - lastDragLogUptimeMs >= DRAG_LOG_MIN_INTERVAL_MS) {
-                            lastDragLogUptimeMs = now;
-                            log(String.format(java.util.Locale.US,
-                                    "[DEBUG] Hızlı işlemler sürükle (x=%d, y=%d)", params.x, params.y));
-                        }
-                    }
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    float moveDx = Math.abs(event.getRawX() - initialTouchX);
-                    float moveDy = Math.abs(event.getRawY() - initialTouchY);
-                    if (!dragging && moveDx < 12 && moveDy < 12) {
-                        if (rawPointInsideView(event.getRawX(), event.getRawY(), btnToggle)) {
-                            isExpanded = !isExpanded;
-                            applyExpandUi();
-                        } else if (isExpanded) {
-                            if (rawPointInsideView(event.getRawX(), event.getRawY(), btnDisplay0)) {
-                                openRunningAppsOnDisplay0();
-                            } else if (rawPointInsideView(
-                                    event.getRawX(), event.getRawY(), btnDisplayCluster)) {
-                                openRunningAppsOnCluster();
-                            } else if (rawPointInsideView(
-                                    event.getRawX(), event.getRawY(), btnWifi)) {
-                                startUserWifiStabilize();
-                            }
-                        }
-                    }
-                    saveBarPosition();
-                    return true;
-                default:
-                    return false;
-            }
-        });
-
-        applyInitialPosition(
-                displayMetrics.widthPixels, displayMetrics.heightPixels, density);
-
-        try {
-            if (windowManager != null && barRoot != null && params != null) {
-                windowManager.addView(barRoot, params);
-                isShowing = true;
-                registerThemeConfigCallback();
-                log("[SUCCESS] Yüzen hızlı işlemler gösterildi");
-            }
-        } catch (Exception e) {
-            log("[ERROR] Yüzen hızlı işlemler gösterilemedi: " + e.getMessage());
-            barRoot = null;
-            quickInner = null;
-            isShowing = false;
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                    Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show());
-        }
+        log("[INFO] Yüzen hızlı işlemler (ayrı çubuk devre dışı — FloatingBackButtonManager kullanın)");
     }
 
     private Button makeActionButton(int labelRes, int iconRes) {
@@ -550,7 +374,7 @@ public class FloatingQuickActionsManager {
         b.setIncludeFontPadding(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
         b.setTypeface(null, Typeface.BOLD);
-        b.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        b.setTextColor(UiStyles.color(context, R.color.textPrimary));
         b.setMaxLines(2);
         b.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));
         android.graphics.drawable.Drawable d = ContextCompat.getDrawable(context, iconRes);
@@ -558,10 +382,10 @@ public class FloatingQuickActionsManager {
             d = DrawableCompat.wrap(d).mutate();
             int iconPx = FloatingOverlayBarSpec.rowIconSizePx(context);
             d.setBounds(0, 0, iconPx, iconPx);
-            DrawableCompat.setTint(d, ContextCompat.getColor(context, R.color.textPrimary));
+            DrawableCompat.setTint(d, UiStyles.color(context, R.color.textPrimary));
             b.setCompoundDrawables(null, d, null, null);
         }
-        UiStyles.styleOemButton(b, ContextCompat.getColor(context, R.color.surfaceCardInner));
+        UiStyles.styleOemButton(b, UiStyles.color(context, R.color.surfaceCardInner));
         int p = FloatingOverlayBarSpec.rowInnerPadPx(context);
         b.setPadding(p, p, p, p);
         return b;

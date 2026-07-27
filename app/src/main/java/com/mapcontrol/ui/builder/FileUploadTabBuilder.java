@@ -62,7 +62,7 @@ public class FileUploadTabBuilder {
         TextView fileUploadTitle = new TextView(context);
         fileUploadTitle.setText("Web Yönetimi");
         fileUploadTitle.setTextSize(18);
-        fileUploadTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         fileUploadTitle.setTypeface(null, Typeface.BOLD);
         fileUploadTitle.setPadding(16, 16, 16, 8);
         fileUploadTabContent.addView(fileUploadTitle, new LinearLayout.LayoutParams(
@@ -72,7 +72,7 @@ public class FileUploadTabBuilder {
         TextView fileUploadDesc = new TextView(context);
         fileUploadDesc.setText("Web sunucusunu başlatarak aynı ağdaki cihazlardan dosya yükleyebilir, harita ve klavye denetimi kullanabilirsiniz.");
         fileUploadDesc.setTextSize(13);
-        fileUploadDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        fileUploadDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         fileUploadDesc.setPadding(16, 0, 16, 16);
         fileUploadTabContent.addView(fileUploadDesc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -80,10 +80,10 @@ public class FileUploadTabBuilder {
 
         btnWebServerToggle = new Button(context);
         btnWebServerToggle.setText("Web Server Başlat");
-        btnWebServerToggle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnWebServerToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWebServerToggle.setTextSize(16);
         btnWebServerToggle.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnWebServerToggle, ContextCompat.getColor(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnWebServerToggle, UiStyles.color(context, R.color.buttonPrimary));
         btnWebServerToggle.setPadding(16, 20, 16, 20);
         LinearLayout.LayoutParams webServerToggleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -99,7 +99,7 @@ public class FileUploadTabBuilder {
         webServerStatusText = new TextView(context);
         webServerStatusText.setText("Sunucu durduruldu");
         webServerStatusText.setTextSize(20);
-        webServerStatusText.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        webServerStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         webServerStatusText.setGravity(Gravity.CENTER);
         webServerStatusText.setPadding(16, 16, 16, 16);
         webServerStatusText.setTypeface(null, Typeface.BOLD);

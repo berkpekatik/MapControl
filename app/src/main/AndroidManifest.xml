@@ -36,6 +36,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL"
+        tools:ignore="ProtectedPermissions" />
     
     <!-- Storage (for MANAGE_EXTERNAL_STORAGE appops) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
@@ -75,6 +77,16 @@
         tools:ignore="ProtectedPermissions" />
     <!-- http(s) linkleri açan tarayıcı / harita uygulamalarını görmek (Android 11+ paket görünürlüğü) -->
     <queries>
+        <package android:name="com.desaysv.materialvehicle" />
+        <package android:name="com.desaysv.materialvehicle.t19c" />
+        <package android:name="com.desaysv.materialvehicle.t19c.ev" />
+        <package android:name="com.desaysv.materialvehicle.t18fl3" />
+        <package android:name="com.desaysv.materialvehicle.t26" />
+        <package android:name="com.desaysv.materialvehicle.m1e" />
+        <package android:name="com.desaysv.materialvehicle.m1e.phev" />
+        <package android:name="com.desaysv.materialvehiclet19fl" />
+        <package android:name="com.desaysv.materialvehiclet1efl" />
+        <package android:name="com.desaysv.engmode" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -101,25 +113,38 @@
             android:exported="true"
             android:launchMode="singleTop"
             android:label="Map Control"
-            android:theme="@style/Theme.MapControl"
+            android:theme="@style/Theme.MapControl.Splash"
             android:screenOrientation="landscape"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Araç Launcher Modu: varsayılan olarak KAPALI (enabled=false). Ayarlar > Araç Launcher
+             Modu açıldığında LauncherModeManager bu bileşeni etkinleştirir; böylece MapControl,
+             cihazın Ana Ekran (HOME) uygulaması olarak seçilebilir hale gelir. MainActivity'yi
+             hedefler; ayrı bir Activity sınıfı gerekmez, mevcut ekran akışı değişmez. -->
+        <activity-alias
+            android:name=".ui.activity.MainActivityHomeAlias"
+            android:targetActivity=".ui.activity.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Map Control (Ana Ekran)"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
         
         <activity
             android:name=".ui.activity.CameraActivity"
             android:label="Kamera Test"
             android:screenOrientation="landscape" />
         
-        <activity
-            android:name=".ui.activity.AudioTestActivity"
-            android:label="Hoşgeldin Ses Test"
-            android:screenOrientation="landscape" />
-
         <activity
             android:name=".ui.activity.ClusterVDBusTestActivity"
             android:label="Cluster / VDBus bench"
@@ -178,6 +203,15 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".media.LauncherMediaNotificationListener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
         </service>
         
     </application>

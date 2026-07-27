@@ -27,6 +27,14 @@
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
+    <!-- Cold start: process window siyah olmasın; MainActivity sonra Theme.MapControl'e geçer -->
+    <style name="Theme.MapControl.Splash" parent="Theme.MapControl">
+        <item name="android:windowBackground">@drawable/bg_launch_splash</item>
+        <item name="android:statusBarColor">@color/boot_splash_gradient_mid</item>
+        <item name="android:navigationBarColor">@color/boot_splash_gradient_mid</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
     <!-- Legacy name: follows system day/night via Theme.MapControl parent -->
     <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.MapControl" />
 

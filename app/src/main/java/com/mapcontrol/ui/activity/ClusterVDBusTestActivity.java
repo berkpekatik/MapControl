@@ -31,17 +31,17 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(ContextCompat.getColor(this, R.color.backgroundPage));
+        root.setBackgroundColor(UiStyles.color(this, R.color.backgroundPage));
 
         LinearLayout backBar = new LinearLayout(this);
         backBar.setOrientation(LinearLayout.HORIZONTAL);
-        backBar.setBackgroundColor(ContextCompat.getColor(this, R.color.surfaceBar));
+        backBar.setBackgroundColor(UiStyles.color(this, R.color.surfaceBar));
         backBar.setPadding(16, 16, 16, 16);
         backBar.setGravity(Gravity.CENTER_VERTICAL);
         Button btnBack = new Button(this);
         btnBack.setText("← Geri");
-        btnBack.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
-        UiStyles.styleOemButton(btnBack, ContextCompat.getColor(this, R.color.buttonPrimary));
+        btnBack.setTextColor(UiStyles.color(this, R.color.textPrimary));
+        UiStyles.styleOemButton(btnBack, UiStyles.color(this, R.color.buttonPrimary));
         btnBack.setOnClickListener(v -> finish());
         backBar.addView(btnBack);
         root.addView(backBar);
@@ -49,13 +49,13 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         TextView title = new TextView(this);
         title.setText("Cluster / VDBus bench");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        title.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
+        title.setTextColor(UiStyles.color(this, R.color.textPrimary));
         title.setPadding(16, 12, 16, 4);
         root.addView(title);
 
         tvOut = new TextView(this);
         tvOut.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        tvOut.setTextColor(ContextCompat.getColor(this, R.color.textMuted));
+        tvOut.setTextColor(UiStyles.color(this, R.color.textMuted));
         tvOut.setPadding(16, 0, 16, 8);
         tvOut.setText("Çıktı hem burada hem ana logda (MainActivity açıkken).");
         root.addView(tvOut);
@@ -80,7 +80,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         col.setPadding(16, 8, 16, 24);
 
         int gap = UiStyles.dimenPx(this, R.dimen.spacing_small);
-        int btnColor = ContextCompat.getColor(this, R.color.buttonSecondaryMuted);
+        int btnColor = UiStyles.color(this, R.color.buttonSecondaryMuted);
 
         addBenchButton(col, "Nav toggle (26/4 yolu)", () -> benchManager.benchNavToggle(), btnColor, gap);
         addBenchButton(col, "Uyarı sesi (26/1)", () -> benchManager.benchAlertTone(), btnColor, gap);
@@ -101,7 +101,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
     private void addBenchButton(LinearLayout col, String label, Runnable r, int color, int gapBottom) {
         Button b = new Button(this);
         b.setText(label);
-        b.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
+        b.setTextColor(UiStyles.color(this, R.color.textPrimary));
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         UiStyles.styleOemButton(b, color);
         b.setOnClickListener(v -> r.run());

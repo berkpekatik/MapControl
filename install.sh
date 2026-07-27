@@ -1,12 +1,29 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APK="$SCRIPT_DIR/app/build/outputs/apk/release/app-release.apk"
+
 # Sistem property ayarı
 echo "⚙️ Sistem property ayarlanıyor..."
 echo "setprop persist.sys.sv.isl true" | adb shell || true
 
+if [[ ! -f "$APK" ]]; then
+    echo "⚠️  Release APK bulunamıyor: $APK"
+    echo "🔨 MapControl için ./gradlew assembleRelease çalıştırılıyor..."
+    (cd "$SCRIPT_DIR" && ./gradlew assembleRelease) || exit 1
+fi
+
+if [[ ! -f "$APK" ]]; then
+    echo "❌ APK oluşturulamadı. MapControl dizininde elle çalıştırın: ./gradlew assembleRelease"
+    exit 1
+fi
+
 # APK'yı cihaza push et
 echo "📦 APK'yı cihaza yüklüyorum..."
-adb push /Users/berkpekatik/Downloads/r/MapControl/app/build/outputs/apk/release/app-release.apk /data/local/tmp/mapcontrol.apk
+adb push "$APK" /data/local/tmp/mapcontrol.apk || {
+    echo "❌ adb push başarısız (cihaz bağlı mı, adb yetkisi var mı kontrol edin)."
+    exit 1
+}
 
 # APK'yı yükle
 echo "📱 APK'yı yüklüyorum..."
@@ -74,6 +91,26 @@ echo "🔧 AccessibilityService etkinleştiriliyor..."
 # Dikkat: Sınıf com.mapcontrol.service.GlobalBackService — .GlobalBackService (service olmadan) YANLIŞSIR.
 grant_permission "settings put secure enabled_accessibility_services com.mapcontrol/com.mapcontrol.service.GlobalBackService" "AccessibilityService"
 grant_permission "cmd accessibility enable-service com.mapcontrol/com.mapcontrol.service.GlobalBackService" "AccessibilityService (cmd)"
+
+# NotificationListener — medya oturumu (BT / YouTube) için zorunlu
+# Manuel Ayarlar > Bildirim erişimi yerine yüklemede verilir.
+echo "🔧 NotificationListener (medya) etkinleştiriliyor..."
+NLS_COMPONENT="com.mapcontrol/com.mapcontrol.media.LauncherMediaNotificationListener"
+grant_permission "cmd notification allow_listener ${NLS_COMPONENT}" "NotificationListener (cmd)"
+# Mevcut dinleyicileri silmeden ekle
+NLS_CURRENT=$(adb shell settings get secure enabled_notification_listeners 2>/dev/null | tr -d '\r')
+if echo "$NLS_CURRENT" | grep -q "LauncherMediaNotificationListener"; then
+    echo "  ✓ NotificationListener (zaten kayıtlı)"
+else
+    if [[ -z "$NLS_CURRENT" || "$NLS_CURRENT" == "null" ]]; then
+        NLS_NEW="$NLS_COMPONENT"
+    else
+        NLS_NEW="${NLS_CURRENT}:${NLS_COMPONENT}"
+    fi
+    grant_permission "settings put secure enabled_notification_listeners ${NLS_NEW}" "NotificationListener (secure)"
+fi
+# İmza/sistem APK'larda medya kontrolü (sideload'da genelde başarısız — sorun değil)
+grant_permission "pm grant com.mapcontrol android.permission.MEDIA_CONTENT_CONTROL" "MEDIA_CONTENT_CONTROL"
 
 # Not: WAKE_LOCK, BROADCAST_STICKY, ACCESS_COARSE_UPDATES, READ_INTERNAL_STORAGE normal permissions, otomatik verilir
 echo "✅ Yükleme ve izin verme tamamlandı!"

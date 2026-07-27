@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Material Design Icons: car-seat -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,5H17V7H7V5M15,19H9V21H15V19M12,1C10.9,1 10,1.9 10,3H14C14,1.9 13.1,1 12,1M8.83,12.61C8.42,12.21 8.42,11.56 8.83,11.15L11.36,8.62C11.55,8.43 11.77,8.33 12,8.33C12.23,8.33 12.45,8.43 12.64,8.62L15.17,11.15C15.58,11.56 15.58,12.21 15.17,12.61C14.97,12.82 14.72,12.92 14.45,12.92C14.18,12.92 13.93,12.82 13.73,12.61L12.66,11.54V16.29C12.66,16.84 12.22,17.29 11.66,17.29C11.11,17.29 10.66,16.84 10.66,16.29V11.54L9.61,12.61C9.2,13 8.55,13 8.14,12.61M7,18H17C18.1,18 19,18.9 19,20H5C5,18.9 5.9,18 7,18Z" />
+</vector>

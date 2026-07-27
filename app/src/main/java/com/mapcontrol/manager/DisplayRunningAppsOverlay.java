@@ -149,14 +149,14 @@ public final class DisplayRunningAppsOverlay {
         int cardMaxH = (int) (screenH * 0.78f);
 
         FrameLayout scrim = new FrameLayout(themedContext);
-        scrim.setBackgroundColor(ContextCompat.getColor(themedContext, R.color.modal_overlay_scrim));
+        scrim.setBackgroundColor(UiStyles.color(themedContext, R.color.modal_overlay_scrim));
         scrim.setOnClickListener(v -> detach());
 
         LinearLayout card = new LinearLayout(themedContext);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setClickable(true);
         UiStyles.applySolidRoundedBackgroundDp(card,
-                ContextCompat.getColor(themedContext, R.color.surfaceCard), 18f);
+                UiStyles.color(themedContext, R.color.surfaceCard), 18f);
         card.setElevation(12 * density);
         int cardPad = (int) (18 * density);
         card.setPadding(cardPad, cardPad, cardPad, cardPad);
@@ -169,7 +169,7 @@ public final class DisplayRunningAppsOverlay {
         titleView.setText(title != null ? title : appContext.getString(R.string.floating_qa_open_apps));
         titleView.setTextSize(20);
         titleView.setTypeface(null, Typeface.BOLD);
-        titleView.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+        titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         titleRow.addView(titleView, titleLp);
@@ -177,7 +177,7 @@ public final class DisplayRunningAppsOverlay {
         TextView btnClose = new TextView(themedContext);
         btnClose.setText("✕");
         btnClose.setTextSize(22);
-        btnClose.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         btnClose.setPadding((int) (8 * density), 0, 0, 0);
         btnClose.setOnClickListener(v -> detach());
         titleRow.addView(btnClose, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -187,7 +187,7 @@ public final class DisplayRunningAppsOverlay {
         TextView subtitle = new TextView(themedContext);
         subtitle.setText(R.string.floating_qa_tap_for_app_info);
         subtitle.setTextSize(13);
-        subtitle.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        subtitle.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = (int) (4 * density);
@@ -195,7 +195,7 @@ public final class DisplayRunningAppsOverlay {
 
         ListView listView = new ListView(themedContext);
         listView.setDivider(new android.graphics.drawable.ColorDrawable(
-                ContextCompat.getColor(themedContext, R.color.dividerWhite12)));
+                UiStyles.color(themedContext, R.color.dividerWhite12)));
         listView.setDividerHeight(Math.max(1, (int) (density)));
         listView.setClipToPadding(false);
         adapter = new RowAdapter();
@@ -366,10 +366,10 @@ public final class DisplayRunningAppsOverlay {
                 texts.setOrientation(LinearLayout.VERTICAL);
                 t1 = new TextView(themedContext);
                 t1.setTextSize(16);
-                t1.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+                t1.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
                 t2 = new TextView(themedContext);
                 t2.setTextSize(12);
-                t2.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+                t2.setTextColor(UiStyles.color(themedContext, R.color.textHint));
                 texts.addView(t1);
                 texts.addView(t2);
                 row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));

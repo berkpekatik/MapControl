@@ -1,12 +1,20 @@
 package com.mapcontrol.manager;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.text.TextPaint;
 import android.util.TypedValue;
+import android.view.View;
 import android.widget.Button;
+
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
@@ -17,6 +25,8 @@ import com.mapcontrol.ui.theme.UiStyles;
 public final class FloatingOverlayBarSpec {
 
     public static final float ROW_TEXT_SIZE_SP = 12f;
+    /** Yüzen bar düğümleri: {@link #uniformCellSidePx} ile küçültülmüş hücre + bu yazı boyutu. */
+    public static final float OVERLAY_ROW_TEXT_SIZE_SP = ROW_TEXT_SIZE_SP * 2f;
     public static final float ROW_ICON_SIZE_DP = 20f;
     public static final float ROW_INNER_PAD_DP = 4f;
     public static final float BAR_CARD_PAD_H_DP = 5f;
@@ -37,6 +47,19 @@ public final class FloatingOverlayBarSpec {
         return dpToPx(ROW_ICON_SIZE_DP, d);
     }
 
+    /**
+     * Hub ikonları: hücre içinde mümkün olduğunca büyük, ortalanmış tek renk çizim için kenar (px).
+     */
+    public static int hubOverlayIconPx(Context ctx) {
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int cell = uniformCellSidePx(ctx);
+        int inner = rowInnerPadPx(ctx);
+        int maxByCell = Math.max(1, cell - 2 * inner);
+        int preferred = dpToPx(30f, d);
+        int floor = dpToPx(22f, d);
+        return Math.max(floor, Math.min(maxByCell, preferred));
+    }
+
     public static int rowInnerPadPx(Context ctx) {
         return dpToPx(ROW_INNER_PAD_DP, ctx.getResources().getDisplayMetrics().density);
     }
@@ -47,9 +70,35 @@ public final class FloatingOverlayBarSpec {
     }
 
     /**
-     * {@link FloatingBackButtonManager} yüzen geri tuşu ile aynı yüzey: surfaceCard, köşe, hafif gölge,
-     * opaklık, tema animasyonu kapalı. Metin/ikon/ padding çağırandan önce veya sonra verilir.
+     * Yuvarlak köşeli yüzen hub hücresi: dolgu + dokunma dalgalanması (ripple).
      */
+    public static void applyHubCellRippleBackground(Context ctx, View v) {
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int fill = UiStyles.color(ctx, R.color.surfaceCardInner);
+        GradientDrawable content = new GradientDrawable();
+        content.setShape(GradientDrawable.RECTANGLE);
+        content.setColor(fill);
+        content.setCornerRadius(BAR_CORNER_DP * d);
+
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.RECTANGLE);
+        mask.setCornerRadius(BAR_CORNER_DP * d);
+        mask.setColor(Color.WHITE);
+
+        int rippleRgb = UiStyles.color(ctx, R.color.textPrimary);
+        int rippleAlpha = ColorUtils.setAlphaComponent(rippleRgb, 0x55);
+        RippleDrawable ripple =
+                new RippleDrawable(ColorStateList.valueOf(rippleAlpha), content, mask);
+        v.setBackground(ripple);
+        v.setAlpha(0.96f);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            v.setStateListAnimator(null);
+            v.setElevation(ELEVATION_BACK_DP * d);
+            v.setClipToOutline(true);
+            v.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+        }
+    }
+
     public static void applyLikeFloatingBackButton(Button b, int surfaceCardArgb) {
         Context ctx = b.getContext();
         float d = ctx.getResources().getDisplayMetrics().density;
@@ -64,17 +113,24 @@ public final class FloatingOverlayBarSpec {
     }
 
     /**
-     * İki satırlı hücre + ikon yüksekliğine eşit; bar ile aynı yükseklikte, geri tuşu kare penceresinde
-     * kullanılır (hizalı çerçeve).
-     */
-    /**
-     * Geri tuşu penceresi ve tüm segment düğmeleri için aynı kenar (kare) uzunluğu, piksel.
+     * Geri tuşu ve yan menü düğmeleri: önceki ölçeğin ~½’si; yazı {@link #OVERLAY_ROW_TEXT_SIZE_SP}.
      */
     public static int uniformCellSidePx(Context ctx) {
-        return uniformFloatingControlSizePx(ctx);
+        int full = uniformFloatingControlSizePxForText(ctx, OVERLAY_ROW_TEXT_SIZE_SP);
+        float d = ctx.getResources().getDisplayMetrics().density;
+        int half = full / 2;
+        int floor = (int) (18 * d);
+        return Math.max(half, floor);
     }
 
+    /**
+     * Eski tek doğrusal ölçü (ikon + iki satır metin); başka yerden çağrılmıyorsa {@link #uniformCellSidePx} kullanın.
+     */
     public static int uniformFloatingControlSizePx(Context ctx) {
+        return uniformFloatingControlSizePxForText(ctx, ROW_TEXT_SIZE_SP);
+    }
+
+    private static int uniformFloatingControlSizePxForText(Context ctx, float textSizeSp) {
         float d = ctx.getResources().getDisplayMetrics().density;
         int cardV2 = 2 * dpToPx(BAR_CARD_PAD_V_DP, d);
         int inner2 = 2 * dpToPx(ROW_INNER_PAD_DP, d);
@@ -84,7 +140,7 @@ public final class FloatingOverlayBarSpec {
         p.setAntiAlias(true);
         p.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         p.setTextSize(TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_SP, ROW_TEXT_SIZE_SP, ctx.getResources().getDisplayMetrics()));
+                TypedValue.COMPLEX_UNIT_SP, textSizeSp, ctx.getResources().getDisplayMetrics()));
         Paint.FontMetrics fm = p.getFontMetrics();
         int line = (int) Math.ceil(fm.descent - fm.ascent) + 1;
         int twoLine = 2 * line + (int) (2f * d);

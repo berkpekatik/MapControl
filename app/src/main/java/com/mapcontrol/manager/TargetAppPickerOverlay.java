@@ -103,14 +103,14 @@ public final class TargetAppPickerOverlay {
         int cardMaxH = (int) (screenH * 0.78f);
 
         FrameLayout scrim = new FrameLayout(themedContext);
-        scrim.setBackgroundColor(ContextCompat.getColor(themedContext, R.color.modal_overlay_scrim));
+        scrim.setBackgroundColor(UiStyles.color(themedContext, R.color.modal_overlay_scrim));
         scrim.setOnClickListener(v -> detach());
 
         LinearLayout card = new LinearLayout(themedContext);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setClickable(true);
         UiStyles.applySolidRoundedBackgroundDp(card,
-                ContextCompat.getColor(themedContext, R.color.surfaceCard), 18f);
+                UiStyles.color(themedContext, R.color.surfaceCard), 18f);
         card.setElevation(12 * density);
         int cardPad = (int) (18 * density);
         card.setPadding(cardPad, cardPad, cardPad, cardPad);
@@ -123,7 +123,7 @@ public final class TargetAppPickerOverlay {
         title.setText("Hedef uygulama");
         title.setTextSize(20);
         title.setTypeface(null, Typeface.BOLD);
-        title.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+        title.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         titleRow.addView(title, titleLp);
@@ -131,7 +131,7 @@ public final class TargetAppPickerOverlay {
         TextView btnClose = new TextView(themedContext);
         btnClose.setText("✕");
         btnClose.setTextSize(22);
-        btnClose.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         btnClose.setPadding((int) (8 * density), 0, 0, 0);
         btnClose.setOnClickListener(v -> detach());
         titleRow.addView(btnClose, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -141,7 +141,7 @@ public final class TargetAppPickerOverlay {
         TextView subtitle = new TextView(themedContext);
         subtitle.setText("Yansıtma için uygulama seçin");
         subtitle.setTextSize(13);
-        subtitle.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        subtitle.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = (int) (4 * density);
@@ -150,11 +150,11 @@ public final class TargetAppPickerOverlay {
         searchInput = new EditText(themedContext);
         searchInput.setHint("Ara…");
         searchInput.setSingleLine(true);
-        searchInput.setTextSize(15);
-        searchInput.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
-        searchInput.setHintTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        searchInput.setTextSize(30);
+        searchInput.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
+        searchInput.setHintTextColor(UiStyles.color(themedContext, R.color.textHint));
         UiStyles.applySolidRoundedBackgroundDp(searchInput,
-                ContextCompat.getColor(themedContext, R.color.surfaceCardInner), 12f);
+                UiStyles.color(themedContext, R.color.surfaceCardInner), 12f);
         int sp = (int) (12 * density);
         searchInput.setPadding(sp, sp, sp, sp);
         LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
@@ -164,7 +164,7 @@ public final class TargetAppPickerOverlay {
 
         ListView listView = new ListView(themedContext);
         listView.setDivider(new android.graphics.drawable.ColorDrawable(
-                ContextCompat.getColor(themedContext, R.color.dividerWhite12)));
+                UiStyles.color(themedContext, R.color.dividerWhite12)));
         listView.setDividerHeight(Math.max(1, (int) (density)));
         listView.setClipToPadding(false);
         adapter = new RowAdapter();
@@ -185,9 +185,9 @@ public final class TargetAppPickerOverlay {
         footer.setGravity(Gravity.END);
         TextView btnClear = new TextView(themedContext);
         btnClear.setText("Temizle");
-        btnClear.setTextSize(15);
+        btnClear.setTextSize(30);
         btnClear.setTypeface(null, Typeface.BOLD);
-        btnClear.setTextColor(ContextCompat.getColor(themedContext, R.color.textLoading));
+        btnClear.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
         int fp = (int) (12 * density);
         btnClear.setPadding(fp, fp, fp, fp);
         btnClear.setOnClickListener(v -> applySelection(""));
@@ -336,10 +336,10 @@ public final class TargetAppPickerOverlay {
                 texts.setOrientation(LinearLayout.VERTICAL);
                 t1 = new TextView(themedContext);
                 t1.setTextSize(16);
-                t1.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+                t1.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
                 t2 = new TextView(themedContext);
                 t2.setTextSize(12);
-                t2.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+                t2.setTextColor(UiStyles.color(themedContext, R.color.textHint));
                 texts.addView(t1);
                 texts.addView(t2);
                 row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));

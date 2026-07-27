@@ -21,7 +21,6 @@ import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
-import com.mapcontrol.ui.activity.AudioTestActivity;
 import com.mapcontrol.ui.activity.CameraActivity;
 import com.mapcontrol.ui.activity.ClusterVDBusTestActivity;
 
@@ -77,7 +76,7 @@ public class LogTabBuilder {
         TextView logTitle = new TextView(context);
         logTitle.setText("Sistem Kayıtları");
         logTitle.setTextSize(20);
-        logTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        logTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams logTitleParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -85,12 +84,12 @@ public class LogTabBuilder {
 
         Button btnCameraTest = new Button(context);
         btnCameraTest.setText("Kamera Test");
-        btnCameraTest.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnCameraTest.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnCameraTest.setTextSize(14);
-        UiStyles.styleOemButton(btnCameraTest, ContextCompat.getColor(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnCameraTest, UiStyles.color(context, R.color.buttonPrimary));
         btnCameraTest.setPadding(16, 8, 16, 8);
         UiStyles.setButtonStartIconTinted(btnCameraTest, R.drawable.ic_mdi_camera,
-                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
         btnCameraTest.setOnClickListener(v -> {
             try {
@@ -112,31 +111,15 @@ public class LogTabBuilder {
         cameraTestParams.setMargins(0, 0, 8, 0);
         logControlPanel.addView(btnCameraTest, cameraTestParams);
 
-        Button btnAudioTest = new Button(context);
-        btnAudioTest.setText("Audio Test");
-        btnAudioTest.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        btnAudioTest.setTextSize(14);
-        UiStyles.styleOemButton(btnAudioTest, ContextCompat.getColor(context, R.color.buttonSecondaryMuted));
-        btnAudioTest.setPadding(16, 8, 16, 8);
-        UiStyles.setButtonStartIconTinted(btnAudioTest, R.drawable.ic_mdi_volume_high,
-                ContextCompat.getColor(context, R.color.textPrimary),
-                UiStyles.dimenPx(context, R.dimen.spacing_small));
-        btnAudioTest.setOnClickListener(v -> context.startActivity(new Intent(context, AudioTestActivity.class)));
-        LinearLayout.LayoutParams audioTestParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        audioTestParams.setMargins(0, 0, 8, 0);
-        logControlPanel.addView(btnAudioTest, audioTestParams);
-
         Button btnWelcome = new Button(context);
         btnWelcome.setText("Hoşgeldin");
-        btnWelcome.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnWelcome.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWelcome.setTextSize(14);
         btnWelcome.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnWelcome, ContextCompat.getColor(context, R.color.buttonWelcome));
+        UiStyles.styleOemButton(btnWelcome, UiStyles.color(context, R.color.buttonWelcome));
         btnWelcome.setPadding(16, 8, 16, 8);
         UiStyles.setButtonStartIconTinted(btnWelcome, R.drawable.ic_mdi_bell,
-                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
         btnWelcome.setOnClickListener(v -> callback.onWelcomeTts());
         LinearLayout.LayoutParams welcomeParams = new LinearLayout.LayoutParams(
@@ -146,19 +129,19 @@ public class LogTabBuilder {
         logControlPanel.addView(btnWelcome, welcomeParams);
 
         Button btnClearLogs = new Button(context);
-        btnClearLogs.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnClearLogs.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnClearLogs.setTextSize(20);
-        btnClearLogs.setBackgroundColor(ContextCompat.getColor(context, R.color.buttonDestructiveBg));
+        btnClearLogs.setBackgroundColor(UiStyles.color(context, R.color.buttonDestructiveBg));
         btnClearLogs.setPadding(0, 0, 0, 0);
         UiStyles.setButtonIconOnlyTinted(btnClearLogs, R.drawable.ic_mdi_delete,
-                ContextCompat.getColor(context, R.color.textPrimary), "Kayıtları temizle");
+                UiStyles.color(context, R.color.textPrimary), "Kayıtları temizle");
         LinearLayout.LayoutParams clearLogsParams = new LinearLayout.LayoutParams(56, 56);
         logControlPanel.addView(btnClearLogs, clearLogsParams);
 
         LinearLayout ttsCard = new LinearLayout(context);
         ttsCard.setOrientation(LinearLayout.VERTICAL);
         UiStyles.applySolidRoundedBackgroundDp(ttsCard,
-                ContextCompat.getColor(context, R.color.surfaceCard), 16f);
+                UiStyles.color(context, R.color.surfaceCard), 16f);
         ttsCard.setPadding(16, 14, 16, 14);
         LinearLayout.LayoutParams ttsCardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -168,15 +151,15 @@ public class LogTabBuilder {
         TextView ttsSectionTitle = new TextView(context);
         ttsSectionTitle.setText("Metin (klavye) — Sesle oku: önce iFly TTS, yoksa sistem TTS");
         ttsSectionTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        ttsSectionTitle.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+        ttsSectionTitle.setTextColor(UiStyles.color(context, R.color.textSecondary));
         ttsCard.addView(ttsSectionTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         ttsInput = new EditText(context);
         ttsInput.setHint(R.string.log_tts_hint);
-        ttsInput.setTextColor(ContextCompat.getColor(context, R.color.textTertiary));
-        ttsInput.setHintTextColor(ContextCompat.getColor(context, R.color.textMuted));
+        ttsInput.setTextColor(UiStyles.color(context, R.color.textTertiary));
+        ttsInput.setHintTextColor(UiStyles.color(context, R.color.textMuted));
         ttsInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         ttsInput.setTypeface(Typeface.MONOSPACE);
         ttsInput.setMinLines(2);
@@ -185,9 +168,9 @@ public class LogTabBuilder {
                 | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         ttsInput.setPadding(14, 12, 14, 12);
         android.graphics.drawable.GradientDrawable ttsFieldBg = new android.graphics.drawable.GradientDrawable();
-        ttsFieldBg.setColor(ContextCompat.getColor(context, R.color.logFieldBg));
+        ttsFieldBg.setColor(UiStyles.color(context, R.color.logFieldBg));
         ttsFieldBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        ttsFieldBg.setStroke(1, ContextCompat.getColor(context, R.color.outlineStrong));
+        ttsFieldBg.setStroke(1, UiStyles.color(context, R.color.outlineStrong));
         ttsInput.setBackground(ttsFieldBg);
         LinearLayout.LayoutParams etParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -202,10 +185,10 @@ public class LogTabBuilder {
 
         Button btnReadAloud = new Button(context);
         btnReadAloud.setText("Sesle oku");
-        btnReadAloud.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        btnReadAloud.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnReadAloud.setTextSize(15);
         btnReadAloud.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnReadAloud, ContextCompat.getColor(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnReadAloud, UiStyles.color(context, R.color.buttonPrimary));
         btnReadAloud.setPadding(20, 12, 20, 12);
         btnReadAloud.setOnClickListener(v -> {
             CharSequence cs = ttsInput.getText();
@@ -223,8 +206,8 @@ public class LogTabBuilder {
         Button btnClusterVDBusTest = new Button(context);
         btnClusterVDBusTest.setText("Cluster / VDBus test ekranı");
         btnClusterVDBusTest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        btnClusterVDBusTest.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(btnClusterVDBusTest, ContextCompat.getColor(context, R.color.buttonSecondaryMuted));
+        btnClusterVDBusTest.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(btnClusterVDBusTest, UiStyles.color(context, R.color.buttonSecondaryMuted));
         btnClusterVDBusTest.setPadding(16, 12, 16, 12);
         btnClusterVDBusTest.setOnClickListener(v ->
                 context.startActivity(new Intent(context, ClusterVDBusTestActivity.class)));
@@ -253,12 +236,12 @@ public class LogTabBuilder {
 
         LinearLayout terminalContainer = new LinearLayout(context);
         terminalContainer.setOrientation(LinearLayout.VERTICAL);
-        terminalContainer.setBackgroundColor(ContextCompat.getColor(context, R.color.logTerminalChrome));
+        terminalContainer.setBackgroundColor(UiStyles.color(context, R.color.logTerminalChrome));
         terminalContainer.setPadding(0, 0, 0, 0);
 
         LinearLayout terminalHeader = new LinearLayout(context);
         terminalHeader.setOrientation(LinearLayout.HORIZONTAL);
-        terminalHeader.setBackgroundColor(ContextCompat.getColor(context, R.color.surfaceColor));
+        terminalHeader.setBackgroundColor(UiStyles.color(context, R.color.surfaceColor));
         terminalHeader.setPadding(16, 12, 16, 12);
         terminalHeader.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
@@ -267,21 +250,21 @@ public class LogTabBuilder {
 
         TextView redDot = new TextView(context);
         redDot.setText("●");
-        redDot.setTextColor(ContextCompat.getColor(context, R.color.terminalDotRed));
+        redDot.setTextColor(UiStyles.color(context, R.color.terminalDotRed));
         redDot.setTextSize(16);
         redDot.setPadding(0, 0, 8, 0);
         dotsLayout.addView(redDot);
 
         TextView yellowDot = new TextView(context);
         yellowDot.setText("●");
-        yellowDot.setTextColor(ContextCompat.getColor(context, R.color.terminalDotYellow));
+        yellowDot.setTextColor(UiStyles.color(context, R.color.terminalDotYellow));
         yellowDot.setTextSize(16);
         yellowDot.setPadding(0, 0, 8, 0);
         dotsLayout.addView(yellowDot);
 
         TextView greenDot = new TextView(context);
         greenDot.setText("●");
-        greenDot.setTextColor(ContextCompat.getColor(context, R.color.terminalDotGreen));
+        greenDot.setTextColor(UiStyles.color(context, R.color.terminalDotGreen));
         greenDot.setTextSize(16);
         dotsLayout.addView(greenDot);
 
@@ -291,7 +274,7 @@ public class LogTabBuilder {
 
         TextView terminalPath = new TextView(context);
         terminalPath.setText("/var/log/syslog/vehicle_core.log");
-        terminalPath.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+        terminalPath.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         terminalPath.setTextSize(11);
         terminalPath.setTypeface(android.graphics.Typeface.MONOSPACE);
         LinearLayout.LayoutParams pathParams = new LinearLayout.LayoutParams(
@@ -306,11 +289,11 @@ public class LogTabBuilder {
         logScrollView = new ScrollView(context);
         logScrollView.setFillViewport(true);
         logScrollView.setScrollBarStyle(View.SCROLLBARS_OUTSIDE_INSET);
-        logScrollView.setBackgroundColor(ContextCompat.getColor(context, R.color.logTerminalChrome));
+        logScrollView.setBackgroundColor(UiStyles.color(context, R.color.logTerminalChrome));
         logScrollView.setPadding(12, 12, 12, 12);
 
         logsTextView = new TextView(context);
-        logsTextView.setTextColor(ContextCompat.getColor(context, R.color.textTertiary));
+        logsTextView.setTextColor(UiStyles.color(context, R.color.textTertiary));
         logsTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         logsTextView.setTypeface(android.graphics.Typeface.MONOSPACE);
         logsTextView.setPadding(10, 12, 10, 12);

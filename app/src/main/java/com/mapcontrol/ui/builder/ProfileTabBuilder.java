@@ -110,21 +110,21 @@ public class ProfileTabBuilder {
         loginCard.setOrientation(LinearLayout.VERTICAL);
         loginCard.setPadding(20, 20, 20, 20);
         android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
-        cardBg.setColor(ContextCompat.getColor(context, R.color.surfaceCard));
+        cardBg.setColor(UiStyles.color(context, R.color.surfaceCard));
         cardBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        cardBg.setStroke(1, ContextCompat.getColor(context, R.color.outline));
+        cardBg.setStroke(1, UiStyles.color(context, R.color.outline));
         loginCard.setBackground(cardBg);
 
         profileLoginStatusText = new TextView(context);
         profileLoginStatusText.setTextSize(15);
-        profileLoginStatusText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
+        profileLoginStatusText.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         profileLoginStatusText.setPadding(0, 0, 0, 20);
         profileLoginStatusText.setLineSpacing(4, 1.2f);
 
         profileEmailLabel = new TextView(context);
         profileEmailLabel.setText("E-posta Adresi");
         profileEmailLabel.setTextSize(14);
-        profileEmailLabel.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+        profileEmailLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
         profileEmailLabel.setPadding(0, 0, 0, 8);
         loginCard.addView(profileEmailLabel);
 
@@ -134,12 +134,12 @@ public class ProfileTabBuilder {
         profileEmailInput.setTextSize(16);
         profileEmailInput.setPadding(16, 16, 16, 16);
         android.graphics.drawable.GradientDrawable inputBg = new android.graphics.drawable.GradientDrawable();
-        inputBg.setColor(ContextCompat.getColor(context, R.color.surfaceColor));
+        inputBg.setColor(UiStyles.color(context, R.color.surfaceColor));
         inputBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        inputBg.setStroke(1, ContextCompat.getColor(context, R.color.outlineMuted));
+        inputBg.setStroke(1, UiStyles.color(context, R.color.outlineMuted));
         profileEmailInput.setBackground(inputBg);
-        profileEmailInput.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        profileEmailInput.setHintTextColor(ContextCompat.getColor(context, R.color.textHint));
+        profileEmailInput.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        profileEmailInput.setHintTextColor(UiStyles.color(context, R.color.textHint));
         LinearLayout.LayoutParams emailParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -149,7 +149,7 @@ public class ProfileTabBuilder {
         profileCodeLabel = new TextView(context);
         profileCodeLabel.setText("Doğrulama Kodu");
         profileCodeLabel.setTextSize(14);
-        profileCodeLabel.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+        profileCodeLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
         profileCodeLabel.setPadding(0, 0, 0, 8);
         loginCard.addView(profileCodeLabel);
 
@@ -159,8 +159,8 @@ public class ProfileTabBuilder {
         profileCodeInput.setTextSize(16);
         profileCodeInput.setPadding(16, 16, 16, 16);
         profileCodeInput.setBackground(inputBg);
-        profileCodeInput.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        profileCodeInput.setHintTextColor(ContextCompat.getColor(context, R.color.textHint));
+        profileCodeInput.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        profileCodeInput.setHintTextColor(UiStyles.color(context, R.color.textHint));
         LinearLayout.LayoutParams codeParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -174,8 +174,8 @@ public class ProfileTabBuilder {
         profileSendCodeButton = new Button(context);
         profileSendCodeButton.setText("Kod Gönder");
         profileSendCodeButton.setTextSize(14);
-        profileSendCodeButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileSendCodeButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+        profileSendCodeButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSendCodeButton, UiStyles.color(context, R.color.buttonPrimary));
         profileSendCodeButton.setPadding(20, 14, 20, 14);
         LinearLayout.LayoutParams sendBtnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
@@ -186,8 +186,8 @@ public class ProfileTabBuilder {
         profileLoginButton = new Button(context);
         profileLoginButton.setText("Giriş Yap");
         profileLoginButton.setTextSize(14);
-        profileLoginButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileLoginButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
+        profileLoginButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLoginButton, UiStyles.color(context, R.color.buttonSuccessBright));
         profileLoginButton.setPadding(20, 14, 20, 14);
         LinearLayout.LayoutParams loginBtnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
@@ -200,8 +200,8 @@ public class ProfileTabBuilder {
         profileLogoutButton = new Button(context);
         profileLogoutButton.setText("Çıkış Yap");
         profileLogoutButton.setTextSize(14);
-        profileLogoutButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileLogoutButton, ContextCompat.getColor(context, R.color.buttonDanger));
+        profileLogoutButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLogoutButton, UiStyles.color(context, R.color.buttonDanger));
         profileLogoutButton.setPadding(20, 14, 20, 14);
         profileLogoutButton.setVisibility(android.view.View.GONE);
         LinearLayout.LayoutParams logoutBtnParams = new LinearLayout.LayoutParams(
@@ -213,8 +213,8 @@ public class ProfileTabBuilder {
         profilePlatformButton = new Button(context);
         profilePlatformButton.setText("Platforma Gir");
         profilePlatformButton.setTextSize(14);
-        profilePlatformButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profilePlatformButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+        profilePlatformButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profilePlatformButton, UiStyles.color(context, R.color.buttonPrimary));
         profilePlatformButton.setPadding(20, 14, 20, 14);
         profilePlatformButton.setVisibility(android.view.View.GONE);
         LinearLayout.LayoutParams platformBtnParams = new LinearLayout.LayoutParams(
@@ -343,15 +343,15 @@ public class ProfileTabBuilder {
         actionsCard.setOrientation(LinearLayout.VERTICAL);
         actionsCard.setPadding(20, 20, 20, 20);
         android.graphics.drawable.GradientDrawable actionsCardBg = new android.graphics.drawable.GradientDrawable();
-        actionsCardBg.setColor(ContextCompat.getColor(context, R.color.surfaceCard));
+        actionsCardBg.setColor(UiStyles.color(context, R.color.surfaceCard));
         actionsCardBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        actionsCardBg.setStroke(1, ContextCompat.getColor(context, R.color.outline));
+        actionsCardBg.setStroke(1, UiStyles.color(context, R.color.outline));
         actionsCard.setBackground(actionsCardBg);
 
         TextView actionsTitle = new TextView(context);
         actionsTitle.setText("Veri Yönetimi");
         actionsTitle.setTextSize(17);
-        actionsTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        actionsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         actionsTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
         actionsTitle.setPadding(0, 0, 0, 16);
         actionsCard.addView(actionsTitle);
@@ -363,8 +363,8 @@ public class ProfileTabBuilder {
         profileSaveDataButton = new Button(context);
         profileSaveDataButton.setText("Son Değişiklikleri Sakla");
         profileSaveDataButton.setTextSize(14);
-        profileSaveDataButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileSaveDataButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+        profileSaveDataButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSaveDataButton, UiStyles.color(context, R.color.buttonPrimary));
         profileSaveDataButton.setPadding(16, 14, 16, 14);
         profileSaveDataButton.setEnabled(apiService != null && apiService.isLoggedIn());
         profileSaveDataButton.setVisibility(android.view.View.VISIBLE);
@@ -377,8 +377,8 @@ public class ProfileTabBuilder {
         profileLoadDataButton = new Button(context);
         profileLoadDataButton.setText("Son Değişiklikleri Getir");
         profileLoadDataButton.setTextSize(14);
-        profileLoadDataButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileLoadDataButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
+        profileLoadDataButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileLoadDataButton, UiStyles.color(context, R.color.buttonSuccessBright));
         profileLoadDataButton.setPadding(16, 14, 16, 14);
         profileLoadDataButton.setEnabled(apiService != null && apiService.isLoggedIn());
         profileLoadDataButton.setVisibility(android.view.View.VISIBLE);
@@ -599,8 +599,8 @@ public class ProfileTabBuilder {
 
         profileSaveLocationButton = new Button(context);
         profileSaveLocationButton.setTextSize(16);
-        profileSaveLocationButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-        UiStyles.styleOemButton(profileSaveLocationButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+        profileSaveLocationButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(profileSaveLocationButton, UiStyles.color(context, R.color.buttonPrimary));
         profileSaveLocationButton.setPadding(24, 18, 24, 18);
         profileSaveLocationButton.setEnabled(apiService != null && apiService.isLoggedIn());
         styleSaveLocationButtonDefault();
@@ -614,7 +614,7 @@ public class ProfileTabBuilder {
         TextView autoLocationTitle = new TextView(context);
         autoLocationTitle.setText("Araç Kapanınca Otomatik Konum Kaydet");
         autoLocationTitle.setTextSize(15);
-        autoLocationTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary87));
+        autoLocationTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         autoLocationTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
         autoLocationTitle.setPadding(0, 0, 0, 8);
         actionsCard.addView(autoLocationTitle);
@@ -622,7 +622,7 @@ public class ProfileTabBuilder {
         TextView autoLocationDesc = new TextView(context);
         autoLocationDesc.setText("Araç kapanınca ne olsun?");
         autoLocationDesc.setTextSize(13);
-        autoLocationDesc.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        autoLocationDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         autoLocationDesc.setPadding(0, 0, 0, 12);
         actionsCard.addView(autoLocationDesc);
 
@@ -928,14 +928,14 @@ public class ProfileTabBuilder {
     private void styleSendCodeButtonDefault() {
         profileSendCodeButton.setText("Kod Gönder");
         UiStyles.setButtonStartIconTinted(profileSendCodeButton, R.drawable.ic_mdi_email_outline,
-                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
     }
 
     private void styleSaveLocationButtonDefault() {
         profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
         UiStyles.setButtonStartIconTinted(profileSaveLocationButton, R.drawable.ic_mdi_map_marker,
-                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
     }
 

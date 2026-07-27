@@ -26,6 +26,9 @@
     <color name="accentPressed">#2B5582</color>
     <color name="accentHighlight">#4586C5</color>
 
+    <!-- Filament model clear — cam kart görünümüne opak eş (IVI şeffaf surface yok) -->
+    <color name="filament_scene_clear">#F0F3F8</color>
+
     <color name="backgroundColor">#E8ECF3</color>
     <color name="backgroundPage">#E2E8F0</color>
     <color name="surfaceColor">#FFFFFF</color>
@@ -33,6 +36,14 @@
     <color name="surfaceCard">#FFFFFF</color>
     <color name="surfaceCardInner">#F0F3F9</color>
     <color name="surfaceCardElevated">#DDE4EF</color>
+    <color name="cluster_nav_card_fill">#F4F6FA</color>
+    <color name="cluster_nav_card_stroke">#9AABC4</color>
+    <color name="cluster_nav_maneuver_start">#3D72B8</color>
+    <color name="cluster_nav_maneuver_end">#2B5582</color>
+    <color name="cluster_nav_maneuver_text">#FFFFFF</color>
+    <color name="cluster_nav_maneuver_subtext">#D9E8F8</color>
+    <color name="cluster_nav_eta_fill">#F8FAFD</color>
+    <color name="cluster_nav_eta_stroke">#C5D0E0</color>
     <color name="cardColor">#FFFFFF</color>
 
     <color name="textPrimary">#171A20</color>
@@ -64,6 +75,10 @@
     <color name="selectionBar">#4586C5</color>
     <color name="driveModeSelected">#D5DCE8</color>
     <color name="driveModeUnselected">#EDF1F6</color>
+    <!-- Dashboard 3D / ikon sürüş modu tonları -->
+    <color name="drive_mode_eco">#2F9E5F</color>
+    <color name="drive_mode_normal">#4586C5</color>
+    <color name="drive_mode_sport">#D4453A</color>
 
     <color name="assistCardActive">#D8E4F5</color>
     <color name="assistStrokeActive">#5A7FC0</color>
@@ -143,6 +158,11 @@
     <color name="preparing_overlay_root">#E6E8ECF3</color>
     <color name="boot_splash_gradient_edge">#FFF8FAFC</color>
     <color name="boot_splash_gradient_mid">#FFE8ECF3</color>
+    <color name="boot_splash_grad_a">#FFF7FAFD</color>
+    <color name="boot_splash_grad_b">#FFE4EEF8</color>
+    <color name="boot_splash_grad_c">#FFD5E6F5</color>
+    <color name="boot_splash_grad_d">#FFEAF0F7</color>
+    <color name="boot_splash_grad_accent">#FFC5D9EF</color>
     <color name="map_grid_line_accent">#304586C5</color>
     <color name="map_grid_glow_accent">#504586C5</color>
     <color name="map_grid_vignette_edge">#CCDCE4F0</color>

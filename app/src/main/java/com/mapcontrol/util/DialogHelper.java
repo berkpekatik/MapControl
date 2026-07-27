@@ -8,6 +8,7 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 
 public class DialogHelper {
     private DialogHelper() {}
@@ -30,7 +31,7 @@ public class DialogHelper {
                 "**Onay:** Lütfen uygulamayı kullanmaya başlamadan önce yukarıdaki tüm bilgileri **okuduğunuzu, anladığınızu ve kabul ettiğinizi** onaylayın.";
         TextView messageView = createMessage(context, disclaimerText);
         ScrollView scrollView = new ScrollView(context);
-        scrollView.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+        scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
         scrollView.addView(messageView);
         contentContainer.addView(scrollView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -56,7 +57,7 @@ public class DialogHelper {
         String disclaimerText = "Uygulama yükleme ve kaldırma işlemleri tamamen kullanıcının sorumluluğundadır. Geliştirici, kullanıcının yüklediği veya kaldırdığı uygulamalardan kaynaklanan hiçbir sorumluluğu kabul etmez.";
         TextView messageView = createMessage(context, disclaimerText);
         ScrollView scrollView = new ScrollView(context);
-        scrollView.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+        scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
         scrollView.addView(messageView);
         contentContainer.addView(scrollView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -82,12 +83,12 @@ public class DialogHelper {
         LinearLayout dialogLayout = new LinearLayout(context);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
         dialogLayout.setPadding(48, 40, 48, 24);
-        dialogLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+        dialogLayout.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
 
         TextView titleView = new TextView(context);
         titleView.setText(title);
         titleView.setTextSize(20);
-        titleView.setTextColor(ContextCompat.getColor(context, R.color.accentHighlight));
+        titleView.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleView.setGravity(android.view.Gravity.CENTER);
         dialogLayout.addView(titleView);
@@ -95,7 +96,7 @@ public class DialogHelper {
         TextView messageView = new TextView(context);
         messageView.setText(message);
         messageView.setTextSize(15);
-        messageView.setTextColor(ContextCompat.getColor(context, R.color.textMessage));
+        messageView.setTextColor(UiStyles.color(context, R.color.textMessage));
         messageView.setPadding(0, 32, 0, 32);
         messageView.setLineSpacing(6, 1);
         dialogLayout.addView(messageView);
@@ -108,8 +109,8 @@ public class DialogHelper {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
         dialog.show();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(context, R.color.accentHighlight));
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(ContextCompat.getColor(context, R.color.textDialogButtonSecondary));
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.accentHighlight));
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.textDialogButtonSecondary));
     }
 
     public static void showAppSelectionDialog(
@@ -132,7 +133,7 @@ public class DialogHelper {
                 android.view.View view = super.getView(position, convertView, parent);
                 android.widget.TextView textView = (android.widget.TextView) view.findViewById(android.R.id.text1);
                 if (textView != null) {
-                    textView.setTextColor(ContextCompat.getColor(context, R.color.accentHighlight));
+                    textView.setTextColor(UiStyles.color(context, R.color.accentHighlight));
                     textView.setTextSize(16);
                 }
                 return view;
@@ -154,17 +155,17 @@ public class DialogHelper {
         dialog.show();
 
         if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(context, R.color.buttonSuccessBright));
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.buttonSuccessBright));
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextSize(17);
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTypeface(null, android.graphics.Typeface.BOLD);
         }
         if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) {
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(ContextCompat.getColor(context, R.color.statusErrorBright));
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.statusErrorBright));
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextSize(17);
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTypeface(null, android.graphics.Typeface.BOLD);
         }
         if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) {
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(ContextCompat.getColor(context, R.color.textLoading));
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(UiStyles.color(context, R.color.textLoading));
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextSize(17);
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTypeface(null, android.graphics.Typeface.BOLD);
         }
@@ -173,7 +174,7 @@ public class DialogHelper {
     private static LinearLayout createBaseContainer(Context context) {
         LinearLayout mainContainer = new LinearLayout(context);
         mainContainer.setOrientation(LinearLayout.VERTICAL);
-        mainContainer.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+        mainContainer.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
         return mainContainer;
     }
 
@@ -181,19 +182,19 @@ public class DialogHelper {
         LinearLayout titleContainer = new LinearLayout(context);
         titleContainer.setOrientation(LinearLayout.VERTICAL);
         titleContainer.setPadding(32, 32, 32, 24);
-        titleContainer.setBackgroundColor(ContextCompat.getColor(context, R.color.surfaceCard));
+        titleContainer.setBackgroundColor(UiStyles.color(context, R.color.surfaceCard));
 
         TextView titleView = new TextView(context);
         titleView.setText(title);
         titleView.setTextSize(24);
-        titleView.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleContainer.addView(titleView);
 
         TextView subtitleView = new TextView(context);
         subtitleView.setText(subtitle);
         subtitleView.setTextSize(16);
-        subtitleView.setTextColor(ContextCompat.getColor(context, R.color.accentHighlight));
+        subtitleView.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         subtitleView.setPadding(0, 8, 0, 0);
         titleContainer.addView(subtitleView);
         return titleContainer;
@@ -203,7 +204,7 @@ public class DialogHelper {
         LinearLayout contentContainer = new LinearLayout(context);
         contentContainer.setOrientation(LinearLayout.VERTICAL);
         contentContainer.setPadding(32, 24, 32, 24);
-        contentContainer.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+        contentContainer.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
         return contentContainer;
     }
 
@@ -211,30 +212,30 @@ public class DialogHelper {
         TextView messageView = new TextView(context);
         messageView.setText(text);
         messageView.setTextSize(15);
-        messageView.setTextColor(ContextCompat.getColor(context, R.color.textMessage));
+        messageView.setTextColor(UiStyles.color(context, R.color.textMessage));
         messageView.setLineSpacing(12, 1.4f);
         return messageView;
     }
 
     private static void styleDialog(AlertDialog dialog) {
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(ContextCompat.getColor(dialog.getContext(), R.color.transparent)));
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(UiStyles.color(dialog.getContext(), R.color.transparent)));
         }
         dialog.setOnShowListener(dialogInterface -> {
             android.widget.Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if (positiveButton != null) {
-                positiveButton.setTextColor(ContextCompat.getColor(dialog.getContext(), R.color.textPrimary));
+                positiveButton.setTextColor(UiStyles.color(dialog.getContext(), R.color.textPrimary));
                 positiveButton.setTextSize(16);
                 positiveButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 android.graphics.drawable.GradientDrawable positiveBg = new android.graphics.drawable.GradientDrawable();
-                positiveBg.setColor(ContextCompat.getColor(dialog.getContext(), R.color.buttonPrimary));
+                positiveBg.setColor(UiStyles.color(dialog.getContext(), R.color.buttonPrimary));
                 positiveBg.setCornerRadius(12);
                 positiveButton.setBackground(positiveBg);
             }
             android.widget.Button negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
             if (negativeButton != null) {
-                negativeButton.setTextColor(ContextCompat.getColor(dialog.getContext(), R.color.textSecondary));
-                negativeButton.setBackgroundColor(ContextCompat.getColor(dialog.getContext(), R.color.transparent));
+                negativeButton.setTextColor(UiStyles.color(dialog.getContext(), R.color.textSecondary));
+                negativeButton.setBackgroundColor(UiStyles.color(dialog.getContext(), R.color.transparent));
                 negativeButton.setTextSize(16);
                 negativeButton.setTypeface(null, android.graphics.Typeface.NORMAL);
             }

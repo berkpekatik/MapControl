@@ -35,6 +35,8 @@ public class SideRailBuilder {
     private static final int TAB_APPS = 5;
     private static final int TAB_DRIVE_MODE = 6;
     private static final int TAB_SETTINGS = 7;
+    private static final int TAB_WELCOME_SOUND = 8;
+    private static final int TAB_VEHICLE_INFO = 9;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -47,7 +49,13 @@ public class SideRailBuilder {
     private LinearLayout menuProjection;
     private LinearLayout menuDriveMode;
     private LinearLayout menuTest;
+    private LinearLayout menuWelcomeSound;
     private LinearLayout menuProfile;
+    private LinearLayout menuVehicleInfo;
+    private LinearLayout sideRail;
+    private TextView appTitleText;
+    private LinearLayout selectedMenuRow;
+    private boolean launcherModeActive;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -56,7 +64,7 @@ public class SideRailBuilder {
     }
 
     public LinearLayout build() {
-        LinearLayout sideRail = new LinearLayout(context);
+        sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
         sideRail.setPadding(0, 0, 0, 0);
@@ -68,7 +76,7 @@ public class SideRailBuilder {
         sideRailTopBar.setGravity(Gravity.CENTER_VERTICAL);
         sideRailTopBar.setMinimumHeight((int) (76 * context.getResources().getDisplayMetrics().density));
 
-        TextView appTitleText = new TextView(context);
+        appTitleText = new TextView(context);
         try {
             String versionName = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
             SpannableString spannableText = new SpannableString("MapControl by vNoisy (" + versionName + ")");
@@ -96,7 +104,7 @@ public class SideRailBuilder {
             appTitleText.setText(spannableText);
         }
         appTitleText.setTextSize(28);
-        appTitleText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         appTitleText.setTypeface(null, android.graphics.Typeface.BOLD);
         sideRailTopBar.addView(appTitleText);
 
@@ -117,8 +125,12 @@ public class SideRailBuilder {
         menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, "Web Yönetimi");
         menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, "Profil");
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, "Hafıza Modu");
+        menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
+                context.getString(R.string.side_rail_welcome_sound));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, "Kamera Test");
         menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, "Yansıtma");
+        menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
+                context.getString(R.string.side_rail_vehicle_info));
         menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, "Ayarlar");
 
         menuContainer.addView(menuWifi);
@@ -126,9 +138,11 @@ public class SideRailBuilder {
         menuContainer.addView(menuFileUpload);
         menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
+        menuContainer.addView(menuWelcomeSound);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
         menuContainer.addView(menuProjection);
+        menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
 
         menuScrollView.addView(menuContainer, new LinearLayout.LayoutParams(
@@ -141,38 +155,43 @@ public class SideRailBuilder {
                 1.0f);
         sideRail.addView(menuScrollView, menuScrollParams);
 
-        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
 
         menuWifi.setOnClickListener(v -> {
             callback.onTabSelected(TAB_WIFI, "Wi-Fi Yönetimi");
-            updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuFileUpload.setOnClickListener(v -> {
             callback.onTabSelected(TAB_FILE, "Web Yönetimi");
-            updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuProfile.setOnClickListener(v -> {
             callback.onTabSelected(TAB_PROFILE, "Profil");
-            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuProjection.setOnClickListener(v -> {
             callback.onTabSelected(TAB_PROJECTION, "Yansıtma");
-            updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuSettings, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
+
+        menuVehicleInfo.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_VEHICLE_INFO, context.getString(R.string.side_rail_vehicle_info));
+            updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuSettings.setOnClickListener(v -> {
             callback.onTabSelected(TAB_SETTINGS, "Ayarlar");
-            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuApps.setOnClickListener(v -> {
             boolean accepted = prefs.getBoolean("appManagementDisclaimerAccepted", false);
             if (accepted) {
                 callback.onTabSelected(TAB_APPS, "Uygulama Yönetimi");
-                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuDriveMode, menuTest);
+                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
             } else {
                 callback.onAppManagementRequested();
             }
@@ -180,10 +199,48 @@ public class SideRailBuilder {
 
         menuDriveMode.setOnClickListener(v -> {
             callback.onTabSelected(TAB_DRIVE_MODE, "Hafıza Modu");
-            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuTest);
+            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
+        });
+
+        menuWelcomeSound.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_WELCOME_SOUND, context.getString(R.string.side_rail_welcome_sound));
+            updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
         });
 
         return sideRail;
+    }
+
+    /**
+     * Launcher modu aktifken sol menüyü tamamen gizler; kapalıyken normal görünüme döner.
+     */
+    public void setLauncherModeActive(boolean active) {
+        launcherModeActive = active;
+        if (sideRail != null) {
+            sideRail.setVisibility(active ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    public boolean isLauncherModeActive() {
+        return launcherModeActive;
+    }
+
+    /** Light/dark değişiminde rail arka planı ve seçim renklerini yeniler (Activity recreate yok). */
+    public void reapplyTheme() {
+        if (sideRail != null) {
+            UiStyles.setRailPanelBackground(sideRail);
+        }
+        if (appTitleText != null) {
+            appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        }
+        LinearLayout[] rows = {
+                menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound
+        };
+        for (LinearLayout row : rows) {
+            if (row != null) {
+                applyRailRowSelectedState(row, row == selectedMenuRow);
+            }
+        }
     }
 
     /**
@@ -194,27 +251,33 @@ public class SideRailBuilder {
     public void setSelectionForTabIndex(int tabIndex) {
         switch (tabIndex) {
             case 0:
-                updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 1:
-                updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 2:
-                updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 3:
-                updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuSettings, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 4:
                 break;
             case 5:
-                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuDriveMode, menuTest);
+                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 6:
-                updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuTest);
+                updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
                 break;
             case 7:
-                updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                break;
+            case 8:
+                updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
+                break;
+            case 9:
+                updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             default:
                 break;
@@ -247,7 +310,7 @@ public class SideRailBuilder {
         AppCompatImageView iconView = new AppCompatImageView(context);
         iconView.setImageResource(iconResId);
         iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        iconView.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textSecondary)));
+        iconView.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textSecondary)));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
         iconLp.gravity = Gravity.CENTER_VERTICAL;
         itemLayout.addView(iconView, iconLp);
@@ -255,7 +318,7 @@ public class SideRailBuilder {
         TextView textView = new TextView(context);
         textView.setText(text);
         textView.setTextSize(22);
-        textView.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+        textView.setTextColor(UiStyles.color(context, R.color.textSecondary));
         textView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
                 0,
@@ -274,27 +337,28 @@ public class SideRailBuilder {
         AppCompatImageView icon = (AppCompatImageView) row.getTag(R.id.side_rail_icon);
         TextView label = (TextView) row.getTag(R.id.side_rail_label);
         if (selected) {
-            row.setBackgroundResource(R.drawable.bg_nav_pill_selected);
+            UiStyles.setBackgroundRes(row, R.drawable.bg_nav_pill_selected);
             if (icon != null) {
-                icon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.oemAccent)));
+                icon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.oemAccent)));
             }
             if (label != null) {
-                label.setTextColor(ContextCompat.getColor(context, R.color.oemAccent));
+                label.setTextColor(UiStyles.color(context, R.color.oemAccent));
                 label.setTypeface(null, android.graphics.Typeface.BOLD);
             }
         } else {
             row.setBackgroundColor(Color.TRANSPARENT);
             if (icon != null) {
-                icon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textSecondary)));
+                icon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textSecondary)));
             }
             if (label != null) {
-                label.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+                label.setTextColor(UiStyles.color(context, R.color.textSecondary));
                 label.setTypeface(null, android.graphics.Typeface.NORMAL);
             }
         }
     }
 
     private void updateMenuSelection(LinearLayout selected, LinearLayout... others) {
+        selectedMenuRow = selected;
         applyRailRowSelectedState(selected, true);
         for (LinearLayout other : others) {
             applyRailRowSelectedState(other, false);

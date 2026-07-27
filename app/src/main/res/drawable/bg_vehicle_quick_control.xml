@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:endColor="@color/assistCardActive"
+                android:startColor="@color/nav_pill_selected_start"
+                android:type="linear" />
+            <corners android:radius="16dp" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/assistStrokeActive" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surfaceCardInner" />
+            <corners android:radius="16dp" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/glassStroke" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/glassFill" />
+            <corners android:radius="16dp" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/glassStroke" />
+        </shape>
+    </item>
+</selector>

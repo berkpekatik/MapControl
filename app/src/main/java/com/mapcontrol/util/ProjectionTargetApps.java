@@ -67,6 +67,30 @@ public final class ProjectionTargetApps {
      * Launcher'da görünen, MapControl ve sistem/priv hariç uygulamalar; isim sıralı.
      */
     public static List<Row> loadSortedRows(Context context) {
+        return loadLauncherRows(context, false);
+    }
+
+    /**
+     * Launcher'da görünen sistem/priv uygulamalar; MapControl hariç, isim sıralı.
+     */
+    public static List<Row> loadSortedSystemRows(Context context) {
+        return loadLauncherRows(context, true);
+    }
+
+    /**
+     * Launcher'da görünen tüm uygulamalar (kullanıcı + sistem); MapControl hariç, isim sıralı.
+     */
+    public static List<Row> loadAllLaunchableRows(Context context) {
+        List<Row> user = loadSortedRows(context);
+        List<Row> system = loadSortedSystemRows(context);
+        List<Row> all = new ArrayList<>(user.size() + system.size());
+        all.addAll(user);
+        all.addAll(system);
+        Collections.sort(all, Comparator.comparing(r -> r.label, String.CASE_INSENSITIVE_ORDER));
+        return all;
+    }
+
+    private static List<Row> loadLauncherRows(Context context, boolean systemAppsOnly) {
         PackageManager pm = context.getPackageManager();
         Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -87,7 +111,8 @@ public final class ProjectionTargetApps {
                     continue;
                 }
                 ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
-                if (isSystemOrPrivApp(appInfo)) {
+                boolean isSystem = isSystemOrPrivApp(appInfo);
+                if (systemAppsOnly != isSystem) {
                     continue;
                 }
                 String appName = pm.getApplicationLabel(appInfo).toString();

@@ -26,6 +26,9 @@
     <color name="accentPressed">#3568A0</color>
     <color name="accentHighlight">#73B2F5</color>
 
+    <!-- Filament model clear — cam kart (dark) opak eş -->
+    <color name="filament_scene_clear">#18212C</color>
+
     <color name="backgroundColor">#10141D</color>
     <color name="backgroundPage">#10141B</color>
     <color name="surfaceColor">#161B22</color>
@@ -33,6 +36,14 @@
     <color name="surfaceCard">#151A22</color>
     <color name="surfaceCardInner">#1A212C</color>
     <color name="surfaceCardElevated">#1C2630</color>
+    <color name="cluster_nav_card_fill">#1E2834</color>
+    <color name="cluster_nav_card_stroke">#4A5C72</color>
+    <color name="cluster_nav_maneuver_start">#3D72B8</color>
+    <color name="cluster_nav_maneuver_end">#2B5582</color>
+    <color name="cluster_nav_maneuver_text">#FFFFFF</color>
+    <color name="cluster_nav_maneuver_subtext">#C8DCF2</color>
+    <color name="cluster_nav_eta_fill">#1A222E</color>
+    <color name="cluster_nav_eta_stroke">#3A4A5E</color>
     <color name="cardColor">#1E2530</color>
 
     <color name="textPrimary">#FFFFFF</color>
@@ -64,6 +75,9 @@
     <color name="selectionBar">#73B2F5</color>
     <color name="driveModeSelected">#343E4F</color>
     <color name="driveModeUnselected">#1A1F26</color>
+    <color name="drive_mode_eco">#4ADE80</color>
+    <color name="drive_mode_normal">#73B2F5</color>
+    <color name="drive_mode_sport">#F07167</color>
 
     <color name="assistCardActive">#252E42</color>
     <color name="assistStrokeActive">#6B8FD4</color>
@@ -143,6 +157,11 @@
     <color name="preparing_overlay_root">#E60A0D12</color>
     <color name="boot_splash_gradient_edge">#FF0A0F18</color>
     <color name="boot_splash_gradient_mid">#FF101826</color>
+    <color name="boot_splash_grad_a">#FF0A0F18</color>
+    <color name="boot_splash_grad_b">#FF121C2C</color>
+    <color name="boot_splash_grad_c">#FF1A2A3E</color>
+    <color name="boot_splash_grad_d">#FF0E1520</color>
+    <color name="boot_splash_grad_accent">#FF243B55</color>
     <color name="map_grid_line_accent">#1A73B2F5</color>
     <color name="map_grid_glow_accent">#4D73B2F5</color>
     <color name="map_grid_vignette_edge">#CC0A0F18</color>

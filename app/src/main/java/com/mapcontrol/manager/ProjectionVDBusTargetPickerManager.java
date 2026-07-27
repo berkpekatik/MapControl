@@ -213,14 +213,14 @@ public final class ProjectionVDBusTargetPickerManager {
         int cardMaxH = (int) (screenH * 0.78f);
 
         scrimView = new FrameLayout(themedContext);
-        scrimView.setBackgroundColor(ContextCompat.getColor(themedContext, R.color.modal_overlay_scrim));
+        scrimView.setBackgroundColor(UiStyles.color(themedContext, R.color.modal_overlay_scrim));
         scrimView.setOnClickListener(v -> detach());
 
         cardView = new LinearLayout(themedContext);
         cardView.setOrientation(LinearLayout.VERTICAL);
         cardView.setClickable(true);
         UiStyles.applySolidRoundedBackgroundDp(cardView,
-                ContextCompat.getColor(themedContext, R.color.surfaceCard), 18f);
+                UiStyles.color(themedContext, R.color.surfaceCard), 18f);
         cardView.setElevation(12 * density);
         int cardPad = (int) (18 * density);
         cardView.setPadding(cardPad, cardPad, cardPad, cardPad);
@@ -233,7 +233,7 @@ public final class ProjectionVDBusTargetPickerManager {
         titleView.setText("Hedef uygulama");
         titleView.setTextSize(20);
         titleView.setTypeface(null, Typeface.BOLD);
-        titleView.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+        titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         titleRow.addView(titleView, titleLp);
@@ -241,7 +241,7 @@ public final class ProjectionVDBusTargetPickerManager {
         closeBtn = new TextView(themedContext);
         closeBtn.setText("✕");
         closeBtn.setTextSize(22);
-        closeBtn.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        closeBtn.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         closeBtn.setPadding((int) (8 * density), 0, 0, 0);
         closeBtn.setOnClickListener(v -> detach());
         titleRow.addView(closeBtn, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -251,7 +251,7 @@ public final class ProjectionVDBusTargetPickerManager {
         subtitleView = new TextView(themedContext);
         subtitleView.setText("Yansıtma için uygulama seçin");
         subtitleView.setTextSize(13);
-        subtitleView.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        subtitleView.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = (int) (4 * density);
@@ -259,7 +259,7 @@ public final class ProjectionVDBusTargetPickerManager {
 
         listView = new ListView(themedContext);
         listView.setDivider(new android.graphics.drawable.ColorDrawable(
-                ContextCompat.getColor(themedContext, R.color.dividerWhite12)));
+                UiStyles.color(themedContext, R.color.dividerWhite12)));
         listView.setDividerHeight(Math.max(1, (int) (density)));
         listView.setClipToPadding(false);
         rowAdapter = new RowAdapter();
@@ -285,7 +285,7 @@ public final class ProjectionVDBusTargetPickerManager {
         clearBtn.setText("Temizle");
         clearBtn.setTextSize(15);
         clearBtn.setTypeface(null, Typeface.BOLD);
-        clearBtn.setTextColor(ContextCompat.getColor(themedContext, R.color.textLoading));
+        clearBtn.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
         int fp = (int) (12 * density);
         clearBtn.setPadding(fp, fp, fp, fp);
         clearBtn.setOnClickListener(v -> applyClearAndClose());
@@ -449,12 +449,12 @@ public final class ProjectionVDBusTargetPickerManager {
             return;
         }
         themedContext = new ContextThemeWrapper(appContext, R.style.Theme_MapControl);
-        int scrim = ContextCompat.getColor(appContext, R.color.modal_overlay_scrim);
-        int card = ContextCompat.getColor(appContext, R.color.surfaceCard);
-        int textPri = ContextCompat.getColor(appContext, R.color.textPrimary);
-        int textHint = ContextCompat.getColor(appContext, R.color.textHint);
-        int textLoad = ContextCompat.getColor(appContext, R.color.textLoading);
-        int div = ContextCompat.getColor(appContext, R.color.dividerWhite12);
+        int scrim = UiStyles.color(appContext, R.color.modal_overlay_scrim);
+        int card = UiStyles.color(appContext, R.color.surfaceCard);
+        int textPri = UiStyles.color(appContext, R.color.textPrimary);
+        int textHint = UiStyles.color(appContext, R.color.textHint);
+        int textLoad = UiStyles.color(appContext, R.color.textLoading);
+        int div = UiStyles.color(appContext, R.color.dividerWhite12);
         if (scrimView != null) {
             scrimView.setBackgroundColor(scrim);
         }
@@ -539,10 +539,10 @@ public final class ProjectionVDBusTargetPickerManager {
         texts.setOrientation(LinearLayout.VERTICAL);
         TextView t1 = new TextView(themedContext);
         t1.setTextSize(16);
-        t1.setTextColor(ContextCompat.getColor(themedContext, R.color.textPrimary));
+        t1.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         TextView t2 = new TextView(themedContext);
         t2.setTextSize(12);
-        t2.setTextColor(ContextCompat.getColor(themedContext, R.color.textHint));
+        t2.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         texts.addView(t1);
         texts.addView(t2);
         rowInner.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -598,14 +598,14 @@ public final class ProjectionVDBusTargetPickerManager {
                 v.icon.setImageResource(android.R.drawable.sym_def_app_icon);
             }
 
-            int tPri = ContextCompat.getColor(appContext, R.color.textPrimary);
-            int tHi = ContextCompat.getColor(appContext, R.color.textHint);
+            int tPri = UiStyles.color(appContext, R.color.textPrimary);
+            int tHi = UiStyles.color(appContext, R.color.textHint);
             v.t1.setTextColor(tPri);
             v.t2.setTextColor(tHi);
 
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
             if (sel) {
-                bg.setColor(ContextCompat.getColor(appContext, R.color.surfaceCardInner));
+                bg.setColor(UiStyles.color(appContext, R.color.surfaceCardInner));
                 bg.setCornerRadius(12f * d);
                 bg.setStroke(strokePx, tPri);
             } else {

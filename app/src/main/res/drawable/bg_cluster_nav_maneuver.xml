@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:endColor="@color/cluster_nav_maneuver_end"
+        android:startColor="@color/cluster_nav_maneuver_start"
+        android:type="linear" />
+    <corners android:radius="18dp" />
+</shape>

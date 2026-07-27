@@ -4,7 +4,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -38,12 +40,12 @@ import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.NetworkWifiHelper;
+import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.util.WebServerWifiToastHelper;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
-import com.mapcontrol.manager.FloatingProjectionControlsManager;
-import com.mapcontrol.manager.FloatingQuickActionsManager;
+import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.R;
 
 public class MapControlService extends Service {
@@ -62,6 +64,10 @@ public class MapControlService extends Service {
     public static final String EXTRA_CLUSTER_CLOSE_SEND_BACKGROUND = "com.mapcontrol.extra.CLUSTER_CLOSE_SEND_BACKGROUND";
     /** Kullanıcı: yüzen Wi‑Fi tazele; boot gecikmesi olmadan aynı stabilize zinciri. */
     public static final String ACTION_USER_WIFI_STABILIZE = "com.mapcontrol.action.USER_WIFI_STABILIZE";
+    /**
+     * Ayarlar: {@code MapControlPrefs} — ekran açılınca (SCREEN_ON) boot’taki gibi Wi‑Fi stabilize zincirini çalıştır.
+     */
+    public static final String KEY_WIFI_STABILIZE_ON_SCREEN_ON = "wifiStabilizeOnScreenOn";
     private static final String ACTION_LOG = "com.mapcontrol.LOG_MESSAGE";
     private static final String EXTRA_LOG_MESSAGE = "log_message";
     /** Açılış: servis ayaklandıktan sonra bu kadar bekle, sonra Wi-Fi stabilize zincirine gir. */
@@ -83,6 +89,7 @@ public class MapControlService extends Service {
     private Handler handler;
     /** Yansıtma paneli / yüzen kontroller / power modu ile aynı cluster VDBus ve taşıma mantığı ({@link ClusterDisplayManager}). */
     private ClusterDisplayManager clusterDisplayHelper;
+    private BroadcastReceiver mScreenOnWifiReceiver;
     private int lastPowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
     
@@ -110,6 +117,55 @@ public class MapControlService extends Service {
 
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
+        registerScreenOnWifiReceiver();
+        MapControlVDBusKeyBridge.acquire(this);
+    }
+
+    /**
+     * Ekran açılınca (uyku sonrası) — ayar açıksa açılıştakiyle aynı Wi‑Fi stabilize zinciri.
+     */
+    private void registerScreenOnWifiReceiver() {
+        if (mScreenOnWifiReceiver != null) {
+            return;
+        }
+        mScreenOnWifiReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null || !Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                    return;
+                }
+                SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+                if (!prefs.getBoolean(KEY_WIFI_STABILIZE_ON_SCREEN_ON, false)) {
+                    return;
+                }
+                log("[Wi-Fi] SCREEN_ON → stabilize zinciri (ayar: açık)");
+                if (handler != null) {
+                    handler.post(() -> requestWifiStabilizeChain(0));
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(mScreenOnWifiReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(mScreenOnWifiReceiver, filter);
+            }
+        } catch (Exception e) {
+            log("SCREEN_ON Wi‑Fi alıcısı kaydı başarısız: " + e.getMessage());
+            mScreenOnWifiReceiver = null;
+        }
+    }
+
+    private void unregisterScreenOnWifiReceiver() {
+        if (mScreenOnWifiReceiver == null) {
+            return;
+        }
+        try {
+            unregisterReceiver(mScreenOnWifiReceiver);
+        } catch (Exception ignored) {
+        }
+        mScreenOnWifiReceiver = null;
     }
 
     /**
@@ -298,10 +354,8 @@ public class MapControlService extends Service {
 
         startForeground(NOTIFICATION_ID, notification);
 
-        // Yüzen geri tuşu: ayarlara girmek zorunda kalmadan, servis her çalıştığında (uygulama açılışı) göster
+        // Yüzen geri tuşu + yan menü (birleşik hub)
         ensureFloatingBackButtonIfEnabled();
-        ensureFloatingProjectionControlsIfEnabled();
-        ensureFloatingQuickActionsIfEnabled();
 
         if (intent != null && ACTION_USER_WIFI_STABILIZE.equals(intent.getAction())) {
             log("[User] ACTION_USER_WIFI_STABILIZE (Wi-Fi stabilize)");
@@ -339,33 +393,10 @@ public class MapControlService extends Service {
         });
     }
 
-    private void ensureFloatingProjectionControlsIfEnabled() {
-        if (handler == null) {
-            return;
-        }
-        handler.post(() -> {
-            if (!FloatingProjectionControlsManager.loadEnabledState(this)) {
-                return;
-            }
-            FloatingProjectionControlsManager.getInstance(this).show();
-        });
-    }
-
-    private void ensureFloatingQuickActionsIfEnabled() {
-        if (handler == null) {
-            return;
-        }
-        handler.post(() -> {
-            if (!FloatingQuickActionsManager.loadEnabledState(this)) {
-                return;
-            }
-            FloatingQuickActionsManager.getInstance(this).show();
-        });
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
+        unregisterScreenOnWifiReceiver();
         mWifiStabilizeToken++;
         WebServerWifiToastHelper.dismissWifiStabilizePreparingOverlay(this);
         if (handler != null && mGlobalWifiStatusRunnable != null) {
@@ -379,6 +410,7 @@ public class MapControlService extends Service {
         if (scheduler != null) {
             scheduler.shutdown();
         }
+        MapControlVDBusKeyBridge.release(this);
     }
 
     @Override
@@ -951,7 +983,8 @@ public class MapControlService extends Service {
                     new ClusterDisplayManager.ClusterCallback() {
                         @Override
                         public void onNavigationStateChanged(boolean isOpen) {
-                            // MainActivity ayrı tutar; servis yolu yalnızca cluster komutu gönderir
+                            ClusterNavigationState.publishFromService(
+                                    MapControlService.this.getApplicationContext(), isOpen);
                         }
 
                         @Override

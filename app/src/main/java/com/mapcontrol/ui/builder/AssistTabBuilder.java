@@ -18,6 +18,7 @@ import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
+import com.mapcontrol.ui.theme.UiStyles;
 
 public class AssistTabBuilder {
     public interface AssistCallback {
@@ -58,13 +59,13 @@ public class AssistTabBuilder {
         int titleIconPx = (int) (28 * densityTitle);
         assistTitleIcon.setLayoutParams(new LinearLayout.LayoutParams(titleIconPx, titleIconPx));
         assistTitleIcon.setImageTintList(ColorStateList.valueOf(
-                ContextCompat.getColor(context, R.color.textPrimary)));
+                UiStyles.color(context, R.color.textPrimary)));
         assistTitleRow.addView(assistTitleIcon);
 
         TextView assistTitle = new TextView(context);
         assistTitle.setText("Araç ve Sürücü Yardımları");
         assistTitle.setTextSize(20);
-        assistTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        assistTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         assistTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -78,7 +79,7 @@ public class AssistTabBuilder {
         TextView assistSubtitle = new TextView(context);
         assistSubtitle.setText("Sürüş güvenliği ve konfor ayarları");
         assistSubtitle.setTextSize(14);
-        assistSubtitle.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+        assistSubtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         assistSubtitle.setPadding(16, 0, 16, 16);
         container.addView(assistSubtitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -146,13 +147,13 @@ public class AssistTabBuilder {
 
             android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
             if (isActiveRef[0]) {
-                cardBg.setColor(ContextCompat.getColor(context, R.color.assistCardActive));
+                cardBg.setColor(UiStyles.color(context, R.color.assistCardActive));
                 cardBg.setCornerRadius(16 * density);
-                cardBg.setStroke((int) (2 * density), ContextCompat.getColor(context, R.color.assistStrokeActive));
+                cardBg.setStroke((int) (2 * density), UiStyles.color(context, R.color.assistStrokeActive));
             } else {
-                cardBg.setColor(ContextCompat.getColor(context, R.color.assistCardIdle));
+                cardBg.setColor(UiStyles.color(context, R.color.assistCardIdle));
                 cardBg.setCornerRadius(16 * density);
-                cardBg.setStroke((int) (1 * density), ContextCompat.getColor(context, R.color.outline));
+                cardBg.setStroke((int) (1 * density), UiStyles.color(context, R.color.outline));
             }
             card.setBackground(cardBg);
 
@@ -163,7 +164,7 @@ public class AssistTabBuilder {
             LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconPx, iconPx);
             iconLp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
             iconView.setLayoutParams(iconLp);
-            iconView.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
+            iconView.setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                     isActiveRef[0] ? R.color.textPrimary : R.color.textPrimary70)));
             iconViews[cardIndex] = iconView;
             card.addView(iconView);
@@ -172,7 +173,7 @@ public class AssistTabBuilder {
             titleView.setText(cardTitle);
             titleView.setTextSize(15);
             titleView.setGravity(android.view.Gravity.CENTER);
-            titleView.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+            titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
             titleView.setTypeface(null, isActiveRef[0] ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             titleView.setPadding(0, (int) (8 * density), 0, (int) (4 * density));
             titleViews[cardIndex] = titleView;
@@ -182,16 +183,16 @@ public class AssistTabBuilder {
             statusView.setText(isActiveRef[0] ? getStatusText(settingKey) : "Ayarlanmadı");
             statusView.setTextSize(12);
             statusView.setGravity(android.view.Gravity.CENTER);
-            statusView.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+            statusView.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
             statusViews[cardIndex] = statusView;
             card.addView(statusView);
 
             TextView onChip = new TextView(context);
             onChip.setText("ON");
             onChip.setTextSize(10);
-            onChip.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+            onChip.setTextColor(UiStyles.color(context, R.color.textPrimary));
             onChip.setTypeface(null, android.graphics.Typeface.BOLD);
-            onChip.setBackgroundColor(ContextCompat.getColor(context, R.color.chipOn));
+            onChip.setBackgroundColor(UiStyles.color(context, R.color.chipOn));
             onChip.setPadding((int) (8 * density), (int) (2 * density), (int) (8 * density), (int) (2 * density));
             onChip.setVisibility(isActiveRef[0] ? android.view.View.VISIBLE : android.view.View.GONE);
             FrameLayout.LayoutParams chipParams = new FrameLayout.LayoutParams(
@@ -258,16 +259,16 @@ public class AssistTabBuilder {
                               TextView[] statusViews, TextView[] onChips, float density) {
         android.graphics.drawable.GradientDrawable newBg = new android.graphics.drawable.GradientDrawable();
         if (isActive) {
-            newBg.setColor(ContextCompat.getColor(context, R.color.assistCardActive));
+            newBg.setColor(UiStyles.color(context, R.color.assistCardActive));
             newBg.setCornerRadius(16 * density);
-            newBg.setStroke((int) (2 * density), ContextCompat.getColor(context, R.color.assistStrokeActive));
+            newBg.setStroke((int) (2 * density), UiStyles.color(context, R.color.assistStrokeActive));
         } else {
-            newBg.setColor(ContextCompat.getColor(context, R.color.assistCardIdle));
+            newBg.setColor(UiStyles.color(context, R.color.assistCardIdle));
             newBg.setCornerRadius(16 * density);
-            newBg.setStroke((int) (1 * density), ContextCompat.getColor(context, R.color.outline));
+            newBg.setStroke((int) (1 * density), UiStyles.color(context, R.color.outline));
         }
         cardContainers[cardIndex].setBackground(newBg);
-        iconViews[cardIndex].setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
+        iconViews[cardIndex].setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                 isActive ? R.color.textPrimary : R.color.textPrimary70)));
         titleViews[cardIndex].setTypeface(null, isActive ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         statusViews[cardIndex].setText(isActive ? getStatusText(settingKey) : "Ayarlanmadı");

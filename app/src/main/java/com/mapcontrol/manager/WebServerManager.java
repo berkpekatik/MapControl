@@ -27,6 +27,7 @@ import android.os.Environment;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 
 /**
  * Basit HTTP Server Manager
@@ -320,8 +321,8 @@ public class WebServerManager {
             if (listener != null) listener.onLog("[ERROR] HTML dosyası okuma hatası: " + e.getMessage());
             // Fallback: basit HTML
             String localIp = getLocalIpAddress();
-            String bg = String.format("#%06X", 0xFFFFFF & ContextCompat.getColor(context, R.color.backgroundPage));
-            String fg = String.format("#%06X", 0xFFFFFF & ContextCompat.getColor(context, R.color.textPrimary));
+            String bg = String.format("#%06X", 0xFFFFFF & UiStyles.color(context, R.color.backgroundPage));
+            String fg = String.format("#%06X", 0xFFFFFF & UiStyles.color(context, R.color.textPrimary));
             return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Map Control</title></head>" +
                    "<body style=\"font-family: sans-serif; background: " + bg + "; color: " + fg + "; padding: 40px; text-align: center;\">" +
                    "<h1>Hoş Geldiniz!</h1>" +

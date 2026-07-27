@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="320dp"
+    android:viewportWidth="200"
+    android:viewportHeight="320">
+  <!-- Üstten görünüm araç silüeti — ileride OEM görseli ile değiştirilebilir -->
+  <path
+      android:fillColor="#CC2D3A4F"
+      android:pathData="M100,24 C72,24 58,42 54,68 L48,108 C34,114 26,126 24,142 L20,188 C18,206 28,220 44,224 L44,248 C44,258 52,266 62,266 C72,266 80,258 80,248 L80,228 L120,228 L120,248 C120,258 128,266 138,266 C148,266 156,258 156,248 L156,224 C172,220 182,206 180,188 L176,142 C174,126 166,114 152,108 L146,68 C142,42 128,24 100,24 Z" />
+  <path
+      android:fillColor="#99FFFFFF"
+      android:pathData="M72,72 L128,72 C132,72 134,76 132,80 L124,118 C122,124 116,128 110,128 L90,128 C84,128 78,124 76,118 L68,80 C66,76 68,72 72,72 Z" />
+  <path
+      android:fillColor="#662D3A4F"
+      android:pathData="M62,248 m-14,0 a14,14 0 1,0 28,0 a14,14 0 1,0 -28,0" />
+  <path
+      android:fillColor="#662D3A4F"
+      android:pathData="M138,248 m-14,0 a14,14 0 1,0 28,0 a14,14 0 1,0 -28,0" />
+  <path
+      android:fillColor="#553568A0"
+      android:pathData="M88,168 L112,168 C114,168 116,170 116,172 L116,206 C116,208 114,210 112,210 L88,210 C86,210 84,208 84,206 L84,172 C84,170 86,168 88,168 Z" />
+</vector>

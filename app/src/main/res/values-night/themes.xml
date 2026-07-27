@@ -5,5 +5,11 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
+    <style name="Theme.MapControl.Splash" parent="Theme.MapControl">
+        <item name="android:windowBackground">@drawable/bg_launch_splash</item>
+        <item name="android:statusBarColor">@color/boot_splash_gradient_mid</item>
+        <item name="android:navigationBarColor">@color/boot_splash_gradient_mid</item>
+    </style>
+
     <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.MapControl" />
 </resources>

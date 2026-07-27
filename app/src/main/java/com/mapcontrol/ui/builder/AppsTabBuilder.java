@@ -69,7 +69,7 @@ public class AppsTabBuilder {
         tabContent.setOrientation(LinearLayout.VERTICAL);
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
         tabContent.setPadding(margin, margin, margin, margin);
-        tabContent.setBackgroundColor(ContextCompat.getColor(context, R.color.transparent));
+        tabContent.setBackgroundColor(UiStyles.color(context, R.color.transparent));
 
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -78,7 +78,7 @@ public class AppsTabBuilder {
         UiStyles.setGlassCardBackground(card);
 
         ScrollView appsListScrollView = new ScrollView(context);
-        appsListScrollView.setBackgroundColor(ContextCompat.getColor(context, R.color.transparent));
+        appsListScrollView.setBackgroundColor(UiStyles.color(context, R.color.transparent));
         appsListScrollView.setPadding(0, 0, 0, 0);
 
         appsListContainer = new LinearLayout(context);
@@ -108,11 +108,11 @@ public class AppsTabBuilder {
 
         Button btnRefreshApps = new Button(ctx);
         btnRefreshApps.setTextSize(20);
-        btnRefreshApps.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
-        btnRefreshApps.setBackgroundColor(ContextCompat.getColor(ctx, R.color.transparent));
+        btnRefreshApps.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
+        btnRefreshApps.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnRefreshApps.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(btnRefreshApps, R.drawable.ic_mdi_refresh,
-                ContextCompat.getColor(ctx, R.color.textPrimary), "Listeyi yenile");
+                UiStyles.color(ctx, R.color.textPrimary), "Listeyi yenile");
         LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -128,11 +128,11 @@ public class AppsTabBuilder {
 
         Button btnDownloadedFiles = new Button(ctx);
         btnDownloadedFiles.setTextSize(20);
-        btnDownloadedFiles.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
-        btnDownloadedFiles.setBackgroundColor(ContextCompat.getColor(ctx, R.color.transparent));
+        btnDownloadedFiles.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
+        btnDownloadedFiles.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnDownloadedFiles.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(btnDownloadedFiles, R.drawable.ic_mdi_folder,
-                ContextCompat.getColor(ctx, R.color.textPrimary), "İndirilen dosyalar");
+                UiStyles.color(ctx, R.color.textPrimary), "İndirilen dosyalar");
         LinearLayout.LayoutParams filesParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -143,8 +143,8 @@ public class AppsTabBuilder {
         Button btnModeToggle = new Button(ctx);
         updateModeToggleButton(btnModeToggle);
         btnModeToggle.setTextSize(16);
-        btnModeToggle.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
-        btnModeToggle.setBackgroundColor(ContextCompat.getColor(ctx, R.color.transparent));
+        btnModeToggle.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
+        btnModeToggle.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnModeToggle.setPadding(12, 12, 12, 12);
         btnModeToggle.setOnClickListener(v -> {
             isLocalMode = !isLocalMode;
@@ -163,11 +163,11 @@ public class AppsTabBuilder {
 
         Button overflowMenu = new Button(ctx);
         overflowMenu.setTextSize(20);
-        overflowMenu.setTextColor(ContextCompat.getColor(ctx, R.color.textPrimary));
-        overflowMenu.setBackgroundColor(ContextCompat.getColor(ctx, R.color.transparent));
+        overflowMenu.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
+        overflowMenu.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         overflowMenu.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(overflowMenu, R.drawable.ic_mdi_dots_vertical,
-                ContextCompat.getColor(ctx, R.color.textPrimary), "Diğer seçenekler");
+                UiStyles.color(ctx, R.color.textPrimary), "Diğer seçenekler");
         overflowMenu.setOnClickListener(v -> {
             PopupMenu popupMenu = new PopupMenu(ctx, overflowMenu);
             popupMenu.getMenu().add(0, 1, 0, "Tümünü Sil");
@@ -196,7 +196,7 @@ public class AppsTabBuilder {
         int icon = isLocalMode ? R.drawable.ic_mdi_cellphone : R.drawable.ic_mdi_web;
         btnModeToggle.setText(isLocalMode ? "Yerel" : "Sunucu");
         UiStyles.setButtonStartIconTinted(btnModeToggle, icon,
-                ContextCompat.getColor(context, R.color.textPrimary),
+                UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
     }
 
@@ -213,7 +213,7 @@ public class AppsTabBuilder {
                     appsListContainer.removeAllViews();
                     TextView loadingText = new TextView(context);
                     loadingText.setText("Yükleniyor...");
-                    loadingText.setTextColor(ContextCompat.getColor(context, R.color.textLoading));
+                    loadingText.setTextColor(UiStyles.color(context, R.color.textLoading));
                     loadingText.setTextSize(14);
                     loadingText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(loadingText);
@@ -253,7 +253,7 @@ public class AppsTabBuilder {
                     appsListContainer.removeAllViews();
                     TextView errorText = new TextView(context);
                     errorText.setText("Hata: " + e.getMessage());
-                    errorText.setTextColor(ContextCompat.getColor(context, R.color.statusErrorBright));
+                    errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                     errorText.setTextSize(14);
                     errorText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(errorText);
@@ -293,7 +293,7 @@ public class AppsTabBuilder {
                 appCard.setFocusable(true);
 
                 UiStyles.applySolidRoundedBackgroundDp(appCard,
-                        ContextCompat.getColor(context, R.color.surfaceCardInner), 16f);
+                        UiStyles.color(context, R.color.surfaceCardInner), 16f);
 
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     appCard.setElevation(2f);
@@ -325,14 +325,14 @@ public class AppsTabBuilder {
 
                 TextView nameText = new TextView(context);
                 nameText.setText(finalDisplayName);
-                nameText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
                 nameText.setTextSize(17);
                 nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
                 statusText.setText("Kurulu • v" + finalCurrentVersion);
-                statusText.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+                statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 statusText.setTextSize(13);
                 LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -354,8 +354,8 @@ public class AppsTabBuilder {
                 actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 actionButton.setPadding(24, 12, 24, 12);
 
-                UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.buttonPrimary));
-                actionButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
+                actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                 actionButton.setOnClickListener(v -> {
                     try {
                         Intent launchIntent = pm.getLaunchIntentForPackage(finalPackageName);
@@ -376,8 +376,8 @@ public class AppsTabBuilder {
                 removeButton.setText("KALDIR");
                 removeButton.setTextSize(14);
                 removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
-                removeButton.setTextColor(ContextCompat.getColor(context, R.color.textDestructive));
-                removeButton.setBackgroundColor(ContextCompat.getColor(context, R.color.transparent));
+                removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
+                removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
                 removeButton.setPadding(18, 12, 18, 12);
                 removeButton.setOnClickListener(v -> uninstallApp(finalPackageName, finalDisplayName));
                 LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
@@ -402,12 +402,12 @@ public class AppsTabBuilder {
                 emptyIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 int iconPx = Math.round(56 * d);
                 emptyIcon.setLayoutParams(new LinearLayout.LayoutParams(iconPx, iconPx));
-                emptyIcon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textMuted)));
+                emptyIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textMuted)));
                 emptyCard.addView(emptyIcon);
 
                 TextView emptyText = new TextView(context);
                 emptyText.setText("Yerel uygulama bulunamadı");
-                emptyText.setTextColor(ContextCompat.getColor(context, R.color.textMuted));
+                emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 emptyText.setTextSize(15);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(
@@ -432,7 +432,7 @@ public class AppsTabBuilder {
                     appsListContainer.removeAllViews();
                     TextView loadingText = new TextView(context);
                     loadingText.setText("Yükleniyor...");
-                    loadingText.setTextColor(ContextCompat.getColor(context, R.color.textLoading));
+                    loadingText.setTextColor(UiStyles.color(context, R.color.textLoading));
                     loadingText.setTextSize(14);
                     loadingText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(loadingText);
@@ -468,7 +468,7 @@ public class AppsTabBuilder {
                         appsListContainer.removeAllViews();
                         TextView errorText = new TextView(context);
                         errorText.setText("Hata: " + responseCode);
-                        errorText.setTextColor(ContextCompat.getColor(context, R.color.statusErrorBright));
+                        errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                         errorText.setTextSize(14);
                         errorText.setPadding(8, 8, 8, 8);
                         appsListContainer.addView(errorText);
@@ -481,7 +481,7 @@ public class AppsTabBuilder {
                     appsListContainer.removeAllViews();
                     TextView errorText = new TextView(context);
                     errorText.setText("Hata: " + e.getMessage());
-                    errorText.setTextColor(ContextCompat.getColor(context, R.color.statusErrorBright));
+                    errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                     errorText.setTextSize(14);
                     errorText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(errorText);
@@ -527,7 +527,7 @@ public class AppsTabBuilder {
                 appCard.setFocusable(true);
 
                 UiStyles.applySolidRoundedBackgroundDp(appCard,
-                        ContextCompat.getColor(context, R.color.surfaceCardInner), 16f);
+                        UiStyles.color(context, R.color.surfaceCardInner), 16f);
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     appCard.setElevation(2f);
                 }
@@ -566,7 +566,7 @@ public class AppsTabBuilder {
 
                 TextView nameText = new TextView(context);
                 nameText.setText(displayName);
-                nameText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
                 nameText.setTextSize(17);
                 nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
                 infoContainer.addView(nameText);
@@ -574,10 +574,10 @@ public class AppsTabBuilder {
                 TextView statusText = new TextView(context);
                 if (isInstalled) {
                     statusText.setText("Kurulu • v" + currentVersion);
-                    statusText.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+                    statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 } else {
                     statusText.setText("Kurulu değil");
-                    statusText.setTextColor(ContextCompat.getColor(context, R.color.textMuted));
+                    statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 }
                 statusText.setTextSize(13);
                 LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
@@ -601,8 +601,8 @@ public class AppsTabBuilder {
 
                 if (hasUpdate) {
                     actionButton.setText("GÜNCELLE");
-                    actionButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
+                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
                         callback.log(displayName + " güncelleniyor...");
                         actionButton.setTag(downloadUrl);
@@ -610,26 +610,26 @@ public class AppsTabBuilder {
                     });
                 } else if (isInstalled && !isLocked) {
                     actionButton.setText("AÇ");
-                    actionButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
                     actionButton.setOnClickListener(v -> launchApp(packageName));
                 } else if (isLocked) {
                     actionButton.setText("KİLİTLİ");
-                    actionButton.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
-                    UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.textMuted));
+                    actionButton.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
                     actionButton.setEnabled(false);
                 } else if (isDownloaded) {
                     actionButton.setText("KUR");
-                    actionButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
+                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
                         callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
                         installApkFile(downloadedFile);
                     });
                 } else {
                     actionButton.setText("KUR");
-                    actionButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, ContextCompat.getColor(context, R.color.buttonSuccessBright));
+                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
                         actionButton.setTag(downloadUrl);
                         downloadAndInstallApp(packageName, displayName, downloadUrl, actionButton);
@@ -643,8 +643,8 @@ public class AppsTabBuilder {
                     removeButton.setText("KALDIR");
                     removeButton.setTextSize(14);
                     removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
-                    removeButton.setTextColor(ContextCompat.getColor(context, R.color.textDestructive));
-                    removeButton.setBackgroundColor(ContextCompat.getColor(context, R.color.transparent));
+                    removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
+                    removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
                     removeButton.setPadding(18, 12, 18, 12);
                     removeButton.setOnClickListener(v -> uninstallApp(packageName, displayName));
                     LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
@@ -669,11 +669,11 @@ public class AppsTabBuilder {
                 emptyIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 int iconPx = Math.round(56 * d);
                 emptyIcon.setLayoutParams(new LinearLayout.LayoutParams(iconPx, iconPx));
-                emptyIcon.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.textMuted)));
+                emptyIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textMuted)));
                 emptyCard.addView(emptyIcon);
                 TextView emptyText = new TextView(context);
                 emptyText.setText("Henüz uygulama bulunamadı");
-                emptyText.setTextColor(ContextCompat.getColor(context, R.color.textMuted));
+                emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 emptyText.setTextSize(15);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(
@@ -770,10 +770,10 @@ public class AppsTabBuilder {
                 .create();
 
         dialog.show();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(context, R.color.statusErrorBright));
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.statusErrorBright));
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextSize(17);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTypeface(null, android.graphics.Typeface.BOLD);
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(ContextCompat.getColor(context, R.color.statusNeutralGray));
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.statusNeutralGray));
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextSize(17);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTypeface(null, android.graphics.Typeface.BOLD);
     }
@@ -790,7 +790,7 @@ public class AppsTabBuilder {
                     button.setEnabled(false);
                     button.setText("İndiriliyor...");
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                            ContextCompat.getColor(context, R.color.textPrimary),
+                            UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
                 });
 
@@ -868,7 +868,7 @@ public class AppsTabBuilder {
                             handler.post(() -> {
                                 button.setText("İndiriliyor %" + p);
                                 UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                                        ContextCompat.getColor(context, R.color.textPrimary),
+                                        UiStyles.color(context, R.color.textPrimary),
                                         UiStyles.dimenPx(context, R.dimen.spacing_small));
                             });
                         }
@@ -879,7 +879,7 @@ public class AppsTabBuilder {
                             handler.post(() -> {
                                 button.setText("İndiriliyor… " + sizeLabel);
                                 UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                                        ContextCompat.getColor(context, R.color.textPrimary),
+                                        UiStyles.color(context, R.color.textPrimary),
                                         UiStyles.dimenPx(context, R.dimen.spacing_small));
                             });
                         }
@@ -911,7 +911,7 @@ public class AppsTabBuilder {
                 handler.post(() -> {
                     button.setText("Kuruluyor...");
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_package_variant,
-                            ContextCompat.getColor(context, R.color.textPrimary),
+                            UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
                 });
 
@@ -940,7 +940,7 @@ public class AppsTabBuilder {
                     button.setEnabled(true);
                     button.setText("Manuel İndir");
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download,
-                            ContextCompat.getColor(context, R.color.textPrimary),
+                            UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
                 });
             } finally {
@@ -989,11 +989,11 @@ public class AppsTabBuilder {
             LinearLayout dialogLayout = new LinearLayout(context);
             dialogLayout.setOrientation(LinearLayout.VERTICAL);
             dialogLayout.setPadding(0, 0, 0, 0);
-            dialogLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+            dialogLayout.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
 
             LinearLayout headerLayout = new LinearLayout(context);
             headerLayout.setOrientation(LinearLayout.HORIZONTAL);
-            headerLayout.setBackgroundColor(ContextCompat.getColor(context, R.color.surfaceCardInner));
+            headerLayout.setBackgroundColor(UiStyles.color(context, R.color.surfaceCardInner));
             headerLayout.setPadding(24, 20, 24, 20);
             headerLayout.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
@@ -1002,14 +1002,14 @@ public class AppsTabBuilder {
 
             TextView titleText = new TextView(context);
             titleText.setText("İndirilen Dosyalar");
-            titleText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+            titleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
             titleText.setTextSize(20);
             titleText.setTypeface(null, android.graphics.Typeface.BOLD);
             titleContainer.addView(titleText);
 
             TextView subtitleText = new TextView(context);
             subtitleText.setText(fileCount + " dosya • " + folderName);
-            subtitleText.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+            subtitleText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
             subtitleText.setTextSize(13);
             subtitleText.setPadding(0, 4, 0, 0);
             titleContainer.addView(subtitleText);
@@ -1022,11 +1022,11 @@ public class AppsTabBuilder {
                 Button deleteAllButton = new Button(context);
                 deleteAllButton.setText("Tümünü Sil");
                 deleteAllButton.setTextSize(13);
-                deleteAllButton.setTextColor(ContextCompat.getColor(context, R.color.textDestructive));
-                deleteAllButton.setBackgroundColor(ContextCompat.getColor(context, R.color.transparent));
+                deleteAllButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
+                deleteAllButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
                 deleteAllButton.setPadding(12, 8, 12, 8);
                 UiStyles.setButtonStartIconTinted(deleteAllButton, R.drawable.ic_mdi_delete,
-                        ContextCompat.getColor(context, R.color.textDestructive),
+                        UiStyles.color(context, R.color.textDestructive),
                         UiStyles.dimenPx(context, R.dimen.spacing_small));
                 deleteAllButton.setOnClickListener(v -> {
                     AlertDialog confirmDialog = new AlertDialog.Builder(context)
@@ -1056,7 +1056,7 @@ public class AppsTabBuilder {
             dialogLayout.addView(headerLayout);
 
             ScrollView scrollView = new ScrollView(context);
-            scrollView.setBackgroundColor(ContextCompat.getColor(context, R.color.backgroundPage));
+            scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
             scrollView.setPadding(16, 16, 16, 16);
             scrollView.setLayoutParams(new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1076,11 +1076,11 @@ public class AppsTabBuilder {
                 int epx = Math.round(48 * context.getResources().getDisplayMetrics().density);
                 emptyIco.setLayoutParams(new LinearLayout.LayoutParams(epx, epx));
                 emptyIco.setImageTintList(ColorStateList.valueOf(
-                        ContextCompat.getColor(context, R.color.textSecondaryCool)));
+                        UiStyles.color(context, R.color.textSecondaryCool)));
                 emptyWrap.addView(emptyIco);
                 TextView emptyText = new TextView(context);
                 emptyText.setText("İndirilen dosya bulunmuyor");
-                emptyText.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+                emptyText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 emptyText.setTextSize(16);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etP = new LinearLayout.LayoutParams(
@@ -1100,7 +1100,7 @@ public class AppsTabBuilder {
                             UiStyles.dimenPx(context, R.dimen.spacing_medium),
                             UiStyles.dimenPx(context, R.dimen.spacing_medium));
                     UiStyles.applySolidRoundedBackgroundDp(fileCard,
-                            ContextCompat.getColor(context, R.color.surfaceCardElevated), 16f);
+                            UiStyles.color(context, R.color.surfaceCardElevated), 16f);
                     LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -1110,7 +1110,7 @@ public class AppsTabBuilder {
                     iconBox.setOrientation(LinearLayout.VERTICAL);
                     iconBox.setGravity(android.view.Gravity.CENTER);
                     UiStyles.applySolidRoundedBackgroundDp(iconBox,
-                            ContextCompat.getColor(context, R.color.buttonPrimary), 12f);
+                            UiStyles.color(context, R.color.buttonPrimary), 12f);
                     iconBox.setPadding(16, 16, 16, 16);
 
                     AppCompatImageView iconApk = new AppCompatImageView(context);
@@ -1119,7 +1119,7 @@ public class AppsTabBuilder {
                     int innerIcon = Math.round(28 * context.getResources().getDisplayMetrics().density);
                     iconApk.setLayoutParams(new LinearLayout.LayoutParams(innerIcon, innerIcon));
                     iconApk.setImageTintList(ColorStateList.valueOf(
-                            ContextCompat.getColor(context, R.color.textPrimary)));
+                            UiStyles.color(context, R.color.textPrimary)));
                     iconBox.addView(iconApk);
 
                     LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(60, 60);
@@ -1133,7 +1133,7 @@ public class AppsTabBuilder {
                     String sizeStr = formatFileSize(file.length());
                     TextView nameText = new TextView(context);
                     nameText.setText(file.getName().replace(".apk", ""));
-                    nameText.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                    nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     nameText.setTextSize(14);
                     nameText.setTypeface(null, android.graphics.Typeface.BOLD);
                     nameText.setMaxLines(1);
@@ -1142,7 +1142,7 @@ public class AppsTabBuilder {
 
                     TextView sizeText = new TextView(context);
                     sizeText.setText("Boyut: " + sizeStr);
-                    sizeText.setTextColor(ContextCompat.getColor(context, R.color.textSecondaryCool));
+                    sizeText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                     sizeText.setTextSize(12);
                     sizeText.setPadding(0, 2, 0, 0);
                     infoLayout.addView(sizeText);
@@ -1155,23 +1155,23 @@ public class AppsTabBuilder {
 
                     Button installButton = new Button(context);
                     installButton.setText("KUR");
-                    installButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(installButton, ContextCompat.getColor(context, R.color.buttonPrimary));
+                    installButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(installButton, UiStyles.color(context, R.color.buttonPrimary));
                     installButton.setTextSize(13);
                     installButton.setTypeface(null, android.graphics.Typeface.BOLD);
                     installButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonStartIconTinted(installButton, R.drawable.ic_mdi_package_variant,
-                            ContextCompat.getColor(context, R.color.textPrimary),
+                            UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
                     buttonsContainer.addView(installButton);
 
                     Button deleteButton = new Button(context);
-                    deleteButton.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(deleteButton, ContextCompat.getColor(context, R.color.buttonDestructiveBg));
+                    deleteButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(deleteButton, UiStyles.color(context, R.color.buttonDestructiveBg));
                     deleteButton.setTextSize(18);
                     deleteButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonIconOnlyTinted(deleteButton, R.drawable.ic_mdi_delete,
-                            ContextCompat.getColor(context, R.color.textPrimary), "Dosyayı sil");
+                            UiStyles.color(context, R.color.textPrimary), "Dosyayı sil");
                     buttonsContainer.addView(deleteButton);
 
                     fileCard.addView(buttonsContainer);

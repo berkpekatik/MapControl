@@ -1,6 +1,7 @@
 package com.mapcontrol.ui.theme;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.RenderEffect;
 import android.graphics.Shader;
@@ -12,6 +13,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -26,6 +29,10 @@ import java.util.function.Consumer;
  */
 public final class UiStyles {
 
+    /** Activity onConfigurationChanged'den gelen güncel uiMode (sticky AppCompat bypass). */
+    @Nullable
+    private static volatile Configuration uiModeOverride;
+
     private UiStyles() {
     }
 
@@ -33,20 +40,61 @@ public final class UiStyles {
         return Math.round(context.getResources().getDimension(dimenResId));
     }
 
+    /** MainActivity uiMode değişiminde çağrılır; renk/drawable çözümünü kilitlemez. */
+    public static void setUiModeOverride(@Nullable Configuration config) {
+        uiModeOverride = config != null ? new Configuration(config) : null;
+    }
+
+    /**
+     * Activity {@code configChanges=uiMode} + AppCompat DayNight, Activity Resources'ı
+     * bazen gece/gündüzde yapıştırır. Override veya Application uiMode kullan.
+     */
+    public static Context uiModeContext(Context context) {
+        if (context == null) {
+            return null;
+        }
+        Configuration override = uiModeOverride;
+        if (override != null) {
+            Configuration cfg = new Configuration(context.getResources().getConfiguration());
+            int night = override.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+            if (night != 0) {
+                cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
+                return context.createConfigurationContext(cfg);
+            }
+        }
+        Context app = context.getApplicationContext();
+        return app != null ? app : context;
+    }
+
+    @ColorInt
+    public static int color(Context context, @ColorRes int colorRes) {
+        return ContextCompat.getColor(uiModeContext(context), colorRes);
+    }
+
+    @Nullable
+    public static Drawable drawable(Context context, @DrawableRes int drawableRes) {
+        Drawable d = ContextCompat.getDrawable(uiModeContext(context), drawableRes);
+        return d != null ? d.mutate() : null;
+    }
+
+    public static void setBackgroundRes(View view, @DrawableRes int drawableRes) {
+        view.setBackground(drawable(view.getContext(), drawableRes));
+    }
+
     public static void setRootBackground(View view) {
-        view.setBackgroundResource(R.drawable.bg_root_gradient);
+        setBackgroundRes(view, R.drawable.bg_root_gradient);
     }
 
     public static void setRailPanelBackground(View view) {
-        view.setBackgroundResource(R.drawable.bg_rail_panel);
+        setBackgroundRes(view, R.drawable.bg_rail_panel);
     }
 
     public static void setGlassCardBackground(View view) {
-        view.setBackgroundResource(R.drawable.bg_card_glass);
+        setBackgroundRes(view, R.drawable.bg_card_glass);
     }
 
     public static void setTabContentBackdrop(View view) {
-        view.setBackgroundColor(ContextCompat.getColor(view.getContext(), R.color.tabContentScrim));
+        view.setBackgroundColor(color(view.getContext(), R.color.tabContentScrim));
     }
 
     public static void applySolidRoundedBackground(View view, int colorArgb) {
@@ -141,6 +189,11 @@ public final class UiStyles {
         public boolean isLeftSelected() {
             return state[0];
         }
+
+        /** Light/dark sonrası segment thumb/metin renklerini yeniler. */
+        public void reapplyTheme() {
+            refresh.run();
+        }
     }
 
     /**
@@ -156,7 +209,7 @@ public final class UiStyles {
             TextView rowTitle = new TextView(context);
             rowTitle.setText(title);
             rowTitle.setTextSize(16);
-            rowTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+            rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
             rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
             int hPad = dimenPx(context, R.dimen.spacing_medium);
             rowTitle.setPadding(hPad, dimenPx(context, R.dimen.spacing_medium), hPad,
@@ -168,7 +221,7 @@ public final class UiStyles {
 
         LinearLayout track = new LinearLayout(context);
         track.setOrientation(LinearLayout.HORIZONTAL);
-        track.setBackgroundResource(R.drawable.bg_segment_track);
+        setBackgroundRes(track, R.drawable.bg_segment_track);
         int tpad = dimenPx(context, R.dimen.spacing_tiny);
         track.setPadding(tpad, tpad, tpad, tpad);
 
@@ -185,7 +238,7 @@ public final class UiStyles {
 
         TextView help = new TextView(context);
         help.setTextSize(13);
-        help.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        help.setTextColor(UiStyles.color(context, R.color.textHint));
         int hPad = dimenPx(context, R.dimen.spacing_medium);
         help.setPadding(hPad, dimenPx(context, R.dimen.spacing_small), hPad,
                 dimenPx(context, R.dimen.spacing_medium));
@@ -194,19 +247,19 @@ public final class UiStyles {
         Runnable refresh = () -> {
             boolean on = state[0];
             if (on) {
-                left.setBackgroundResource(R.drawable.bg_segment_thumb);
-                left.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                setBackgroundRes(left, R.drawable.bg_segment_thumb);
+                left.setTextColor(color(context, R.color.textPrimary));
                 left.setTypeface(null, android.graphics.Typeface.BOLD);
                 right.setBackgroundColor(Color.TRANSPARENT);
-                right.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+                right.setTextColor(color(context, R.color.textSecondary));
                 right.setTypeface(null, android.graphics.Typeface.NORMAL);
                 help.setText(leftHelp);
             } else {
-                right.setBackgroundResource(R.drawable.bg_segment_thumb);
-                right.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                setBackgroundRes(right, R.drawable.bg_segment_thumb);
+                right.setTextColor(color(context, R.color.textPrimary));
                 right.setTypeface(null, android.graphics.Typeface.BOLD);
                 left.setBackgroundColor(Color.TRANSPARENT);
-                left.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+                left.setTextColor(color(context, R.color.textSecondary));
                 left.setTypeface(null, android.graphics.Typeface.NORMAL);
                 help.setText(rightHelp);
             }
@@ -300,7 +353,7 @@ public final class UiStyles {
             TextView rowTitle = new TextView(context);
             rowTitle.setText(title);
             rowTitle.setTextSize(16);
-            rowTitle.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+            rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
             rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
             int hPad = dimenPx(context, R.dimen.spacing_medium);
             rowTitle.setPadding(hPad, dimenPx(context, R.dimen.spacing_medium), hPad,
@@ -312,7 +365,7 @@ public final class UiStyles {
 
         LinearLayout track = new LinearLayout(context);
         track.setOrientation(LinearLayout.HORIZONTAL);
-        track.setBackgroundResource(R.drawable.bg_segment_track);
+        setBackgroundRes(track, R.drawable.bg_segment_track);
         int tpad = dimenPx(context, R.dimen.spacing_tiny);
         track.setPadding(tpad, tpad, tpad, tpad);
 
@@ -329,7 +382,7 @@ public final class UiStyles {
 
         TextView help = new TextView(context);
         help.setTextSize(13);
-        help.setTextColor(ContextCompat.getColor(context, R.color.textHint));
+        help.setTextColor(UiStyles.color(context, R.color.textHint));
         int hPad = dimenPx(context, R.dimen.spacing_medium);
         help.setPadding(hPad, dimenPx(context, R.dimen.spacing_small), hPad,
                 dimenPx(context, R.dimen.spacing_medium));
@@ -348,12 +401,12 @@ public final class UiStyles {
             for (int i = 0; i < 3; i++) {
                 TextView tv = segs[i];
                 if (i == idx) {
-                    tv.setBackgroundResource(R.drawable.bg_segment_thumb);
-                    tv.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+                    setBackgroundRes(tv, R.drawable.bg_segment_thumb);
+                    tv.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     tv.setTypeface(null, android.graphics.Typeface.BOLD);
                 } else {
                     tv.setBackgroundColor(Color.TRANSPARENT);
-                    tv.setTextColor(ContextCompat.getColor(context, R.color.textSecondary));
+                    tv.setTextColor(UiStyles.color(context, R.color.textSecondary));
                     tv.setTypeface(null, android.graphics.Typeface.NORMAL);
                 }
             }

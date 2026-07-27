@@ -27,6 +27,7 @@ import androidx.core.graphics.drawable.DrawableCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.service.MapControlService;
+import com.mapcontrol.ui.theme.UiStyles;
 
 /**
  * Yüzen yansıtma kontrol çubuğu: Değiştir / Yansıt / Durdur.
@@ -218,8 +219,8 @@ public class FloatingProjectionControlsManager {
             return;
         }
         LinearLayout root = (LinearLayout) barRoot;
-        int textC = ContextCompat.getColor(context, R.color.textPrimary);
-        int cardC = ContextCompat.getColor(context, R.color.surfaceCard);
+        int textC = UiStyles.color(context, R.color.textPrimary);
+        int cardC = UiStyles.color(context, R.color.surfaceCard);
         root.setBackgroundColor(Color.TRANSPARENT);
         root.setAlpha(1f);
         for (int i = 0; i < root.getChildCount(); i++) {
@@ -252,153 +253,11 @@ public class FloatingProjectionControlsManager {
         isShowing = false;
     }
 
+    /**
+     * Yüzen yansıtma düğmeleri artık {@link FloatingBackButtonManager} yan menüsündedir; ayrı pencere yok.
+     */
     public synchronized void show() {
-        log("[INFO] Yüzen yansıtma kontrolleri show()");
-        cleanupExistingView();
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(context)) {
-                log("[WARN] Yüzen yansıtma: overlay izni yok");
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    try {
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                        intent.setData(android.net.Uri.parse("package:" + context.getPackageName()));
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(intent);
-                        Toast.makeText(context, "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın", Toast.LENGTH_LONG).show();
-                    } catch (Exception e) {
-                        Toast.makeText(context, "İzin ayarlarına gidilemedi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
-                return;
-            }
-        }
-
-        float density = context.getResources().getDisplayMetrics().density;
-        int padH = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_CARD_PAD_H_DP, density);
-        int padV = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_CARD_PAD_V_DP, density);
-
-        LinearLayout root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        root.setPadding(padH, padV, padH, padV);
-        root.setBackgroundColor(Color.TRANSPARENT);
-        root.setAlpha(1f);
-
-        int cellSide = FloatingOverlayBarSpec.uniformCellSidePx(context);
-        Button btnChange = makeBarButton("Değiştir", R.drawable.ic_mdi_package_variant);
-        Button btnOpen = makeBarButton("Yansıt", R.drawable.ic_mdi_map);
-        Button btnClose = makeBarButton("Durdur", R.drawable.ic_mdi_close);
-
-        LinearLayout.LayoutParams cell = new LinearLayout.LayoutParams(cellSide, cellSide);
-        int gap = FloatingOverlayBarSpec.dpToPx(FloatingOverlayBarSpec.BAR_COLUMN_GAP_DP, density);
-        cell.setMargins(gap / 2, 0, gap / 2, 0);
-        root.addView(btnChange, cell);
-        root.addView(btnOpen, cell);
-        root.addView(btnClose, cell);
-
-        btnChange.setClickable(false);
-        btnOpen.setClickable(false);
-        btnClose.setClickable(false);
-        btnChange.setFocusable(false);
-        btnOpen.setFocusable(false);
-        btnClose.setFocusable(false);
-
-        barRoot = root;
-
-        android.util.DisplayMetrics displayMetrics = new android.util.DisplayMetrics();
-        windowManager.getDefaultDisplay().getMetrics(displayMetrics);
-
-        int widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-        int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-        root.measure(widthSpec, heightSpec);
-        barWidthPx = root.getMeasuredWidth();
-        barHeightPx = root.getMeasuredHeight();
-
-        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE;
-
-        params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT);
-        params.gravity = Gravity.TOP | Gravity.START;
-
-        root.setOnTouchListener((v, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    initialX = params.x;
-                    initialY = params.y;
-                    initialTouchX = event.getRawX();
-                    initialTouchY = event.getRawY();
-                    dragging = false;
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    int deltaX = (int) (event.getRawX() - initialTouchX);
-                    int deltaY = (int) (event.getRawY() - initialTouchY);
-                    if (!dragging && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
-                        dragging = true;
-                    }
-                    if (dragging) {
-                        android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
-                        windowManager.getDefaultDisplay().getMetrics(dm);
-                        int newX = initialX + deltaX;
-                        int newY = initialY + deltaY;
-                        int[] c = clampBarPosition(newX, newY, dm.widthPixels, dm.heightPixels);
-                        params.x = c[0];
-                        params.y = c[1];
-                        try {
-                            windowManager.updateViewLayout(barRoot, params);
-                        } catch (Exception e) {
-                            log("[ERROR] Yüzen yansıtma updateViewLayout: " + e.getMessage());
-                        }
-                        long now = SystemClock.uptimeMillis();
-                        if (now - lastDragLogUptimeMs >= DRAG_LOG_MIN_INTERVAL_MS) {
-                            lastDragLogUptimeMs = now;
-                            log(String.format(java.util.Locale.US,
-                                    "[DEBUG] Yüzen yansıtma sürükle (x=%d, y=%d)", params.x, params.y));
-                        }
-                    }
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    float moveDx = Math.abs(event.getRawX() - initialTouchX);
-                    float moveDy = Math.abs(event.getRawY() - initialTouchY);
-                    if (!dragging && moveDx < 12 && moveDy < 12) {
-                        if (rawPointInsideView(event.getRawX(), event.getRawY(), btnChange)) {
-                            openTargetAppPickerFromOverlay();
-                        } else if (rawPointInsideView(event.getRawX(), event.getRawY(), btnOpen)) {
-                            startProjectionServiceAction(MapControlService.ACTION_BENCH_OPEN_CLUSTER);
-                        } else if (rawPointInsideView(event.getRawX(), event.getRawY(), btnClose)) {
-                            startProjectionServiceAction(
-                                    MapControlService.ACTION_BENCH_CLOSE_CLUSTER,
-                                    false);
-                        }
-                    }
-                    saveBarPosition();
-                    return true;
-                default:
-                    return false;
-            }
-        });
-
-        applyInitialPosition(displayMetrics.widthPixels, displayMetrics.heightPixels, density);
-
-        try {
-            if (windowManager != null && barRoot != null && params != null) {
-                windowManager.addView(barRoot, params);
-                isShowing = true;
-                registerThemeConfigCallback();
-                log("[SUCCESS] Yüzen yansıtma kontrolleri gösterildi");
-            }
-        } catch (Exception e) {
-            log("[ERROR] Yüzen yansıtma gösterilemedi: " + e.getMessage());
-            barRoot = null;
-            isShowing = false;
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                    Toast.makeText(context, "Yüzen kontrol gösterilemedi: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-        }
+        log("[INFO] Yüzen yansıtma (ayrı çubuk devre dışı — FloatingBackButtonManager kullanın)");
     }
 
     private Button makeBarButton(String label, int iconRes) {
@@ -408,7 +267,7 @@ public class FloatingProjectionControlsManager {
         b.setIncludeFontPadding(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
         b.setTypeface(null, Typeface.BOLD);
-        b.setTextColor(ContextCompat.getColor(context, R.color.textPrimary));
+        b.setTextColor(UiStyles.color(context, R.color.textPrimary));
         b.setMaxLines(2);
         b.setGravity(Gravity.CENTER);
         b.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));
@@ -417,13 +276,13 @@ public class FloatingProjectionControlsManager {
             dr = DrawableCompat.wrap(dr).mutate();
             int iconPx = FloatingOverlayBarSpec.rowIconSizePx(context);
             dr.setBounds(0, 0, iconPx, iconPx);
-            DrawableCompat.setTint(dr, ContextCompat.getColor(context, R.color.textPrimary));
+            DrawableCompat.setTint(dr, UiStyles.color(context, R.color.textPrimary));
             b.setCompoundDrawables(null, dr, null, null);
         }
         int p = FloatingOverlayBarSpec.rowInnerPadPx(context);
         b.setPadding(p, p, p, p);
         FloatingOverlayBarSpec.applyLikeFloatingBackButton(
-                b, ContextCompat.getColor(context, R.color.surfaceCard));
+                b, UiStyles.color(context, R.color.surfaceCard));
         return b;
     }
 

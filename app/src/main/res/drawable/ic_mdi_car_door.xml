@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Car door open (MDI-style) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,14H22V16H19V14M19,7H22V9H19V7M11,7H14V9H11V7M11,14H14V16H11V14M5,7H8V9H5V7M5,14H8V16H5V14M16.5,3C15.67,3 15,3.67 15,4.5V19.5C15,20.33 15.67,21 16.5,21H19V19H17V5H19V3H16.5M8.5,3C7.67,3 7,3.67 7,4.5V5H5V3H8.5M8.5,21C7.67,21 7,20.33 7,19.5V19H5V21H8.5M3,7H4V17H3V7M20,7H21V17H20V7Z" />
+</vector>
