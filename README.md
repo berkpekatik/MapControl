@@ -1,20 +1,20 @@
 # Map Control
 
-> ⚠️ **Bilinen sorunlar / Known issues**
->
-> | | |
-> |---|---|
-> | **🇹🇷 Başlangıçta uygulama açılmıyor** | Araç açılışında servis bazen MapControl’ü otomatik başlatmayabilir. **Geçici çözüm:** Uygulamayı elle açın veya IVI’yi yeniden başlatın. |
-> | **🇬🇧 App not launched at startup** | On boot, the background service may fail to open MapControl automatically. **Workaround:** launch the app manually or reboot the IVI. |
-> | **🇹🇷 Mikrofon kesintisi** | MapControl yüklüyken sesli asistan / mikrofon kesintisi tespit edildi. **Geçici çözüm:** IVI’yi yeniden başlatın (reset). |
-> | **🇬🇧 Microphone dropouts** | Microphone / voice assistant interruptions observed while MapControl is installed. **Workaround:** reboot the IVI (reset). |
-> | **🇹🇷 Ses takılması** | Yüksek RAM veya GPU bellek (vRAM) kullanımında müzik / sistem sesinde takılma görülebilir. Launcher modunu kapatmak veya 3D modeli devre dışı bırakmak yardımcı olur. |
-> | **🇬🇧 Audio stuttering** | High RAM or GPU memory (vRAM) usage may cause music / system audio stutter. Disabling Launcher mode or the 3D model helps. |
-> | **🇹🇷 Yandex → Cluster** | Yandex navigasyon panelleri tam entegre değil; bazı sürümlerde yol bilgisi (manevra, ETA) okunamayabilir veya cluster kartları eksik kalabilir. |
-> | **🇬🇧 Yandex → Cluster** | Yandex navigation panels are not fully integrated; route info (maneuvers, ETA) may fail to read or cluster cards may be incomplete on some builds. |
->
-> **Sorun mu buldunuz?** Kod hatası, kullanım hatası veya yukarıdakiler dışında bir şey olsun — [GitHub Issues](https://github.com/berkpekatik/MapControl/issues) üzerinden bildirmekten çekinmeyin.  
-> **Found a problem?** Whether it’s a bug, usage question, or something not listed above — please don’t hesitate to open a [GitHub Issue](https://github.com/berkpekatik/MapControl/issues).
+ ⚠️ **Bilinen sorunlar / Known issues**
+
+ | | |
+ |---|---|
+ | **🇹🇷 Başlangıçta uygulama açılmıyor** | Araç açılışında servis bazen MapControl’ü otomatik başlatmayabilir. **Geçici çözüm:** Uygulamayı elle açın veya IVI’yi yeniden başlatın. |
+ | **🇬🇧 App not launched at startup** | On boot, the background service may fail to open MapControl automatically. **Workaround:** launch the app manually or reboot the IVI. |
+ | **🇹🇷 Mikrofon kesintisi** | MapControl yüklüyken sesli asistan / mikrofon kesintisi tespit edildi. **Geçici çözüm:** IVI’yi yeniden başlatın (reset). |
+ | **🇬🇧 Microphone dropouts** | Microphone / voice assistant interruptions observed while MapControl is installed. **Workaround:** reboot the IVI (reset). |
+ | **🇹🇷 Ses takılması** | Yüksek RAM veya GPU bellek (vRAM) kullanımında müzik / sistem sesinde takılma görülebilir. Launcher modunu kapatmak veya 3D modeli devre dışı bırakmak yardımcı olur. |
+ | **🇬🇧 Audio stuttering** | High RAM or GPU memory (vRAM) usage may cause music / system audio stutter. Disabling Launcher mode or the 3D model helps. |
+ | **🇹🇷 Yandex → Cluster** | Yandex navigasyon panelleri tam entegre değil; bazı sürümlerde yol bilgisi (manevra, ETA) okunamayabilir veya cluster kartları eksik kalabilir. |
+ | **🇬🇧 Yandex → Cluster** | Yandex navigation panels are not fully integrated; route info (maneuvers, ETA) may fail to read or cluster cards may be incomplete on some builds. |
+
+ **Sorun mu buldunuz?** Kod hatası, kullanım hatası veya yukarıdakiler dışında bir şey olsun — [GitHub Issues](https://github.com/berkpekatik/MapControl/issues) üzerinden bildirmekten çekinmeyin.  
+**Found a problem?** Whether it’s a bug, usage question, or something not listed above — please don’t hesitate to open a [GitHub Issue](https://github.com/berkpekatik/MapControl/issues).
 
 > ⚠️ **v1.1.4 — Performans raporu (DesaySV, Android 11)**  
 > Launcher modu (3D araç modeli) en büyük kaynak tüketicisidir. Optimizasyon sonrası ölçümler (cihaz `29115210`):
