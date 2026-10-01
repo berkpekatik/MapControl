@@ -8,6 +8,7 @@ import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
@@ -56,7 +57,10 @@ public final class YandexClusterNavOverlay {
     private LinearLayout etaTimeRow;
     private LinearLayout maneuverCard;
     private LinearLayout etaCard;
+    private WindowManager.LayoutParams overlayLayoutParams;
     private int appliedLayoutVersion = -1;
+    private long lastZOrderRaiseUptimeMs = 0L;
+    private static final long Z_ORDER_RAISE_MIN_INTERVAL_MS = 250L;
 
     @Nullable
     private YandexNavSnapshot lastApplied;
@@ -139,6 +143,32 @@ public final class YandexClusterNavOverlay {
             return;
         }
         lastApplied = snapshot;
+        raiseToTopOnMain(false);
+    }
+
+    /**
+     * Cluster'da uygulama / pencere değişince Yandex veya launcher üst katmana geçebilir;
+     * overlay aynı {@link WindowManager.LayoutParams#TYPE_APPLICATION_OVERLAY} tipinde
+     * kalırsa eski ekleme sırasında altta kalır. remove + add ile en üste alınır.
+     */
+    public void raiseToTopIfShowing() {
+        mainHandler.post(() -> raiseToTopOnMain(true));
+    }
+
+    private void raiseToTopOnMain(boolean throttle) {
+        if (overlayRoot == null || windowManager == null || overlayLayoutParams == null) {
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        if (throttle && now - lastZOrderRaiseUptimeMs < Z_ORDER_RAISE_MIN_INTERVAL_MS) {
+            return;
+        }
+        lastZOrderRaiseUptimeMs = now;
+        try {
+            windowManager.removeView(overlayRoot);
+            windowManager.addView(overlayRoot, overlayLayoutParams);
+        } catch (Exception ignored) {
+        }
     }
 
     private boolean bindManeuverCard(YandexNavSnapshot snapshot) {
@@ -216,6 +246,8 @@ public final class YandexClusterNavOverlay {
         overlayRoot = null;
         windowManager = null;
         displayContext = null;
+        overlayLayoutParams = null;
+        lastZOrderRaiseUptimeMs = 0L;
         clearViewRefs();
     }
 
@@ -278,7 +310,7 @@ public final class YandexClusterNavOverlay {
 
             overlayRoot = buildOverlay(displayContext);
             appliedLayoutVersion = LAYOUT_VERSION;
-            WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+            overlayLayoutParams = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -287,7 +319,8 @@ public final class YandexClusterNavOverlay {
                             | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                             | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                     PixelFormat.TRANSLUCENT);
-            windowManager.addView(overlayRoot, lp);
+            windowManager.addView(overlayRoot, overlayLayoutParams);
+            lastZOrderRaiseUptimeMs = SystemClock.uptimeMillis();
         } catch (Exception e) {
             hideInternal();
         }

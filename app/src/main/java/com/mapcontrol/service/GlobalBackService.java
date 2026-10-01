@@ -77,6 +77,9 @@ public class GlobalBackService extends AccessibilityService {
         if (!YandexClusterNavOverlay.isEnabled(this)) {
             return;
         }
+        if (event != null && isYandexOverlayZOrderEvent(event)) {
+            YandexClusterNavOverlay.getInstance(this).raiseToTopIfShowing();
+        }
         if (event != null && !shouldHandleYandexEvent(event)) {
             return;
         }
@@ -143,6 +146,12 @@ public class GlobalBackService extends AccessibilityService {
                 }
             }
         }
+    }
+
+    private static boolean isYandexOverlayZOrderEvent(AccessibilityEvent event) {
+        int type = event.getEventType();
+        return type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
     }
 
     private boolean shouldHandleYandexEvent(AccessibilityEvent event) {
