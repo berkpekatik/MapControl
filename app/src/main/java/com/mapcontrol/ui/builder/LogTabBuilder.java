@@ -28,7 +28,7 @@ public class LogTabBuilder {
     public interface LogCallback {
         void onClearLogs();
         void log(String message);
-        /** Kullanıcı metnini TTS (önce iFly, sonra sistem) ile okut */
+        /** Kullanıcı metnini sistem TTS ile okut */
         void onReadAloud(String text);
         /** Hoşgeldin cümlesini tekrar okut */
         void onWelcomeTts();
@@ -149,7 +149,7 @@ public class LogTabBuilder {
         ttsCardParams.setMargins(0, 0, 0, 10);
 
         TextView ttsSectionTitle = new TextView(context);
-        ttsSectionTitle.setText("Metin (klavye) — Sesle oku: önce iFly TTS, yoksa sistem TTS");
+        ttsSectionTitle.setText("Metin (klavye) — Sesle oku (sistem TTS)");
         ttsSectionTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         ttsSectionTitle.setTextColor(UiStyles.color(context, R.color.textSecondary));
         ttsCard.addView(ttsSectionTitle, new LinearLayout.LayoutParams(

@@ -6,6 +6,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
+import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -25,10 +27,18 @@ public final class ProjectionTargetApps {
     public static final class Row {
         public final String label;
         public final String packageName;
+        /** Launcher activity sınıf adı; uygulama ikonu boşken activity ikonunu yüklemek için. */
+        @Nullable
+        public final String activityName;
 
         public Row(String label, String packageName) {
+            this(label, packageName, null);
+        }
+
+        public Row(String label, String packageName, @Nullable String activityName) {
             this.label = label != null ? label : "";
             this.packageName = packageName != null ? packageName : "";
+            this.activityName = activityName != null && !activityName.isEmpty() ? activityName : null;
         }
     }
 
@@ -115,11 +125,16 @@ public final class ProjectionTargetApps {
                 if (systemAppsOnly != isSystem) {
                     continue;
                 }
-                String appName = pm.getApplicationLabel(appInfo).toString();
+                CharSequence labelCs = info.loadLabel(pm);
+                String appName = labelCs != null ? labelCs.toString() : null;
+                if (appName == null || appName.trim().isEmpty()) {
+                    appName = pm.getApplicationLabel(appInfo).toString();
+                }
                 if (appName == null || appName.trim().isEmpty()) {
                     appName = pkg;
                 }
-                out.add(new Row(appName.trim(), pkg));
+                String activityName = info.activityInfo != null ? info.activityInfo.name : null;
+                out.add(new Row(appName.trim(), pkg, activityName));
             } catch (Exception ignored) {
             }
         }

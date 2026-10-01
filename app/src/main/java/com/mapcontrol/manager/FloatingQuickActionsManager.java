@@ -1,7 +1,6 @@
 package com.mapcontrol.manager;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
@@ -26,12 +25,11 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
 import com.mapcontrol.R;
-import com.mapcontrol.service.MapControlService;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.AppLaunchHelper;
 
 /**
- * Yüzen hızlı işlemler: 1. ekran açık uygulamalar, 2. ekran açık uygulamalar, Wi‑Fi tazele.
+ * Yüzen hızlı işlemler: 1. ve 2. ekran açık uygulamalar (hub artık {@link FloatingBackButtonManager} içinde).
  * Daraltılabilir: tek anchor ile açılır / kapanır. Diğer yüzen kontrollerle aynı prefs/izin modeli.
  */
 public class FloatingQuickActionsManager {
@@ -57,7 +55,6 @@ public class FloatingQuickActionsManager {
     private Button btnToggle;
     private Button btnDisplay0;
     private Button btnDisplayCluster;
-    private Button btnWifi;
     private float density;
 
     private int initialX;
@@ -251,22 +248,6 @@ public class FloatingQuickActionsManager {
         }
     }
 
-    private void startUserWifiStabilize() {
-        try {
-            Intent i = new Intent(context, MapControlService.class)
-                    .setAction(MapControlService.ACTION_USER_WIFI_STABILIZE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(i);
-            } else {
-                context.startService(i);
-            }
-            log("[INFO] Yüzen hızlı işlem: Wi‑Fi stabilize");
-        } catch (Exception e) {
-            log("[ERROR] Wi‑Fi servis: " + e.getMessage());
-            Toast.makeText(context, "Servis başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
     private void unregisterThemeConfigCallback() {
         if (mThemeConfigCallback != null) {
             try {
@@ -312,7 +293,6 @@ public class FloatingQuickActionsManager {
                 R.string.floating_qa_label_display1, R.drawable.ic_mdi_cellphone);
         applyActionButtonThemed(btnDisplayCluster,
                 R.string.floating_qa_label_display2, R.drawable.ic_mdi_inbox_outline);
-        applyActionButtonThemed(btnWifi, R.string.floating_qa_label_wifi, R.drawable.ic_mdi_refresh);
     }
 
     private void applyActionButtonThemed(Button b, int labelRes, int iconRes) {
@@ -355,7 +335,6 @@ public class FloatingQuickActionsManager {
         btnToggle = null;
         btnDisplay0 = null;
         btnDisplayCluster = null;
-        btnWifi = null;
         isShowing = false;
     }
 

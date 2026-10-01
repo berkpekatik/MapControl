@@ -2,9 +2,11 @@
 set -e
 
 # Uygulamayı kaldır
+echo "📱 Uygulama kaldırılıyor..."
 echo "pm uninstall com.mapcontrol" | adb shell
 
 # /data/local/tmp içindeki yüklenen APK'ları temizle
+# (wildcard'ı cihaz tarafında çalıştırmak için tek tırnak kullandık)
 echo "🧹 Geçici dosyalar temizleniyor..."
 echo 'rm -f /data/local/tmp/mapcontrol.apk /data/local/tmp/app-debug.apk /data/local/tmp/*.apk' | adb shell
 

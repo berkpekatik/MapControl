@@ -29,7 +29,6 @@ import com.mapcontrol.nav.YandexClusterNavCoordinator;
 import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.service.BootReceiver;
 import com.mapcontrol.service.GlobalBackService;
-import com.mapcontrol.service.MapControlService;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.vehicle.material.MaterialVehiclePreferences;
 import com.mapcontrol.vehicle.material.MaterialVehicleResources;
@@ -87,7 +86,6 @@ public class SettingsTabBuilder {
 
         createAppInfoSection(settingsTabContent);
         createBootAutostartSection(settingsTabContent);
-        createWifiStabilizeOnScreenOnSection(settingsTabContent);
         createFloatingBackButtonSection(settingsTabContent);
         createYandexClusterNavSection(settingsTabContent);
         createLauncherModeSection(settingsTabContent);
@@ -213,43 +211,6 @@ public class SettingsTabBuilder {
                 on -> {
                     prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, on).apply();
                     callback.log("Açılışta ekran: " + (on ? "Açık" : "Kapalı"));
-                });
-    }
-
-    private void createWifiStabilizeOnScreenOnSection(LinearLayout parentContainer) {
-        int hPad = UiStyles.dimenPx(context, R.dimen.spacing_medium);
-
-        TextView rowTitle = new TextView(context);
-        rowTitle.setText(R.string.wifi_on_screen_on_toggle_title);
-        rowTitle.setTextSize(16);
-        rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        rowTitle.setPadding(hPad, UiStyles.dimenPx(context, R.dimen.spacing_large),
-                hPad, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
-        parentContainer.addView(rowTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView subtitle = new TextView(context);
-        subtitle.setText(R.string.wifi_on_screen_on_toggle_subtitle);
-        subtitle.setTextSize(13);
-        subtitle.setTextColor(UiStyles.color(context, R.color.textHint));
-        subtitle.setLineSpacing(3, 1.05f);
-        subtitle.setPadding(hPad, 0, hPad, UiStyles.dimenPx(context, R.dimen.spacing_small));
-        parentContainer.addView(subtitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        boolean on = prefs.getBoolean(MapControlService.KEY_WIFI_STABILIZE_ON_SCREEN_ON, false);
-        UiStyles.addBinarySegmentedControl(context, parentContainer,
-                null,
-                "Evet", "Hayır",
-                context.getString(R.string.wifi_on_screen_on_toggle_yes_help),
-                context.getString(R.string.wifi_on_screen_on_toggle_no_help),
-                on,
-                enabled -> {
-                    prefs.edit().putBoolean(MapControlService.KEY_WIFI_STABILIZE_ON_SCREEN_ON, enabled).apply();
-                    callback.log("Ekran açılınca Wi‑Fi tazele: " + (enabled ? "Evet" : "Hayır"));
                 });
     }
 

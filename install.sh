@@ -52,7 +52,6 @@ grant_permission "appops set com.mapcontrol SYSTEM_ALERT_WINDOW allow" "SYSTEM_A
 grant_permission "appops set com.mapcontrol GET_USAGE_STATS allow" "GET_USAGE_STATS"
 grant_permission "appops set com.mapcontrol REQUEST_INSTALL_PACKAGES allow" "REQUEST_INSTALL_PACKAGES"
 grant_permission "appops set com.mapcontrol MANAGE_EXTERNAL_STORAGE allow" "MANAGE_EXTERNAL_STORAGE"
-grant_permission "appops set com.mapcontrol ACTIVATE_VPN allow" "ACTIVATE_VPN"
 grant_permission "appops set com.mapcontrol WRITE_SETTINGS allow" "WRITE_SETTINGS (AppOps)"
 
 # Sistem geneli overlay (web kurulumu ile aynı)

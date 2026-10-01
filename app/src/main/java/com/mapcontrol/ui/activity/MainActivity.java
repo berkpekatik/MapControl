@@ -36,6 +36,7 @@ import com.desaysv.ivi.vdb.event.id.carlan.VDEventCarLan;
 import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayArea;
 import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 import android.os.Build;
+import android.speech.tts.TextToSpeech;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.File;
@@ -76,7 +77,6 @@ import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.ui.builder.VehicleInfoTabBuilder;
 import com.mapcontrol.ui.builder.WelcomeSoundTabBuilder;
 import com.mapcontrol.ui.builder.WifiTabBuilder;
-import com.mapcontrol.util.IflyOemTtsHelper;
 import com.mapcontrol.util.DialogHelper;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
@@ -140,6 +140,8 @@ public class MainActivity extends AppCompatActivity {
     private static volatile MainActivity sBenchHost;
     /** Oturumda LOG sekmesine ilk geçişte hoşgeldin TTS bir kez */
     private boolean logWelcomeTtsDone;
+    private TextToSpeech systemTts;
+    private String pendingTtsText;
     private LinearLayout topBarButtonsContainer; // Üst bar'daki buton container'ı (dinamik)
     private TextView topBarTitle; // Üst bar başlığı (dinamik)
     private ScrollView profileScrollView; // Profil tab ScrollView
@@ -1214,9 +1216,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * iFly OEM xTTS ({@link IflyOemTtsHelper}); yalnız bu yol. Başarısızlık loglanır.
-     */
     private void speakTtsText(String text) {
         if (text == null) {
             return;
@@ -1226,7 +1225,33 @@ public class MainActivity extends AppCompatActivity {
             log("TTS: metin boş");
             return;
         }
-        IflyOemTtsHelper.trySpeak(this, t, this::log);
+        if (systemTts == null) {
+            pendingTtsText = t;
+            systemTts = new TextToSpeech(getApplicationContext(), status -> {
+                if (status != TextToSpeech.SUCCESS) {
+                    log("TTS: sistem ses sentezi başlatılamadı");
+                    pendingTtsText = null;
+                    return;
+                }
+                systemTts.setLanguage(new Locale("tr", "TR"));
+                if (pendingTtsText != null) {
+                    String queued = pendingTtsText;
+                    pendingTtsText = null;
+                    speakTtsTextNow(queued);
+                }
+            });
+            return;
+        }
+        speakTtsTextNow(t);
+    }
+
+    private void speakTtsTextNow(String text) {
+        int result = systemTts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mapcontrol-tts");
+        if (result == TextToSpeech.SUCCESS) {
+            log("TTS: sistem ses sentezi ile okunuyor");
+        } else {
+            log("TTS: konuşma başlatılamadı (kod=" + result + ")");
+        }
     }
 
     private String now() {
@@ -1554,6 +1579,12 @@ public class MainActivity extends AppCompatActivity {
         if (vehicleMetricsRepository != null) {
             vehicleMetricsRepository.release();
         }
+        if (systemTts != null) {
+            systemTts.stop();
+            systemTts.shutdown();
+            systemTts = null;
+        }
+        pendingTtsText = null;
         VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
         // WebServerManager'ı durdur

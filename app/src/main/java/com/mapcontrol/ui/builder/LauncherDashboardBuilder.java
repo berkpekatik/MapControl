@@ -31,6 +31,7 @@ import com.mapcontrol.media.LauncherMediaController;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.LauncherLitePanelView;
 import com.mapcontrol.ui.widget.VehicleGlbView;
+import com.mapcontrol.util.AppIconHelper;
 import com.mapcontrol.util.LauncherDisplayModeStore;
 import com.mapcontrol.util.LauncherQuickAppsStore;
 import com.mapcontrol.util.ProjectionTargetApps;
@@ -787,10 +788,9 @@ public final class LauncherDashboardBuilder implements
             return;
         }
 
-        PackageManager pm = context.getPackageManager();
         int gap = Math.max(1, UiStyles.dimenPx(context, R.dimen.spacing_tiny) / 2);
         for (ProjectionTargetApps.Row row : apps) {
-            View tile = createInstalledAppTile(pm, row);
+            View tile = createInstalledAppTile(row);
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
             lp.width = 0;
             lp.height = GridLayout.LayoutParams.WRAP_CONTENT;
@@ -800,7 +800,7 @@ public final class LauncherDashboardBuilder implements
         }
     }
 
-    private View createInstalledAppTile(PackageManager pm, ProjectionTargetApps.Row row) {
+    private View createInstalledAppTile(ProjectionTargetApps.Row row) {
         LinearLayout tile = new LinearLayout(context);
         tile.setOrientation(LinearLayout.VERTICAL);
         tile.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -819,11 +819,7 @@ public final class LauncherDashboardBuilder implements
 
         ImageView icon = new AppCompatImageView(context);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        try {
-            icon.setImageDrawable(pm.getApplicationIcon(row.packageName));
-        } catch (Exception e) {
-            icon.setImageResource(android.R.drawable.sym_def_app_icon);
-        }
+        AppIconHelper.apply(icon, row.packageName, row.activityName);
         FrameLayout.LayoutParams iconLp = new FrameLayout.LayoutParams(iconSize, iconSize);
         iconLp.gravity = Gravity.CENTER;
         slot.addView(icon, iconLp);
@@ -1058,12 +1054,7 @@ public final class LauncherDashboardBuilder implements
                             context.getString(R.string.launcher_dashboard_quick_add));
                 }
             } else {
-                icon.clearColorFilter();
-                try {
-                    icon.setImageDrawable(pm.getApplicationIcon(pkg));
-                } catch (Exception e) {
-                    icon.setImageResource(android.R.drawable.sym_def_app_icon);
-                }
+                AppIconHelper.apply(icon, pkg);
                 if (quickAppSlots[i] != null) {
                     CharSequence label = pkg;
                     try {

@@ -4,14 +4,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -39,10 +36,8 @@ import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
-import com.mapcontrol.util.NetworkWifiHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
-import com.mapcontrol.util.WebServerWifiToastHelper;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
@@ -62,34 +57,12 @@ public class MapControlService extends Service {
      * Varsayılan {@code true} (yansıtma sekmesi Durdur / bench / güç modu).
      */
     public static final String EXTRA_CLUSTER_CLOSE_SEND_BACKGROUND = "com.mapcontrol.extra.CLUSTER_CLOSE_SEND_BACKGROUND";
-    /** Kullanıcı: yüzen Wi‑Fi tazele; boot gecikmesi olmadan aynı stabilize zinciri. */
-    public static final String ACTION_USER_WIFI_STABILIZE = "com.mapcontrol.action.USER_WIFI_STABILIZE";
-    /**
-     * Ayarlar: {@code MapControlPrefs} — ekran açılınca (SCREEN_ON) boot’taki gibi Wi‑Fi stabilize zincirini çalıştır.
-     */
-    public static final String KEY_WIFI_STABILIZE_ON_SCREEN_ON = "wifiStabilizeOnScreenOn";
     private static final String ACTION_LOG = "com.mapcontrol.LOG_MESSAGE";
     private static final String EXTRA_LOG_MESSAGE = "log_message";
-    /** Açılış: servis ayaklandıktan sonra bu kadar bekle, sonra Wi-Fi stabilize zincirine gir. */
-    private static final long WIFI_STATUS_OVERLAY_DELAY_MS = 5000L;
-    /** Radyo kapandıktan sonra açmadan önce (ms). */
-    private static final long WIFI_STABILIZE_AFTER_OFF_MS = 5000L;
-    /** Açtıktan hemen sonra tarama + internet dinlemeye gecikme (sürücü için, ms). */
-    private static final long WIFI_STABILIZE_AFTER_ON_BEFORE_ACTION_MS = 400L;
-    /**
-     * Aç + taramadan sonra: sabit 5+5 bekleme yok; buna benzer aralıkla
-     * {@link NetworkWifiHelper#isWifiConnectedWithInternet} dene, süre dolarsa hata.
-     */
-    private static final long WIFI_INTERNET_PROBE_INTERVAL_MS = 450L;
-    private static final long WIFI_INTERNET_PROBE_MAX_MS = 30000L;
-    private int mWifiStabilizeToken = 0;
-    private Runnable mGlobalWifiStatusRunnable;
-    private Runnable mWifiInternetProbeRunnable;
     private ScheduledExecutorService scheduler;
     private Handler handler;
     /** Yansıtma paneli / yüzen kontroller / power modu ile aynı cluster VDBus ve taşıma mantığı ({@link ClusterDisplayManager}). */
     private ClusterDisplayManager clusterDisplayHelper;
-    private BroadcastReceiver mScreenOnWifiReceiver;
     private int lastPowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
     
@@ -112,60 +85,11 @@ public class MapControlService extends Service {
         createNotificationChannel();
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        requestWifiStabilizeChain(WIFI_STATUS_OVERLAY_DELAY_MS);
         scheduleClusterBootSplash();
 
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
-        registerScreenOnWifiReceiver();
         MapControlVDBusKeyBridge.acquire(this);
-    }
-
-    /**
-     * Ekran açılınca (uyku sonrası) — ayar açıksa açılıştakiyle aynı Wi‑Fi stabilize zinciri.
-     */
-    private void registerScreenOnWifiReceiver() {
-        if (mScreenOnWifiReceiver != null) {
-            return;
-        }
-        mScreenOnWifiReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (intent == null || !Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
-                    return;
-                }
-                SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-                if (!prefs.getBoolean(KEY_WIFI_STABILIZE_ON_SCREEN_ON, false)) {
-                    return;
-                }
-                log("[Wi-Fi] SCREEN_ON → stabilize zinciri (ayar: açık)");
-                if (handler != null) {
-                    handler.post(() -> requestWifiStabilizeChain(0));
-                }
-            }
-        };
-        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(mScreenOnWifiReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                registerReceiver(mScreenOnWifiReceiver, filter);
-            }
-        } catch (Exception e) {
-            log("SCREEN_ON Wi‑Fi alıcısı kaydı başarısız: " + e.getMessage());
-            mScreenOnWifiReceiver = null;
-        }
-    }
-
-    private void unregisterScreenOnWifiReceiver() {
-        if (mScreenOnWifiReceiver == null) {
-            return;
-        }
-        try {
-            unregisterReceiver(mScreenOnWifiReceiver);
-        } catch (Exception ignored) {
-        }
-        mScreenOnWifiReceiver = null;
     }
 
     /**
@@ -202,140 +126,6 @@ public class MapControlService extends Service {
         handler.postDelayed(r, 800L);
     }
 
-    /**
-     * Wi-Fi kapat-aç + tarama + internet sondası — boot gecikmesi veya kullanıcı hızlı (0) ile
-     * {@code delayBeforeStartMs} gecikmesinden sonra aynı zincir.
-     */
-    private void requestWifiStabilizeChain(long delayBeforeStartMs) {
-        if (handler == null) {
-            return;
-        }
-        if (mGlobalWifiStatusRunnable != null) {
-            handler.removeCallbacks(mGlobalWifiStatusRunnable);
-            mGlobalWifiStatusRunnable = null;
-        }
-        int runId = ++mWifiStabilizeToken;
-        // Önce hazırlık overlay, sonra aynı zincir (boot: 5 sn, kullanıcı: 0).
-        handler.post(() -> {
-            if (runId != mWifiStabilizeToken) {
-                return;
-            }
-            WebServerWifiToastHelper.showWifiStabilizePreparingOverlay(this);
-            mGlobalWifiStatusRunnable = () -> {
-                mGlobalWifiStatusRunnable = null;
-                if (runId != mWifiStabilizeToken) {
-                    return;
-                }
-                onWifiStabilizeWifiOff(runId);
-            };
-            long delay = Math.max(0L, delayBeforeStartMs);
-            if (delay > 0) {
-                handler.postDelayed(mGlobalWifiStatusRunnable, delay);
-            } else {
-                handler.post(mGlobalWifiStatusRunnable);
-            }
-        });
-    }
-
-    private void onWifiStabilizeWifiOff(int runId) {
-        if (runId != mWifiStabilizeToken) {
-            return;
-        }
-        try {
-            NetworkWifiHelper.setWifiEnabled(this, false);
-        } catch (Exception e) {
-            log("Wi-Fi stabilize (kapat): " + e.getMessage());
-        }
-        if (runId != mWifiStabilizeToken) {
-            return;
-        }
-        handler.postDelayed(() -> onWifiStabilizeAfterOffWait(runId), WIFI_STABILIZE_AFTER_OFF_MS);
-    }
-
-    private void onWifiStabilizeAfterOffWait(int runId) {
-        if (runId != mWifiStabilizeToken) {
-            return;
-        }
-        try {
-            NetworkWifiHelper.setWifiEnabled(this, true);
-        } catch (Exception e) {
-            log("Wi-Fi stabilize (aç): " + e.getMessage());
-        }
-        if (runId != mWifiStabilizeToken || handler == null) {
-            return;
-        }
-        handler.postDelayed(
-                () -> onWifiStabilizeScanAndProbeForInternet(runId),
-                WIFI_STABILIZE_AFTER_ON_BEFORE_ACTION_MS);
-    }
-
-    private void onWifiStabilizeScanAndProbeForInternet(int runId) {
-        if (runId != mWifiStabilizeToken) {
-            return;
-        }
-        try {
-            NetworkWifiHelper.startWifiScan(this);
-        } catch (Exception e) {
-            log("Wi-Fi stabilize (tarama): " + e.getMessage());
-        }
-        if (runId != mWifiStabilizeToken) {
-            return;
-        }
-        scheduleWifiInternetProbe(runId);
-    }
-
-    private void scheduleWifiInternetProbe(int runId) {
-        if (handler == null) {
-            return;
-        }
-        if (mWifiInternetProbeRunnable != null) {
-            handler.removeCallbacks(mWifiInternetProbeRunnable);
-        }
-        final long deadline = SystemClock.uptimeMillis() + WIFI_INTERNET_PROBE_MAX_MS;
-        mWifiInternetProbeRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (runId != mWifiStabilizeToken) {
-                    mWifiInternetProbeRunnable = null;
-                    return;
-                }
-                try {
-                    if (NetworkWifiHelper.isWifiConnectedWithInternet(MapControlService.this)) {
-                        mWifiInternetProbeRunnable = null;
-                        WebServerWifiToastHelper.showSystemOverlay(
-                                getApplicationContext(), true);
-                        return;
-                    }
-                } catch (Exception e) {
-                    mWifiInternetProbeRunnable = null;
-                    log("Wi-Fi durum bildirimi: " + e.getMessage());
-                    try {
-                        if (runId == mWifiStabilizeToken) {
-                            WebServerWifiToastHelper.showSystemOverlay(
-                                    getApplicationContext(), false);
-                        }
-                    } catch (Exception ignored) {
-                    }
-                    return;
-                }
-                if (SystemClock.uptimeMillis() >= deadline) {
-                    mWifiInternetProbeRunnable = null;
-                    try {
-                        WebServerWifiToastHelper.showSystemOverlay(
-                                getApplicationContext(), false);
-                    } catch (Exception e) {
-                        log("Wi-Fi durum bildirimi: " + e.getMessage());
-                    }
-                    return;
-                }
-                if (handler != null) {
-                    handler.postDelayed(mWifiInternetProbeRunnable, WIFI_INTERNET_PROBE_INTERVAL_MS);
-                }
-            }
-        };
-        handler.postDelayed(mWifiInternetProbeRunnable, 300L);
-    }
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Foreground service için notification oluştur
@@ -357,11 +147,6 @@ public class MapControlService extends Service {
         // Yüzen geri tuşu + yan menü (birleşik hub)
         ensureFloatingBackButtonIfEnabled();
 
-        if (intent != null && ACTION_USER_WIFI_STABILIZE.equals(intent.getAction())) {
-            log("[User] ACTION_USER_WIFI_STABILIZE (Wi-Fi stabilize)");
-            requestWifiStabilizeChain(0);
-            return START_STICKY;
-        }
         if (intent != null && ACTION_BENCH_OPEN_CLUSTER.equals(intent.getAction())) {
             log("[Bench] ACTION_BENCH_OPEN_CLUSTER");
             openClusterDisplay();
@@ -396,17 +181,6 @@ public class MapControlService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        unregisterScreenOnWifiReceiver();
-        mWifiStabilizeToken++;
-        WebServerWifiToastHelper.dismissWifiStabilizePreparingOverlay(this);
-        if (handler != null && mGlobalWifiStatusRunnable != null) {
-            handler.removeCallbacks(mGlobalWifiStatusRunnable);
-            mGlobalWifiStatusRunnable = null;
-        }
-        if (handler != null && mWifiInternetProbeRunnable != null) {
-            handler.removeCallbacks(mWifiInternetProbeRunnable);
-            mWifiInternetProbeRunnable = null;
-        }
         if (scheduler != null) {
             scheduler.shutdown();
         }

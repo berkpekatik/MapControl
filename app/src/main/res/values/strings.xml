@@ -18,12 +18,6 @@
     <string name="web_server_toast_wifi_ok_sub">İnternet bağlantısı aktif.</string>
     <string name="web_server_toast_wifi_off_title">Wi‑Fi’ye bağlanılamadı</string>
     <string name="web_server_toast_wifi_off_sub">Ağ yok veya henüz bağlanılamadı. Açılışta Wi‑Fi’yi veya erişim noktasını kontrol edin.</string>
-    <string name="wifi_global_status_internet_ok">İnternet bağlantısı aktif</string>
-    <string name="wifi_global_status_wifi_failed">Wi-Fi bağlantısı kurulamadı</string>
-    <string name="wifi_global_toast_eyebrow_ok">Çevrimiçi</string>
-    <string name="wifi_global_toast_eyebrow_fail">Çevrimdışı</string>
-    <string name="wifi_global_stabilize_eyebrow">Hazırlanıyor</string>
-    <string name="wifi_global_stabilize_title">Wi‑Fi tazeleniyor</string>
     <string name="floating_qa_no_apps_on_display">Bu ekran için açık uygulama bulunamadı (dumpsys eşleşmedi).</string>
     <string name="floating_qa_usage_access_required">Açık uygulamalar listesi için Ayarlar’da uygulama kullanım erişimine izin verin; yönlendiriliyorsunuz.</string>
     <string name="floating_qa_no_recent_apps">Son 1 saatte eşleşen (ön plandaki) uygulama yok. Uygulamaları açıp tekrar deneyin.</string>
@@ -36,18 +30,12 @@
     <string name="floating_qa_title_display2">2. ekran — açık uygulamalar</string>
     <string name="floating_qa_label_display1">Ekran 1</string>
     <string name="floating_qa_label_display2">Ekran 2</string>
-    <string name="floating_qa_label_wifi">Wi‑Fi</string>
     <string name="floating_qa_label_toggle">Hızlı</string>
     <string name="floating_qa_settings_title">Yüzen hızlı işlemler</string>
-    <string name="floating_qa_settings_desc">1. ve 2. ekran açık uygulamaları ve Wi‑Fi tazele. Tek düğmeyi (⚡) tıklayınca genişler, « ile kapanır. Sürüklenebilir.</string>
+    <string name="floating_qa_settings_desc">1. ve 2. ekran açık uygulamalar. Tek düğmeyi (⚡) tıklayınca genişler, « ile kapanır. Sürüklenebilir.</string>
 
     <string name="floating_hub_icon_legend_title">Yüzen çubuktaki simgeler</string>
-    <string name="floating_hub_icon_legend_body">Sol ok — Sistem geri (kısa dokunuş); menü açıkken sol ok üzerinde uzun bas — menüyü kapat\nKutu — Harita yansıtması için hedef uygulama seç\nHarita — Küme ekranını aç (yansıt)\nÇarpı — Yansıtmayı durdur\nŞimşek — Hızlı işlemler menüsünü göster / genişlet\nÇift sol ok — Hızlı işlemleri daralt\nTelefon — 1. ekranda önde olan uygulamalar\nMonitör — 2. ekranda önde olan uygulamalar\nYenile ok — Wi‑Fi tazele</string>
-
-    <string name="wifi_on_screen_on_toggle_title">Uyku sonrası Wi‑Fi tazele</string>
-    <string name="wifi_on_screen_on_toggle_subtitle">Ekran yeniden açılınca Wi‑Fi kısa süre yenilensin; bağlantı kopması yaşayanlar için. (iOS kullanıcıları için önerilir)</string>
-    <string name="wifi_on_screen_on_toggle_yes_help">Araç uyku modu ya da ekran kapanıp açtığında otomatik olarak Wi‑Fi tazelenir. </string>
-    <string name="wifi_on_screen_on_toggle_no_help">Yalnızca açılışta ve elle «Wi‑Fi tazele» ile çalışsın.</string>
+    <string name="floating_hub_icon_legend_body">Sol ok — Sistem geri (kısa dokunuş); menü açıkken sol ok üzerinde uzun bas — menüyü kapat\nKutu — Harita yansıtması için hedef uygulama seç\nHarita — Küme ekranını aç (yansıt)\nÇarpı — Yansıtmayı durdur\nŞimşek — Hızlı işlemler menüsünü göster / genişlet\nÇift sol ok — Hızlı işlemleri daralt\nTelefon — 1. ekranda önde olan uygulamalar\nMonitör — 2. ekranda önde olan uygulamalar</string>
 
     <string name="welcome_sound_title"></string>
     <string name="welcome_sound_back">Geri</string>

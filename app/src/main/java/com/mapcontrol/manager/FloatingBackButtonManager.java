@@ -77,7 +77,6 @@ public class FloatingBackButtonManager {
     private LinearLayout qaActionsRow;
     private AppCompatImageButton btnQaDisplay0;
     private AppCompatImageButton btnQaDisplayCluster;
-    private AppCompatImageButton btnQaWifi;
 
     private boolean menuOpen;
     private boolean qaExpanded;
@@ -241,9 +240,6 @@ public class FloatingBackButtonManager {
             if (rawPointInsideView(rawX, rawY, btnQaDisplayCluster)) {
                 return btnQaDisplayCluster;
             }
-            if (rawPointInsideView(rawX, rawY, btnQaWifi)) {
-                return btnQaWifi;
-            }
         }
         return null;
     }
@@ -326,8 +322,6 @@ public class FloatingBackButtonManager {
                 openRunningAppsOnDisplay0();
             } else if (target == btnQaDisplayCluster) {
                 openRunningAppsOnCluster();
-            } else if (target == btnQaWifi) {
-                startUserWifiStabilize();
             }
         }
     }
@@ -530,22 +524,6 @@ public class FloatingBackButtonManager {
         }
     }
 
-    private void startUserWifiStabilize() {
-        try {
-            Intent i = new Intent(context, MapControlService.class)
-                    .setAction(MapControlService.ACTION_USER_WIFI_STABILIZE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(i);
-            } else {
-                context.startService(i);
-            }
-            log("[INFO] Yüzen hızlı işlem: Wi‑Fi stabilize");
-        } catch (Exception e) {
-            log("[ERROR] Wi‑Fi servis: " + e.getMessage());
-            Toast.makeText(context, "Servis başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
     public synchronized void show() {
         log("[INFO] Floating Back hub show() çağrıldı");
 
@@ -635,14 +613,11 @@ public class FloatingBackButtonManager {
 
         btnQaDisplay0 = new AppCompatImageButton(context);
         btnQaDisplayCluster = new AppCompatImageButton(context);
-        btnQaWifi = new AppCompatImageButton(context);
         applyHubChromeAndIcon(btnQaDisplay0, R.drawable.ic_mdi_cellphone);
         applyHubChromeAndIcon(btnQaDisplayCluster, R.drawable.ic_hub_monitor);
-        applyHubChromeAndIcon(btnQaWifi, R.drawable.ic_mdi_refresh);
 
         qaActionsRow.addView(btnQaDisplay0, newCellLp(cellSide, gap));
         qaActionsRow.addView(btnQaDisplayCluster, newCellLp(cellSide, gap));
-        qaActionsRow.addView(btnQaWifi, newCellLp(cellSide, gap));
 
         menuContainer.addView(qaActionsRow);
 
@@ -664,14 +639,12 @@ public class FloatingBackButtonManager {
         btnQaToggle.setClickable(false);
         btnQaDisplay0.setClickable(false);
         btnQaDisplayCluster.setClickable(false);
-        btnQaWifi.setClickable(false);
         btnProjChange.setFocusable(false);
         btnProjOpen.setFocusable(false);
         btnProjClose.setFocusable(false);
         btnQaToggle.setFocusable(false);
         btnQaDisplay0.setFocusable(false);
         btnQaDisplayCluster.setFocusable(false);
-        btnQaWifi.setFocusable(false);
 
         menuOpen = false;
         qaExpanded = false;
@@ -827,7 +800,6 @@ public class FloatingBackButtonManager {
         applyQaToggleUi();
         applyHubChromeAndIcon(btnQaDisplay0, R.drawable.ic_mdi_cellphone);
         applyHubChromeAndIcon(btnQaDisplayCluster, R.drawable.ic_hub_monitor);
-        applyHubChromeAndIcon(btnQaWifi, R.drawable.ic_mdi_refresh);
     }
 
     private void cleanupExistingView() {
@@ -844,7 +816,6 @@ public class FloatingBackButtonManager {
         qaActionsRow = null;
         btnQaDisplay0 = null;
         btnQaDisplayCluster = null;
-        btnQaWifi = null;
         menuOpen = false;
         qaExpanded = false;
         if (floatingButton != null) {
