@@ -169,7 +169,7 @@ public class FloatingProjectionControlsManager {
             log("[INFO] Yüzen yansıtma: servis " + action);
         } catch (Exception e) {
             log("[ERROR] Yüzen yansıtma servis: " + e.getMessage());
-            Toast.makeText(context, "Servis başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.target_picker_service_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -178,7 +178,7 @@ public class FloatingProjectionControlsManager {
             TargetAppPickerOverlay.show(context, logCallback);
         } catch (Exception e) {
             log("[ERROR] Hedef uygulama overlay: " + e.getMessage());
-            Toast.makeText(context, "Seçici açılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.target_picker_picker_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 

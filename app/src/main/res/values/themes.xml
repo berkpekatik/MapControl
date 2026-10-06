@@ -47,6 +47,11 @@
         <item name="buttonBarPositiveButtonStyle">@style/CustomAlertDialogButton</item>
         <item name="buttonBarNegativeButtonStyle">@style/CustomAlertDialogButton</item>
         <item name="buttonBarNeutralButtonStyle">@style/CustomAlertDialogButton</item>
+        <item name="android:buttonBarButtonStyle">@style/CustomAlertDialogButton</item>
+        <item name="android:buttonBarPositiveButtonStyle">@style/CustomAlertDialogButton</item>
+        <item name="android:buttonBarNegativeButtonStyle">@style/CustomAlertDialogButton</item>
+        <item name="android:buttonBarNeutralButtonStyle">@style/CustomAlertDialogButton</item>
+        <item name="android:colorBackground">@color/surfaceColor</item>
     </style>
 
     <style name="CustomAlertDialogButton" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">

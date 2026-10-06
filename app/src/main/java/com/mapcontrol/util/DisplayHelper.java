@@ -148,7 +148,7 @@ public final class DisplayHelper {
 
         TextView title = new TextView(ctx);
         title.setId(R.id.preparing_title);
-        title.setText("Uygulama Hazırlanıyor");
+        title.setText(R.string.splash_preparing_title);
         title.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         title.setTypeface(null, Typeface.BOLD);
@@ -162,7 +162,7 @@ public final class DisplayHelper {
         card.addView(title);
 
         TextView sub = new TextView(ctx);
-        sub.setText("Lütfen bekleyin");
+        sub.setText(R.string.splash_preparing_sub);
         sub.setTextColor(UiStyles.color(ctx, R.color.textSecondaryCool));
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         sub.setGravity(Gravity.CENTER);
@@ -589,7 +589,7 @@ public final class DisplayHelper {
 
         TextView tagline = new TextView(ctx);
         tagline.setId(R.id.boot_splash_tagline);
-        tagline.setText("Harita bekleniyor");
+        tagline.setText(R.string.splash_map_waiting);
         tagline.setTextColor(UiStyles.color(ctx, R.color.textSecondaryCool));
         tagline.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         tagline.setLetterSpacing(0.12f);

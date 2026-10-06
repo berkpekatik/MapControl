@@ -52,6 +52,9 @@ public class MapControlService extends Service {
     public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
     /** Bench: cluster kapat (servis içi yol). */
     public static final String ACTION_BENCH_CLOSE_CLUSTER = "com.mapcontrol.action.BENCH_CLOSE_CLUSTER";
+    /** Google Maps navigasyon bildirimi: hedef paket Maps ise cluster aç. */
+    public static final String ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION =
+            "com.mapcontrol.action.OPEN_CLUSTER_FROM_MAPS_NOTIFICATION";
     /**
      * {@link #ACTION_BENCH_CLOSE_CLUSTER} ile: {@code false} = HOME yok, uygulama önde kalır (yüzen yansıtma çubuğu).
      * Varsayılan {@code true} (yansıtma sekmesi Durdur / bench / güç modu).
@@ -156,6 +159,11 @@ public class MapControlService extends Service {
             boolean sendBackground = intent.getBooleanExtra(EXTRA_CLUSTER_CLOSE_SEND_BACKGROUND, true);
             log("[Bench] ACTION_BENCH_CLOSE_CLUSTER (sendBackground=" + sendBackground + ")");
             closeClusterDisplay(sendBackground);
+            return START_STICKY;
+        }
+        if (intent != null && ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION.equals(intent.getAction())) {
+            log("[Maps] Navigasyon bildirimi — cluster açılıyor");
+            openClusterDisplay();
             return START_STICKY;
         }
 

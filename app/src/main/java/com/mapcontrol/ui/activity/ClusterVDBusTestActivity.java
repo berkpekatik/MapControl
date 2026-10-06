@@ -39,7 +39,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         backBar.setPadding(16, 16, 16, 16);
         backBar.setGravity(Gravity.CENTER_VERTICAL);
         Button btnBack = new Button(this);
-        btnBack.setText("← Geri");
+        btnBack.setText(R.string.cluster_test_back);
         btnBack.setTextColor(UiStyles.color(this, R.color.textPrimary));
         UiStyles.styleOemButton(btnBack, UiStyles.color(this, R.color.buttonPrimary));
         btnBack.setOnClickListener(v -> finish());
@@ -47,7 +47,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         root.addView(backBar);
 
         TextView title = new TextView(this);
-        title.setText("Cluster / VDBus bench");
+        title.setText(R.string.cluster_test_title);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         title.setTextColor(UiStyles.color(this, R.color.textPrimary));
         title.setPadding(16, 12, 16, 4);
@@ -57,7 +57,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         tvOut.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         tvOut.setTextColor(UiStyles.color(this, R.color.textMuted));
         tvOut.setPadding(16, 0, 16, 8);
-        tvOut.setText("Çıktı hem burada hem ana logda (MainActivity açıkken).");
+        tvOut.setText(R.string.cluster_test_output);
         root.addView(tvOut);
 
         benchManager = new ClusterVDBusBenchManager(this, this, line -> {

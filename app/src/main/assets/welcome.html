@@ -599,9 +599,21 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        .app-brand { text-align: center; margin-bottom: 8px; }
+        .app-brand { text-align: center; margin-bottom: 8px; position: relative; }
         .app-brand .brand-eyebrow { font-size: 12px; color: #9CA3AF; letter-spacing: 0.12em; text-transform: uppercase; }
         .app-brand .brand-name { font-size: 20px; font-weight: 600; color: #E6E6E6; margin-top: 4px; }
+        .lang-switch {
+            position: absolute; right: 0; top: 0; display: flex; gap: 4px;
+        }
+        .lang-switch button {
+            min-width: 42px; padding: 6px 10px; border-radius: 10px; cursor: pointer;
+            border: 1px solid rgba(115, 178, 245, 0.28); background: transparent;
+            color: #9CA3AF; font-size: 12px; font-weight: 700;
+        }
+        .lang-switch button.active { background: rgba(69, 134, 197, 0.22); color: #fff; border-color: #73B2F5; }
+        @media (max-width: 520px) {
+            .lang-switch { position: static; justify-content: center; margin: 0 auto 10px; }
+        }
         .web-nav { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 0 0 20px; }
         .web-nav button {
             display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px;
@@ -644,29 +656,33 @@
                 <div class="modal-message" id="modalMessage"></div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn modal-btn-secondary" id="modalCancel">İptal</button>
-                <button class="modal-btn modal-btn-primary" id="modalConfirm">Onayla</button>
+                <button class="modal-btn modal-btn-secondary" id="modalCancel" data-i18n="cancel">İptal</button>
+                <button class="modal-btn modal-btn-primary" id="modalConfirm" data-i18n="confirm">Onayla</button>
             </div>
         </div>
     </div>
     
     <div class="container">
         <div class="app-brand">
-            <div class="brand-eyebrow">OEM stil</div>
-            <div class="brand-name">Map Control — Web Yönetimi</div>
+            <div class="lang-switch" id="langSwitch" role="group" data-i18n-aria="langLabel" aria-label="Dil">
+                <button type="button" data-lang="tr">TR</button>
+                <button type="button" data-lang="en">EN</button>
+            </div>
+            <div class="brand-eyebrow" data-i18n="brandEyebrow">OEM stil</div>
+            <div class="brand-name" data-i18n="brandName">Map Control — Web Yönetimi</div>
         </div>
-        <nav class="web-nav" id="webNav" aria-label="Bölümler">
+        <nav class="web-nav" id="webNav" data-i18n-aria="navLabel" aria-label="Bölümler">
             <button type="button" class="active" data-panel="files" id="navFiles">
                 <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" /></svg>
-                <span>Dosyalar</span>
+                <span data-i18n="navFiles">Dosyalar</span>
             </button>
             <button type="button" data-panel="maps" id="navMaps">
                 <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z" /></svg>
-                <span>Link aç</span>
+                <span data-i18n="navMaps">Link aç</span>
             </button>
             <button type="button" data-panel="keyboard" id="navKeyboard">
                 <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-ico"><path d="M4,5A2,2 0 0,0 2,7V17A2,2 0 0,0 4,19H20A2,2 0 0,0 22,17V7A2,2 0 0,0 20,5H4M4,7H20V17H4V7M5,8V10H7V8H5M8,8V10H10V8H8M11,8V10H13V8H11M14,8V10H16V8H14M17,8V10H19V8H17M5,11V13H7V11H5M8,11V13H10V11H8M11,11V13H19V11H11M5,14V16H15V14H5" /></svg>
-                <span>Klavye</span>
+                <span data-i18n="navKeyboard">Klavye</span>
             </button>
         </nav>
         <div class="web-panel is-visible" id="panelFiles">
@@ -675,16 +691,16 @@
                 <div class="icon-header" aria-hidden="true">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" /></svg>
                 </div>
-                <h1>Dosyalar</h1>
-                <p class="subtitle">Araç indirme klasörüne dosya yükleyin</p>
+                <h1 data-i18n="filesTitle">Dosyalar</h1>
+                <p class="subtitle" data-i18n="filesSubtitle">Araç indirme klasörüne dosya yükleyin</p>
             </div>
             
             <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-area">
                     <div class="file-input-wrapper">
                         <label for="fileInput" class="file-input-label" id="fileLabel">
-                            <span class="upload-text">Dosya seç veya sürükle</span>
-                            <span class="upload-hint">APK, ZIP, PDF ve diğer türler</span>
+                            <span class="upload-text" data-i18n="pickFile">Dosya seç veya sürükle</span>
+                            <span class="upload-hint" data-i18n="fileTypes">APK, ZIP, PDF ve diğer türler</span>
                         </label>
                         <input type="file" id="fileInput" name="file" required>
                     </div>
@@ -696,7 +712,7 @@
                     
                     <div class="progress-container" id="progressContainer">
                         <div class="progress-label">
-                            <span>Yükleniyor...</span>
+                            <span data-i18n="uploading">Yükleniyor...</span>
                             <span class="progress-percent" id="progressPercent">0%</span>
                         </div>
                         <div class="progress-bar">
@@ -706,22 +722,22 @@
                 </div>
                 
                 <button type="submit" class="upload-btn" id="uploadBtn">
-                    <span id="btnText">Gönder</span>
+                    <span id="btnText" data-i18n="send">Gönder</span>
                 </button>
             </form>
             
             <div class="status-indicator">
                 <span class="status-dot"></span>
-                <span>Çevrimiçi</span>
+                <span data-i18n="online">Çevrimiçi</span>
             </div>
         </div>
         
         <div class="upload-card">
             <div class="files-section">
                 <div class="files-header">
-                    <h2 class="files-title">Yüklenen dosyalar</h2>
+                    <h2 class="files-title" data-i18n="uploadedFiles">Yüklenen dosyalar</h2>
                     <button class="refresh-btn" id="refreshBtn" type="button">
-                        <span>Yenile</span>
+                        <span data-i18n="refresh">Yenile</span>
                     </button>
                 </div>
                 <div class="files-list" id="filesList">
@@ -736,9 +752,9 @@
         <div class="upload-card">
             <div class="files-section">
                 <div class="files-header">
-                    <h2 class="files-title">Yüklü uygulamalar</h2>
+                    <h2 class="files-title" data-i18n="installedApps">Yüklü uygulamalar</h2>
                     <button class="refresh-btn" id="refreshAppsBtn" type="button">
-                        <span>Yenile</span>
+                        <span data-i18n="refresh">Yenile</span>
                     </button>
                 </div>
                 <div class="files-list" id="appsList">
@@ -756,14 +772,14 @@
                     <div class="icon-header" aria-hidden="true">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z" /></svg>
                     </div>
-                    <h1>Araçta link aç</h1>
-                    <p class="subtitle">http ve https linkleri araçtaki varsayılan tarayıcıda (veya sistem uygun uygulamada) açılır — paylaşım ve yönlendirme adresleri desteklenir.</p>
+                    <h1 data-i18n="mapsTitle">Araçta link aç</h1>
+                    <p class="subtitle" data-i18n="mapsSubtitle">http ve https linkleri araçtaki varsayılan tarayıcıda (veya sistem uygun uygulamada) açılır — paylaşım ve yönlendirme adresleri desteklenir.</p>
                 </div>
                 <div class="form-row">
-                    <label for="mapUrlInput" class="help-text" style="display:block;margin-bottom:6px">Bağlantı</label>
-                    <textarea class="textarea-in" id="mapUrlInput" placeholder="https://… (herhangi bir site veya paylaşım linki)" rows="4"></textarea>
-                    <p class="help-text">Sunucu yalnızca http/https (geçerli alan adı), geo ve google.navigation kabul eder; javascript / file / data / content engellenir.</p>
-                    <button type="button" class="upload-btn" id="mapOpenBtn" style="margin-top:16px">Araçta aç</button>
+                    <label for="mapUrlInput" class="help-text" style="display:block;margin-bottom:6px" data-i18n="linkLabel">Bağlantı</label>
+                    <textarea class="textarea-in" id="mapUrlInput" data-i18n-placeholder="linkPlaceholder" placeholder="https://… (herhangi bir site veya paylaşım linki)" rows="4"></textarea>
+                    <p class="help-text" data-i18n="linkHelp">Sunucu yalnızca http/https (geçerli alan adı), geo ve google.navigation kabul eder; javascript / file / data / content engellenir.</p>
+                    <button type="button" class="upload-btn" id="mapOpenBtn" style="margin-top:16px" data-i18n="openOnVehicle">Araçta aç</button>
                 </div>
             </div>
         </div>
@@ -773,18 +789,18 @@
                     <div class="icon-header" aria-hidden="true">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4,5A2,2 0 0,0 2,7V17A2,2 0 0,0 4,19H20A2,2 0 0,0 22,17V7A2,2 0 0,0 20,5H4M4,7H20V17H4V7M5,8V10H7V8H5M8,8V10H10V8H8M11,8V10H13V8H11M14,8V10H16V8H14M17,8V10H19V8H17M5,11V13H7V11H5M8,11V13H10V11H8M11,11V13H19V11H11M5,14V16H15V14H5" /></svg>
                     </div>
-                    <h1>Klavye gönderimi</h1>
-                    <p class="subtitle">Odaklı metin alanına yazmayı dener. Erişilebilirlikte Map Control <strong>Global Back</strong> hizmetinin açık olması gerekir; her OEM arayüzünde çalışmayabilir</p>
+                    <h1 data-i18n="keyboardTitle">Klavye gönderimi</h1>
+                    <p class="subtitle" data-i18n-html="keyboardSubtitle">Odaklı metin alanına yazmayı dener. Erişilebilirlikte Map Control <strong>Global Back</strong> hizmetinin açık olması gerekir; her OEM arayüzünde çalışmayabilir</p>
                 </div>
                 <div class="form-row">
-                    <label for="keyboardTextInput" class="help-text" style="display:block;margin-bottom:6px">Metin</label>
-                    <textarea class="textarea-in" id="keyboardTextInput" placeholder="Araç ekranındaki alana aktarılacak metin" rows="5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+                    <label for="keyboardTextInput" class="help-text" style="display:block;margin-bottom:6px" data-i18n="textLabel">Metin</label>
+                    <textarea class="textarea-in" id="keyboardTextInput" data-i18n-placeholder="textPlaceholder" placeholder="Araç ekranındaki alana aktarılacak metin" rows="5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
                     <label class="inline-check" for="keyboardLiveMode">
                         <input type="checkbox" id="keyboardLiveMode" />
-                        <span><strong>Anlık yazma</strong> — yazdıkça araca aynen gönder (araçtaki girdi alanının odaklı olması gerekir; başarı/hata bildirimi gürültü yapmamak için kısılır)</span>
+                        <span data-i18n-html="liveTyping"><strong>Anlık yazma</strong> — yazdıkça araca aynen gönder (araçtaki girdi alanının odaklı olması gerekir; başarı/hata bildirimi gürültü yapmamak için kısılır)</span>
                     </label>
-                    <p class="help-text" id="keyboardLiveHelp" style="display:none">Anlık mod: her değişiklik gönderilir. Hızlı yazımda sadece son metin uygulanır. Tek seferde gönder için kutuyu kapatın.</p>
-                    <button type="button" class="upload-btn" id="keyboardSendBtn" style="margin-top:16px">Metni gönder (tek sefer)</button>
+                    <p class="help-text" id="keyboardLiveHelp" style="display:none" data-i18n="liveHelp">Anlık mod: her değişiklik gönderilir. Hızlı yazımda sadece son metin uygulanır. Tek seferde gönder için kutuyu kapatın.</p>
+                    <button type="button" class="upload-btn" id="keyboardSendBtn" style="margin-top:16px" data-i18n="sendOnce">Metni gönder (tek sefer)</button>
                 </div>
             </div>
         </div>
@@ -792,6 +808,198 @@
     
     <script>
         const serverUrl = '{{SERVER_URL}}';
+        const LANG_KEY = 'mc_web_lang';
+        const I18N = {
+            tr: {
+                pageTitle: 'Map Control - Web Yönetimi',
+                langLabel: 'Dil',
+                navLabel: 'Bölümler',
+                brandEyebrow: 'OEM stil',
+                brandName: 'Map Control — Web Yönetimi',
+                navFiles: 'Dosyalar',
+                navMaps: 'Link aç',
+                navKeyboard: 'Klavye',
+                filesTitle: 'Dosyalar',
+                filesSubtitle: 'Araç indirme klasörüne dosya yükleyin',
+                pickFile: 'Dosya seç veya sürükle',
+                fileTypes: 'APK, ZIP, PDF ve diğer türler',
+                uploading: 'Yükleniyor...',
+                send: 'Gönder',
+                online: 'Çevrimiçi',
+                uploadedFiles: 'Yüklenen dosyalar',
+                installedApps: 'Yüklü uygulamalar',
+                refresh: 'Yenile',
+                loading: 'Yükleniyor...',
+                mapsTitle: 'Araçta link aç',
+                mapsSubtitle: 'http ve https linkleri araçtaki varsayılan tarayıcıda (veya sistem uygun uygulamada) açılır — paylaşım ve yönlendirme adresleri desteklenir.',
+                linkLabel: 'Bağlantı',
+                linkPlaceholder: 'https://… (herhangi bir site veya paylaşım linki)',
+                linkHelp: 'Sunucu yalnızca http/https (geçerli alan adı), geo ve google.navigation kabul eder; javascript / file / data / content engellenir.',
+                openOnVehicle: 'Araçta aç',
+                keyboardTitle: 'Klavye gönderimi',
+                keyboardSubtitle: 'Odaklı metin alanına yazmayı dener. Erişilebilirlikte Map Control <strong>Global Back</strong> hizmetinin açık olması gerekir; her OEM arayüzünde çalışmayabilir',
+                textLabel: 'Metin',
+                textPlaceholder: 'Araç ekranındaki alana aktarılacak metin',
+                liveTyping: '<strong>Anlık yazma</strong> — yazdıkça araca aynen gönder (araçtaki girdi alanının odaklı olması gerekir; başarı/hata bildirimi gürültü yapmamak için kısılır)',
+                liveHelp: 'Anlık mod: her değişiklik gönderilir. Hızlı yazımda sadece son metin uygulanır. Tek seferde gönder için kutuyu kapatın.',
+                sendOnce: 'Metni gönder (tek sefer)',
+                cancel: 'İptal',
+                confirm: 'Onayla',
+                enterLink: 'Bir link girin',
+                opening: 'Açılıyor…',
+                openFailed: 'Açılamadı: ',
+                connectionError: 'Bağlantı hatası: ',
+                connectionErrorShort: 'Bağlantı hatası',
+                liveSend: 'Anlık gönderim: ',
+                sendFailed: 'Gönderilemedi: ',
+                textSent: 'Metin gönderildi (odak yoksa başarısız olabilir)',
+                enterText: 'Metin girin',
+                liveShort: 'Anlık: ',
+                networkError: 'ağ hatası',
+                pickFileFirst: 'Lütfen bir dosya seçin',
+                errorPrefix: 'Hata: ',
+                uploadOk: '✓ Dosya başarıyla yüklendi!',
+                uploadError: '✗ Yükleme hatası: ',
+                noFiles: 'Henüz dosya yüklenmedi',
+                filesLoadFailed: 'Dosya listesi yüklenemedi',
+                install: 'Kur',
+                delete: 'Sil',
+                deleteFileTitle: 'Dosyayı Sil',
+                deleteFileBody: 'Bu dosyayı silmek istediğinize emin misiniz?',
+                fileDeleted: '✓ Dosya başarıyla silindi',
+                deleteError: '✗ Silme hatası: ',
+                installStarting: '📦 APK kurulumu başlatılıyor...',
+                installStarted: '✓ Kurulum başlatıldı',
+                installError: '✗ Kurulum hatası: ',
+                noApps: 'Henüz uygulama yüklenmedi',
+                appsLoadFailed: 'Uygulama listesi yüklenemedi',
+                locked: 'Kilitli',
+                lockedTitle: 'Map Control kaldırılamaz',
+                openApp: 'Aç',
+                deleteAppTitle: 'Uygulamayı Sil',
+                deleteAppBody: 'Bu uygulamayı silmek istediğinize emin misiniz?',
+                appDeleteStarted: '✓ Uygulama silme başlatıldı',
+                appOpening: '▶️ Uygulama açılıyor...',
+                appOpened: '✓ Uygulama açıldı',
+                openError: '✗ Açma hatası: '
+            },
+            en: {
+                pageTitle: 'Map Control - Web management',
+                langLabel: 'Language',
+                navLabel: 'Sections',
+                brandEyebrow: 'OEM style',
+                brandName: 'Map Control — Web management',
+                navFiles: 'Files',
+                navMaps: 'Open link',
+                navKeyboard: 'Keyboard',
+                filesTitle: 'Files',
+                filesSubtitle: 'Upload a file to the vehicle Downloads folder',
+                pickFile: 'Choose a file or drag it here',
+                fileTypes: 'APK, ZIP, PDF, and other types',
+                uploading: 'Uploading...',
+                send: 'Send',
+                online: 'Online',
+                uploadedFiles: 'Uploaded files',
+                installedApps: 'Installed apps',
+                refresh: 'Refresh',
+                loading: 'Loading...',
+                mapsTitle: 'Open a link on the vehicle',
+                mapsSubtitle: 'http and https links open in the vehicle’s default browser (or a matching system app). Share and redirect URLs are supported.',
+                linkLabel: 'Link',
+                linkPlaceholder: 'https://… (any site or share link)',
+                linkHelp: 'The server accepts only http/https (valid host), geo, and google.navigation. javascript / file / data / content are blocked.',
+                openOnVehicle: 'Open on vehicle',
+                keyboardTitle: 'Keyboard input',
+                keyboardSubtitle: 'Tries to type into the focused field. Map Control <strong>Global Back</strong> must be enabled in Accessibility. It may not work on every OEM screen.',
+                textLabel: 'Text',
+                textPlaceholder: 'Text to send to the field on the vehicle screen',
+                liveTyping: '<strong>Live typing</strong> — send each change to the vehicle (the field must stay focused; success and error toasts are limited)',
+                liveHelp: 'Live mode sends every change. Fast typing applies only the latest text. Turn this off to send once.',
+                sendOnce: 'Send text (once)',
+                cancel: 'Cancel',
+                confirm: 'Confirm',
+                enterLink: 'Enter a link',
+                opening: 'Opening…',
+                openFailed: 'Could not open: ',
+                connectionError: 'Connection error: ',
+                connectionErrorShort: 'Connection error',
+                liveSend: 'Live send: ',
+                sendFailed: 'Could not send: ',
+                textSent: 'Text sent (fails if no field is focused)',
+                enterText: 'Enter text',
+                liveShort: 'Live: ',
+                networkError: 'network error',
+                pickFileFirst: 'Please choose a file',
+                errorPrefix: 'Error: ',
+                uploadOk: '✓ File uploaded',
+                uploadError: '✗ Upload error: ',
+                noFiles: 'No files uploaded yet',
+                filesLoadFailed: 'Could not load the file list',
+                install: 'Install',
+                delete: 'Delete',
+                deleteFileTitle: 'Delete file',
+                deleteFileBody: 'Delete this file?',
+                fileDeleted: '✓ File deleted',
+                deleteError: '✗ Delete error: ',
+                installStarting: '📦 Starting APK install...',
+                installStarted: '✓ Install started',
+                installError: '✗ Install error: ',
+                noApps: 'No apps installed yet',
+                appsLoadFailed: 'Could not load the app list',
+                locked: 'Locked',
+                lockedTitle: 'Map Control cannot be removed',
+                openApp: 'Open',
+                deleteAppTitle: 'Remove app',
+                deleteAppBody: 'Remove this app?',
+                appDeleteStarted: '✓ App removal started',
+                appOpening: '▶️ Opening app...',
+                appOpened: '✓ App opened',
+                openError: '✗ Could not open: '
+            }
+        };
+        let lang = 'tr';
+        function t(key) {
+            const pack = I18N[lang] || I18N.tr;
+            return pack[key] != null ? pack[key] : (I18N.tr[key] != null ? I18N.tr[key] : key);
+        }
+        function applyI18n(next) {
+            lang = next === 'en' ? 'en' : 'tr';
+            try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* ignore */ }
+            document.documentElement.lang = lang;
+            document.title = t('pageTitle');
+            document.querySelectorAll('[data-i18n]').forEach((el) => {
+                el.textContent = t(el.getAttribute('data-i18n'));
+            });
+            document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+                el.innerHTML = t(el.getAttribute('data-i18n-html'));
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+                el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+            });
+            document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+                el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+            });
+            document.querySelectorAll('#langSwitch button').forEach((btn) => {
+                btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+            });
+        }
+        try {
+            const stored = localStorage.getItem(LANG_KEY);
+            if (stored === 'en' || stored === 'tr') lang = stored;
+        } catch (e) { /* ignore */ }
+        applyI18n(lang);
+        const langSwitch = document.getElementById('langSwitch');
+        if (langSwitch) {
+            langSwitch.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-lang]');
+                if (!btn) return;
+                const next = btn.getAttribute('data-lang');
+                if (next === lang) return;
+                applyI18n(next);
+                loadFilesList();
+                loadAppsList();
+            });
+        }
         const fileInput = document.getElementById('fileInput');
         const fileLabel = document.getElementById('fileLabel');
         const fileInfo = document.getElementById('fileInfo');
@@ -856,7 +1064,7 @@
             mapOpenBtn.addEventListener('click', async () => {
                 const url = (mapUrlInput && mapUrlInput.value) ? mapUrlInput.value.trim() : '';
                 if (!url) {
-                    showToast('Bir link girin', 'error');
+                    showToast(t('enterLink'), 'error');
                     return;
                 }
                 mapOpenBtn.disabled = true;
@@ -867,13 +1075,13 @@
                         body: JSON.stringify({ url: url })
                     });
                     if (response.ok) {
-                        showToast('Açılıyor…', 'success');
+                        showToast(t('opening'), 'success');
                     } else {
-                        const t = await response.text();
-                        showToast('Açılamadı: ' + t, 'error');
+                        const body = await response.text();
+                        showToast(t('openFailed') + body, 'error');
                     }
                 } catch (err) {
-                    showToast('Bağlantı hatası: ' + err.message, 'error');
+                    showToast(t('connectionError') + err.message, 'error');
                 }
                 mapOpenBtn.disabled = false;
             });
@@ -905,18 +1113,18 @@
                 signal: signal
             });
             if (!response.ok) {
-                const t = await response.text();
+                const body = await response.text();
                 if (silent) {
                     const now = Date.now();
                     if (now - liveKeyboardErrorAt > 2000) {
                         liveKeyboardErrorAt = now;
-                        showToast('Anlık gönderim: ' + t, 'error');
+                        showToast(t('liveSend') + body, 'error');
                     }
                 } else {
-                    showToast('Gönderilemedi: ' + t, 'error');
+                    showToast(t('sendFailed') + body, 'error');
                 }
             } else if (!silent) {
-                showToast('Metin gönderildi (odak yoksa başarısız olabilir)', 'success');
+                showToast(t('textSent'), 'success');
             }
         }
         if (keyboardSendBtn) {
@@ -926,7 +1134,7 @@
                 }
                 const text = (keyboardTextInput && keyboardTextInput.value) ? keyboardTextInput.value : '';
                 if (text.length === 0) {
-                    showToast('Metin girin', 'error');
+                    showToast(t('enterText'), 'error');
                     return;
                 }
                 keyboardSendBtn.disabled = true;
@@ -936,7 +1144,7 @@
                     if (err && err.name === 'AbortError') {
                         return;
                     }
-                    showToast('Bağlantı hatası: ' + (err && err.message ? err.message : ''), 'error');
+                    showToast(t('connectionError') + (err && err.message ? err.message : ''), 'error');
                 } finally {
                     updateKeyboardLiveUi();
                 }
@@ -965,7 +1173,7 @@
                     const now = Date.now();
                     if (now - liveKeyboardErrorAt > 2000) {
                         liveKeyboardErrorAt = now;
-                        showToast('Anlık: ' + (err && err.message ? err.message : 'ağ hatası'), 'error');
+                        showToast(t('liveShort') + (err && err.message ? err.message : t('networkError')), 'error');
                     }
                 });
             };
@@ -1033,7 +1241,7 @@
             
             const file = fileInput.files[0];
             if (!file) {
-                showToast('Lütfen bir dosya seçin', 'error');
+                showToast(t('pickFileFirst'), 'error');
                 return;
             }
             
@@ -1041,7 +1249,7 @@
             formData.append('file', file);
             
             uploadBtn.disabled = true;
-            btnText.textContent = 'Yükleniyor...';
+            btnText.textContent = t('uploading');
             progressContainer.classList.add('active');
             
             // Progress bar animasyonu
@@ -1070,23 +1278,23 @@
                     
                     if (xhr.status === 200) {
                         setTimeout(() => {
-                            showToast('✓ Dosya başarıyla yüklendi!', 'success');
+                            showToast(t('uploadOk'), 'success');
                             resetForm();
                             loadFilesList();
                         }, 500);
                     } else {
-                        showToast('✗ Yükleme hatası: ' + xhr.responseText, 'error');
+                        showToast(t('uploadError') + xhr.responseText, 'error');
                         uploadBtn.disabled = false;
-                        btnText.textContent = 'Gönder';
+                        btnText.textContent = t('send');
                         progressContainer.classList.remove('active');
                     }
                 });
                 
                 xhr.addEventListener('error', function() {
                     clearInterval(progressInterval);
-                    showToast('✗ Bağlantı hatası', 'error');
+                    showToast(t('connectionErrorShort'), 'error');
                     uploadBtn.disabled = false;
-                    btnText.textContent = 'Gönder';
+                    btnText.textContent = t('send');
                     progressContainer.classList.remove('active');
                 });
                 
@@ -1095,16 +1303,16 @@
                 
             } catch (error) {
                 clearInterval(progressInterval);
-                showToast('✗ Hata: ' + error.message, 'error');
+                showToast(t('errorPrefix') + error.message, 'error');
                 uploadBtn.disabled = false;
-                btnText.textContent = 'Gönder';
+                btnText.textContent = t('send');
                 progressContainer.classList.remove('active');
             }
         });
         
         // Dosya listesini yükle
         async function loadFilesList() {
-            filesList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>Yükleniyor...</div>';
+            filesList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>' + escapeHtml(t('loading')) + '</div>';
             
             try {
                 const response = await fetch(serverUrl + '/files');
@@ -1123,7 +1331,7 @@
                             const installButton = isApk ? `
                                 <button class="install-btn" onclick="installApk('${escapeHtml(file.name)}')">
                                     <span>📱</span>
-                                    <span>Kur</span>
+                                    <span>${escapeHtml(t('install'))}</span>
                                 </button>
                             ` : '';
                             
@@ -1136,7 +1344,7 @@
                                     ${installButton}
                                     <button class="delete-btn" onclick="deleteFile('${escapeHtml(file.name)}')">
                                         <span>🗑️</span>
-                                        <span>Sil</span>
+                                        <span>${escapeHtml(t('delete'))}</span>
                                     </button>
                                 </div>
                             `;
@@ -1151,18 +1359,18 @@
                         }, index * 50);
                     });
                 } else {
-                    filesList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div><div>Henüz dosya yüklenmedi</div></div>';
+                    filesList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📁</div><div>' + escapeHtml(t('noFiles')) + '</div></div>';
                 }
             } catch (error) {
-                filesList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>Dosya listesi yüklenemedi</div></div>';
+                filesList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>' + escapeHtml(t('filesLoadFailed')) + '</div></div>';
             }
         }
         
         // Dosya sil
         async function deleteFile(fileName) {
             const confirmed = await showModal(
-                'Dosyayı Sil',
-                `Bu dosyayı silmek istediğinize emin misiniz?\n\n<strong>${escapeHtml(fileName)}</strong>`
+                t('deleteFileTitle'),
+                `${escapeHtml(t('deleteFileBody'))}\n\n<strong>${escapeHtml(fileName)}</strong>`
             );
             
             if (!confirmed) return;
@@ -1173,34 +1381,34 @@
                 });
                 
                 if (response.ok) {
-                    showToast('✓ Dosya başarıyla silindi', 'success');
+                    showToast(t('fileDeleted'), 'success');
                     loadFilesList();
                 } else {
                     const errorText = await response.text();
-                    showToast('✗ Silme hatası: ' + errorText, 'error');
+                    showToast(t('deleteError') + errorText, 'error');
                 }
             } catch (error) {
-                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+                showToast(t('connectionError') + error.message, 'error');
             }
         }
         
         // APK kur
         async function installApk(fileName) {
             try {
-                showToast('📦 APK kurulumu başlatılıyor...', 'info');
+                showToast(t('installStarting'), 'info');
                 
                 const response = await fetch(serverUrl + '/install?filename=' + encodeURIComponent(fileName), {
                     method: 'POST'
                 });
                 
                 if (response.ok) {
-                    showToast('✓ Kurulum başlatıldı', 'success');
+                    showToast(t('installStarted'), 'success');
                 } else {
                     const errorText = await response.text();
-                    showToast('✗ Kurulum hatası: ' + errorText, 'error');
+                    showToast(t('installError') + errorText, 'error');
                 }
             } catch (error) {
-                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+                showToast(t('connectionError') + error.message, 'error');
             }
         }
         
@@ -1294,7 +1502,7 @@
                 fileInfo.classList.remove('active');
                 fileLabel.classList.remove('has-file');
                 uploadBtn.disabled = false;
-                btnText.textContent = 'Gönder';
+                btnText.textContent = t('send');
                 progressContainer.classList.remove('active');
                 updateProgress(0);
             }, 1500);
@@ -1316,7 +1524,7 @@
         
         // Uygulama listesini yükle
         async function loadAppsList() {
-            appsList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>Yükleniyor...</div>';
+            appsList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>' + escapeHtml(t('loading')) + '</div>';
             
             try {
                 const response = await fetch(serverUrl + '/apps');
@@ -1332,8 +1540,8 @@
                             appItem.style.transform = 'translateY(20px)';
                             const locked = app.locked === true;
                             const delHtml = locked
-                                ? '<span class="lock-badge" title="Map Control kaldırılamaz">Kilitli</span>'
-                                : `<button class="delete-btn" onclick="deleteApp('${jsQuote(app.package)}', '${jsQuote(app.name)}')">Sil</button>`;
+                                ? '<span class="lock-badge" title="' + escapeHtml(t('lockedTitle')) + '">' + escapeHtml(t('locked')) + '</span>'
+                                : `<button class="delete-btn" onclick="deleteApp('${jsQuote(app.package)}', '${jsQuote(app.name)}')">${escapeHtml(t('delete'))}</button>`;
                             appItem.innerHTML = `
                                 <div class="file-item-info">
                                     <div class="file-item-name">${escapeHtml(app.name)}</div>
@@ -1341,7 +1549,7 @@
                                 </div>
                                 <div class="file-item-actions">
                                     <button class="install-btn" onclick="launchApp('${jsQuote(app.package)}')">
-                                        <span>Aç</span>
+                                        <span>${escapeHtml(t('openApp'))}</span>
                                     </button>
                                     ${delHtml}
                                 </div>
@@ -1357,18 +1565,18 @@
                         }, index * 50);
                     });
                 } else {
-                    appsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📱</div><div>Henüz uygulama yüklenmedi</div></div>';
+                    appsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📱</div><div>' + escapeHtml(t('noApps')) + '</div></div>';
                 }
             } catch (error) {
-                appsList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>Uygulama listesi yüklenemedi</div></div>';
+                appsList.innerHTML = '<div class="empty-state" style="color: #F44336;"><div class="empty-state-icon">⚠️</div><div>' + escapeHtml(t('appsLoadFailed')) + '</div></div>';
             }
         }
         
         // Uygulama sil
         async function deleteApp(packageName, appName) {
             const confirmed = await showModal(
-                'Uygulamayı Sil',
-                `Bu uygulamayı silmek istediğinize emin misiniz?\n\n<strong>${escapeHtml(appName)}</strong>\n<small>${escapeHtml(packageName)}</small>`
+                t('deleteAppTitle'),
+                `${escapeHtml(t('deleteAppBody'))}\n\n<strong>${escapeHtml(appName)}</strong>\n<small>${escapeHtml(packageName)}</small>`
             );
             
             if (!confirmed) return;
@@ -1379,36 +1587,36 @@
                 });
                 
                 if (response.ok) {
-                    showToast('✓ Uygulama silme başlatıldı', 'success');
+                    showToast(t('appDeleteStarted'), 'success');
                     setTimeout(() => {
                         loadAppsList();
                     }, 1000);
                 } else {
                     const errorText = await response.text();
-                    showToast('✗ Silme hatası: ' + errorText, 'error');
+                    showToast(t('deleteError') + errorText, 'error');
                 }
             } catch (error) {
-                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+                showToast(t('connectionError') + error.message, 'error');
             }
         }
         
         // Uygulama aç
         async function launchApp(packageName) {
             try {
-                showToast('▶️ Uygulama açılıyor...', 'info');
+                showToast(t('appOpening'), 'info');
                 
                 const response = await fetch(serverUrl + '/app/launch?package=' + encodeURIComponent(packageName), {
                     method: 'POST'
                 });
                 
                 if (response.ok) {
-                    showToast('✓ Uygulama açıldı', 'success');
+                    showToast(t('appOpened'), 'success');
                 } else {
                     const errorText = await response.text();
-                    showToast('✗ Açma hatası: ' + errorText, 'error');
+                    showToast(t('openError') + errorText, 'error');
                 }
             } catch (error) {
-                showToast('✗ Bağlantı hatası: ' + error.message, 'error');
+                showToast(t('connectionError') + error.message, 'error');
             }
         }
         

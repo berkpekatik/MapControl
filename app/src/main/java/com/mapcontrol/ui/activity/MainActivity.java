@@ -78,7 +78,9 @@ import com.mapcontrol.ui.builder.VehicleInfoTabBuilder;
 import com.mapcontrol.ui.builder.WelcomeSoundTabBuilder;
 import com.mapcontrol.ui.builder.WifiTabBuilder;
 import com.mapcontrol.util.DialogHelper;
+import com.mapcontrol.util.OnboardingHelper;
 import com.mapcontrol.util.DisplayHelper;
+import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
@@ -160,6 +162,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean deferredOpenProjectionTargetPicker;
     private boolean targetPackageBroadcastRegistered;
     private boolean navigationClusterBroadcastRegistered;
+    private boolean googleMapsNavBroadcastRegistered;
     private final BroadcastReceiver navigationClusterStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -172,6 +175,27 @@ public class MainActivity extends AppCompatActivity {
                 handler.post(() -> applyNavigationClusterOpenFromBus(open));
             } else {
                 applyNavigationClusterOpenFromBus(open);
+            }
+        }
+    };
+    private final BroadcastReceiver googleMapsNavSnapshotReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null
+                    || !GoogleMapsNavNotificationCoordinator.ACTION_GOOGLE_MAPS_NAV_SNAPSHOT
+                            .equals(intent.getAction())) {
+                return;
+            }
+            Runnable apply = () -> {
+                if (projectionTabBuilder != null) {
+                    projectionTabBuilder.updateGoogleMapsNavSummary(
+                            GoogleMapsNavNotificationCoordinator.getLastSnapshot());
+                }
+            };
+            if (handler != null) {
+                handler.post(apply);
+            } else {
+                apply.run();
             }
         }
     };
@@ -208,11 +232,25 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
         boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
 
-        if (disclaimerAccepted) {
-            handler.post(this::initializeApp);
-        } else {
+        if (!disclaimerAccepted) {
             handler.post(this::showLegalDisclaimer);
+        } else if (!prefs.getBoolean(OnboardingHelper.PREF_KEY_COMPLETED, false)) {
+            handler.post(this::showOnboarding);
+        } else {
+            handler.post(this::initializeApp);
         }
+    }
+
+    private boolean vdbusBridgeAcquired;
+
+    private void showOnboarding() {
+        DisplayHelper.stopAppLaunchSplashAnimations();
+        launchSplashRoot = OnboardingHelper.createView(this, () -> {
+            getSharedPreferences("MapControlPrefs", MODE_PRIVATE).edit()
+                    .putBoolean(OnboardingHelper.PREF_KEY_COMPLETED, true).apply();
+            initializeApp();
+        });
+        setContentView(launchSplashRoot);
     }
 
     /**
@@ -224,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences.Editor editor = prefs.edit();
             editor.putBoolean("disclaimerAccepted", true);
             editor.apply();
-            initializeApp();
+            showOnboarding();
         }, this::finish);
     }
 
@@ -236,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
             prefs.edit().putBoolean("appManagementDisclaimerAccepted", true).apply();
             switchTab(5);
-            if (topBarTitle != null) topBarTitle.setText("Uygulama Yönetimi");
+            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_app_management);
             if (sideRailBuilder != null) {
                 sideRailBuilder.setSelectionForTabIndex(5);
             }
@@ -323,10 +361,12 @@ public class MainActivity extends AppCompatActivity {
                 new SideRailBuilder.SideRailCallback() {
                     @Override
                     public void onTabSelected(int tabIndex, String title) {
-                        switchTab(tabIndex);
-                        if (topBarTitle != null) {
-                            topBarTitle.setText(title);
-                        }
+                        crossfadeContent(() -> {
+                            switchTab(tabIndex);
+                            if (topBarTitle != null) {
+                                topBarTitle.setText(title);
+                            }
+                        });
                     }
 
                     @Override
@@ -413,7 +453,7 @@ public class MainActivity extends AppCompatActivity {
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.accentHighlight));
                     }
                     if (btnWebServerToggle != null) {
-                        btnWebServerToggle.setText("■ Web Server Durdur");
+                        btnWebServerToggle.setText(R.string.web_server_stop);
                     }
                     // QR kod oluştur
                     if (fileUploadTabBuilder != null) fileUploadTabBuilder.generateQRCode(serverUrl);
@@ -425,14 +465,14 @@ public class MainActivity extends AppCompatActivity {
             public void onServerStopped() {
                 handler.post(() -> {
                     if (webServerStatusText != null) {
-                        webServerStatusText.setText("Sunucu durduruldu");
+                        webServerStatusText.setText(R.string.web_server_stopped);
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.textDialogButtonSecondary));
                     }
                     if (qrCodeImageView != null) {
                         qrCodeImageView.setVisibility(android.view.View.GONE);
                     }
                     if (btnWebServerToggle != null) {
-                        btnWebServerToggle.setText("▶ Web Server Başlat");
+                        btnWebServerToggle.setText(R.string.web_server_start);
                     }
                     log("Web Server durduruldu");
                 });
@@ -442,7 +482,7 @@ public class MainActivity extends AppCompatActivity {
             public void onError(String error) {
                 handler.post(() -> {
                     if (webServerStatusText != null) {
-                        webServerStatusText.setText("Hata: " + error);
+                        webServerStatusText.setText(getString(R.string.common_error_prefix, error));
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.statusErrorBright));
                     }
                     log("Web Server hatası: " + error);
@@ -529,7 +569,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     if (GlobalBackService.typeIntoFocusedField(MainActivity.this, text)) {
                         if (showDeviceFeedback) {
-                            Toast.makeText(MainActivity.this, "Metin gönderildi", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, R.string.web_text_sent, Toast.LENGTH_SHORT).show();
                         }
                     } else {
                         if (showDeviceFeedback) {
@@ -724,11 +764,18 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onLauncherModeChanged(boolean enabled) {
-                        if (enabled) {
-                            enterLauncherMode();
-                        } else {
-                            exitLauncherMode();
-                        }
+                        crossfadeLauncherTransition(() -> {
+                            if (enabled) {
+                                enterLauncherMode();
+                            } else {
+                                exitLauncherMode();
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onLocaleChanged() {
+                        MainActivity.this.recreate();
                     }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
@@ -739,14 +786,16 @@ public class MainActivity extends AppCompatActivity {
                 new LauncherTabBuilder.LauncherCallback() {
                     @Override
                     public void onShortcutSelected(int tabIndex, String title) {
-                        switchTab(tabIndex);
-                        if (topBarTitle != null) topBarTitle.setText(title);
-                        if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
+                        crossfadeLauncherTransition(() -> {
+                            switchTab(tabIndex);
+                            if (topBarTitle != null) topBarTitle.setText(title);
+                            if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
+                        });
                     }
 
                     @Override
                     public void onExitLauncherRequested() {
-                        exitLauncherMode();
+                        crossfadeLauncherTransition(() -> exitLauncherMode());
                     }
 
                     @Override
@@ -778,7 +827,10 @@ public class MainActivity extends AppCompatActivity {
         // Uygulamaları yükle
         if (appsTabBuilder != null) appsTabBuilder.loadAppsFromServer();
 
-        MapControlVDBusKeyBridge.acquire(this);
+        if (!vdbusBridgeAcquired) {
+            vdbusBridgeAcquired = true;
+            MapControlVDBusKeyBridge.acquire(this);
+        }
 
         // Otomatik seçim modu: Uygulama açıldığında önerilen uygulamayı otomatik seç
         autoSelectPreferredApp();
@@ -968,6 +1020,9 @@ public class MainActivity extends AppCompatActivity {
         if (currentTab == TAB_LAUNCHER && tabIndex != TAB_LAUNCHER && launcherTabBuilder != null) {
             launcherTabBuilder.onTabHidden();
         }
+        if (currentTab == 5 && tabIndex != 5 && appsTabBuilder != null) {
+            appsTabBuilder.onTabHidden();
+        }
 
         currentTab = tabIndex;
 
@@ -980,52 +1035,14 @@ public class MainActivity extends AppCompatActivity {
         boolean launcherMode = LauncherModeManager.isEnabled(this);
         applyLauncherChrome(launcherMode);
 
-        // Launcher modunda 3D modelin Engine'ini öldürmemek için Ana Ekran view'ını
-        // hierarchy'de VISIBLE tut (üstüne opak overlay) — geri gelince kaldığı yerden devam.
-        if (launcherMode && launcherScrollView != null) {
-            showTabContentKeepingLauncherParked(tabIndex);
-        } else {
-            tabContentArea.removeAllViews();
-            attachTabContent(tabIndex);
-        }
+        tabContentArea.removeAllViews();
+        attachTabContent(tabIndex);
 
         applyTabChrome(tabIndex);
-    }
 
-    /**
-     * Launcher ScrollView'ı VISIBLE tutar; diğer sekmeyi üstte opak katmanda gösterir.
-     * GONE kullanılmaz — SurfaceView deliği bozulunca dashboard arka planı değişmiş gibi görünür.
-     */
-    private void showTabContentKeepingLauncherParked(int tabIndex) {
-        FrameLayout.LayoutParams matchParent = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT);
-
-        for (int i = tabContentArea.getChildCount() - 1; i >= 0; i--) {
-            View child = tabContentArea.getChildAt(i);
-            if (child != launcherScrollView) {
-                tabContentArea.removeViewAt(i);
-            }
+        if (tabIndex == 5 && appsTabBuilder != null) {
+            appsTabBuilder.onTabVisible();
         }
-
-        if (launcherScrollView.getParent() != tabContentArea) {
-            tabContentArea.addView(launcherScrollView, 0, matchParent);
-        }
-        launcherScrollView.setVisibility(View.VISIBLE);
-
-        if (tabIndex == TAB_LAUNCHER) {
-            launcherScrollView.bringToFront();
-            if (launcherTabBuilder != null) {
-                launcherTabBuilder.onTabVisible();
-            }
-            return;
-        }
-
-        // Opak host: altındaki canlı 3D / launcher gradient settings'ten sızmasın
-        FrameLayout overlay = new FrameLayout(this);
-        UiStyles.setRootBackground(overlay);
-        attachTabContent(overlay, tabIndex);
-        tabContentArea.addView(overlay, matchParent);
     }
 
     /** İçeriği verilen parent'a ekler; başlık / top-bar chrome {@link #applyTabChrome} ile. */
@@ -1076,14 +1093,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void applyTabChrome(int tabIndex) {
         if (tabIndex == 0) {
-            if (topBarTitle != null) topBarTitle.setText("Wi-Fi Yönetimi");
+            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_wifi_management);
             if (topBarButtonsContainer != null && wifiTabBuilder != null) {
                 topBarButtonsContainer.addView(wifiTabBuilder.buildTopBarIcon());
             }
             if (wifiTabBuilder != null) wifiTabBuilder.updateWifiStatus();
         } else if (tabIndex == 4) {
             if (topBarTitle != null) {
-                topBarTitle.setText("Sistem Kayıtları");
+                topBarTitle.setText(R.string.topbar_system_logs);
             }
             if (!logWelcomeTtsDone) {
                 logWelcomeTtsDone = true;
@@ -1091,7 +1108,7 @@ public class MainActivity extends AppCompatActivity {
                         () -> speakTtsText(getString(R.string.log_tts_welcome_phrase)), 450);
             }
         } else if (tabIndex == 5) {
-            if (topBarTitle != null) topBarTitle.setText("Uygulamalar");
+            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_apps);
             if (topBarButtonsContainer != null && appsTabBuilder != null) {
                 topBarButtonsContainer.addView(appsTabBuilder.buildTopBarButtons(this));
             }
@@ -1112,7 +1129,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } else if (tabIndex == TAB_LAUNCHER) {
             if (topBarTitle != null) {
-                topBarTitle.setText("Araç Ana Ekranı");
+                topBarTitle.setText(R.string.topbar_vehicle_home);
             }
         }
     }
@@ -1141,10 +1158,40 @@ public class MainActivity extends AppCompatActivity {
         if (!LauncherModeManager.isEnabled(this)) {
             return;
         }
-        switchTab(TAB_LAUNCHER);
-        if (topBarTitle != null) {
-            topBarTitle.setText("Araç Ana Ekranı");
+        crossfadeLauncherTransition(() -> {
+            switchTab(TAB_LAUNCHER);
+            if (topBarTitle != null) {
+                topBarTitle.setText(R.string.topbar_vehicle_home);
+            }
+        });
+    }
+
+    /** Fades only the content column (side rail stays put) around a tab switch. */
+    private void crossfadeContent(Runnable change) {
+        View target = mainContent;
+        if (target == null) {
+            change.run();
+            return;
         }
+        target.animate().cancel();
+        target.animate().alpha(0f).setDuration(110).withEndAction(() -> {
+            change.run();
+            target.animate().alpha(1f).setDuration(200).start();
+        }).start();
+    }
+
+    /** Fades the window out, applies the layout switch, then fades back in. */
+    private void crossfadeLauncherTransition(Runnable change) {
+        View root = findViewById(android.R.id.content);
+        if (root == null) {
+            change.run();
+            return;
+        }
+        root.animate().cancel();
+        root.animate().alpha(0f).setDuration(140).withEndAction(() -> {
+            change.run();
+            root.animate().alpha(1f).setDuration(260).start();
+        }).start();
     }
 
     private void enterLauncherMode() {
@@ -1165,12 +1212,11 @@ public class MainActivity extends AppCompatActivity {
         launchedAsHome = false;
         applyLauncherChrome(false);
         syncLauncherModeSettingsUi();
-        // Park edilmiş Ana Ekran'ı hierarchy'den çıkar → 3D Engine serbest kalsın
         detachParkedLauncher();
         if (wasOnLauncherTab) {
             switchTab(0);
             if (topBarTitle != null) {
-                topBarTitle.setText("Wi-Fi Yönetimi");
+                topBarTitle.setText(R.string.topbar_wifi_management);
             }
             if (sideRailBuilder != null) {
                 sideRailBuilder.setSelectionForTabIndex(0);
@@ -1178,7 +1224,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** Launcher GONE park'tayken parent'tan koparır (ModelViewer detach destroy). */
+    /** Launcher modu kapanırken ana ekran view'ını parent'tan ayırır. */
     private void detachParkedLauncher() {
         if (launcherScrollView == null || tabContentArea == null) {
             return;
@@ -1202,7 +1248,7 @@ public class MainActivity extends AppCompatActivity {
     private void updateTargetLabel() {
         if (targetAppLabel != null) {
             if (targetPackage == null || targetPackage.trim().isEmpty()) {
-                targetAppLabel.setText("(seçilmedi)");
+                targetAppLabel.setText(R.string.common_not_selected);
             } else {
                 try {
                     PackageManager pm = getPackageManager();
@@ -1294,7 +1340,7 @@ public class MainActivity extends AppCompatActivity {
             }
             switchTab(TAB_LAUNCHER);
             if (topBarTitle != null) {
-                topBarTitle.setText("Araç Ana Ekranı");
+                topBarTitle.setText(R.string.topbar_vehicle_home);
             }
             return;
         }
@@ -1319,14 +1365,10 @@ public class MainActivity extends AppCompatActivity {
         lastNightModeUiBits = night;
         // AppCompat Activity Resources yapışmasın diye çözümlemeyi newConfig'e kilitle.
         UiStyles.setUiModeOverride(newConfig);
-        // uiMode configChanges ile Activity ayakta kalır → GLB Engine yok edilmez.
         reapplyUiModeTheme();
     }
 
-    /**
-     * Sistem light/dark değişince chrome + tüm sekmeleri yeniler.
-     * Launcher / {@link com.mapcontrol.ui.widget.VehicleGlbView} yeniden kurulmaz.
-     */
+    /** Sistem light/dark değişince chrome + tüm sekmeleri yeniler. */
     private void reapplyUiModeTheme() {
         if (mainRootContainer != null) {
             UiStyles.setRootBackground(mainRootContainer);
@@ -1352,13 +1394,9 @@ public class MainActivity extends AppCompatActivity {
         if (tabContentArea == null) {
             return;
         }
-        if (launcherMode && launcherScrollView != null) {
-            showTabContentKeepingLauncherParked(tab);
-        } else {
-            tabContentArea.removeAllViews();
-            attachTabContent(tab);
-            applyTabChrome(tab);
-        }
+        tabContentArea.removeAllViews();
+        attachTabContent(tab);
+        applyTabChrome(tab);
     }
 
     private void rebuildSideRailForUiMode() {
@@ -1400,9 +1438,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Launcher dışındaki sekmeleri taze renklerle yeniden kurar (GLB etkilenmez).
-     */
+    /** Launcher dışındaki sekmeleri taze renklerle yeniden kurar. */
     private void rebuildNonLauncherTabsForUiMode() {
         if (profileTabBuilder != null) {
             profileScrollView = profileTabBuilder.build();
@@ -1418,7 +1454,7 @@ public class MainActivity extends AppCompatActivity {
             qrCodeImageView = fileUploadTabBuilder.getQrImageView();
             if (webServerManager != null && webServerManager.isRunning()) {
                 if (btnWebServerToggle != null) {
-                    btnWebServerToggle.setText("■ Web Server Durdur");
+                    btnWebServerToggle.setText(R.string.web_server_stop);
                 }
                 if (webServerStatusText != null) {
                     webServerStatusText.setTextColor(UiStyles.color(this, R.color.accentHighlight));
@@ -1485,9 +1521,12 @@ public class MainActivity extends AppCompatActivity {
         tryConsumeDeferredProjectionTargetPicker();
         registerTargetPackageBroadcastReceiver();
         registerNavigationClusterBroadcastReceiver();
+        registerGoogleMapsNavBroadcastReceiver();
         isNavigationOpen = ClusterNavigationState.getLastKnownOpen();
         if (projectionTabBuilder != null) {
             projectionTabBuilder.refreshProjectionStatusUi();
+            projectionTabBuilder.updateGoogleMapsNavSummary(
+                    GoogleMapsNavNotificationCoordinator.getLastSnapshot());
         }
     }
 
@@ -1495,6 +1534,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         unregisterTargetPackageBroadcastReceiver();
         unregisterNavigationClusterBroadcastReceiver();
+        unregisterGoogleMapsNavBroadcastReceiver();
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.onHostPause();
         }
@@ -1557,6 +1597,35 @@ public class MainActivity extends AppCompatActivity {
         navigationClusterBroadcastRegistered = false;
     }
 
+    private void registerGoogleMapsNavBroadcastReceiver() {
+        if (googleMapsNavBroadcastRegistered) {
+            return;
+        }
+        try {
+            IntentFilter filter = new IntentFilter(
+                    GoogleMapsNavNotificationCoordinator.ACTION_GOOGLE_MAPS_NAV_SNAPSHOT);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(googleMapsNavSnapshotReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(googleMapsNavSnapshotReceiver, filter);
+            }
+            googleMapsNavBroadcastRegistered = true;
+        } catch (Exception e) {
+            log("Google Maps bildirim yayını kaydı: " + e.getMessage());
+        }
+    }
+
+    private void unregisterGoogleMapsNavBroadcastReceiver() {
+        if (!googleMapsNavBroadcastRegistered) {
+            return;
+        }
+        try {
+            unregisterReceiver(googleMapsNavSnapshotReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+        googleMapsNavBroadcastRegistered = false;
+    }
+
     private void applyNavigationClusterOpenFromBus(boolean open) {
         isNavigationOpen = open;
         ClusterNavigationState.setLastKnownOpen(open);
@@ -1596,7 +1665,10 @@ public class MainActivity extends AppCompatActivity {
         if (keyEventLogcatThread != null) {
             keyEventLogcatThread.interrupt();
         }
-        MapControlVDBusKeyBridge.release(this);
+        if (vdbusBridgeAcquired) {
+            vdbusBridgeAcquired = false;
+            MapControlVDBusKeyBridge.release(this);
+        }
         if (serviceInitializer != null) serviceInitializer.onDestroy();
     }
 
@@ -1620,8 +1692,14 @@ public class MainActivity extends AppCompatActivity {
         
         logBuffer.append(coloredLine);
         handler.post(() -> {
+            // UI henüz kurulmadan (initializeApp başında) gelen loglar buffer'da kalır
+            if (tvLogs == null) {
+                return;
+            }
             tvLogs.setText(logBuffer.toString());
-            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+            if (scrollView != null) {
+                scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+            }
         });
     }
 

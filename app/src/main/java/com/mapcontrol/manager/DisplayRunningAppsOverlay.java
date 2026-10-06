@@ -99,7 +99,7 @@ public final class DisplayRunningAppsOverlay {
 
     private void attach(int whichDisplay, String title) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(appContext)) {
-            Toast.makeText(appContext, "Overlay izni gerekli", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_overlay_required, Toast.LENGTH_SHORT).show();
             sInstance = null;
             return;
         }
@@ -175,7 +175,7 @@ public final class DisplayRunningAppsOverlay {
         titleRow.addView(titleView, titleLp);
 
         TextView btnClose = new TextView(themedContext);
-        btnClose.setText("✕");
+        btnClose.setText(R.string.common_close);
         btnClose.setTextSize(22);
         btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         btnClose.setPadding((int) (8 * density), 0, 0, 0);

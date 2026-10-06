@@ -60,7 +60,7 @@ public class FileUploadTabBuilder {
         UiStyles.setGlassCardBackground(fileUploadTabContent);
 
         TextView fileUploadTitle = new TextView(context);
-        fileUploadTitle.setText("Web Yönetimi");
+        fileUploadTitle.setText(R.string.web_mgmt_title);
         fileUploadTitle.setTextSize(18);
         fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         fileUploadTitle.setTypeface(null, Typeface.BOLD);
@@ -70,7 +70,7 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView fileUploadDesc = new TextView(context);
-        fileUploadDesc.setText("Web sunucusunu başlatarak aynı ağdaki cihazlardan dosya yükleyebilir, harita ve klavye denetimi kullanabilirsiniz.");
+        fileUploadDesc.setText(R.string.web_mgmt_desc);
         fileUploadDesc.setTextSize(13);
         fileUploadDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         fileUploadDesc.setPadding(16, 0, 16, 16);
@@ -79,7 +79,7 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         btnWebServerToggle = new Button(context);
-        btnWebServerToggle.setText("Web Server Başlat");
+        btnWebServerToggle.setText(R.string.web_server_start);
         btnWebServerToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWebServerToggle.setTextSize(16);
         btnWebServerToggle.setTypeface(null, Typeface.BOLD);
@@ -97,7 +97,7 @@ public class FileUploadTabBuilder {
         urlQrContainer.setPadding(16, 16, 16, 16);
 
         webServerStatusText = new TextView(context);
-        webServerStatusText.setText("Sunucu durduruldu");
+        webServerStatusText.setText(R.string.web_server_stopped);
         webServerStatusText.setTextSize(20);
         webServerStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         webServerStatusText.setGravity(Gravity.CENTER);

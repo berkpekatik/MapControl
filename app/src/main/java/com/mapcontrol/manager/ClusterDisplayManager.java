@@ -184,7 +184,10 @@ public class ClusterDisplayManager {
             callback.log("Navigasyon paneli kapatıldı");
 
             String targetPackage = callback.getTargetPackage();
-            if (targetPackage != null && !targetPackage.trim().isEmpty()) {
+            if (targetPackage != null && AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(targetPackage.trim())) {
+                // Google Maps araçta özel yansıtma paketiyle gösterilir; ana ekrana taşıma gerekmez.
+                callback.log("Google Maps hedefi: yalnızca VDBus kapatıldı, ana ekrana taşıma atlandı");
+            } else if (targetPackage != null && !targetPackage.trim().isEmpty()) {
                 try {
                     if (targetPackage.equals("com.mapcontrol")) {
                         callback.log("com.mapcontrol paketi taşınmayacak: " + targetPackage);

@@ -82,7 +82,7 @@ public class LauncherTabBuilder {
     }
 
     /**
-     * Sistem light/dark değişimi — kart/metin renklerini yeniler; GLB view ağacında kalır.
+     * Sistem light/dark değişimi — kart/metin renklerini yeniler.
      */
     public void onUiModeChanged() {
         if (dashboardBuilder != null) {

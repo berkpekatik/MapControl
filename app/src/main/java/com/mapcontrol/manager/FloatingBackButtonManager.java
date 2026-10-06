@@ -470,7 +470,7 @@ public class FloatingBackButtonManager {
             TargetAppPickerOverlay.show(context, msg -> log(msg));
         } catch (Exception e) {
             log("[ERROR] Hedef uygulama overlay: " + e.getMessage());
-            Toast.makeText(context, "Seçici açılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.target_picker_picker_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -493,7 +493,7 @@ public class FloatingBackButtonManager {
             log("[INFO] Yüzen yansıtma: servis " + action);
         } catch (Exception e) {
             log("[ERROR] Yüzen yansıtma servis: " + e.getMessage());
-            Toast.makeText(context, "Servis başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.target_picker_service_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -541,7 +541,7 @@ public class FloatingBackButtonManager {
                                 "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın",
                                 Toast.LENGTH_LONG).show();
                     } catch (Exception e) {
-                        Toast.makeText(context, "İzin ayarlarına gidilemedi: " + e.getMessage(),
+                        Toast.makeText(context, context.getString(R.string.floating_back_permission_settings, e.getMessage()),
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -753,7 +753,7 @@ public class FloatingBackButtonManager {
             floatingButton = null;
             isShowing = false;
             handler.post(() ->
-                    Toast.makeText(context, "Yüzen buton gösterilemedi: " + e.getMessage(),
+                    Toast.makeText(context, context.getString(R.string.floating_back_show_failed, e.getMessage()),
                             Toast.LENGTH_SHORT).show());
         }
     }

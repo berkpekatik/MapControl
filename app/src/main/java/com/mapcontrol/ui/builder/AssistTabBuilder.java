@@ -63,7 +63,7 @@ public class AssistTabBuilder {
         assistTitleRow.addView(assistTitleIcon);
 
         TextView assistTitle = new TextView(context);
-        assistTitle.setText("Araç ve Sürücü Yardımları");
+        assistTitle.setText(R.string.assist_title);
         assistTitle.setTextSize(20);
         assistTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         assistTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -77,7 +77,7 @@ public class AssistTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView assistSubtitle = new TextView(context);
-        assistSubtitle.setText("Sürüş güvenliği ve konfor ayarları");
+        assistSubtitle.setText(R.string.assist_subtitle);
         assistSubtitle.setTextSize(14);
         assistSubtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         assistSubtitle.setPadding(16, 0, 16, 16);
@@ -96,12 +96,12 @@ public class AssistTabBuilder {
         gridParams.setMargins(0, 0, 0, 16);
 
         Object[][] assistCards = {
-                {"ISS (Start-Stop)", R.drawable.ic_mdi_restart, 0, -1, "issSetting", "ISS"},
-                {"Hız Limitleyici", R.drawable.ic_mdi_speedometer, 2, -1, "spdLimitSetting", "Hız Limitleyici"},
-                {"Şerit Takip Uyarısı", R.drawable.ic_mdi_road_variant, 2, -1, "ldwSetting", "LDW"},
-                {"Şeritten Kaçınma (LDP)", R.drawable.ic_mdi_shield_car, 2, -1, "ldpSetting", "LDP"},
-                {"Ön Çarpışma Uyarısı", R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
-                {"Aktif Acil Fren", R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"}
+                {R.string.assist_card_iss, R.drawable.ic_mdi_restart, 0, -1, "issSetting", "ISS"},
+                {R.string.assist_card_spd_limit, R.drawable.ic_mdi_speedometer, 2, -1, "spdLimitSetting", "Hız Limitleyici"},
+                {R.string.assist_card_ldw, R.drawable.ic_mdi_road_variant, 2, -1, "ldwSetting", "LDW"},
+                {R.string.assist_card_ldp, R.drawable.ic_mdi_shield_car, 2, -1, "ldpSetting", "LDP"},
+                {R.string.assist_card_fcw, R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
+                {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"}
         };
 
         int[] savedValues = {
@@ -124,7 +124,7 @@ public class AssistTabBuilder {
 
         for (int i = 0; i < assistCards.length; i++) {
             final int cardIndex = i;
-            final String cardTitle = (String) assistCards[i][0];
+            final int cardTitleRes = (Integer) assistCards[i][0];
             final int cardIconRes = (Integer) assistCards[i][1];
             final int activeValue = (Integer) assistCards[i][2];
             final int passiveValue = (Integer) assistCards[i][3];
@@ -170,7 +170,7 @@ public class AssistTabBuilder {
             card.addView(iconView);
 
             TextView titleView = new TextView(context);
-            titleView.setText(cardTitle);
+            titleView.setText(cardTitleRes);
             titleView.setTextSize(15);
             titleView.setGravity(android.view.Gravity.CENTER);
             titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
@@ -180,7 +180,7 @@ public class AssistTabBuilder {
             card.addView(titleView);
 
             TextView statusView = new TextView(context);
-            statusView.setText(isActiveRef[0] ? getStatusText(settingKey) : "Ayarlanmadı");
+            statusView.setText(isActiveRef[0] ? getStatusText(settingKey) : context.getString(R.string.assist_status_not_set));
             statusView.setTextSize(12);
             statusView.setGravity(android.view.Gravity.CENTER);
             statusView.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
@@ -188,7 +188,7 @@ public class AssistTabBuilder {
             card.addView(statusView);
 
             TextView onChip = new TextView(context);
-            onChip.setText("ON");
+            onChip.setText(R.string.assist_chip_on);
             onChip.setTextSize(10);
             onChip.setTextColor(UiStyles.color(context, R.color.textPrimary));
             onChip.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -271,19 +271,19 @@ public class AssistTabBuilder {
         iconViews[cardIndex].setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                 isActive ? R.color.textPrimary : R.color.textPrimary70)));
         titleViews[cardIndex].setTypeface(null, isActive ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        statusViews[cardIndex].setText(isActive ? getStatusText(settingKey) : "Ayarlanmadı");
+        statusViews[cardIndex].setText(isActive ? getStatusText(settingKey) : context.getString(R.string.assist_status_not_set));
         onChips[cardIndex].setVisibility(isActive ? android.view.View.VISIBLE : android.view.View.GONE);
     }
 
     private String getStatusText(String settingKey) {
         switch (settingKey) {
-            case "issSetting": return "ISS Kapalı";
-            case "spdLimitSetting": return "Uyarı Kapalı";
-            case "ldwSetting": return "LDW Kapalı";
-            case "ldpSetting": return "LDP Kapalı";
-            case "fcwSetting": return "FCW Kapalı";
-            case "aebSetting": return "AEB Kapalı";
-            default: return "Aktif";
+            case "issSetting": return context.getString(R.string.assist_status_iss);
+            case "spdLimitSetting": return context.getString(R.string.assist_status_spd);
+            case "ldwSetting": return context.getString(R.string.assist_status_ldw);
+            case "ldpSetting": return context.getString(R.string.assist_status_ldp);
+            case "fcwSetting": return context.getString(R.string.assist_status_fcw);
+            case "aebSetting": return context.getString(R.string.assist_status_aeb);
+            default: return context.getString(R.string.assist_status_active);
         }
     }
 

@@ -26,7 +26,7 @@ import java.util.Calendar;
 import java.util.Locale;
 
 /**
- * Launcher Lite modu — kurumsal saat, hava durumu ve sürüş özeti.
+ * Launcher orta kart (varsayılan) — saat, tarih, hava durumu ve sürüş özeti.
  */
 public final class LauncherLitePanelView extends LinearLayout implements OpenMeteoWeatherClient.Listener {
 

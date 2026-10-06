@@ -194,12 +194,12 @@ public final class ProjectionVDBusTargetPickerManager {
 
     private void attach() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(appContext)) {
-            Toast.makeText(appContext, "Overlay izni gerekli", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_overlay_required, Toast.LENGTH_SHORT).show();
             return;
         }
         allRows = ProjectionTargetApps.loadSortedRows(appContext);
         if (allRows.isEmpty()) {
-            Toast.makeText(appContext, "Liste oluşturulamadı", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_list_failed, Toast.LENGTH_SHORT).show();
             return;
         }
         selectedIndex = 0;
@@ -230,7 +230,7 @@ public final class ProjectionVDBusTargetPickerManager {
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
         titleView = new TextView(themedContext);
-        titleView.setText("Hedef uygulama");
+        titleView.setText(R.string.target_picker_title);
         titleView.setTextSize(20);
         titleView.setTypeface(null, Typeface.BOLD);
         titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
@@ -239,7 +239,7 @@ public final class ProjectionVDBusTargetPickerManager {
         titleRow.addView(titleView, titleLp);
 
         closeBtn = new TextView(themedContext);
-        closeBtn.setText("✕");
+        closeBtn.setText(R.string.common_close);
         closeBtn.setTextSize(22);
         closeBtn.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         closeBtn.setPadding((int) (8 * density), 0, 0, 0);
@@ -249,7 +249,7 @@ public final class ProjectionVDBusTargetPickerManager {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         subtitleView = new TextView(themedContext);
-        subtitleView.setText("Yansıtma için uygulama seçin");
+        subtitleView.setText(R.string.target_picker_subtitle);
         subtitleView.setTextSize(13);
         subtitleView.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -282,7 +282,7 @@ public final class ProjectionVDBusTargetPickerManager {
         footer.setOrientation(LinearLayout.HORIZONTAL);
         footer.setGravity(Gravity.END);
         clearBtn = new TextView(themedContext);
-        clearBtn.setText("Temizle");
+        clearBtn.setText(R.string.common_clear);
         clearBtn.setTextSize(15);
         clearBtn.setTypeface(null, Typeface.BOLD);
         clearBtn.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
@@ -386,7 +386,7 @@ public final class ProjectionVDBusTargetPickerManager {
         }
         TargetPackageStore.writeAndBroadcast(appContext, pkg);
         log("VDBus hedef picker — seçim onaylandı: " + pkg);
-        Toast.makeText(appContext, "Yansıtılıyor…", Toast.LENGTH_SHORT).show();
+        Toast.makeText(appContext, R.string.target_picker_projecting, Toast.LENGTH_SHORT).show();
         startBenchOpenCluster();
         detach();
     }
@@ -395,7 +395,7 @@ public final class ProjectionVDBusTargetPickerManager {
         cancelDwellAndFill();
         TargetPackageStore.writeAndBroadcast(appContext, "");
         log("Hedef uygulama temizlendi (VDBus picker)");
-        Toast.makeText(appContext, "Hedef temizlendi", Toast.LENGTH_SHORT).show();
+        Toast.makeText(appContext, R.string.target_picker_cleared, Toast.LENGTH_SHORT).show();
         detach();
     }
 
@@ -411,7 +411,7 @@ public final class ProjectionVDBusTargetPickerManager {
             log("[INFO] VDBus picker: " + MapControlService.ACTION_BENCH_OPEN_CLUSTER);
         } catch (Exception e) {
             log("[ERROR] VDBus picker servis: " + e.getMessage());
-            Toast.makeText(appContext, "Servis başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, appContext.getString(R.string.target_picker_service_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 

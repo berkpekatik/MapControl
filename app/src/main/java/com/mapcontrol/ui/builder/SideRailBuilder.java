@@ -120,23 +120,24 @@ public class SideRailBuilder {
         menuContainer.setOrientation(LinearLayout.VERTICAL);
         menuContainer.setBackgroundColor(Color.TRANSPARENT);
 
-        menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, "Wi-Fi Yönetimi");
-        menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, "Uygulama Yönetimi");
-        menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, "Web Yönetimi");
-        menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, "Profil");
-        menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, "Hafıza Modu");
+        menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
+        menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
+        menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
+        // Temporarily hidden: Profile rail item (uncomment addView and onClick below to restore).
+        menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
+        menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
-                context.getString(R.string.side_rail_welcome_sound));
-        menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, "Kamera Test");
-        menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, "Yansıtma");
+                t(R.string.side_rail_welcome_sound));
+        menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
-                context.getString(R.string.side_rail_vehicle_info));
-        menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, "Ayarlar");
+                t(R.string.side_rail_vehicle_info));
+        menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
-        menuContainer.addView(menuProfile);
+        // menuContainer.addView(menuProfile); // Temporarily hidden — see comment above menuProfile creation.
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuTest.setVisibility(View.GONE);
@@ -158,39 +159,40 @@ public class SideRailBuilder {
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
 
         menuWifi.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_WIFI, "Wi-Fi Yönetimi");
+            callback.onTabSelected(TAB_WIFI, t(R.string.side_rail_wifi));
             updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuFileUpload.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_FILE, "Web Yönetimi");
+            callback.onTabSelected(TAB_FILE, t(R.string.side_rail_web));
             updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
-        menuProfile.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_PROFILE, "Profil");
-            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
-        });
+        // Temporarily hidden: Profile tab navigation from the side rail.
+        // menuProfile.setOnClickListener(v -> {
+        //     callback.onTabSelected(TAB_PROFILE, t(R.string.side_rail_profile));
+        //     updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        // });
 
         menuProjection.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_PROJECTION, "Yansıtma");
+            callback.onTabSelected(TAB_PROJECTION, t(R.string.side_rail_projection));
             updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuVehicleInfo.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_VEHICLE_INFO, context.getString(R.string.side_rail_vehicle_info));
+            callback.onTabSelected(TAB_VEHICLE_INFO, t(R.string.side_rail_vehicle_info));
             updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuSettings.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_SETTINGS, "Ayarlar");
+            callback.onTabSelected(TAB_SETTINGS, t(R.string.side_rail_settings));
             updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuApps.setOnClickListener(v -> {
             boolean accepted = prefs.getBoolean("appManagementDisclaimerAccepted", false);
             if (accepted) {
-                callback.onTabSelected(TAB_APPS, "Uygulama Yönetimi");
+                callback.onTabSelected(TAB_APPS, t(R.string.side_rail_apps));
                 updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
             } else {
                 callback.onAppManagementRequested();
@@ -198,12 +200,12 @@ public class SideRailBuilder {
         });
 
         menuDriveMode.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_DRIVE_MODE, "Hafıza Modu");
+            callback.onTabSelected(TAB_DRIVE_MODE, t(R.string.side_rail_drive_mode));
             updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
         });
 
         menuWelcomeSound.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_WELCOME_SOUND, context.getString(R.string.side_rail_welcome_sound));
+            callback.onTabSelected(TAB_WELCOME_SOUND, t(R.string.side_rail_welcome_sound));
             updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
         });
 
@@ -282,6 +284,10 @@ public class SideRailBuilder {
             default:
                 break;
         }
+    }
+
+    private String t(int resId) {
+        return context.getString(resId);
     }
 
     private LinearLayout createRailMenuItemView(int iconResId, String text) {

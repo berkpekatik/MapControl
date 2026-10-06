@@ -196,6 +196,27 @@ public final class UiStyles {
         }
     }
 
+    /** Lists every option's outcome; the selected one is highlighted, the rest dimmed. */
+    private static CharSequence buildOptionsHelp(Context context, String[] labels, String[] helps, int selected) {
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+        for (int i = 0; i < labels.length; i++) {
+            if (i > 0) {
+                sb.append('\n');
+            }
+            int start = sb.length();
+            sb.append(i == selected ? "● " : "○ ").append(labels[i]).append(" — ").append(helps[i]);
+            boolean active = i == selected;
+            sb.setSpan(new android.text.style.ForegroundColorSpan(
+                    color(context, active ? R.color.textPrimary : R.color.textHint)),
+                    start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (active) {
+                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                        start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+        return sb;
+    }
+
     /**
      * @param title optional section title above the track
      */
@@ -253,7 +274,8 @@ public final class UiStyles {
                 right.setBackgroundColor(Color.TRANSPARENT);
                 right.setTextColor(color(context, R.color.textSecondary));
                 right.setTypeface(null, android.graphics.Typeface.NORMAL);
-                help.setText(leftHelp);
+                help.setText(buildOptionsHelp(context, new String[]{leftLabel, rightLabel},
+                        new String[]{leftHelp, rightHelp}, 0));
             } else {
                 setBackgroundRes(right, R.drawable.bg_segment_thumb);
                 right.setTextColor(color(context, R.color.textPrimary));
@@ -261,7 +283,8 @@ public final class UiStyles {
                 left.setBackgroundColor(Color.TRANSPARENT);
                 left.setTextColor(color(context, R.color.textSecondary));
                 left.setTypeface(null, android.graphics.Typeface.NORMAL);
-                help.setText(rightHelp);
+                help.setText(buildOptionsHelp(context, new String[]{leftLabel, rightLabel},
+                        new String[]{leftHelp, rightHelp}, 1));
             }
         };
 
@@ -410,7 +433,7 @@ public final class UiStyles {
                     tv.setTypeface(null, android.graphics.Typeface.NORMAL);
                 }
             }
-            help.setText(helps[idx]);
+            help.setText(buildOptionsHelp(context, labels, helps, idx));
         };
 
         for (int i = 0; i < 3; i++) {

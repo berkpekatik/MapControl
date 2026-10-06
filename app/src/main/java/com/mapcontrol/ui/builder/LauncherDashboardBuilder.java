@@ -5,12 +5,9 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.ImageView;
@@ -30,9 +27,7 @@ import com.mapcontrol.R;
 import com.mapcontrol.media.LauncherMediaController;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.LauncherLitePanelView;
-import com.mapcontrol.ui.widget.VehicleGlbView;
 import com.mapcontrol.util.AppIconHelper;
-import com.mapcontrol.util.LauncherDisplayModeStore;
 import com.mapcontrol.util.LauncherQuickAppsStore;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
@@ -40,10 +35,7 @@ import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 /**
  * Launcher üst konsolu — sol hızlı erişim, orta araç/medya, sağ sürüş+yakıt.
@@ -109,17 +101,8 @@ public final class LauncherDashboardBuilder implements
     private TextView odoValueView;
     private TextView lowFuelValueView;
 
-    private VehicleGlbView vehicleGlbView;
-    private FrameLayout glbHost;
+    private FrameLayout centerPanelHost;
     private LauncherLitePanelView litePanelView;
-    private AppCompatImageButton trunkButton;
-    private AppCompatImageButton doorsButton;
-    private AppCompatImageButton sunroofButton;
-    private AppCompatImageButton interiorButton;
-    private TextView driveModeLabelView;
-    private LinearLayout poseEditorCard;
-    private TextView mediaCardTitleView;
-    private final Map<String, EditText> poseInputs = new LinkedHashMap<>();
     private GridLayout quickAppsGrid;
     private final ImageView[] quickAppIcons = new ImageView[LauncherQuickAppsStore.MAX_SLOT_COUNT];
     private final View[] quickAppSlots = new View[LauncherQuickAppsStore.MAX_SLOT_COUNT];
@@ -186,23 +169,12 @@ public final class LauncherDashboardBuilder implements
                 1f);
         root.addView(cardsRow, cardsRowLp);
 
-        poseEditorCard = buildPoseEditorCard();
-        poseEditorCard.setVisibility(View.GONE);
-        LinearLayout.LayoutParams poseLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        poseLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_small);
-        root.addView(poseEditorCard, poseLp);
-
         applySnapshot(repository.currentSnapshot());
         applyMediaState(mediaController.currentState());
         return root;
     }
 
     public void start() {
-        if (vehicleGlbView != null) {
-            vehicleGlbView.onHostStart();
-        }
         if (litePanelView != null) {
             litePanelView.start();
         }
@@ -217,9 +189,6 @@ public final class LauncherDashboardBuilder implements
     }
 
     public void stop() {
-        if (vehicleGlbView != null) {
-            vehicleGlbView.onHostStop();
-        }
         if (litePanelView != null) {
             litePanelView.stop();
         }
@@ -232,10 +201,7 @@ public final class LauncherDashboardBuilder implements
         repository.removeListener(this);
     }
 
-    /**
-     * Light/dark değişiminde cam kart + metin/ikon renklerini yeniler.
-     * {@link VehicleGlbView} hierarchy'de kalır — Engine yok edilmez.
-     */
+    /** Light/dark değişiminde cam kart + metin/ikon renklerini yeniler. */
     public void reapplyTheme() {
         if (quickAccessCard != null) {
             UiStyles.setGlassCardBackground(quickAccessCard);
@@ -245,9 +211,6 @@ public final class LauncherDashboardBuilder implements
         }
         if (musicDriveCard != null) {
             UiStyles.setGlassCardBackground(musicDriveCard);
-        }
-        if (poseEditorCard != null) {
-            UiStyles.setGlassCardBackground(poseEditorCard);
         }
         if (musicDriveTabTrack != null) {
             UiStyles.setBackgroundRes(musicDriveTabTrack, R.drawable.bg_segment_track);
@@ -276,9 +239,6 @@ public final class LauncherDashboardBuilder implements
         // Slot arka planları (surfaceCard) Activity Resources'ta yapışır — taze yükle / yeniden kur
         rebuildQuickAppsArea();
         reapplyShortcutsTheme();
-        if (mediaCardTitleView != null) {
-            mediaCardTitleView.setTextColor(UiStyles.color(context, R.color.textMuted));
-        }
         applyTextColor(rpmValueView, R.color.textPrimary);
         applyTextColor(tripValueView, R.color.textPrimary);
         applyTextColor(fuelPercentView, R.color.textPrimary);
@@ -303,15 +263,9 @@ public final class LauncherDashboardBuilder implements
         if (playPauseIconView != null) {
             playPauseIconView.setColorFilter(accent);
         }
-        refreshBodyControlBackgrounds();
-        updateBodyControlButtons(repository.currentSnapshot());
-        if (vehicleGlbView != null) {
-            vehicleGlbView.reapplySceneBackground();
-        }
         if (litePanelView != null) {
             litePanelView.reapplyTheme();
         }
-        // Hız / düşük yakıt renkleri snapshot’tan (simülasyon vurgusu dahil)
         applySnapshot(repository.currentSnapshot());
         applyMediaState(mediaController.currentState());
     }
@@ -356,23 +310,9 @@ public final class LauncherDashboardBuilder implements
                 repository.getCombined(ReadOnlyID.ID_LOW_FUEL_WARNING)));
 
         int speed = snapshot.preferredSpeed();
-        if (vehicleGlbView != null) {
-            vehicleGlbView.setWheelSpeedKmh(speed);
-            if (speed <= 0 && (vehicleGlbView.isWheelSimulationEnabled()
-                    || vehicleGlbView.getEffectiveWheelSpeedKmh() > 0f)) {
-                speed = Math.round(vehicleGlbView.getEffectiveWheelSpeedKmh());
-                speedValueView.setText(speed > 0
-                        ? String.format(Locale.getDefault(), "%d", speed)
-                        : "—");
-            }
-        }
-
         int speedColor = speed > 0
                 ? UiStyles.color(context, R.color.textPrimary)
                 : UiStyles.color(context, R.color.textMuted);
-        if (vehicleGlbView != null && vehicleGlbView.isWheelSimulationEnabled()) {
-            speedColor = UiStyles.color(context, R.color.accentHighlight);
-        }
         speedValueView.setTextColor(speedColor);
 
         int lowFuel = repository.getCombined(ReadOnlyID.ID_LOW_FUEL_WARNING);
@@ -381,102 +321,9 @@ public final class LauncherDashboardBuilder implements
                 : UiStyles.color(context, R.color.textPrimary);
         lowFuelValueView.setTextColor(lowFuelColor);
 
-        syncVehicleBodyToGlb(snapshot);
         if (litePanelView != null) {
             litePanelView.bindVehicleMetrics(snapshot);
         }
-    }
-
-    /** OEM kapı/bagaj sinyali → 3D aç/kapa animasyonu. */
-    private void syncVehicleBodyToGlb(VehicleMetricsSnapshot snapshot) {
-        if (vehicleGlbView == null) {
-            return;
-        }
-        if (snapshot.hasDoorLf()) {
-            vehicleGlbView.setDoorOpen("LF", snapshot.isDoorLfOpen());
-        }
-        if (snapshot.hasDoorRf()) {
-            vehicleGlbView.setDoorOpen("RF", snapshot.isDoorRfOpen());
-        }
-        if (snapshot.hasDoorLr()) {
-            vehicleGlbView.setDoorOpen("LR", snapshot.isDoorLrOpen());
-        }
-        if (snapshot.hasDoorRr()) {
-            vehicleGlbView.setDoorOpen("RR", snapshot.isDoorRrOpen());
-        }
-        if (snapshot.hasTrunk()) {
-            vehicleGlbView.setTrunkOpen(snapshot.isTrunkOpen());
-        }
-        Boolean sunroofOpen = snapshot.sunroofOpenOrNull();
-        if (sunroofOpen != null) {
-            vehicleGlbView.setSunroofOpen(sunroofOpen);
-        }
-        if (snapshot.hasDriveMode()) {
-            // Tema tint yok — sadece değer saklanır (API uyumu)
-            vehicleGlbView.setDriveMode(snapshot.driveMode);
-        }
-        updateBodyControlButtons(snapshot);
-    }
-
-    private void updateBodyControlButtons(VehicleMetricsSnapshot snapshot) {
-        int accent = UiStyles.color(context, R.color.oemAccent);
-        int highlight = UiStyles.color(context, R.color.accentHighlight);
-        updateDriveModeLabel(snapshot);
-
-        if (doorsButton != null) {
-            boolean open = snapshot.hasDoorLf() || snapshot.hasDoorRf()
-                    || snapshot.hasDoorLr() || snapshot.hasDoorRr()
-                    ? snapshot.isAnyDoorOpen()
-                    : vehicleGlbView != null && vehicleGlbView.isDoorsOpen();
-            doorsButton.setColorFilter(open ? highlight : accent);
-            doorsButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_doors_close
-                    : R.string.launcher_dashboard_doors_open));
-        }
-        if (trunkButton != null) {
-            boolean open = snapshot.hasTrunk()
-                    ? snapshot.isTrunkOpen()
-                    : vehicleGlbView != null && vehicleGlbView.isTrunkOpen();
-            trunkButton.setColorFilter(open ? highlight : accent);
-            trunkButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_trunk_close
-                    : R.string.launcher_dashboard_trunk_open));
-        }
-        if (sunroofButton != null) {
-            boolean open = snapshot.hasSunroof()
-                    ? snapshot.isSunroofOpen()
-                    : vehicleGlbView != null && vehicleGlbView.isSunroofOpen();
-            sunroofButton.setColorFilter(open ? highlight : accent);
-            sunroofButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_sunroof_close
-                    : R.string.launcher_dashboard_sunroof_open));
-        }
-        if (interiorButton != null) {
-            interiorButton.setColorFilter(accent);
-        }
-    }
-
-    private void updateDriveModeLabel(VehicleMetricsSnapshot snapshot) {
-        if (driveModeLabelView == null) {
-            return;
-        }
-        // Tema renkleri (yeşil/mavi/kırmızı) kaldırıldı — etiket de göstermiyoruz
-        driveModeLabelView.setVisibility(View.GONE);
-    }
-
-    private void refreshBodyControlBackgrounds() {
-        AppCompatImageButton[] buttons = {
-                doorsButton, trunkButton, sunroofButton, interiorButton
-        };
-        for (AppCompatImageButton button : buttons) {
-            if (button != null) {
-                UiStyles.setBackgroundRes(button, R.drawable.bg_vehicle_quick_control);
-            }
-        }
-    }
-
-    private int bodyControlIdleAccent() {
-        return UiStyles.color(context, R.color.oemAccent);
     }
 
     private void applyMediaState(LauncherMediaController.MediaState state) {
@@ -578,22 +425,6 @@ public final class LauncherDashboardBuilder implements
             albumArtView.setImageDrawable(null);
             albumArtView.setVisibility(View.GONE);
         }
-    }
-
-    private void onSimulatedWheelSpeedChanged(float kmh) {
-        if (speedValueView == null) {
-            return;
-        }
-        if (repository.currentSnapshot().preferredSpeed() > 0) {
-            return;
-        }
-        int shown = Math.round(kmh);
-        speedValueView.setText(shown > 0
-                ? String.format(Locale.getDefault(), "%d", shown)
-                : "—");
-        boolean sim = vehicleGlbView != null && vehicleGlbView.isWheelSimulationEnabled();
-        speedValueView.setTextColor(UiStyles.color(context,
-                sim || shown > 0 ? R.color.accentHighlight : R.color.textMuted));
     }
 
     private LinearLayout buildQuickAccessCard() {
@@ -837,7 +668,6 @@ public final class LauncherDashboardBuilder implements
         CharSequence[] items = new CharSequence[]{
                 context.getString(R.string.launcher_dashboard_quick_menu_slot_count),
                 context.getString(R.string.launcher_dashboard_quick_menu_list_all),
-                context.getString(R.string.launcher_dashboard_quick_menu_launcher_mode),
         };
         new AlertDialog.Builder(context)
                 .setTitle(R.string.launcher_dashboard_quick_settings)
@@ -847,77 +677,10 @@ public final class LauncherDashboardBuilder implements
                     } else if (which == 1) {
                         LauncherQuickAppsStore.setShowAllApps(context, true);
                         rebuildQuickAppsArea();
-                    } else if (which == 2) {
-                        showLauncherModePicker();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
-    }
-
-    private void showLauncherModePicker() {
-        final String mode3d = LauncherDisplayModeStore.MODE_3D;
-        final String modeLite = LauncherDisplayModeStore.MODE_LITE;
-        CharSequence[] labels = new CharSequence[]{
-                context.getString(R.string.launcher_dashboard_display_mode_3d),
-                context.getString(R.string.launcher_dashboard_display_mode_lite),
-        };
-        String current = LauncherDisplayModeStore.getMode(context);
-        int checked = modeLite.equals(current) ? 1 : 0;
-        new AlertDialog.Builder(context)
-                .setTitle(R.string.launcher_dashboard_launcher_mode_title)
-                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
-                    String selected = which == 1 ? modeLite : mode3d;
-                    if (!selected.equals(LauncherDisplayModeStore.getMode(context))) {
-                        LauncherDisplayModeStore.setMode(context, selected);
-                        applyLauncherDisplayMode();
-                    }
-                    dialog.dismiss();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    private void applyLauncherDisplayMode() {
-        if (glbHost == null) {
-            return;
-        }
-        if (LauncherDisplayModeStore.isLite(context)) {
-            destroyVehicleGlbView();
-            ensureLitePanelVisible();
-            updateVehicleControlsVisibility(false);
-            if (poseEditorCard != null) {
-                poseEditorCard.setVisibility(View.GONE);
-            }
-            return;
-        }
-        removeLitePanel();
-        createVehicleGlbView();
-        updateVehicleControlsVisibility(true);
-    }
-
-    private void createVehicleGlbView() {
-        if (vehicleGlbView != null || glbHost == null) {
-            return;
-        }
-        vehicleGlbView = new VehicleGlbView(context);
-        vehicleGlbView.setOnEffectiveWheelSpeedListener(this::onSimulatedWheelSpeedChanged);
-        glbHost.addView(vehicleGlbView, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-        if (listening) {
-            vehicleGlbView.onHostStart();
-        }
-        syncVehicleBodyToGlb(repository.currentSnapshot());
-    }
-
-    private void destroyVehicleGlbView() {
-        if (vehicleGlbView == null) {
-            return;
-        }
-        vehicleGlbView.onHostStop();
-        glbHost.removeView(vehicleGlbView);
-        vehicleGlbView = null;
     }
 
     private void ensureLitePanelVisible() {
@@ -930,38 +693,13 @@ public final class LauncherDashboardBuilder implements
             return;
         }
         litePanelView = new LauncherLitePanelView(context);
-        glbHost.addView(litePanelView, new FrameLayout.LayoutParams(
+        centerPanelHost.addView(litePanelView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER));
         litePanelView.bindVehicleMetrics(repository.currentSnapshot());
         if (listening) {
             litePanelView.start();
-        }
-    }
-
-    private void removeLitePanel() {
-        if (litePanelView == null) {
-            return;
-        }
-        litePanelView.destroy();
-        glbHost.removeView(litePanelView);
-        litePanelView = null;
-    }
-
-    private void updateVehicleControlsVisibility(boolean model3dVisible) {
-        int visibility = model3dVisible ? View.VISIBLE : View.GONE;
-        if (doorsButton != null) {
-            doorsButton.setVisibility(visibility);
-        }
-        if (sunroofButton != null) {
-            sunroofButton.setVisibility(visibility);
-        }
-        if (trunkButton != null) {
-            trunkButton.setVisibility(visibility);
-        }
-        if (interiorButton != null) {
-            interiorButton.setVisibility(visibility);
         }
     }
 
@@ -1139,15 +877,16 @@ public final class LauncherDashboardBuilder implements
         grid.setUseDefaultMargins(false);
 
         DashboardShortcut[] shortcuts = new DashboardShortcut[]{
-                new DashboardShortcut(0, R.drawable.ic_mdi_wifi, "Wi-Fi"),
-                new DashboardShortcut(1, R.drawable.ic_mdi_web, "Web"),
-                new DashboardShortcut(2, R.drawable.ic_mdi_account, "Profil"),
-                new DashboardShortcut(3, R.drawable.ic_mdi_map, "Yansıtma"),
-                new DashboardShortcut(5, R.drawable.ic_mdi_cellphone, "Uygulamalar"),
-                new DashboardShortcut(6, R.drawable.ic_mdi_car, "Hafıza"),
-                new DashboardShortcut(9, R.drawable.ic_mdi_speedometer, "Araç Bilgisi"),
-                new DashboardShortcut(8, R.drawable.ic_mdi_volume_high, "Hoş Geldin"),
-                new DashboardShortcut(7, R.drawable.ic_mdi_cog, "Ayarlar"),
+                new DashboardShortcut(0, R.drawable.ic_mdi_wifi, context.getString(R.string.launcher_shortcut_wifi)),
+                new DashboardShortcut(1, R.drawable.ic_mdi_web, context.getString(R.string.launcher_shortcut_web)),
+                // Temporarily hidden: Profile shortcut (restore line below when profile tab is re-enabled).
+                // new DashboardShortcut(2, R.drawable.ic_mdi_account, context.getString(R.string.launcher_shortcut_profile)),
+                new DashboardShortcut(3, R.drawable.ic_mdi_map, context.getString(R.string.launcher_shortcut_projection)),
+                new DashboardShortcut(5, R.drawable.ic_mdi_cellphone, context.getString(R.string.launcher_shortcut_apps)),
+                new DashboardShortcut(6, R.drawable.ic_mdi_car, context.getString(R.string.launcher_shortcut_drive)),
+                new DashboardShortcut(9, R.drawable.ic_mdi_speedometer, context.getString(R.string.side_rail_vehicle_info)),
+                new DashboardShortcut(8, R.drawable.ic_mdi_volume_high, context.getString(R.string.launcher_shortcut_welcome)),
+                new DashboardShortcut(7, R.drawable.ic_mdi_cog, context.getString(R.string.launcher_shortcut_settings)),
         };
         for (DashboardShortcut shortcut : shortcuts) {
             addCompactShortcutTile(grid, shortcut);
@@ -1394,18 +1133,6 @@ public final class LauncherDashboardBuilder implements
         speedValueView.setGravity(Gravity.CENTER);
         speedValueView.setMaxLines(1);
         speedValueView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        speedValueView.setClickable(true);
-        speedValueView.setFocusable(true);
-        speedValueView.setOnClickListener(v -> {
-            if (vehicleGlbView == null) {
-                return;
-            }
-            boolean on = vehicleGlbView.toggleWheelSimulation();
-            speedValueView.setTextColor(on
-                    ? UiStyles.color(context, R.color.accentHighlight)
-                    : UiStyles.color(context, R.color.textMuted));
-            applySnapshot(repository.currentSnapshot());
-        });
         body.addView(speedValueView, matchWidthWrap());
 
         TextView unit = new TextView(context);
@@ -1451,171 +1178,15 @@ public final class LauncherDashboardBuilder implements
     }
 
     private LinearLayout buildVehicleCard() {
-        LinearLayout card = createCardShell(context.getString(R.string.launcher_dashboard_card_media));
+        LinearLayout card = createCardShell(context.getString(R.string.launcher_dashboard_card_clock));
         LinearLayout body = cardContent(card);
 
-        int btnSize = UiStyles.dimenPx(context, R.dimen.launcher_dashboard_control_size);
-        int inset = UiStyles.dimenPx(context, R.dimen.spacing_small);
-        int iconPad = UiStyles.dimenPx(context, R.dimen.spacing_small);
-
-        interiorButton = new AppCompatImageButton(context);
-        UiStyles.setBackgroundRes(interiorButton, R.drawable.bg_vehicle_quick_control);
-        interiorButton.setImageResource(R.drawable.ic_mdi_car_seat);
-        interiorButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        interiorButton.setColorFilter(UiStyles.color(context, R.color.oemAccent));
-        interiorButton.setPadding(iconPad, iconPad, iconPad, iconPad);
-        interiorButton.setContentDescription(
-                context.getString(R.string.launcher_dashboard_interior_mode));
-        interiorButton.setOnClickListener(v -> {
-            if (vehicleGlbView == null) {
-                return;
-            }
-            boolean interior = vehicleGlbView.toggleInteriorMode();
-            interiorButton.setImageResource(
-                    interior ? R.drawable.ic_mdi_car : R.drawable.ic_mdi_car_seat);
-            interiorButton.setContentDescription(context.getString(
-                    interior
-                            ? R.string.launcher_dashboard_exterior_mode
-                            : R.string.launcher_dashboard_interior_mode));
-            if (poseEditorCard != null && poseEditorCard.getVisibility() == View.VISIBLE) {
-                fillPoseInputsFromModel();
-            }
-        });
-
-        trunkButton = new AppCompatImageButton(context);
-        UiStyles.setBackgroundRes(trunkButton, R.drawable.bg_vehicle_quick_control);
-        trunkButton.setImageResource(R.drawable.ic_mdi_car_trunk);
-        trunkButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        trunkButton.setColorFilter(UiStyles.color(context, R.color.oemAccent));
-        trunkButton.setPadding(iconPad, iconPad, iconPad, iconPad);
-        trunkButton.setContentDescription(
-                context.getString(R.string.launcher_dashboard_trunk_open));
-        trunkButton.setOnClickListener(v -> {
-            if (vehicleGlbView == null) {
-                return;
-            }
-            int speed = repository.currentSnapshot().preferredSpeed();
-            float effective = vehicleGlbView.getEffectiveWheelSpeedKmh();
-            boolean moving = speed > 0 || effective > 0.5f;
-            if (moving && !vehicleGlbView.isTrunkOpen()) {
-                Toast.makeText(context,
-                        R.string.launcher_dashboard_trunk_blocked_moving,
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            boolean open = vehicleGlbView.toggleTrunkOpen();
-            trunkButton.setColorFilter(open
-                    ? UiStyles.color(context, R.color.accentHighlight)
-                    : bodyControlIdleAccent());
-            trunkButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_trunk_close
-                    : R.string.launcher_dashboard_trunk_open));
-        });
-
-        sunroofButton = new AppCompatImageButton(context);
-        UiStyles.setBackgroundRes(sunroofButton, R.drawable.bg_vehicle_quick_control);
-        sunroofButton.setImageResource(R.drawable.ic_mdi_car_sunroof);
-        sunroofButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        sunroofButton.setColorFilter(UiStyles.color(context, R.color.oemAccent));
-        sunroofButton.setPadding(iconPad, iconPad, iconPad, iconPad);
-        sunroofButton.setContentDescription(
-                context.getString(R.string.launcher_dashboard_sunroof_open));
-        sunroofButton.setOnClickListener(v -> {
-            if (vehicleGlbView == null) {
-                return;
-            }
-            boolean open = vehicleGlbView.toggleSunroofOpen();
-            sunroofButton.setColorFilter(open
-                    ? UiStyles.color(context, R.color.accentHighlight)
-                    : bodyControlIdleAccent());
-            sunroofButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_sunroof_close
-                    : R.string.launcher_dashboard_sunroof_open));
-        });
-
-        doorsButton = new AppCompatImageButton(context);
-        UiStyles.setBackgroundRes(doorsButton, R.drawable.bg_vehicle_quick_control);
-        doorsButton.setImageResource(R.drawable.ic_mdi_car_door);
-        doorsButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        doorsButton.setColorFilter(UiStyles.color(context, R.color.oemAccent));
-        doorsButton.setPadding(iconPad, iconPad, iconPad, iconPad);
-        doorsButton.setContentDescription(
-                context.getString(R.string.launcher_dashboard_doors_open));
-        doorsButton.setOnClickListener(v -> {
-            if (vehicleGlbView == null) {
-                return;
-            }
-            boolean open = vehicleGlbView.toggleDoorsOpen();
-            doorsButton.setColorFilter(open
-                    ? UiStyles.color(context, R.color.accentHighlight)
-                    : bodyControlIdleAccent());
-            doorsButton.setContentDescription(context.getString(open
-                    ? R.string.launcher_dashboard_doors_close
-                    : R.string.launcher_dashboard_doors_open));
-        });
-
-        // Başlık: ECO etiketi + kapı + cam tavan + bagaj + interior
-        View mediaTitle = card.getChildAt(0);
-        if (mediaTitle instanceof TextView) {
-            card.removeView(mediaTitle);
-            LinearLayout headerRow = new LinearLayout(context);
-            headerRow.setOrientation(LinearLayout.HORIZONTAL);
-            headerRow.setGravity(Gravity.CENTER_VERTICAL);
-            mediaCardTitleView = (TextView) mediaTitle;
-            headerRow.addView(mediaCardTitleView, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-            driveModeLabelView = new TextView(context);
-            driveModeLabelView.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                    context.getResources().getDimension(R.dimen.text_size_small));
-            driveModeLabelView.setTypeface(null, Typeface.BOLD);
-            driveModeLabelView.setLetterSpacing(0.08f);
-            driveModeLabelView.setVisibility(View.GONE);
-            LinearLayout.LayoutParams modeLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            modeLp.setMarginStart(inset);
-            headerRow.addView(driveModeLabelView, modeLp);
-
-            LinearLayout.LayoutParams headerBtnLp = new LinearLayout.LayoutParams(btnSize, btnSize);
-            headerBtnLp.setMarginStart(inset);
-            headerRow.addView(doorsButton, headerBtnLp);
-            LinearLayout.LayoutParams sunroofBtnLp = new LinearLayout.LayoutParams(btnSize, btnSize);
-            sunroofBtnLp.setMarginStart(inset);
-            headerRow.addView(sunroofButton, sunroofBtnLp);
-            LinearLayout.LayoutParams trunkBtnLp = new LinearLayout.LayoutParams(btnSize, btnSize);
-            trunkBtnLp.setMarginStart(inset);
-            headerRow.addView(trunkButton, trunkBtnLp);
-            LinearLayout.LayoutParams interiorBtnLp = new LinearLayout.LayoutParams(btnSize, btnSize);
-            interiorBtnLp.setMarginStart(inset);
-            headerRow.addView(interiorButton, interiorBtnLp);
-            card.addView(headerRow, 0, matchWidthWrap());
-
-            mediaCardTitleView.setClickable(true);
-            mediaCardTitleView.setFocusable(true);
-            mediaCardTitleView.setOnClickListener(v -> {
-                if (vehicleGlbView == null) {
-                    return;
-                }
-                boolean on = vehicleGlbView.togglePickDebugEnabled();
-                mediaCardTitleView.setTextColor(on
-                        ? UiStyles.color(context, R.color.accentHighlight)
-                        : UiStyles.color(context, R.color.textMuted));
-                if (poseEditorCard != null) {
-                    poseEditorCard.setVisibility(on ? View.VISIBLE : View.GONE);
-                }
-                if (on) {
-                    fillPoseInputsFromModel();
-                }
-            });
-        }
-
-        glbHost = new FrameLayout(context);
-        body.addView(glbHost, new LinearLayout.LayoutParams(
+        centerPanelHost = new FrameLayout(context);
+        body.addView(centerPanelHost, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f));
-        applyLauncherDisplayMode();
+        ensureLitePanelVisible();
 
         return card;
     }
@@ -1771,155 +1342,6 @@ public final class LauncherDashboardBuilder implements
         mediaSection.addView(mediaHost, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT));
-    }
-
-    private LinearLayout buildPoseEditorCard() {
-        LinearLayout card = createCardShell(context.getString(R.string.launcher_dashboard_card_pose));
-        LinearLayout body = cardContent(card);
-
-        LinearLayout grid = new LinearLayout(context);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        body.addView(grid, matchWidthWrap());
-
-        addPoseRow(grid, "centerX", "centerY", "centerZ");
-        addPoseRow(grid, "offsetX", "offsetY", "offsetZ");
-        addPoseRow(grid, "yaw", "pitch", "roll");
-        addPoseRow(grid, "scale", "eyeX", "eyeY");
-        addPoseRow(grid, "eyeZ", null, null);
-
-        Button applyButton = new Button(context);
-        applyButton.setText(R.string.launcher_dashboard_pose_apply);
-        applyButton.setAllCaps(false);
-        UiStyles.styleOemButton(applyButton,
-                UiStyles.color(context, R.color.accentHighlight));
-        LinearLayout.LayoutParams btnLp = matchWidthWrap();
-        btnLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_small);
-        body.addView(applyButton, btnLp);
-        applyButton.setOnClickListener(v -> applyPoseFromInputs());
-
-        return card;
-    }
-
-    private void addPoseRow(LinearLayout parent, String keyA, String keyB, String keyC) {
-        LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        int gap = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
-        row.setPadding(0, gap / 2, 0, gap / 2);
-
-        if (keyA != null) {
-            row.addView(buildPoseField(keyA), poseFieldLp());
-        }
-        if (keyB != null) {
-            LinearLayout.LayoutParams lp = poseFieldLp();
-            lp.setMarginStart(gap);
-            row.addView(buildPoseField(keyB), lp);
-        }
-        if (keyC != null) {
-            LinearLayout.LayoutParams lp = poseFieldLp();
-            lp.setMarginStart(gap);
-            row.addView(buildPoseField(keyC), lp);
-        }
-        parent.addView(row, matchWidthWrap());
-    }
-
-    private LinearLayout.LayoutParams poseFieldLp() {
-        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-    }
-
-    private LinearLayout buildPoseField(String key) {
-        LinearLayout field = new LinearLayout(context);
-        field.setOrientation(LinearLayout.VERTICAL);
-
-        TextView label = new TextView(context);
-        label.setText(key);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                context.getResources().getDimension(R.dimen.text_size_small));
-        label.setTextColor(UiStyles.color(context, R.color.textMuted));
-        field.addView(label);
-
-        EditText input = new EditText(context);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER
-                | InputType.TYPE_NUMBER_FLAG_DECIMAL
-                | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        input.setShowSoftInputOnFocus(false);
-        input.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                context.getResources().getDimension(R.dimen.text_size_small));
-        input.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        input.setHintTextColor(UiStyles.color(context, R.color.textMuted));
-        input.setSingleLine(true);
-        input.setPadding(
-                UiStyles.dimenPx(context, R.dimen.spacing_tiny),
-                UiStyles.dimenPx(context, R.dimen.spacing_tiny),
-                UiStyles.dimenPx(context, R.dimen.spacing_tiny),
-                UiStyles.dimenPx(context, R.dimen.spacing_tiny));
-        field.addView(input, matchWidthWrap());
-        poseInputs.put(key, input);
-        return field;
-    }
-
-    private void fillPoseInputsFromModel() {
-        if (vehicleGlbView == null) {
-            return;
-        }
-        VehicleGlbView.PoseConfig c = vehicleGlbView.getPoseConfig();
-        setPoseInput("centerX", c.centerX);
-        setPoseInput("centerY", c.centerY);
-        setPoseInput("centerZ", c.centerZ);
-        setPoseInput("offsetX", c.offsetX);
-        setPoseInput("offsetY", c.offsetY);
-        setPoseInput("offsetZ", c.offsetZ);
-        setPoseInput("yaw", c.yawDeg);
-        setPoseInput("pitch", c.pitchDeg);
-        setPoseInput("roll", c.rollDeg);
-        setPoseInput("scale", c.scale);
-        setPoseInput("eyeX", c.cameraEyeX);
-        setPoseInput("eyeY", c.cameraEyeY);
-        setPoseInput("eyeZ", c.cameraEyeZ);
-    }
-
-    private void setPoseInput(String key, float value) {
-        EditText input = poseInputs.get(key);
-        if (input != null) {
-            input.setText(String.format(Locale.US, "%.3f", value));
-        }
-    }
-
-    private void applyPoseFromInputs() {
-        if (vehicleGlbView == null) {
-            return;
-        }
-        VehicleGlbView.PoseConfig c = new VehicleGlbView.PoseConfig();
-        c.centerX = readPoseInput("centerX", c.centerX);
-        c.centerY = readPoseInput("centerY", c.centerY);
-        c.centerZ = readPoseInput("centerZ", c.centerZ);
-        c.offsetX = readPoseInput("offsetX", c.offsetX);
-        c.offsetY = readPoseInput("offsetY", c.offsetY);
-        c.offsetZ = readPoseInput("offsetZ", c.offsetZ);
-        c.yawDeg = readPoseInput("yaw", c.yawDeg);
-        c.pitchDeg = readPoseInput("pitch", c.pitchDeg);
-        c.rollDeg = readPoseInput("roll", c.rollDeg);
-        c.scale = readPoseInput("scale", c.scale);
-        c.cameraEyeX = readPoseInput("eyeX", c.cameraEyeX);
-        c.cameraEyeY = readPoseInput("eyeY", c.cameraEyeY);
-        c.cameraEyeZ = readPoseInput("eyeZ", c.cameraEyeZ);
-        vehicleGlbView.applyPoseConfig(c);
-    }
-
-    private float readPoseInput(String key, float fallback) {
-        EditText input = poseInputs.get(key);
-        if (input == null) {
-            return fallback;
-        }
-        String raw = input.getText() != null ? input.getText().toString().trim() : "";
-        if (raw.isEmpty()) {
-            return fallback;
-        }
-        try {
-            return Float.parseFloat(raw.replace(',', '.'));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
     }
 
     private LinearLayout createGlassCard() {

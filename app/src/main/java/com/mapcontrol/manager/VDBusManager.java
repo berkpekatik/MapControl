@@ -55,9 +55,10 @@ public class VDBusManager {
             callback.log("VDBus KeyEvent: keyCode=" + keyCode + " action=" + action);
 
             if (keyCode == 26 && action == 1) {
-                mainHandler.post(() -> callback.onAlertTone());
+                callback.onAlertTone();
             } else if (keyCode == 26 && action == 4) {
-                mainHandler.post(() -> callback.onNavKeyToggle());
+                // Ana thread'e taşımayın: openClusterDisplay() içinde bloklayan dumpsys okuması var.
+                callback.onNavKeyToggle();
             } else if ((keyCode == 7 || keyCode == 8) && action == 4) {
                 mainHandler.post(() -> callback.onProjectionTargetPickerToggle());
             } else if (keyCode == 7 && action == 1) {

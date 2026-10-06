@@ -29,6 +29,7 @@ import com.mapcontrol.nav.YandexClusterNavCoordinator;
 import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.service.BootReceiver;
 import com.mapcontrol.service.GlobalBackService;
+import com.mapcontrol.util.AppLocaleManager;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.vehicle.material.MaterialVehiclePreferences;
 import com.mapcontrol.vehicle.material.MaterialVehicleResources;
@@ -39,6 +40,8 @@ public class SettingsTabBuilder {
         void log(String message);
         String getCarToken();
         void onLauncherModeChanged(boolean enabled);
+
+        void onLocaleChanged();
     }
 
     private final Context context;
@@ -49,6 +52,7 @@ public class SettingsTabBuilder {
     private LinearLayout settingsTabContent;
     private FloatingBackButtonManager floatingBackButtonManager;
     private UiStyles.BinarySegmentHandle launcherModeSegmentHandle;
+    private UiStyles.BinarySegmentHandle languageSegmentHandle;
     private TextView launcherHomeSettingsLink;
 
     public SettingsTabBuilder(Context context, SharedPreferences prefs, SettingsCallback callback) {
@@ -84,6 +88,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        createLanguageSection(settingsTabContent);
         createAppInfoSection(settingsTabContent);
         createBootAutostartSection(settingsTabContent);
         createFloatingBackButtonSection(settingsTabContent);
@@ -91,6 +96,47 @@ public class SettingsTabBuilder {
         createLauncherModeSection(settingsTabContent);
         createVehicleModelSection(settingsTabContent);
         return scrollView;
+    }
+
+    private void createLanguageSection(LinearLayout parentContainer) {
+        TextView sectionTitle = new TextView(context);
+        sectionTitle.setText(R.string.settings_language_section_title);
+        sectionTitle.setTextSize(18);
+        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        sectionTitle.setPadding(16, 24, 16, 8);
+        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView sectionDesc = new TextView(context);
+        sectionDesc.setText(R.string.settings_language_section_desc);
+        sectionDesc.setTextSize(13);
+        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        sectionDesc.setPadding(16, 0, 16, 12);
+        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        boolean english = AppLocaleManager.isEnglish(context);
+        languageSegmentHandle = UiStyles.addBinarySegmentedControl(context, parentContainer,
+                null,
+                context.getString(R.string.settings_language_tr),
+                context.getString(R.string.settings_language_en),
+                context.getString(R.string.settings_language_tr),
+                context.getString(R.string.settings_language_en),
+                !english,
+                turkishSelected -> {
+                    String tag = turkishSelected
+                            ? AppLocaleManager.LOCALE_TR
+                            : AppLocaleManager.LOCALE_EN;
+                    if (tag.equals(AppLocaleManager.getStoredLocaleTag(context))) {
+                        return;
+                    }
+                    AppLocaleManager.setLocale(context, tag);
+                    callback.log("Locale: " + tag);
+                    callback.onLocaleChanged();
+                });
     }
 
     private void createYandexClusterNavSection(LinearLayout parentContainer) {
@@ -118,7 +164,7 @@ public class SettingsTabBuilder {
         final UiStyles.BinarySegmentHandle[] handleRef = new UiStyles.BinarySegmentHandle[1];
         handleRef[0] = UiStyles.addBinarySegmentedControl(context, parentContainer,
                 null,
-                "Açık", "Kapalı",
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
                 context.getString(R.string.yandex_cluster_nav_help_on),
                 context.getString(R.string.yandex_cluster_nav_help_off),
                 savedEnabled,
@@ -138,7 +184,7 @@ public class SettingsTabBuilder {
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             context.startActivity(intent);
                             Toast.makeText(context,
-                                    "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın",
+                                    R.string.overlay_permission_toast,
                                     Toast.LENGTH_LONG).show();
                         } catch (Exception e) {
                             callback.log("İzin ayarlarına gidilemedi: " + e.getMessage());
@@ -171,7 +217,7 @@ public class SettingsTabBuilder {
 
     private void createBootAutostartSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
-        sectionTitle.setText("Sistem açılışı");
+        sectionTitle.setText(R.string.settings_boot_section_title);
         sectionTitle.setTextSize(18);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -181,7 +227,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView sectionDesc = new TextView(context);
-        sectionDesc.setText("Cihaz yeniden başladığında servis ve uygulama ekranının otomatik açılması.");
+        sectionDesc.setText(R.string.settings_boot_section_desc);
         sectionDesc.setTextSize(13);
         sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         sectionDesc.setPadding(16, 0, 16, 12);
@@ -191,10 +237,10 @@ public class SettingsTabBuilder {
 
         boolean serviceOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, true);
         UiStyles.addBinarySegmentedControl(context, parentContainer,
-                "Açılışta arka plan servisi",
-                "Açık", "Kapalı",
-                "BOOT sonrası MapControl servisini başlat.",
-                "Servis yalnızca uygulamayı elle açınca başlar.",
+                context.getString(R.string.settings_boot_service_title),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.settings_boot_service_help_on),
+                context.getString(R.string.settings_boot_service_help_off),
                 serviceOn,
                 on -> {
                     prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_START, on).apply();
@@ -203,10 +249,10 @@ public class SettingsTabBuilder {
 
         boolean uiOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
         UiStyles.addBinarySegmentedControl(context, parentContainer,
-                "Açılışta uygulama ekranı",
-                "Açık", "Kapalı",
-                "Yaklaşık 4 sn sonra ana ekranı aç (cihaza bağlı).",
-                "Yalnızca bildirimden veya launcher'dan açın.",
+                context.getString(R.string.settings_boot_ui_title),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.settings_boot_ui_help_on),
+                context.getString(R.string.settings_boot_ui_help_off),
                 uiOn,
                 on -> {
                     prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, on).apply();
@@ -216,7 +262,7 @@ public class SettingsTabBuilder {
 
     private void createFloatingBackButtonSection(LinearLayout parentContainer) {
         TextView floatingBackButtonTitle = new TextView(context);
-        floatingBackButtonTitle.setText("Floating Back Button");
+        floatingBackButtonTitle.setText(R.string.settings_floating_back_title);
         floatingBackButtonTitle.setTextSize(18);
         floatingBackButtonTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         floatingBackButtonTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -226,8 +272,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView floatingBackButtonDesc = new TextView(context);
-        floatingBackButtonDesc.setText(
-                "Kısa dokunuş (sol ok): geri. Uzun bas (sol ok): menüyü aç / menü açıkken kapat. Menüdeki düğmelere dokununca çubuk açık kalır. Çubuğu her yerinden sürükleyerek taşıyın.");
+        floatingBackButtonDesc.setText(R.string.settings_floating_back_desc);
         floatingBackButtonDesc.setTextSize(13);
         floatingBackButtonDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         floatingBackButtonDesc.setPadding(16, 0, 16, 12);
@@ -263,9 +308,9 @@ public class SettingsTabBuilder {
         final UiStyles.BinarySegmentHandle[] floatingHandleRef = new UiStyles.BinarySegmentHandle[1];
         floatingHandleRef[0] = UiStyles.addBinarySegmentedControl(context, parentContainer,
                 null,
-                "Açık", "Kapalı",
-                "Yüzen geri tuşunu göster.",
-                "Yüzen geri tuşunu gizle.",
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.settings_floating_back_help_on),
+                context.getString(R.string.settings_floating_back_help_off),
                 savedEnabled,
                 isEnabled -> {
                     FloatingBackButtonManager.saveEnabledState(context, isEnabled);
@@ -278,7 +323,7 @@ public class SettingsTabBuilder {
                                     intent.setData(android.net.Uri.parse("package:" + context.getPackageName()));
                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                     context.startActivity(intent);
-                                    Toast.makeText(context, "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(context, R.string.overlay_permission_toast, Toast.LENGTH_LONG).show();
                                     floatingHandleRef[0].setLeftSelected(false);
                                     return;
                                 } catch (Exception e) {
@@ -306,7 +351,7 @@ public class SettingsTabBuilder {
                     intent.setData(android.net.Uri.parse("package:" + context.getPackageName()));
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(intent);
-                    Toast.makeText(context, "Lütfen 'Diğer uygulamaların üzerinde görüntüleme' iznini açın", Toast.LENGTH_LONG).show();
+                    Toast.makeText(context, R.string.overlay_permission_toast, Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
                     callback.log("İzin ayarlarına gidilemedi: " + e.getMessage());
                 }
@@ -323,7 +368,7 @@ public class SettingsTabBuilder {
 
     private void createAppInfoSection(LinearLayout parentContainer) {
         TextView appInfoTitle = new TextView(context);
-        appInfoTitle.setText("Uygulama Hakkında");
+        appInfoTitle.setText(R.string.settings_app_about_title);
         appInfoTitle.setTextSize(18);
         appInfoTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         appInfoTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -333,7 +378,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView versionTitle = new TextView(context);
-        versionTitle.setText("Versiyon");
+        versionTitle.setText(R.string.settings_version_title);
         versionTitle.setTextSize(16);
         versionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         versionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -345,9 +390,9 @@ public class SettingsTabBuilder {
         TextView versionText = new TextView(context);
         try {
             String versionName = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
-            versionText.setText("Mevcut Versiyon: " + versionName);
+            versionText.setText(context.getString(R.string.settings_version_current, versionName));
         } catch (PackageManager.NameNotFoundException e) {
-            versionText.setText("Mevcut Versiyon: Bilinmiyor");
+            versionText.setText(R.string.settings_version_current_unknown);
         }
         versionText.setTextSize(14);
         versionText.setTextColor(UiStyles.color(context, R.color.textHint));
@@ -358,7 +403,7 @@ public class SettingsTabBuilder {
 
         TextView latestVersionText = new TextView(context);
         latestVersionText.setId(View.generateViewId());
-        latestVersionText.setText("Güncel Versiyon: Yükleniyor...");
+        latestVersionText.setText(R.string.settings_version_latest_loading);
         latestVersionText.setTextSize(14);
         latestVersionText.setTextColor(UiStyles.color(context, R.color.textHint));
         latestVersionText.setPadding(16, 0, 16, 16);
@@ -367,7 +412,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView freeInstallTitle = new TextView(context);
-        freeInstallTitle.setText("Kurulum");
+        freeInstallTitle.setText(R.string.settings_install_title);
         freeInstallTitle.setTextSize(16);
         freeInstallTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         freeInstallTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -377,7 +422,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView freeInstallText = new TextView(context);
-        freeInstallText.setText("Bu uygulama https://vnoisy.dev adresinden ücretsiz olarak kurulabilir.");
+        freeInstallText.setText(R.string.settings_install_body);
         freeInstallText.setTextSize(14);
         freeInstallText.setTextColor(UiStyles.color(context, R.color.textHint));
         freeInstallText.setPadding(16, 0, 16, 16);
@@ -386,7 +431,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView changelogTitle = new TextView(context);
-        changelogTitle.setText("Güncelleme Notları");
+        changelogTitle.setText(R.string.settings_changelog_title);
         changelogTitle.setTextSize(16);
         changelogTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         changelogTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -397,7 +442,7 @@ public class SettingsTabBuilder {
 
         TextView changelogText = new TextView(context);
         changelogText.setId(View.generateViewId());
-        changelogText.setText("Yükleniyor...");
+        changelogText.setText(R.string.common_loading);
         changelogText.setTextSize(14);
         changelogText.setTextColor(UiStyles.color(context, R.color.textHint));
         changelogText.setPadding(16, 0, 16, 16);
@@ -461,7 +506,7 @@ public class SettingsTabBuilder {
                                     changelogBuilder.append("\n\n");
                                 }
                                 if (!version.isEmpty()) {
-                                    changelogBuilder.append("Versiyon ").append(version);
+                                    changelogBuilder.append(context.getString(R.string.settings_changelog_version_prefix)).append(version);
                                     if (!title.isEmpty()) {
                                         changelogBuilder.append(" - ");
                                     } else {
@@ -479,34 +524,35 @@ public class SettingsTabBuilder {
 
                         final String finalLatestVersion = latestVersionFromApi;
                         final String finalChangelog = changelogBuilder.length() > 0
-                                ? changelogBuilder.toString() : "Güncelleme notu bulunamadı.";
+                                ? changelogBuilder.toString() : context.getString(R.string.settings_changelog_not_found);
 
                         handler.post(() -> {
-                            latestVersionView.setText("Güncel Versiyon: " + finalLatestVersion);
+                            latestVersionView.setText(context.getString(R.string.settings_version_latest, finalLatestVersion));
                             changelogView.setText(finalChangelog);
                         });
                     } else {
                         JSONObject json = new JSONObject(responseStr);
                         String latestVersion = json.optString("version", currentVersion);
-                        String changelog = json.optString("changelog", json.optString("message", "Güncelleme notu bulunamadı."));
+                        String changelog = json.optString("changelog", json.optString("message",
+                                context.getString(R.string.settings_changelog_not_found)));
 
                         handler.post(() -> {
-                            latestVersionView.setText("Güncel Versiyon: " + latestVersion);
+                            latestVersionView.setText(context.getString(R.string.settings_version_latest, latestVersion));
                             CharSequence parsed = parseMarkdown(changelog);
                             changelogView.setText(parsed != null ? parsed : changelog);
                         });
                     }
                 } else {
                     handler.post(() -> {
-                        latestVersionView.setText("Güncel Versiyon: Yüklenemedi");
-                        changelogView.setText("Güncelleme notları yüklenemedi. (HTTP " + responseCode + ")");
+                        latestVersionView.setText(R.string.settings_version_latest_failed);
+                        changelogView.setText(context.getString(R.string.settings_changelog_load_failed, responseCode));
                     });
                 }
                 connection.disconnect();
             } catch (Exception e) {
                 handler.post(() -> {
-                    latestVersionView.setText("Güncel Versiyon: Hata");
-                    changelogView.setText("Güncelleme notları yüklenirken hata oluştu: " + e.getMessage());
+                    latestVersionView.setText(R.string.settings_version_latest_error);
+                    changelogView.setText(context.getString(R.string.settings_changelog_load_error, e.getMessage()));
                 });
                 callback.log("fetchAnnouncement hatası: " + e.getMessage());
             }
@@ -531,49 +577,7 @@ public class SettingsTabBuilder {
     }
 
     private android.text.SpannableString parseMarkdown(String markdownText) {
-        android.text.SpannableStringBuilder builder = new android.text.SpannableStringBuilder();
-        String[] lines = markdownText.split("\n", -1);
-
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
-            if (line.trim().startsWith("### ")) {
-                String titleText = line.substring(4).trim();
-                int start = builder.length();
-                builder.append(titleText);
-                int end = builder.length();
-                builder.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                        start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                builder.setSpan(new android.text.style.RelativeSizeSpan(1.3f),
-                        start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            } else {
-                processBoldText(builder, line);
-            }
-            if (i < lines.length - 1) {
-                builder.append("\n");
-            }
-        }
-        return new android.text.SpannableString(builder);
-    }
-
-    private void processBoldText(android.text.SpannableStringBuilder builder, String line) {
-        java.util.regex.Pattern boldPattern = java.util.regex.Pattern.compile("\\*\\*(.*?)\\*\\*");
-        java.util.regex.Matcher matcher = boldPattern.matcher(line);
-        int lastEnd = 0;
-        while (matcher.find()) {
-            if (matcher.start() > lastEnd) {
-                builder.append(line.substring(lastEnd, matcher.start()));
-            }
-            String boldText = matcher.group(1);
-            int boldStart = builder.length();
-            builder.append(boldText);
-            int boldEnd = builder.length();
-            builder.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                    boldStart, boldEnd, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            lastEnd = matcher.end();
-        }
-        if (lastEnd < line.length()) {
-            builder.append(line.substring(lastEnd));
-        }
+        return com.mapcontrol.util.MarkdownUtil.parse(markdownText);
     }
 
     /**
@@ -582,7 +586,7 @@ public class SettingsTabBuilder {
      */
     private void createLauncherModeSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
-        sectionTitle.setText("Ara\u00e7 Launcher Modu");
+        sectionTitle.setText(R.string.settings_launcher_mode_title);
         sectionTitle.setTextSize(18);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -592,9 +596,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView sectionDesc = new TextView(context);
-        sectionDesc.setText("Etkinle\u015ftirildi\u011finde MapControl tam ekran ara\u00e7 paneli olarak a\u00e7\u0131l\u0131r "
-                + "(sol men\u00fc gizlenir, durum \u00e7ubu\u011fu saklan\u0131r, ara\u00e7 g\u00f6stergeleri ve uygulama k\u0131sayollar\u0131 g\u00f6sterilir). "
-                + "Kapat\u0131ld\u0131\u011f\u0131nda uygulama normal sekme g\u00f6r\u00fcn\u00fcm\u00fcnde \u00e7al\u0131\u015f\u0131r.");
+        sectionDesc.setText(R.string.settings_launcher_mode_desc);
         sectionDesc.setTextSize(13);
         sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         sectionDesc.setLineSpacing(3, 1.05f);
@@ -606,9 +608,9 @@ public class SettingsTabBuilder {
         boolean launcherModeOn = LauncherModeManager.isEnabled(context);
         launcherModeSegmentHandle = UiStyles.addBinarySegmentedControl(context, parentContainer,
                 null,
-                "Evet", "Hay\u0131r",
-                "Tam ekran ara\u00e7 paneli a\u00e7\u0131k.",
-                "Normal sekme g\u00f6r\u00fcn\u00fcm\u00fc.",
+                context.getString(R.string.common_yes), context.getString(R.string.common_no),
+                context.getString(R.string.settings_launcher_mode_help_on),
+                context.getString(R.string.settings_launcher_mode_help_off),
                 launcherModeOn,
                 enabled -> {
                     callback.log("Ara\u00e7 Launcher Modu: " + (enabled ? "Evet" : "Hay\u0131r"));
@@ -617,7 +619,7 @@ public class SettingsTabBuilder {
                 });
 
         launcherHomeSettingsLink = new TextView(context);
-        launcherHomeSettingsLink.setText("Varsay\u0131lan ana ekran uygulamas\u0131n\u0131 sistem ayarlar\u0131ndan de\u011fi\u015ftir");
+        launcherHomeSettingsLink.setText(R.string.settings_launcher_home_link);
         launcherHomeSettingsLink.setTextSize(13);
         launcherHomeSettingsLink.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         launcherHomeSettingsLink.setPadding(16, 4, 16, 16);
@@ -633,7 +635,7 @@ public class SettingsTabBuilder {
 
     private void createVehicleModelSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
-        sectionTitle.setText("Araç görseli");
+        sectionTitle.setText(R.string.settings_vehicle_image_title);
         sectionTitle.setTextSize(18);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -643,8 +645,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView sectionDesc = new TextView(context);
-        sectionDesc.setText("Launcher panelindeki araç görseline dokunarak listeden model seçin. "
-                + "Listede otomatik algılama veya yüklü OEM paketleri bulunur.");
+        sectionDesc.setText(R.string.settings_vehicle_image_desc);
         sectionDesc.setTextSize(13);
         sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         sectionDesc.setLineSpacing(3, 1.05f);
@@ -663,7 +664,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         Button pickButton = new Button(context);
-        pickButton.setText("Araç görseli seç");
+        pickButton.setText(R.string.settings_vehicle_image_pick);
         UiStyles.styleOemButton(pickButton, UiStyles.color(context, R.color.accentHighlight));
         LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -698,20 +699,20 @@ public class SettingsTabBuilder {
         resources.init(context);
         MaterialVehiclePreferences.Selection manual = MaterialVehiclePreferences.getSelection(context);
         if (manual != null) {
-            label.setText("Seçili: " + manual.label + " (" + manual.packageName + ")");
+            label.setText(context.getString(R.string.settings_vehicle_selected, manual.label, manual.packageName));
             return;
         }
         if (MaterialVehiclePreferences.isAutoDetectionEnabled(context)) {
             String pkg = resources.getPackageName();
             String source = resources.getSourceLabel();
             if (pkg != null) {
-                label.setText("Otomatik algılama: " + source + " — " + pkg);
+                label.setText(context.getString(R.string.settings_vehicle_auto_detect, source, pkg));
             } else {
-                label.setText("Otomatik algılama etkin; paket bulunamadı — listeden elle seçin.");
+                label.setText(R.string.settings_vehicle_auto_no_pkg);
             }
             return;
         }
-        label.setText("Seçim yok — launcher'daki araca dokunarak seçin.");
+        label.setText(R.string.settings_vehicle_no_selection);
     }
 
     private void updateLauncherHomeSettingsLinkVisibility(boolean enabled) {

@@ -60,8 +60,8 @@ public class TopBarBuilder {
         row.setGravity(Gravity.CENTER_VERTICAL);
 
         float density = context.getResources().getDisplayMetrics().density;
-        int backBtnSize = (int) (48 * density);
-        int iconPad = (int) (10 * density);
+        int backBtnSize = (int) (72 * density);
+        int iconPad = (int) (18 * density);
 
         launcherBackButton = new AppCompatImageButton(context);
         launcherBackButton.setVisibility(View.GONE);
@@ -80,7 +80,7 @@ public class TopBarBuilder {
         row.addView(launcherBackButton, backParams);
 
         titleView = new TextView(context);
-        titleView.setText("Wi-Fi Yönetimi");
+        titleView.setText(R.string.topbar_wifi_management);
         titleView.setTextSize(18);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);

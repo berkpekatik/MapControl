@@ -7,6 +7,11 @@ import android.content.res.ColorStateList;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Button;
@@ -17,6 +22,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -33,11 +39,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.NetworkWifiHelper;
 
 public class AppsTabBuilder {
+
+    private static final String SERVER_LIST_URL = "https://vnoisy.dev/apk/list.json";
+    private static final long SERVER_RETRY_INITIAL_MS = 2_000L;
+    private static final long SERVER_RETRY_MAX_MS = 15_000L;
     public interface AppsCallback {
         boolean isSystemOrPrivApp(ApplicationInfo appInfo);
 
@@ -56,6 +66,20 @@ public class AppsTabBuilder {
     private boolean isLocalMode = false; // false = Sunucu, true = Yerel
     /** Açık "İndirilen Dosyalar" diyaloğu; yenilemeden önce kapatılır (üst üste binmeyi önler). */
     private AlertDialog downloadedFilesDialog;
+
+    private boolean tabVisible;
+    private boolean serverLoadNeedsRetry;
+    private long serverRetryDelayMs = SERVER_RETRY_INITIAL_MS;
+    private int serverLoadGeneration;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private boolean networkCallbackRegistered;
+
+    private final Runnable serverRetryRunnable = () -> {
+        if (!isLocalMode && serverLoadNeedsRetry) {
+            loadAppsFromServerInternal(false);
+        }
+    };
 
     public AppsTabBuilder(Context context, AppsCallback callback) {
         this.context = context;
@@ -112,7 +136,7 @@ public class AppsTabBuilder {
         btnRefreshApps.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnRefreshApps.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(btnRefreshApps, R.drawable.ic_mdi_refresh,
-                UiStyles.color(ctx, R.color.textPrimary), "Listeyi yenile");
+                UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_cd_refresh_list));
         LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -132,7 +156,7 @@ public class AppsTabBuilder {
         btnDownloadedFiles.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnDownloadedFiles.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(btnDownloadedFiles, R.drawable.ic_mdi_folder,
-                UiStyles.color(ctx, R.color.textPrimary), "İndirilen dosyalar");
+                UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_cd_downloads));
         LinearLayout.LayoutParams filesParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -150,6 +174,7 @@ public class AppsTabBuilder {
             isLocalMode = !isLocalMode;
             updateModeToggleButton(btnModeToggle);
             if (isLocalMode) {
+                cancelServerAutoRetry();
                 loadLocalApps();
             } else {
                 loadAppsFromServer();
@@ -167,17 +192,17 @@ public class AppsTabBuilder {
         overflowMenu.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         overflowMenu.setPadding(12, 12, 12, 12);
         UiStyles.setButtonIconOnlyTinted(overflowMenu, R.drawable.ic_mdi_dots_vertical,
-                UiStyles.color(ctx, R.color.textPrimary), "Diğer seçenekler");
+                UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_menu_more_options));
         overflowMenu.setOnClickListener(v -> {
             PopupMenu popupMenu = new PopupMenu(ctx, overflowMenu);
-            popupMenu.getMenu().add(0, 1, 0, "Tümünü Sil");
+            popupMenu.getMenu().add(0, 1, 0, R.string.apps_menu_delete_all);
             popupMenu.setOnMenuItemClickListener(item -> {
                 if (item.getItemId() == 1) {
                     new AlertDialog.Builder(ctx)
-                            .setTitle("Tümünü Sil")
-                            .setMessage("Tüm indirilen dosyaları silmek istediğinize emin misiniz?")
-                            .setPositiveButton("Sil", (d, which) -> performReset())
-                            .setNegativeButton("İptal", null)
+                            .setTitle(R.string.apps_dialog_delete_all_title)
+                            .setMessage(R.string.apps_dialog_delete_all_message)
+                            .setPositiveButton(R.string.dialog_delete, (d, which) -> performReset())
+                            .setNegativeButton(R.string.wifi_cancel, null)
                             .create()
                             .show();
                     return true;
@@ -194,7 +219,7 @@ public class AppsTabBuilder {
     private void updateModeToggleButton(Button btnModeToggle) {
         if (btnModeToggle == null) return;
         int icon = isLocalMode ? R.drawable.ic_mdi_cellphone : R.drawable.ic_mdi_web;
-        btnModeToggle.setText(isLocalMode ? "Yerel" : "Sunucu");
+        btnModeToggle.setText(isLocalMode ? R.string.apps_mode_local : R.string.apps_mode_server);
         UiStyles.setButtonStartIconTinted(btnModeToggle, icon,
                 UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -212,35 +237,14 @@ public class AppsTabBuilder {
                 handler.post(() -> {
                     appsListContainer.removeAllViews();
                     TextView loadingText = new TextView(context);
-                    loadingText.setText("Yükleniyor...");
+                    loadingText.setText(R.string.common_loading);
                     loadingText.setTextColor(UiStyles.color(context, R.color.textLoading));
                     loadingText.setTextSize(14);
                     loadingText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(loadingText);
                 });
 
-                PackageManager pm = context.getPackageManager();
-                List<PackageInfo> allPackages = pm.getInstalledPackages(0);
-                List<PackageInfo> user0Apps = new ArrayList<>();
-
-                for (PackageInfo pkgInfo : allPackages) {
-                    try {
-                        String packageName = pkgInfo.packageName;
-                        if (packageName.equals("com.mapcontrol")) continue;
-
-                        ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
-                        if (callback.isSystemOrPrivApp(appInfo)) continue;
-
-                        int userId = appInfo.uid / 100000;
-                        if (userId == 0) {
-                            Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
-                            if (launchIntent != null) {
-                                user0Apps.add(pkgInfo);
-                            }
-                        }
-                    } catch (Exception ignored) {
-                    }
-                }
+                List<PackageInfo> user0Apps = getLocalApps();
 
                 handler.post(() -> {
                     appsListContainer.removeAllViews();
@@ -252,7 +256,7 @@ public class AppsTabBuilder {
                 handler.post(() -> {
                     appsListContainer.removeAllViews();
                     TextView errorText = new TextView(context);
-                    errorText.setText("Hata: " + e.getMessage());
+                    errorText.setText(context.getString(R.string.common_error_prefix, e.getMessage()));
                     errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                     errorText.setTextSize(14);
                     errorText.setPadding(8, 8, 8, 8);
@@ -261,6 +265,26 @@ public class AppsTabBuilder {
                 callback.log("Yerel uygulama listesi yükleme hatası: " + e.getMessage());
             }
         }).start();
+    }
+
+    private List<PackageInfo> getLocalApps() {
+        PackageManager pm = context.getPackageManager();
+        List<PackageInfo> user0Apps = new ArrayList<>();
+        for (PackageInfo pkgInfo : pm.getInstalledPackages(0)) {
+            try {
+                String packageName = pkgInfo.packageName;
+                if (packageName.equals("com.mapcontrol")) continue;
+
+                ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+                if (callback.isSystemOrPrivApp(appInfo)) continue;
+
+                if (appInfo.uid / 100000 == 0 && pm.getLaunchIntentForPackage(packageName) != null) {
+                    user0Apps.add(pkgInfo);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return user0Apps;
     }
 
     private void displayLocalAppsList(List<PackageInfo> packages) {
@@ -331,7 +355,7 @@ public class AppsTabBuilder {
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
-                statusText.setText("Kurulu • v" + finalCurrentVersion);
+                statusText.setText(context.getString(R.string.apps_status_installed, finalCurrentVersion));
                 statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 statusText.setTextSize(13);
                 LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
@@ -349,7 +373,7 @@ public class AppsTabBuilder {
                 rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
                 Button actionButton = new Button(context);
-                actionButton.setText("AÇ");
+                actionButton.setText(R.string.apps_action_open);
                 actionButton.setTextSize(14);
                 actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 actionButton.setPadding(24, 12, 24, 12);
@@ -363,17 +387,17 @@ public class AppsTabBuilder {
                             activity.startActivity(launchIntent);
                             callback.log(finalDisplayName + " açıldı");
                         } else {
-                            Toast.makeText(context, "Uygulama açılamadı", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, R.string.apps_open_failed, Toast.LENGTH_SHORT).show();
                         }
                     } catch (Exception e) {
                         callback.log("Uygulama açma hatası: " + e.getMessage());
-                        Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
                     }
                 });
                 rightContainer.addView(actionButton);
 
                 Button removeButton = new Button(context);
-                removeButton.setText("KALDIR");
+                removeButton.setText(R.string.apps_action_remove);
                 removeButton.setTextSize(14);
                 removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
@@ -406,7 +430,7 @@ public class AppsTabBuilder {
                 emptyCard.addView(emptyIcon);
 
                 TextView emptyText = new TextView(context);
-                emptyText.setText("Yerel uygulama bulunamadı");
+                emptyText.setText(R.string.apps_local_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 emptyText.setTextSize(15);
                 emptyText.setGravity(android.view.Gravity.CENTER);
@@ -423,22 +447,43 @@ public class AppsTabBuilder {
         }
     }
 
+    /** Sol menüden Uygulama Yönetimi sekmesi görünür olduğunda. */
+    public void onTabVisible() {
+        tabVisible = true;
+        registerNetworkCallback();
+        if (!isLocalMode && serverLoadNeedsRetry) {
+            loadAppsFromServer();
+        }
+    }
+
+    public void onTabHidden() {
+        tabVisible = false;
+        unregisterNetworkCallback();
+        cancelServerAutoRetry();
+    }
+
     public void loadAppsFromServer() {
-        if (appsListContainer == null) return;
+        serverRetryDelayMs = SERVER_RETRY_INITIAL_MS;
+        cancelServerAutoRetry();
+        loadAppsFromServerInternal(true);
+    }
+
+    private void loadAppsFromServerInternal(boolean userInitiated) {
+        if (appsListContainer == null || isLocalMode) return;
+
+        final int generation = ++serverLoadGeneration;
+        if (userInitiated) {
+            serverLoadNeedsRetry = false;
+        }
 
         new Thread(() -> {
             try {
                 handler.post(() -> {
-                    appsListContainer.removeAllViews();
-                    TextView loadingText = new TextView(context);
-                    loadingText.setText("Yükleniyor...");
-                    loadingText.setTextColor(UiStyles.color(context, R.color.textLoading));
-                    loadingText.setTextSize(14);
-                    loadingText.setPadding(8, 8, 8, 8);
-                    appsListContainer.addView(loadingText);
+                    if (generation != serverLoadGeneration) return;
+                    showServerLoadingState(serverLoadNeedsRetry);
                 });
 
-                URL url = new URL("https://vnoisy.dev/apk/list.json");
+                URL url = new URL(SERVER_LIST_URL);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(10000);
@@ -458,6 +503,9 @@ public class AppsTabBuilder {
                     JSONArray listArray = jsonObject.getJSONArray("list");
 
                     handler.post(() -> {
+                        if (generation != serverLoadGeneration) return;
+                        serverLoadNeedsRetry = false;
+                        cancelServerAutoRetry();
                         appsListContainer.removeAllViews();
                         displayAppsList(listArray);
                     });
@@ -465,30 +513,94 @@ public class AppsTabBuilder {
                     callback.log("" + listArray.length() + " uygulama yüklendi");
                 } else {
                     handler.post(() -> {
-                        appsListContainer.removeAllViews();
-                        TextView errorText = new TextView(context);
-                        errorText.setText("Hata: " + responseCode);
-                        errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
-                        errorText.setTextSize(14);
-                        errorText.setPadding(8, 8, 8, 8);
-                        appsListContainer.addView(errorText);
+                        if (generation != serverLoadGeneration) return;
+                        onServerLoadFailed("HTTP " + responseCode);
                     });
                     callback.log("HTTP hatası: " + responseCode);
                 }
                 connection.disconnect();
             } catch (Exception e) {
                 handler.post(() -> {
-                    appsListContainer.removeAllViews();
-                    TextView errorText = new TextView(context);
-                    errorText.setText("Hata: " + e.getMessage());
-                    errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
-                    errorText.setTextSize(14);
-                    errorText.setPadding(8, 8, 8, 8);
-                    appsListContainer.addView(errorText);
+                    if (generation != serverLoadGeneration) return;
+                    onServerLoadFailed(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
                 });
                 callback.log("Uygulama listesi yükleme hatası: " + e.getMessage());
             }
         }).start();
+    }
+
+    private void showServerLoadingState(boolean reconnecting) {
+        appsListContainer.removeAllViews();
+        TextView loadingText = new TextView(context);
+        loadingText.setText(reconnecting ? R.string.apps_server_reconnecting : R.string.common_loading);
+        loadingText.setTextColor(UiStyles.color(context, reconnecting ? R.color.textSecondaryCool : R.color.textLoading));
+        loadingText.setTextSize(14);
+        loadingText.setPadding(8, 8, 8, 8);
+        appsListContainer.addView(loadingText);
+    }
+
+    private void onServerLoadFailed(String detail) {
+        serverLoadNeedsRetry = true;
+        showServerLoadingState(true);
+        callback.log("Sunucu listesi yeniden denenecek: " + detail);
+        scheduleServerAutoRetry();
+    }
+
+    private void scheduleServerAutoRetry() {
+        if (isLocalMode) return;
+        handler.removeCallbacks(serverRetryRunnable);
+        handler.postDelayed(serverRetryRunnable, serverRetryDelayMs);
+        serverRetryDelayMs = Math.min(serverRetryDelayMs * 2, SERVER_RETRY_MAX_MS);
+    }
+
+    private void cancelServerAutoRetry() {
+        handler.removeCallbacks(serverRetryRunnable);
+        serverRetryDelayMs = SERVER_RETRY_INITIAL_MS;
+    }
+
+    private void registerNetworkCallback() {
+        if (networkCallbackRegistered) return;
+        connectivityManager = (ConnectivityManager) context.getApplicationContext()
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) return;
+
+        if (networkCallback == null) {
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(@NonNull Network network) {
+                    if (!tabVisible || isLocalMode || !serverLoadNeedsRetry) return;
+                    if (!NetworkWifiHelper.isWifiConnectedWithInternet(context)) return;
+                    handler.post(() -> {
+                        serverRetryDelayMs = SERVER_RETRY_INITIAL_MS;
+                        cancelServerAutoRetry();
+                        loadAppsFromServerInternal(false);
+                    });
+                }
+            };
+        }
+
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                connectivityManager.registerDefaultNetworkCallback(networkCallback);
+            } else {
+                connectivityManager.registerNetworkCallback(request, networkCallback);
+            }
+            networkCallbackRegistered = true;
+        } catch (Exception e) {
+            callback.log("Ağ dinleyicisi kaydı başarısız: " + e.getMessage());
+        }
+    }
+
+    private void unregisterNetworkCallback() {
+        if (!networkCallbackRegistered || connectivityManager == null || networkCallback == null) return;
+        try {
+            connectivityManager.unregisterNetworkCallback(networkCallback);
+        } catch (Exception ignored) {
+        }
+        networkCallbackRegistered = false;
     }
 
     private void displayAppsList(JSONArray listArray) {
@@ -573,10 +685,10 @@ public class AppsTabBuilder {
 
                 TextView statusText = new TextView(context);
                 if (isInstalled) {
-                    statusText.setText("Kurulu • v" + currentVersion);
+                    statusText.setText(context.getString(R.string.apps_status_installed, currentVersion));
                     statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 } else {
-                    statusText.setText("Kurulu değil");
+                    statusText.setText(R.string.apps_status_not_installed);
                     statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 }
                 statusText.setTextSize(13);
@@ -600,7 +712,7 @@ public class AppsTabBuilder {
                 actionButton.setPadding(24, 12, 24, 12);
 
                 if (hasUpdate) {
-                    actionButton.setText("GÜNCELLE");
+                    actionButton.setText(R.string.apps_action_update);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
@@ -609,17 +721,17 @@ public class AppsTabBuilder {
                         downloadAndInstallApp(packageName, displayName, downloadUrl, actionButton);
                     });
                 } else if (isInstalled && !isLocked) {
-                    actionButton.setText("AÇ");
+                    actionButton.setText(R.string.apps_action_open);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
                     actionButton.setOnClickListener(v -> launchApp(packageName));
                 } else if (isLocked) {
-                    actionButton.setText("KİLİTLİ");
+                    actionButton.setText(R.string.apps_action_locked);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
                     actionButton.setEnabled(false);
                 } else if (isDownloaded) {
-                    actionButton.setText("KUR");
+                    actionButton.setText(R.string.apps_action_install);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
@@ -627,7 +739,7 @@ public class AppsTabBuilder {
                         installApkFile(downloadedFile);
                     });
                 } else {
-                    actionButton.setText("KUR");
+                    actionButton.setText(R.string.apps_action_install);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
@@ -640,7 +752,7 @@ public class AppsTabBuilder {
 
                 if (finalIsInstalled && !isLocked) {
                     Button removeButton = new Button(context);
-                    removeButton.setText("KALDIR");
+                    removeButton.setText(R.string.apps_action_remove);
                     removeButton.setTextSize(14);
                     removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
                     removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
@@ -672,7 +784,7 @@ public class AppsTabBuilder {
                 emptyIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textMuted)));
                 emptyCard.addView(emptyIcon);
                 TextView emptyText = new TextView(context);
-                emptyText.setText("Henüz uygulama bulunamadı");
+                emptyText.setText(R.string.apps_remote_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
                 emptyText.setTextSize(15);
                 emptyText.setGravity(android.view.Gravity.CENTER);
@@ -749,9 +861,9 @@ public class AppsTabBuilder {
         if (activity == null) return;
 
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setTitle("Uygulamayı Kaldır")
-                .setMessage(displayName + " uygulamasını kaldırmak istediğinize emin misiniz?")
-                .setPositiveButton("Evet", (d, which) -> {
+                .setTitle(R.string.apps_dialog_uninstall_title)
+                .setMessage(context.getString(R.string.apps_dialog_uninstall_message, displayName))
+                .setPositiveButton(R.string.common_yes, (d, which) -> {
                     try {
                         Intent intent = new Intent(Intent.ACTION_DELETE);
                         intent.setData(android.net.Uri.parse("package:" + packageName));
@@ -763,10 +875,10 @@ public class AppsTabBuilder {
                         }, 2000);
                     } catch (Exception e) {
                         callback.log("Uygulama kaldırma hatası: " + e.getMessage());
-                        Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("Hayır", null)
+                .setNegativeButton(R.string.common_no, null)
                 .create();
 
         dialog.show();
@@ -788,7 +900,7 @@ public class AppsTabBuilder {
             try {
                 handler.post(() -> {
                     button.setEnabled(false);
-                    button.setText("İndiriliyor...");
+                    button.setText(R.string.apps_downloading);
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
                             UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -866,7 +978,7 @@ public class AppsTabBuilder {
                             lastUiPercent = percent;
                             final int p = percent;
                             handler.post(() -> {
-                                button.setText("İndiriliyor %" + p);
+                                button.setText(context.getString(R.string.apps_downloading_percent, p));
                                 UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
                                         UiStyles.color(context, R.color.textPrimary),
                                         UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -877,7 +989,7 @@ public class AppsTabBuilder {
                             lastUiBytesUpdate = currentTime;
                             final String sizeLabel = formatFileSize(total);
                             handler.post(() -> {
-                                button.setText("İndiriliyor… " + sizeLabel);
+                                button.setText(context.getString(R.string.apps_downloading_size, sizeLabel));
                                 UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
                                         UiStyles.color(context, R.color.textPrimary),
                                         UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -909,7 +1021,7 @@ public class AppsTabBuilder {
                 if (!apkFile.exists() || actualFileSize == 0) throw new Exception("APK dosyası boş veya oluşturulamadı");
 
                 handler.post(() -> {
-                    button.setText("Kuruluyor...");
+                    button.setText(R.string.apps_installing);
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_package_variant,
                             UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -932,13 +1044,13 @@ public class AppsTabBuilder {
                 }
 
                 callback.log(displayName + " indirildi ve kuruluyor...");
-                handler.post(() -> Toast.makeText(context, displayName + " kuruluyor...", Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_installing_named, displayName), Toast.LENGTH_SHORT).show());
                 handler.postDelayed(this::loadAppsFromServer, 5000);
             } catch (Exception e) {
                 callback.log("[ERROR] APK indirme/yükleme hatası: " + e.getMessage());
                 handler.post(() -> {
                     button.setEnabled(true);
-                    button.setText("Manuel İndir");
+                    button.setText(R.string.apps_manual_download);
                     UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download,
                             UiStyles.color(context, R.color.textPrimary),
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -971,10 +1083,10 @@ public class AppsTabBuilder {
             String folderName;
             if (isLocalMode) {
                 downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
-                folderName = "Download klasörü";
+                folderName = context.getString(R.string.apps_folder_downloads);
             } else {
                 downloadDir = new File(context.getCacheDir(), "downloads");
-                folderName = "Cache klasörü";
+                folderName = context.getString(R.string.apps_folder_cache);
             }
             if (!downloadDir.exists()) downloadDir.mkdirs();
 
@@ -1001,14 +1113,14 @@ public class AppsTabBuilder {
             titleContainer.setOrientation(LinearLayout.VERTICAL);
 
             TextView titleText = new TextView(context);
-            titleText.setText("İndirilen Dosyalar");
+            titleText.setText(R.string.apps_downloads_title);
             titleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
             titleText.setTextSize(20);
             titleText.setTypeface(null, android.graphics.Typeface.BOLD);
             titleContainer.addView(titleText);
 
             TextView subtitleText = new TextView(context);
-            subtitleText.setText(fileCount + " dosya • " + folderName);
+            subtitleText.setText(context.getString(R.string.apps_downloads_subtitle, fileCount, folderName));
             subtitleText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
             subtitleText.setTextSize(13);
             subtitleText.setPadding(0, 4, 0, 0);
@@ -1020,7 +1132,7 @@ public class AppsTabBuilder {
 
             if (fileCount > 0) {
                 Button deleteAllButton = new Button(context);
-                deleteAllButton.setText("Tümünü Sil");
+                deleteAllButton.setText(R.string.apps_delete_all);
                 deleteAllButton.setTextSize(13);
                 deleteAllButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
                 deleteAllButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
@@ -1030,9 +1142,9 @@ public class AppsTabBuilder {
                         UiStyles.dimenPx(context, R.dimen.spacing_small));
                 deleteAllButton.setOnClickListener(v -> {
                     AlertDialog confirmDialog = new AlertDialog.Builder(context)
-                            .setTitle("Tümünü Sil")
-                            .setMessage("Tüm indirilen dosyaları silmek istediğinize emin misiniz?")
-                            .setPositiveButton("Sil", (d, which) -> {
+                            .setTitle(R.string.apps_dialog_delete_all_title)
+                            .setMessage(R.string.apps_dialog_delete_all_message)
+                            .setPositiveButton(R.string.dialog_delete, (d, which) -> {
                                 File dirToDelete = isLocalMode
                                         ? android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
                                         : new File(context.getCacheDir(), "downloads");
@@ -1046,7 +1158,7 @@ public class AppsTabBuilder {
                                 }
                                 showDownloadedFilesDialog();
                             })
-                            .setNegativeButton("İptal", null)
+                            .setNegativeButton(R.string.wifi_cancel, null)
                             .create();
                     confirmDialog.show();
                 });
@@ -1079,7 +1191,7 @@ public class AppsTabBuilder {
                         UiStyles.color(context, R.color.textSecondaryCool)));
                 emptyWrap.addView(emptyIco);
                 TextView emptyText = new TextView(context);
-                emptyText.setText("İndirilen dosya bulunmuyor");
+                emptyText.setText(R.string.apps_downloads_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 emptyText.setTextSize(16);
                 emptyText.setGravity(android.view.Gravity.CENTER);
@@ -1141,7 +1253,7 @@ public class AppsTabBuilder {
                     infoLayout.addView(nameText);
 
                     TextView sizeText = new TextView(context);
-                    sizeText.setText("Boyut: " + sizeStr);
+                    sizeText.setText(context.getString(R.string.apps_file_size, sizeStr));
                     sizeText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                     sizeText.setTextSize(12);
                     sizeText.setPadding(0, 2, 0, 0);
@@ -1154,7 +1266,7 @@ public class AppsTabBuilder {
                     buttonsContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
                     Button installButton = new Button(context);
-                    installButton.setText("KUR");
+                    installButton.setText(R.string.apps_action_install);
                     installButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(installButton, UiStyles.color(context, R.color.buttonPrimary));
                     installButton.setTextSize(13);
@@ -1171,7 +1283,7 @@ public class AppsTabBuilder {
                     deleteButton.setTextSize(18);
                     deleteButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonIconOnlyTinted(deleteButton, R.drawable.ic_mdi_delete,
-                            UiStyles.color(context, R.color.textPrimary), "Dosyayı sil");
+                            UiStyles.color(context, R.color.textPrimary), context.getString(R.string.apps_cd_delete_file));
                     buttonsContainer.addView(deleteButton);
 
                     fileCard.addView(buttonsContainer);
@@ -1181,19 +1293,19 @@ public class AppsTabBuilder {
                     installButton.setOnClickListener(v -> installApkFile(finalFile));
                     deleteButton.setOnClickListener(v -> {
                         AlertDialog confirmDialog = new AlertDialog.Builder(context)
-                                .setTitle("Dosyayı Sil")
-                                .setMessage(finalFile.getName() + " dosyasını silmek istediğinize emin misiniz?")
-                                .setPositiveButton("Evet", (d, which) -> {
+                                .setTitle(R.string.apps_dialog_delete_file_title)
+                                .setMessage(context.getString(R.string.apps_dialog_delete_file_message, finalFile.getName()))
+                                .setPositiveButton(R.string.common_yes, (d, which) -> {
                                     if (finalFile.delete()) {
-                                        Toast.makeText(context, "Dosya silindi", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(context, R.string.apps_file_deleted, Toast.LENGTH_SHORT).show();
                                         callback.log("Dosya silindi: " + finalFile.getName());
                                         showDownloadedFilesDialog();
                                     } else {
-                                        Toast.makeText(context, "Dosya silinemedi", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(context, R.string.apps_file_delete_failed, Toast.LENGTH_SHORT).show();
                                         callback.log("Dosya silinemedi: " + finalFile.getName());
                                     }
                                 })
-                                .setNegativeButton("Hayır", null)
+                                .setNegativeButton(R.string.common_no, null)
                                 .create();
                         confirmDialog.show();
                     });
@@ -1205,7 +1317,7 @@ public class AppsTabBuilder {
 
             AlertDialog dialog = new AlertDialog.Builder(context)
                     .setView(dialogLayout)
-                    .setPositiveButton("Kapat", null)
+                    .setPositiveButton(R.string.dialog_close, null)
                     .create();
 
             dialog.setOnDismissListener(d -> {
@@ -1218,7 +1330,7 @@ public class AppsTabBuilder {
             dialog.show();
         } catch (Exception e) {
             callback.log("İndirilen dosyalar gösterim hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1235,20 +1347,20 @@ public class AppsTabBuilder {
             installApkFile(apkFile);
         } catch (Exception e) {
             callback.log("APK kurulum hatası: " + e.getMessage());
-            handler.post(() -> Toast.makeText(context, "APK kurulum hatası: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_apk_install_error, e.getMessage()), Toast.LENGTH_SHORT).show());
         }
     }
 
     public void installApkFile(File apkFile) {
         if (apkFile == null || !apkFile.exists()) {
-            Toast.makeText(context, "APK dosyası bulunamadı", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.apps_apk_not_found, Toast.LENGTH_SHORT).show();
             callback.log("APK dosyası bulunamadı");
             return;
         }
 
         new Thread(() -> {
             try {
-                handler.post(() -> Toast.makeText(context, "Kurulum başlatılıyor...", Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
 
                 android.net.Uri apkUri;
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -1266,16 +1378,16 @@ public class AppsTabBuilder {
                     try {
                         context.startActivity(intent);
                         callback.log("APK kurulum intent başlatıldı: " + apkFile.getName());
-                        Toast.makeText(context, "Kurulum başlatıldı", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.apps_install_started, Toast.LENGTH_SHORT).show();
                     } catch (Exception e) {
-                        Toast.makeText(context, "Kurulum başlatılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(context, context.getString(R.string.apps_install_start_failed, e.getMessage()), Toast.LENGTH_LONG).show();
                         callback.log("[ERROR] APK kurulum intent hatası: " + e.getMessage());
                     }
                 });
 
                 handler.postDelayed(this::loadAppsFromServer, 2000);
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(context, "Kurulum hatası: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_install_error, e.getMessage()), Toast.LENGTH_SHORT).show());
                 callback.log("[ERROR] APK kurulum hatası: " + e.getMessage());
             }
         }).start();
@@ -1301,7 +1413,7 @@ public class AppsTabBuilder {
             callback.log("pm install output: " + (outputStr.isEmpty() ? "(boş)" : outputStr));
 
             if (exitCode == 0 || outputStr.contains("Success")) {
-                handler.post(() -> Toast.makeText(context, "Uygulama kuruldu!", Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(context, R.string.apps_installed_success, Toast.LENGTH_SHORT).show());
                 callback.log("APK shell ile başarıyla kuruldu");
                 return true;
             } else {
@@ -1319,59 +1431,26 @@ public class AppsTabBuilder {
 
         new Thread(() -> {
             try {
-                URL url = new URL("https://vnoisy.dev/apk/list.json");
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-                connection.setConnectTimeout(10000);
-                connection.setReadTimeout(10000);
-
-                int responseCode = connection.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    handler.post(() -> Toast.makeText(context, "JSON yüklenemedi: " + responseCode, Toast.LENGTH_SHORT).show());
-                    connection.disconnect();
-                    return;
-                }
-
-                InputStream inputStream = connection.getInputStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) response.append(line);
-                reader.close();
-                inputStream.close();
-                connection.disconnect();
-
-                JSONObject jsonObject = new JSONObject(response.toString());
-                JSONArray listArray = jsonObject.getJSONArray("list");
-
-                PackageManager pm = context.getPackageManager();
                 ArrayList<String> matchingPackages = new ArrayList<>();
-
-                for (int i = 0; i < listArray.length(); i++) {
-                    JSONObject appObj = listArray.getJSONObject(i);
-                    String packageName = appObj.getString("packageName");
-                    try {
-                        pm.getPackageInfo(packageName, 0);
-                        matchingPackages.add(packageName);
-                        callback.log("Eşleşen uygulama bulundu: " + packageName);
-                    } catch (PackageManager.NameNotFoundException ignored) {
-                    }
+                for (PackageInfo info : getLocalApps()) {
+                    matchingPackages.add(info.packageName);
+                    callback.log("Silinecek yerel uygulama: " + info.packageName);
                 }
 
                 handler.post(() -> {
                     AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                    builder.setTitle("Sıfırlama Seçeneği");
-                    builder.setMessage("Ne silmek istiyorsunuz?");
+                    builder.setTitle(R.string.apps_dialog_reset_option_title);
+                    builder.setMessage(R.string.apps_dialog_reset_option_message);
 
-                    builder.setPositiveButton("Bağlı Uygulamaları Kaldır", (dialog, which) -> {
-                        showDeleteConfirmationDialog(matchingPackages, true, true);
-                    });
+                    if (!matchingPackages.isEmpty()) {
+                        builder.setPositiveButton(R.string.apps_dialog_remove_local_only, (dialog, which) ->
+                                showDeleteConfirmationDialog(matchingPackages, true, false));
+                    }
 
-                    builder.setNeutralButton("Sadece Bu Uygulamayı Kaldır", (dialog, which) -> {
-                        showDeleteConfirmationDialog(null, false, true);
-                    });
+                    builder.setNeutralButton(R.string.apps_dialog_remove_local_and_self, (dialog, which) ->
+                            showDeleteConfirmationDialog(matchingPackages, true, true));
 
-                    builder.setNegativeButton("İptal", (dialog, which) -> {
+                    builder.setNegativeButton(R.string.wifi_cancel, (dialog, which) -> {
                         dialog.dismiss();
                         callback.log("Reset işlemi iptal edildi");
                     });
@@ -1380,30 +1459,32 @@ public class AppsTabBuilder {
                 });
 
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                handler.post(() -> Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show());
                 callback.log("Reset işlemi hatası: " + e.getMessage());
             }
         }).start();
     }
 
     private void showDeleteConfirmationDialog(ArrayList<String> matchingPackages, boolean deleteRelatedFiles, boolean deleteSelf) {
+        int appCount = matchingPackages != null ? matchingPackages.size() : 0;
         String message;
-        if (matchingPackages != null && matchingPackages.size() > 0) {
-            int appCount = matchingPackages.size();
-            message = "Mevcut uygulama ve (" + appCount + ") yüklediğiniz tüm uygulamalar silinecek";
-            if (deleteRelatedFiles) {
-                message += " ve bağlı olanlar (/data/local/tmp altındaki APK'lar) da silinecek";
-            }
-            message += ", yüklü uygulama sayısı kadar onay vermeniz gerekebilir.";
+        if (appCount == 0) {
+            message = context.getString(R.string.apps_dialog_reset_confirm_self);
         } else {
-            message = "Sadece mevcut uygulama (com.mapcontrol) silinecek.";
+            message = context.getString(deleteSelf
+                    ? R.string.apps_dialog_reset_confirm_multi
+                    : R.string.apps_dialog_reset_confirm_local, appCount);
+            if (deleteRelatedFiles) {
+                message += context.getString(R.string.apps_dialog_reset_confirm_multi_files);
+            }
+            message += context.getString(R.string.apps_dialog_reset_confirm_multi_suffix);
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Sıfırlama Onayı");
+        builder.setTitle(R.string.apps_dialog_reset_confirm_title);
         builder.setMessage(message);
-        builder.setPositiveButton("Evet", (dialog, which) -> deleteMatchingApps(matchingPackages, deleteRelatedFiles, deleteSelf));
-        builder.setNegativeButton("Hayır", (dialog, which) -> {
+        builder.setPositiveButton(R.string.common_yes, (dialog, which) -> deleteMatchingApps(matchingPackages, deleteRelatedFiles, deleteSelf));
+        builder.setNegativeButton(R.string.common_no, (dialog, which) -> {
             dialog.dismiss();
             callback.log("Reset işlemi iptal edildi");
         });
@@ -1476,7 +1557,7 @@ public class AppsTabBuilder {
             try {
                 String selfPackage = context.getPackageName();
                 callback.log("Uygulama kendisini siliyor: " + selfPackage);
-                Toast.makeText(context, "Uygulama kendisini siliyor...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.apps_self_uninstall, Toast.LENGTH_SHORT).show();
 
                 handler.postDelayed(() -> {
                     try {

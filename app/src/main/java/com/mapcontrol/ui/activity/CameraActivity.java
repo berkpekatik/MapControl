@@ -309,7 +309,7 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
     protected void onCreate(@Nullable Bundle bundle) {
         super.onCreate(bundle);
         setContentView(R.layout.activity_camera);
-        setTitle("Kamera Test");
+        setTitle(R.string.camera_test_title);
         
         // findViewById ile view'ları al
         tvSurfaceCamera1 = findViewById(R.id.tv_surface_camera1);

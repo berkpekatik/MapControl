@@ -23,6 +23,9 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.media.LauncherMediaController;
+import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
+import com.mapcontrol.nav.GoogleMapsNavSnapshot;
 import com.mapcontrol.ui.theme.UiStyles;
 
 import com.mapcontrol.util.AppLaunchHelper;
@@ -54,6 +57,7 @@ public class ProjectionTabBuilder {
     private LinearLayout projectionTabContent;
     private TextView targetAppLabel;
     private TextView projectionStatusText;
+    private TextView googleMapsNavSummaryText;
 
     public ProjectionTabBuilder(Context context, SharedPreferences prefs, ProjectionCallback callback) {
         this.context = context;
@@ -88,7 +92,7 @@ public class ProjectionTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView projectionTitle = new TextView(context);
-        projectionTitle.setText("Yansıtma Kontrolü");
+        projectionTitle.setText(R.string.projection_title);
         projectionTitle.setTextSize(18);
         projectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         projectionTitle.setTypeface(null, Typeface.BOLD);
@@ -98,7 +102,7 @@ public class ProjectionTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView projectionStatus = new TextView(context);
-        projectionStatus.setText("Yansıtma kapalı");
+        projectionStatus.setText(R.string.projection_status_off);
         projectionStatus.setTextSize(13);
         projectionStatus.setTextColor(UiStyles.color(context, R.color.textHint));
         projectionStatus.setPadding(16, 0, 16, 16);
@@ -113,7 +117,7 @@ public class ProjectionTabBuilder {
         controlButtonContainer.setPadding(16, 0, 16, 16);
 
         Button btnOpen = new Button(context);
-        btnOpen.setText("Yansıt");
+        btnOpen.setText(R.string.projection_open);
         btnOpen.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnOpen.setTextSize(16);
         btnOpen.setTypeface(null, Typeface.BOLD);
@@ -126,7 +130,7 @@ public class ProjectionTabBuilder {
         controlButtonContainer.addView(btnOpen, openParams);
 
         Button btnClose = new Button(context);
-        btnClose.setText("Durdur");
+        btnClose.setText(R.string.projection_stop);
         btnClose.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnClose.setTextSize(16);
         btnClose.setTypeface(null, Typeface.BOLD);
@@ -144,19 +148,23 @@ public class ProjectionTabBuilder {
         btnOpen.setOnClickListener(v -> {
             callback.onOpenCluster();
             refreshProjectionStatusUi();
-            handleButtonClickWithDelay(btnOpen, "Yansıt", "Yansıtılıyor...");
+            handleButtonClickWithDelay(btnOpen,
+                    context.getString(R.string.projection_open),
+                    context.getString(R.string.projection_projecting));
         });
 
         btnClose.setOnClickListener(v -> {
             callback.onCloseCluster();
             refreshProjectionStatusUi();
-            handleButtonClickWithDelay(btnClose, "Durdur", "Durduruluyor...");
+            handleButtonClickWithDelay(btnClose,
+                    context.getString(R.string.projection_stop),
+                    context.getString(R.string.projection_stopping));
         });
 
         handler.post(this::refreshProjectionStatusUi);
 
         TextView appTitle = new TextView(context);
-        appTitle.setText("Uygulama");
+        appTitle.setText(R.string.projection_app_title);
         appTitle.setTextSize(18);
         appTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         appTitle.setTypeface(null, Typeface.BOLD);
@@ -203,7 +211,7 @@ public class ProjectionTabBuilder {
         textInfo.setPadding(0, 0, 0, 0);
 
         targetAppLabel = new TextView(context);
-        targetAppLabel.setText("(seçilmedi)");
+        targetAppLabel.setText(R.string.common_not_selected);
         targetAppLabel.setTextColor(UiStyles.color(context, R.color.textPrimary));
         targetAppLabel.setTextSize(17);
         targetAppLabel.setTypeface(null, Typeface.NORMAL);
@@ -214,7 +222,7 @@ public class ProjectionTabBuilder {
         textInfo.addView(targetAppLabel, targetLabelParams);
 
         TextView appDesc = new TextView(context);
-        appDesc.setText("Seçili uygulamayı araç ekranına yansıt");
+        appDesc.setText(R.string.projection_app_desc);
         appDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         appDesc.setTextSize(13);
         textInfo.addView(appDesc);
@@ -227,7 +235,7 @@ public class ProjectionTabBuilder {
         appButtons.setOrientation(LinearLayout.HORIZONTAL);
 
         Button btnSelectApp = new Button(context);
-        btnSelectApp.setText("Değiştir");
+        btnSelectApp.setText(R.string.projection_change_app);
         btnSelectApp.setTextColor(UiStyles.color(context, R.color.textPrimary80));
         btnSelectApp.setTextSize(14);
         btnSelectApp.setTypeface(null, Typeface.NORMAL);
@@ -240,7 +248,7 @@ public class ProjectionTabBuilder {
         btnSelectApp.setOnClickListener(v -> selectTargetApp());
 
         Button btnLaunchOnCluster = new Button(context);
-        btnLaunchOnCluster.setText("Ana Ekrana Al");
+        btnLaunchOnCluster.setText(R.string.projection_launch_cluster);
         btnLaunchOnCluster.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnLaunchOnCluster.setTextSize(14);
         btnLaunchOnCluster.setTypeface(null, Typeface.BOLD);
@@ -253,13 +261,13 @@ public class ProjectionTabBuilder {
         btnLaunchOnCluster.setOnClickListener(v -> {
             String pkg = callback.getTargetPackage();
             if (pkg == null || pkg.trim().isEmpty()) {
-                Toast.makeText(context, "Önce bir uygulama seçin!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.projection_select_app_first, Toast.LENGTH_SHORT).show();
                 callback.log("Uygulama seçilmedi");
                 return;
             }
             String trimmed = pkg.trim();
             if (context.getPackageManager().getLaunchIntentForPackage(trimmed) == null) {
-                Toast.makeText(context, "Uygulama bulunamadı: " + pkg, Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, context.getString(R.string.projection_app_not_found, pkg), Toast.LENGTH_SHORT).show();
                 callback.log("Launch intent bulunamadı: " + pkg);
                 return;
             }
@@ -269,7 +277,7 @@ public class ProjectionTabBuilder {
                 callback.onBringToMainDisplayCheckClusterSplash();
             } catch (Exception e) {
                 callback.log("launchSelectedAppOnDisplay hatası: " + e.getMessage());
-                Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -277,7 +285,7 @@ public class ProjectionTabBuilder {
         projectionTabContent.addView(appCard, appCardParams);
 
         TextView mainGroupTitle = new TextView(context);
-        mainGroupTitle.setText("Navigasyon Davranışı");
+        mainGroupTitle.setText(R.string.projection_nav_behavior);
         mainGroupTitle.setTextSize(18);
         mainGroupTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         mainGroupTitle.setTypeface(null, Typeface.BOLD);
@@ -296,7 +304,7 @@ public class ProjectionTabBuilder {
         mainCardParams.setMargins(16, 0, 16, 32);
 
         TextView section1Title = new TextView(context);
-        section1Title.setText("Başlatma");
+        section1Title.setText(R.string.projection_start_section);
         section1Title.setTextSize(17);
         section1Title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         section1Title.setTypeface(null, Typeface.BOLD);
@@ -304,7 +312,7 @@ public class ProjectionTabBuilder {
         mainCardContainer.addView(section1Title);
 
         TextView section1Desc = new TextView(context);
-        section1Desc.setText("Ne zaman başlasın?");
+        section1Desc.setText(R.string.projection_start_desc);
         section1Desc.setTextSize(13);
         section1Desc.setTextColor(UiStyles.color(context, R.color.textHint));
         section1Desc.setPadding(20, 0, 20, 12);
@@ -313,11 +321,15 @@ public class ProjectionTabBuilder {
         final UiStyles.TernarySegmentHandle[] powerHandle = new UiStyles.TernarySegmentHandle[1];
         powerHandle[0] = UiStyles.addTernarySegmentedControl(context, mainCardContainer,
                 null,
-                new String[]{"Motor", "Hazır", "Elle"},
                 new String[]{
-                        "Direkt start verildiğinde",
-                        "Engine Start 1 kere basınca (Frensiz)",
-                        "Kendiniz istediğinize zaman başlatın"
+                        context.getString(R.string.projection_power_engine),
+                        context.getString(R.string.projection_power_ready),
+                        context.getString(R.string.projection_power_manual)
+                },
+                new String[]{
+                        context.getString(R.string.projection_power_engine_help),
+                        context.getString(R.string.projection_power_ready_help),
+                        context.getString(R.string.projection_power_manual_help)
                 },
                 new int[]{2, 1, 0},
                 prefs.getInt("powerModeSetting", 2),
@@ -337,7 +349,7 @@ public class ProjectionTabBuilder {
         mainCardContainer.addView(sectionDivider1, dividerParams1);
 
         TextView section2Title = new TextView(context);
-        section2Title.setText("Kapanış");
+        section2Title.setText(R.string.projection_stop_section);
         section2Title.setTextSize(15);
         section2Title.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         section2Title.setTypeface(null, Typeface.NORMAL);
@@ -345,7 +357,7 @@ public class ProjectionTabBuilder {
         mainCardContainer.addView(section2Title);
 
         TextView section2Desc = new TextView(context);
-        section2Desc.setText("Araç kapanınca ne olsun?");
+        section2Desc.setText(R.string.projection_stop_desc);
         section2Desc.setTextSize(13);
         section2Desc.setTextColor(UiStyles.color(context, R.color.textHint));
         section2Desc.setPadding(20, 0, 20, 12);
@@ -358,9 +370,10 @@ public class ProjectionTabBuilder {
 
         UiStyles.addBinarySegmentedControl(context, autoCloseBlock,
                 null,
-                "Evet", "Hayır",
-                "Araç kapanınca otomatik kapat.",
-                "Otomatik kapatma yapılmayacak.",
+                context.getString(R.string.common_yes),
+                context.getString(R.string.common_no),
+                context.getString(R.string.projection_auto_close_on_help),
+                context.getString(R.string.projection_auto_close_off_help),
                 prefs.getBoolean("autoCloseOnPowerOff", true),
                 isEnabled -> {
                     prefs.edit().putBoolean("autoCloseOnPowerOff", isEnabled).apply();
@@ -377,7 +390,7 @@ public class ProjectionTabBuilder {
         mainCardContainer.addView(sectionDivider2, dividerParams2);
 
         TextView mapKeyTitle = new TextView(context);
-        mapKeyTitle.setText("Harita kontrol tuşu");
+        mapKeyTitle.setText(R.string.projection_map_key_title);
         mapKeyTitle.setTextSize(15);
         mapKeyTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         mapKeyTitle.setTypeface(null, Typeface.NORMAL);
@@ -385,7 +398,7 @@ public class ProjectionTabBuilder {
         mainCardContainer.addView(mapKeyTitle);
 
         TextView mapKeyDesc = new TextView(context);
-        mapKeyDesc.setText("Donanım tuşu ile harita kontrolü");
+        mapKeyDesc.setText(R.string.projection_map_key_desc);
         mapKeyDesc.setTextSize(13);
         mapKeyDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         mapKeyDesc.setPadding(20, 0, 20, 12);
@@ -398,9 +411,10 @@ public class ProjectionTabBuilder {
 
         UiStyles.addBinarySegmentedControl(context, mapControlBlock,
                 null,
-                "Açık", "Kapalı",
-                "Harita kontrol tuşu aktif.",
-                "Harita kontrol tuşu devre dışı.",
+                context.getString(R.string.common_on),
+                context.getString(R.string.common_off),
+                context.getString(R.string.projection_map_key_on_help),
+                context.getString(R.string.projection_map_key_off_help),
                 prefs.getBoolean("mapControlKeyEnabled", true),
                 isEnabled -> {
                     prefs.edit().putBoolean("mapControlKeyEnabled", isEnabled).apply();
@@ -413,6 +427,124 @@ public class ProjectionTabBuilder {
                     }
                 });
 
+        View sectionDividerMaps = new View(context);
+        sectionDividerMaps.setBackgroundColor(UiStyles.color(context, R.color.dividerWhite12));
+        LinearLayout.LayoutParams dividerParamsMaps = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        dividerParamsMaps.setMargins(20, 24, 20, 24);
+        mainCardContainer.addView(sectionDividerMaps, dividerParamsMaps);
+
+        TextView mapsNavTitle = new TextView(context);
+        mapsNavTitle.setText(R.string.projection_google_maps_nav_title);
+        mapsNavTitle.setTextSize(15);
+        mapsNavTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
+        mapsNavTitle.setTypeface(null, Typeface.NORMAL);
+        mapsNavTitle.setPadding(20, 0, 20, 8);
+        mainCardContainer.addView(mapsNavTitle);
+
+        TextView mapsNavDesc = new TextView(context);
+        mapsNavDesc.setText(R.string.projection_google_maps_nav_desc);
+        mapsNavDesc.setTextSize(13);
+        mapsNavDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        mapsNavDesc.setPadding(20, 0, 20, 12);
+        mapsNavDesc.setLineSpacing(3, 1.05f);
+        mainCardContainer.addView(mapsNavDesc);
+
+        LinearLayout mapsNavBlock = new LinearLayout(context);
+        mapsNavBlock.setOrientation(LinearLayout.VERTICAL);
+        mapsNavBlock.setPadding(20, 0, 20, 0);
+        mainCardContainer.addView(mapsNavBlock);
+
+        final UiStyles.BinarySegmentHandle[] mapsNavHandle = new UiStyles.BinarySegmentHandle[1];
+        mapsNavHandle[0] = UiStyles.addBinarySegmentedControl(context, mapsNavBlock,
+                null,
+                context.getString(R.string.common_on),
+                context.getString(R.string.common_off),
+                context.getString(R.string.projection_google_maps_nav_on_help),
+                context.getString(R.string.projection_google_maps_nav_off_help),
+                GoogleMapsNavNotificationCoordinator.isAutoProjectionEnabled(context),
+                isEnabled -> {
+                    if (isEnabled && !LauncherMediaController.isNotificationAccessEnabled(context)) {
+                        LauncherMediaController controller = new LauncherMediaController(context);
+                        controller.openNotificationAccessSettings();
+                        Toast.makeText(context,
+                                R.string.projection_google_maps_nav_need_access,
+                                Toast.LENGTH_LONG).show();
+                        mapsNavHandle[0].setLeftSelected(false);
+                        callback.log("Google Maps bildirimi: bildirim erişimi kapalı");
+                        return;
+                    }
+                    GoogleMapsNavNotificationCoordinator.setAutoProjectionEnabled(context, isEnabled);
+                    callback.log(isEnabled
+                            ? "Google Maps bildirimiyle otomatik yansıtma açıldı"
+                            : "Google Maps bildirimiyle otomatik yansıtma kapatıldı");
+                });
+
+        googleMapsNavSummaryText = new TextView(context);
+        googleMapsNavSummaryText.setTextSize(13);
+        googleMapsNavSummaryText.setTextColor(UiStyles.color(context, R.color.textHint));
+        googleMapsNavSummaryText.setPadding(20, 12, 20, 8);
+        mainCardContainer.addView(googleMapsNavSummaryText, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        updateGoogleMapsNavSummary(GoogleMapsNavNotificationCoordinator.getLastSnapshot());
+
+        TextView mapsClusterTitle = new TextView(context);
+        mapsClusterTitle.setText(R.string.projection_google_maps_cluster_cards_title);
+        mapsClusterTitle.setTextSize(15);
+        mapsClusterTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
+        mapsClusterTitle.setTypeface(null, Typeface.NORMAL);
+        mapsClusterTitle.setPadding(20, 20, 20, 8);
+        mainCardContainer.addView(mapsClusterTitle);
+
+        TextView mapsClusterDesc = new TextView(context);
+        mapsClusterDesc.setText(R.string.projection_google_maps_cluster_cards_desc);
+        mapsClusterDesc.setTextSize(13);
+        mapsClusterDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        mapsClusterDesc.setPadding(20, 0, 20, 12);
+        mapsClusterDesc.setLineSpacing(3, 1.05f);
+        mainCardContainer.addView(mapsClusterDesc);
+
+        LinearLayout mapsClusterBlock = new LinearLayout(context);
+        mapsClusterBlock.setOrientation(LinearLayout.VERTICAL);
+        mapsClusterBlock.setPadding(20, 0, 20, 0);
+        mainCardContainer.addView(mapsClusterBlock);
+
+        UiStyles.addBinarySegmentedControl(context, mapsClusterBlock,
+                context.getString(R.string.projection_google_maps_cluster_overlay_label),
+                context.getString(R.string.common_on),
+                context.getString(R.string.common_off),
+                context.getString(R.string.projection_google_maps_cluster_overlay_on_help),
+                context.getString(R.string.projection_google_maps_cluster_overlay_off_help),
+                GoogleMapsNavNotificationCoordinator.isClusterOverlayEnabled(context),
+                isEnabled -> {
+                    if (isEnabled && !LauncherMediaController.isNotificationAccessEnabled(context)) {
+                        new LauncherMediaController(context).openNotificationAccessSettings();
+                        Toast.makeText(context,
+                                R.string.projection_google_maps_nav_need_access,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    GoogleMapsNavNotificationCoordinator.setClusterOverlayEnabled(context, isEnabled);
+                    callback.log(isEnabled
+                            ? "Google Maps cluster kartları açıldı"
+                            : "Google Maps cluster kartları kapatıldı");
+                });
+
+        UiStyles.addBinarySegmentedControl(context, mapsClusterBlock,
+                context.getString(R.string.projection_google_maps_cluster_vdbus_label),
+                context.getString(R.string.common_on),
+                context.getString(R.string.common_off),
+                context.getString(R.string.projection_google_maps_cluster_vdbus_on_help),
+                context.getString(R.string.projection_google_maps_cluster_vdbus_off_help),
+                GoogleMapsNavNotificationCoordinator.isClusterVDBusEnabled(context),
+                isEnabled -> {
+                    GoogleMapsNavNotificationCoordinator.setClusterVDBusEnabled(context, isEnabled);
+                    callback.log(isEnabled
+                            ? "Google Maps cluster VDBus yayını açıldı"
+                            : "Google Maps cluster VDBus yayını kapatıldı");
+                });
+
         projectionTabContent.addView(mainCardContainer, mainCardParams);
 
         return scrollView;
@@ -423,8 +555,25 @@ public class ProjectionTabBuilder {
         if (projectionStatusText == null) {
             return;
         }
-        projectionStatusText.setText(
-                ClusterNavigationState.getLastKnownOpen() ? "Yansıtma aktif" : "Yansıtma kapalı");
+        projectionStatusText.setText(ClusterNavigationState.getLastKnownOpen()
+                ? R.string.projection_status_on
+                : R.string.projection_status_off);
+    }
+
+    public void updateGoogleMapsNavSummary(GoogleMapsNavSnapshot snapshot) {
+        if (googleMapsNavSummaryText == null) {
+            return;
+        }
+        if (snapshot == null || !snapshot.active) {
+            googleMapsNavSummaryText.setText(R.string.projection_google_maps_nav_summary_idle);
+            return;
+        }
+        String line = snapshot.formatSummaryLine();
+        if (line == null || line.isEmpty()) {
+            googleMapsNavSummaryText.setText(R.string.projection_google_maps_nav_summary_idle);
+        } else {
+            googleMapsNavSummaryText.setText(line);
+        }
     }
 
     private void handleButtonClickWithDelay(Button button, String originalText, String loadingText) {
@@ -443,7 +592,7 @@ public class ProjectionTabBuilder {
         if (targetAppLabel == null) return;
         String pkg = callback.getTargetPackage();
         if (pkg == null || pkg.trim().isEmpty()) {
-            targetAppLabel.setText("(seçilmedi)");
+            targetAppLabel.setText(R.string.common_not_selected);
         } else {
             targetAppLabel.setText(pkg.trim());
         }
@@ -459,7 +608,7 @@ public class ProjectionTabBuilder {
             callback.log("Yüklü uygulamalar listeleniyor...");
             java.util.List<ProjectionTargetApps.Row> rows = ProjectionTargetApps.loadSortedRows(context);
             if (rows.isEmpty()) {
-                Toast.makeText(context, "Liste oluşturulamadı", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -471,7 +620,7 @@ public class ProjectionTabBuilder {
             }
 
             String[] items = appNames.toArray(new String[0]);
-            String titleText = "Yüklü Uygulamalar (" + items.length + ")";
+            String titleText = context.getString(R.string.projection_installed_apps, items.length);
 
             DialogHelper.showAppSelectionDialog(
                     context,
@@ -482,18 +631,18 @@ public class ProjectionTabBuilder {
                     selectedPkg -> {
                         callback.onTargetPackageSelected(selectedPkg);
                         refreshTargetLabel();
-                        Toast.makeText(context, "Seçildi: " + selectedPkg, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, context.getString(R.string.projection_selected, selectedPkg), Toast.LENGTH_SHORT).show();
                     },
                     null,
                     () -> {
                         callback.onTargetPackageSelected("");
                         refreshTargetLabel();
-                        Toast.makeText(context, "Hedef uygulama temizlendi", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.projection_target_cleared, Toast.LENGTH_SHORT).show();
                     }
             );
         } catch (Exception e) {
             callback.log("selectTargetApp hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 

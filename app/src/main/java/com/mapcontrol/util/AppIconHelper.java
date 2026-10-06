@@ -72,29 +72,29 @@ public final class AppIconHelper {
 
         int density = context.getResources().getDisplayMetrics().densityDpi;
 
-        Drawable icon = loadFromLauncherApps(context, packageName, activityName, density);
-        if (isRealIcon(pm, icon)) {
+        Drawable icon = loadFromLauncherApps(context, pm, packageName, activityName, density);
+        if (isRealIcon(context, pm, icon)) {
             return toImageViewDrawable(context, icon);
         }
 
         icon = loadFromComponentResources(context, pm, packageName, activityName, density);
-        if (isRealIcon(pm, icon)) {
+        if (isRealIcon(context, pm, icon)) {
             return toImageViewDrawable(context, icon);
         }
 
         icon = loadFromResolvedLauncher(context, pm, packageName, density);
-        if (isRealIcon(pm, icon)) {
+        if (isRealIcon(context, pm, icon)) {
             return toImageViewDrawable(context, icon);
         }
 
         icon = loadFromLaunchIntent(pm, packageName);
-        if (isRealIcon(pm, icon)) {
+        if (isRealIcon(context, pm, icon)) {
             return toImageViewDrawable(context, icon);
         }
 
         try {
             icon = pm.getApplicationIcon(packageName);
-            if (icon != null) {
+            if (isRealIcon(context, pm, icon)) {
                 return toImageViewDrawable(context, icon);
             }
         } catch (Exception ignored) {
@@ -105,6 +105,7 @@ public final class AppIconHelper {
     @Nullable
     private static Drawable loadFromLauncherApps(
             Context context,
+            PackageManager pm,
             String packageName,
             @Nullable String activityName,
             int density) {
@@ -123,14 +124,47 @@ public final class AppIconHelper {
                 for (LauncherActivityInfo info : activities) {
                     ComponentName cn = info.getComponentName();
                     if (cn != null && activityName.equals(cn.getClassName())) {
-                        return info.getIcon(density);
+                        Drawable preferred = loadIconForLauncherActivity(
+                                context, pm, info, density);
+                        if (isRealIcon(context, pm, preferred)) {
+                            return preferred;
+                        }
+                        break;
                     }
                 }
             }
-            return activities.get(0).getIcon(density);
+            for (LauncherActivityInfo info : activities) {
+                Drawable candidate = loadIconForLauncherActivity(context, pm, info, density);
+                if (isRealIcon(context, pm, candidate)) {
+                    return candidate;
+                }
+            }
         } catch (Exception ignored) {
-            return null;
         }
+        return null;
+    }
+
+    @Nullable
+    private static Drawable loadIconForLauncherActivity(
+            Context context,
+            PackageManager pm,
+            LauncherActivityInfo info,
+            int density) {
+        try {
+            Drawable fromLauncher = info.getIcon(density);
+            if (isRealIcon(context, pm, fromLauncher)) {
+                return fromLauncher;
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            ComponentName cn = info.getComponentName();
+            if (cn != null) {
+                return loadActivityResources(context, pm, cn, density);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     @Nullable
@@ -172,20 +206,21 @@ public final class AppIconHelper {
                 if (matches == null || matches.isEmpty()) {
                     continue;
                 }
-                ResolveInfo info = matches.get(0);
-                if (info.activityInfo != null && info.activityInfo.name != null) {
-                    Drawable fromRes = loadActivityResources(
-                            context,
-                            pm,
-                            new ComponentName(packageName, info.activityInfo.name),
-                            density);
-                    if (isRealIcon(pm, fromRes)) {
-                        return fromRes;
+                for (ResolveInfo info : matches) {
+                    if (info.activityInfo != null && info.activityInfo.name != null) {
+                        Drawable fromRes = loadActivityResources(
+                                context,
+                                pm,
+                                new ComponentName(packageName, info.activityInfo.name),
+                                density);
+                        if (isRealIcon(context, pm, fromRes)) {
+                            return fromRes;
+                        }
                     }
-                }
-                Drawable loaded = info.loadIcon(pm);
-                if (isRealIcon(pm, loaded)) {
-                    return loaded;
+                    Drawable loaded = info.loadIcon(pm);
+                    if (isRealIcon(context, pm, loaded)) {
+                        return loaded;
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -239,7 +274,7 @@ public final class AppIconHelper {
         }
         try {
             Drawable loaded = activityInfo.loadIcon(pm);
-            if (isRealIcon(pm, loaded)) {
+            if (isRealIcon(context, pm, loaded)) {
                 return loaded;
             }
         } catch (Exception ignored) {
@@ -281,17 +316,31 @@ public final class AppIconHelper {
         }
     }
 
-    private static boolean isRealIcon(PackageManager pm, @Nullable Drawable icon) {
+    private static boolean isRealIcon(
+            Context context, PackageManager pm, @Nullable Drawable icon) {
         if (icon == null) {
             return false;
         }
-        Drawable def = pm.getDefaultActivityIcon();
-        if (def == null) {
-            return true;
+        if (sameConstantState(icon, pm.getDefaultActivityIcon())) {
+            return false;
         }
-        Drawable.ConstantState a = icon.getConstantState();
-        Drawable.ConstantState b = def.getConstantState();
-        return a == null || b == null || !a.equals(b);
+        try {
+            Drawable symDef = context.getDrawable(android.R.drawable.sym_def_app_icon);
+            if (sameConstantState(icon, symDef)) {
+                return false;
+            }
+        } catch (Exception ignored) {
+        }
+        return true;
+    }
+
+    private static boolean sameConstantState(@Nullable Drawable a, @Nullable Drawable b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        Drawable.ConstantState ca = a.getConstantState();
+        Drawable.ConstantState cb = b.getConstantState();
+        return ca != null && cb != null && ca.equals(cb);
     }
 
     @NonNull

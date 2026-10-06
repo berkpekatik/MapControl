@@ -11,9 +11,9 @@ import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * Yansıtma hedefi için başlatılabilir kullanıcı uygulamaları listesi (sistem/priv filtre ile).
@@ -108,18 +108,27 @@ public final class ProjectionTargetApps {
         if (launcherApps == null || launcherApps.isEmpty()) {
             return Collections.emptyList();
         }
-        Set<String> seen = new HashSet<>();
-        List<Row> out = new ArrayList<>();
+        Map<String, ResolveInfo> bestByPackage = new HashMap<>();
         for (ResolveInfo info : launcherApps) {
             try {
+                if (info.activityInfo == null || info.activityInfo.packageName == null) {
+                    continue;
+                }
                 String pkg = info.activityInfo.packageName;
-                if (pkg == null || pkg.isEmpty() || seen.contains(pkg)) {
+                if (pkg.isEmpty() || "com.mapcontrol".equals(pkg)) {
                     continue;
                 }
-                seen.add(pkg);
-                if ("com.mapcontrol".equals(pkg)) {
-                    continue;
+                ResolveInfo existing = bestByPackage.get(pkg);
+                if (existing == null || isBetterLauncherResolve(info, existing)) {
+                    bestByPackage.put(pkg, info);
                 }
+            } catch (Exception ignored) {
+            }
+        }
+        List<Row> out = new ArrayList<>();
+        for (ResolveInfo info : bestByPackage.values()) {
+            try {
+                String pkg = info.activityInfo.packageName;
                 ApplicationInfo appInfo = pm.getApplicationInfo(pkg, 0);
                 boolean isSystem = isSystemOrPrivApp(appInfo);
                 if (systemAppsOnly != isSystem) {
@@ -133,12 +142,34 @@ public final class ProjectionTargetApps {
                 if (appName == null || appName.trim().isEmpty()) {
                     appName = pkg;
                 }
-                String activityName = info.activityInfo != null ? info.activityInfo.name : null;
+                String activityName = info.activityInfo.name;
                 out.add(new Row(appName.trim(), pkg, activityName));
             } catch (Exception ignored) {
             }
         }
         Collections.sort(out, Comparator.comparing(r -> r.label, String.CASE_INSENSITIVE_ORDER));
         return out;
+    }
+
+    /**
+     * Aynı pakette birden fazla LAUNCHER activity varken (DesaySV) öncelik + activity ikon kaynağı
+     * ile OEM launcher’ın gösterdiğine yakın olanı seç.
+     */
+    private static boolean isBetterLauncherResolve(ResolveInfo candidate, ResolveInfo current) {
+        if (candidate.priority != current.priority) {
+            return candidate.priority > current.priority;
+        }
+        int candidateIcon = candidate.activityInfo != null ? candidate.activityInfo.icon : 0;
+        int currentIcon = current.activityInfo != null ? current.activityInfo.icon : 0;
+        if (candidateIcon != 0 && currentIcon == 0) {
+            return true;
+        }
+        if (candidateIcon == 0 && currentIcon != 0) {
+            return false;
+        }
+        if (candidate.isDefault && !current.isDefault) {
+            return true;
+        }
+        return false;
     }
 }

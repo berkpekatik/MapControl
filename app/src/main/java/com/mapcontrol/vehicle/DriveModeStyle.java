@@ -11,7 +11,7 @@ import com.mapcontrol.ui.theme.UiStyles;
 
 /**
  * OEM {@link com.desaysv.ivi.extra.project.carinfo.NewEnergyID#ID_DRIVE_MODE} değerleri
- * ve dashboard / 3D tema renkleri.
+ * ve dashboard tema renkleri.
  * <p>
  * Eco=0, Normal=1, Sport=2 (DriveModeTabBuilder ile aynı).
  */
@@ -70,30 +70,4 @@ public final class DriveModeStyle {
         return UiStyles.color(context, res);
     }
 
-    /** Filament ışık rengi (0–1). Temasız modda nötr beyaz. */
-    public static float[] lightRgb(int driveMode) {
-        switch (driveMode) {
-            case ECO:
-                return new float[]{0.42f, 0.88f, 0.55f};
-            case NORMAL:
-                return new float[]{0.52f, 0.72f, 1.00f};
-            case SPORT:
-                return new float[]{1.00f, 0.38f, 0.36f};
-            default:
-                return new float[]{1f, 1f, 1f};
-        }
-    }
-
-    /** IBL irradiance — beyaza karışık hafif ton. */
-    public static float[] irradianceRgb(int driveMode) {
-        float[] rgb = lightRgb(driveMode);
-        if (!isThemed(driveMode)) {
-            return new float[]{1f, 1f, 1f};
-        }
-        return new float[]{
-                0.72f + 0.28f * rgb[0],
-                0.72f + 0.28f * rgb[1],
-                0.72f + 0.28f * rgb[2]
-        };
-    }
 }

@@ -122,7 +122,7 @@ public class ProfileTabBuilder {
         profileLoginStatusText.setLineSpacing(4, 1.2f);
 
         profileEmailLabel = new TextView(context);
-        profileEmailLabel.setText("E-posta Adresi");
+        profileEmailLabel.setText(R.string.profile_email_label);
         profileEmailLabel.setTextSize(14);
         profileEmailLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
         profileEmailLabel.setPadding(0, 0, 0, 8);
@@ -130,7 +130,7 @@ public class ProfileTabBuilder {
 
         profileEmailInput = new EditText(context);
         profileEmailInput.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        profileEmailInput.setHint("ornek@email.com");
+        profileEmailInput.setHint(R.string.profile_hint_email);
         profileEmailInput.setTextSize(16);
         profileEmailInput.setPadding(16, 16, 16, 16);
         android.graphics.drawable.GradientDrawable inputBg = new android.graphics.drawable.GradientDrawable();
@@ -147,7 +147,7 @@ public class ProfileTabBuilder {
         loginCard.addView(profileEmailInput, emailParams);
 
         profileCodeLabel = new TextView(context);
-        profileCodeLabel.setText("Doğrulama Kodu");
+        profileCodeLabel.setText(R.string.profile_code_label);
         profileCodeLabel.setTextSize(14);
         profileCodeLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
         profileCodeLabel.setPadding(0, 0, 0, 8);
@@ -155,7 +155,7 @@ public class ProfileTabBuilder {
 
         profileCodeInput = new EditText(context);
         profileCodeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        profileCodeInput.setHint("123456");
+        profileCodeInput.setHint(R.string.profile_hint_code);
         profileCodeInput.setTextSize(16);
         profileCodeInput.setPadding(16, 16, 16, 16);
         profileCodeInput.setBackground(inputBg);
@@ -172,7 +172,7 @@ public class ProfileTabBuilder {
         profileButtonsContainer.setPadding(0, 0, 0, 0);
 
         profileSendCodeButton = new Button(context);
-        profileSendCodeButton.setText("Kod Gönder");
+        profileSendCodeButton.setText(R.string.profile_send_code);
         profileSendCodeButton.setTextSize(14);
         profileSendCodeButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profileSendCodeButton, UiStyles.color(context, R.color.buttonPrimary));
@@ -184,7 +184,7 @@ public class ProfileTabBuilder {
         styleSendCodeButtonDefault();
 
         profileLoginButton = new Button(context);
-        profileLoginButton.setText("Giriş Yap");
+        profileLoginButton.setText(R.string.profile_login);
         profileLoginButton.setTextSize(14);
         profileLoginButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profileLoginButton, UiStyles.color(context, R.color.buttonSuccessBright));
@@ -198,7 +198,7 @@ public class ProfileTabBuilder {
         loginCard.addView(profileButtonsContainer);
 
         profileLogoutButton = new Button(context);
-        profileLogoutButton.setText("Çıkış Yap");
+        profileLogoutButton.setText(R.string.profile_logout);
         profileLogoutButton.setTextSize(14);
         profileLogoutButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profileLogoutButton, UiStyles.color(context, R.color.buttonDanger));
@@ -211,7 +211,7 @@ public class ProfileTabBuilder {
         loginCard.addView(profileLogoutButton, logoutBtnParams);
 
         profilePlatformButton = new Button(context);
-        profilePlatformButton.setText("Platforma Gir");
+        profilePlatformButton.setText(R.string.profile_open_platform);
         profilePlatformButton.setTextSize(14);
         profilePlatformButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profilePlatformButton, UiStyles.color(context, R.color.buttonPrimary));
@@ -225,13 +225,13 @@ public class ProfileTabBuilder {
 
         profilePlatformButton.setOnClickListener(v -> {
             if (apiService == null || !apiService.isLoggedIn()) {
-                Toast.makeText(context, "Önce giriş yapmalısınız", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_login_required, Toast.LENGTH_SHORT).show();
                 return;
             }
 
             String token = apiService.getCarToken();
             if (token == null || token.isEmpty()) {
-                Toast.makeText(context, "Token bulunamadı", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_token_missing, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -250,13 +250,13 @@ public class ProfileTabBuilder {
         profileSendCodeButton.setOnClickListener(v -> {
             String email = profileEmailInput.getText().toString().trim();
             if (email.isEmpty()) {
-                Toast.makeText(context, "E-posta adresi gerekli", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_email_required, Toast.LENGTH_SHORT).show();
                 return;
             }
 
             profileSendCodeButton.setEnabled(false);
             UiStyles.clearButtonCompoundDrawables(profileSendCodeButton);
-            profileSendCodeButton.setText("Gönderiliyor...");
+            profileSendCodeButton.setText(R.string.profile_sending_code);
 
             if (apiService != null) {
                 apiService.sendVerificationCode(email, new ProfileApiService.ApiCallback() {
@@ -265,7 +265,7 @@ public class ProfileTabBuilder {
                         handler.post(() -> {
                             profileSendCodeButton.setEnabled(true);
                             UiStyles.clearButtonCompoundDrawables(profileSendCodeButton);
-                            profileSendCodeButton.setText("Kod Gönderildi");
+                            profileSendCodeButton.setText(R.string.profile_code_sent);
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Doğrulama kodu gönderildi: " + email);
                             handler.postDelayed(() -> styleSendCodeButtonDefault(), 3000);
@@ -290,16 +290,16 @@ public class ProfileTabBuilder {
             String code = profileCodeInput.getText().toString().trim();
 
             if (email.isEmpty()) {
-                Toast.makeText(context, "E-posta adresi gerekli", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_email_required, Toast.LENGTH_SHORT).show();
                 return;
             }
             if (code.isEmpty()) {
-                Toast.makeText(context, "Doğrulama kodu gerekli", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_code_required, Toast.LENGTH_SHORT).show();
                 return;
             }
 
             profileLoginButton.setEnabled(false);
-            profileLoginButton.setText("Doğrulanıyor...");
+            profileLoginButton.setText(R.string.profile_verifying);
 
             if (apiService != null) {
                 apiService.verifyCode(email, code, new ProfileApiService.ApiCallback() {
@@ -307,7 +307,7 @@ public class ProfileTabBuilder {
                     public void onSuccess(String message, JSONObject data) {
                         handler.post(() -> {
                             profileLoginButton.setEnabled(true);
-                            profileLoginButton.setText("Giriş Yap");
+                            profileLoginButton.setText(R.string.profile_login);
                             updateProfileLoginStatus();
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Giriş başarılı: " + email);
@@ -318,7 +318,7 @@ public class ProfileTabBuilder {
                     public void onError(String error) {
                         handler.post(() -> {
                             profileLoginButton.setEnabled(true);
-                            profileLoginButton.setText("Giriş Yap");
+                            profileLoginButton.setText(R.string.profile_login);
                             Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Giriş hatası: " + error);
                         });
@@ -333,7 +333,7 @@ public class ProfileTabBuilder {
                 profileEmailInput.setText("");
                 profileCodeInput.setText("");
                 updateProfileLoginStatus();
-                Toast.makeText(context, "Çıkış yapıldı", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_logged_out, Toast.LENGTH_SHORT).show();
                 callback.log("Kullanıcı çıkış yaptı");
             }
         });
@@ -349,7 +349,7 @@ public class ProfileTabBuilder {
         actionsCard.setBackground(actionsCardBg);
 
         TextView actionsTitle = new TextView(context);
-        actionsTitle.setText("Veri Yönetimi");
+        actionsTitle.setText(R.string.profile_data_management);
         actionsTitle.setTextSize(17);
         actionsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         actionsTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
@@ -361,7 +361,7 @@ public class ProfileTabBuilder {
         buttonsRow.setPadding(0, 0, 0, 0);
 
         profileSaveDataButton = new Button(context);
-        profileSaveDataButton.setText("Son Değişiklikleri Sakla");
+        profileSaveDataButton.setText(R.string.profile_save_changes);
         profileSaveDataButton.setTextSize(14);
         profileSaveDataButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profileSaveDataButton, UiStyles.color(context, R.color.buttonPrimary));
@@ -375,7 +375,7 @@ public class ProfileTabBuilder {
         buttonsRow.addView(profileSaveDataButton, saveBtnParams);
 
         profileLoadDataButton = new Button(context);
-        profileLoadDataButton.setText("Son Değişiklikleri Getir");
+        profileLoadDataButton.setText(R.string.profile_load_changes);
         profileLoadDataButton.setTextSize(14);
         profileLoadDataButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(profileLoadDataButton, UiStyles.color(context, R.color.buttonSuccessBright));
@@ -396,18 +396,18 @@ public class ProfileTabBuilder {
 
         profileSaveDataButton.setOnClickListener(v -> {
             if (apiService == null || !apiService.isLoggedIn()) {
-                Toast.makeText(context, "Önce giriş yapmalısınız", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_login_required, Toast.LENGTH_SHORT).show();
                 return;
             }
 
             if (!isNetworkAvailable()) {
-                Toast.makeText(context, "İnternet bağlantısı yok", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_no_internet, Toast.LENGTH_SHORT).show();
                 callback.log("İnternet bağlantısı yok, veri kaydedilemedi");
                 return;
             }
 
             profileSaveDataButton.setEnabled(false);
-            profileSaveDataButton.setText("Kaydediliyor...");
+            profileSaveDataButton.setText(R.string.profile_saving);
 
             try {
                 JSONObject data = new JSONObject();
@@ -439,7 +439,7 @@ public class ProfileTabBuilder {
                     public void onSuccess(String message, JSONObject data) {
                         handler.post(() -> {
                             profileSaveDataButton.setEnabled(true);
-                            profileSaveDataButton.setText("Son Değişiklikleri Sakla");
+                            profileSaveDataButton.setText(R.string.profile_save_changes);
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             callback.log("Veriler başarıyla kaydedildi: " + message);
                         });
@@ -449,7 +449,7 @@ public class ProfileTabBuilder {
                     public void onError(String error) {
                         handler.post(() -> {
                             profileSaveDataButton.setEnabled(true);
-                            profileSaveDataButton.setText("Son Değişiklikleri Sakla");
+                            profileSaveDataButton.setText(R.string.profile_save_changes);
                             Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Veri kaydetme hatası: " + error);
                         });
@@ -458,8 +458,8 @@ public class ProfileTabBuilder {
             } catch (Exception e) {
                 handler.post(() -> {
                     profileSaveDataButton.setEnabled(true);
-                    profileSaveDataButton.setText("Son Değişiklikleri Sakla");
-                    Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    profileSaveDataButton.setText(R.string.profile_save_changes);
+                    Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
                     callback.log("Veri kaydetme hatası: " + e.getMessage());
                 });
             }
@@ -500,21 +500,21 @@ public class ProfileTabBuilder {
         // Son değişiklikleri getir butonu tıklama (MainActivity kodundan uyarlanmış)
         profileLoadDataButton.setOnClickListener(v -> {
             if (apiService == null || !apiService.isLoggedIn()) {
-                Toast.makeText(context, "Önce giriş yapmalısınız", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_login_required, Toast.LENGTH_SHORT).show();
                 return;
             }
             if (!isNetworkAvailable()) {
-                Toast.makeText(context, "İnternet bağlantısı yok", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_no_internet, Toast.LENGTH_SHORT).show();
                 callback.log("İnternet bağlantısı yok, veri getirilemedi");
                 return;
             }
 
             AlertDialog.Builder confirmBuilder = new AlertDialog.Builder(context);
-            confirmBuilder.setTitle("Verileri Çek");
-            confirmBuilder.setMessage("Sunucudan son kayıtlı verilerinizi çekmek istiyor musunuz?\n\nNot: Mevcut ayarlarınızın üzerine yazılacaktır.");
-            confirmBuilder.setPositiveButton("Evet, Çek", (dialog, which) -> {
+            confirmBuilder.setTitle(R.string.profile_dialog_pull_title);
+            confirmBuilder.setMessage(R.string.profile_dialog_pull_message);
+            confirmBuilder.setPositiveButton(R.string.dialog_yes_pull, (dialog, which) -> {
                 profileLoadDataButton.setEnabled(false);
-                profileLoadDataButton.setText("Yükleniyor...");
+                profileLoadDataButton.setText(R.string.profile_loading);
 
                 apiService.getUserData(new ProfileApiService.ApiCallback() {
                     @Override
@@ -523,10 +523,10 @@ public class ProfileTabBuilder {
                             try {
                                 JSONObject data = responseData;
                                 if (data == null) {
-                                    Toast.makeText(context, "Veri bulunamadı", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(context, R.string.profile_no_data, Toast.LENGTH_SHORT).show();
                                     callback.log("Sunucudan veri alınamadı: data objesi yok");
                                     profileLoadDataButton.setEnabled(true);
-                                    profileLoadDataButton.setText("Son Değişiklikleri Getir");
+                                    profileLoadDataButton.setText(R.string.profile_load_changes);
                                     return;
                                 }
 
@@ -553,30 +553,30 @@ public class ProfileTabBuilder {
                                 callback.log("Sunucudan veriler başarıyla yüklendi ve SharedPreferences'a kaydedildi");
 
                                 AlertDialog.Builder restartBuilder = new AlertDialog.Builder(context);
-                                restartBuilder.setTitle("Uygulama Yeniden Başlatılacak");
-                                restartBuilder.setMessage("Son kayıtlı verileriniz başarıyla yüklendi.\n\nAyarların etkin olması için uygulamanın yeniden başlatılması gerekiyor.\n\nYeniden başlatmak istiyor musunuz?");
-                                restartBuilder.setPositiveButton("Yeniden Başlat", (d2, w2) -> {
+                                restartBuilder.setTitle(R.string.profile_dialog_restart_title);
+                                restartBuilder.setMessage(R.string.profile_dialog_restart_message);
+                                restartBuilder.setPositiveButton(R.string.dialog_restart, (d2, w2) -> {
                                     Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
                                     if (intent != null) {
                                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                                         context.startActivity(intent);
                                         android.os.Process.killProcess(android.os.Process.myPid());
                                     } else {
-                                        Toast.makeText(context, "Uygulama yeniden başlatılamadı", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(context, R.string.profile_restart_failed, Toast.LENGTH_SHORT).show();
                                     }
                                 });
-                                restartBuilder.setNegativeButton("İptal", (d2, w2) -> {
+                                restartBuilder.setNegativeButton(R.string.wifi_cancel, (d2, w2) -> {
                                     d2.dismiss();
-                                    Toast.makeText(context, "Veriler yüklendi, uygulamayı manuel olarak yeniden başlatabilirsiniz", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(context, R.string.profile_restart_manual, Toast.LENGTH_LONG).show();
                                 });
                                 restartBuilder.setCancelable(false);
                                 restartBuilder.show();
                             } catch (Exception e) {
-                                Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
                                 callback.log("Veri yükleme hatası: " + e.getMessage());
                             } finally {
                                 profileLoadDataButton.setEnabled(true);
-                                profileLoadDataButton.setText("Son Değişiklikleri Getir");
+                                profileLoadDataButton.setText(R.string.profile_load_changes);
                             }
                         });
                     }
@@ -585,14 +585,14 @@ public class ProfileTabBuilder {
                     public void onError(String error) {
                         handler.post(() -> {
                             profileLoadDataButton.setEnabled(true);
-                            profileLoadDataButton.setText("Son Değişiklikleri Getir");
+                            profileLoadDataButton.setText(R.string.profile_load_changes);
                             Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                             callback.log("Veri getirme hatası: " + error);
                         });
                     }
                 });
             });
-            confirmBuilder.setNegativeButton("İptal", (dialog, which) -> dialog.dismiss());
+            confirmBuilder.setNegativeButton(R.string.wifi_cancel, (dialog, which) -> dialog.dismiss());
             confirmBuilder.setCancelable(true);
             confirmBuilder.show();
         });
@@ -612,7 +612,7 @@ public class ProfileTabBuilder {
         actionsCard.addView(profileSaveLocationButton, locationBtnParams);
 
         TextView autoLocationTitle = new TextView(context);
-        autoLocationTitle.setText("Araç Kapanınca Otomatik Konum Kaydet");
+        autoLocationTitle.setText(R.string.profile_auto_location_title);
         autoLocationTitle.setTextSize(15);
         autoLocationTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         autoLocationTitle.setTypeface(null, android.graphics.Typeface.NORMAL);
@@ -620,7 +620,7 @@ public class ProfileTabBuilder {
         actionsCard.addView(autoLocationTitle);
 
         TextView autoLocationDesc = new TextView(context);
-        autoLocationDesc.setText("Araç kapanınca ne olsun?");
+        autoLocationDesc.setText(R.string.profile_auto_location_desc);
         autoLocationDesc.setTextSize(13);
         autoLocationDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         autoLocationDesc.setPadding(0, 0, 0, 12);
@@ -634,9 +634,9 @@ public class ProfileTabBuilder {
 
         profileAutoLocationSegmentHandle = UiStyles.addBinarySegmentedControl(context, autoLocationSegmentBlock,
                 null,
-                "Açık", "Kapalı",
-                "Araç kapanınca otomatik konum kaydet.",
-                "Otomatik konum kaydetme kapalı.",
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.profile_auto_location_help_on),
+                context.getString(R.string.profile_auto_location_help_off),
                 autoLocationEnabled,
                 isEnabled -> {
                     prefs.edit().putBoolean("autoLocationSaveOnPowerOff", isEnabled).apply();
@@ -661,18 +661,18 @@ public class ProfileTabBuilder {
 
         profileSaveLocationButton.setOnClickListener(v -> {
             if (apiService == null || !apiService.isLoggedIn()) {
-                Toast.makeText(context, "Önce giriş yapmalısınız", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_login_required, Toast.LENGTH_SHORT).show();
                 return;
             }
             if (!isNetworkAvailable()) {
-                Toast.makeText(context, "İnternet bağlantısı yok", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_no_internet, Toast.LENGTH_SHORT).show();
                 callback.log("İnternet bağlantısı yok, konum kaydedilemedi");
                 return;
             }
 
             profileSaveLocationButton.setEnabled(false);
             UiStyles.clearButtonCompoundDrawables(profileSaveLocationButton);
-            profileSaveLocationButton.setText("Konum alınıyor...");
+            profileSaveLocationButton.setText(R.string.profile_fetching_location);
 
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                     ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -680,7 +680,7 @@ public class ProfileTabBuilder {
                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1001);
                 profileSaveLocationButton.setEnabled(true);
                 styleSaveLocationButtonDefault();
-                Toast.makeText(context, "Konum izni gerekli", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.profile_location_permission, Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -721,7 +721,7 @@ public class ProfileTabBuilder {
                     });
                 } else {
                     UiStyles.clearButtonCompoundDrawables(profileSaveLocationButton);
-                    profileSaveLocationButton.setText("Konum bekleniyor...");
+                    profileSaveLocationButton.setText(R.string.profile_waiting_location);
                     locationListener = new LocationListener() {
                         @Override
                         public void onLocationChanged(Location location) {
@@ -773,13 +773,13 @@ public class ProfileTabBuilder {
                         }
                         profileSaveLocationButton.setEnabled(true);
                         styleSaveLocationButtonDefault();
-                        Toast.makeText(context, "Konum alınamadı, lütfen GPS'in açık olduğundan emin olun", Toast.LENGTH_LONG).show();
+                        Toast.makeText(context, R.string.profile_location_failed, Toast.LENGTH_LONG).show();
                     }, 10000);
                 }
             } catch (Exception e) {
                 profileSaveLocationButton.setEnabled(true);
                 styleSaveLocationButtonDefault();
-                Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
                 callback.log("Konum alma hatası: " + e.getMessage());
             }
         });
@@ -794,7 +794,7 @@ public class ProfileTabBuilder {
 
         if (isLoggedIn) {
             String email = apiService.getUserEmail();
-            profileLoginStatusText.setText("Giriş Mevcut\nE-posta: " + (email != null ? email : "Bilinmiyor"));
+            profileLoginStatusText.setText(context.getString(R.string.profile_logged_in_status, email != null ? email : context.getString(R.string.common_unknown)));
 
             if (profileButtonsContainer != null) profileButtonsContainer.setVisibility(android.view.View.GONE);
             if (profileEmailLabel != null) profileEmailLabel.setVisibility(android.view.View.GONE);
@@ -819,7 +819,7 @@ public class ProfileTabBuilder {
                         LinearLayout card = (LinearLayout) child;
                         if (card.getChildCount() > 0 && card.getChildAt(0) instanceof TextView) {
                             TextView title = (TextView) card.getChildAt(0);
-                            if (title.getText().toString().contains("Veri Yönetimi")) {
+                            if (title.getText().toString().equals(context.getString(R.string.profile_data_management))) {
                                 card.setVisibility(android.view.View.VISIBLE);
                                 break;
                             }
@@ -828,7 +828,7 @@ public class ProfileTabBuilder {
                 }
             }
         } else {
-            profileLoginStatusText.setText("Ayarlarınızı kaydetmek için giriş yapın");
+            profileLoginStatusText.setText(R.string.profile_login_prompt);
 
             if (profileButtonsContainer != null) profileButtonsContainer.setVisibility(android.view.View.VISIBLE);
             if (profileEmailLabel != null) profileEmailLabel.setVisibility(android.view.View.VISIBLE);
@@ -859,7 +859,7 @@ public class ProfileTabBuilder {
                         LinearLayout card = (LinearLayout) child;
                         if (card.getChildCount() > 0 && card.getChildAt(0) instanceof TextView) {
                             TextView title = (TextView) card.getChildAt(0);
-                            if (title.getText().toString().contains("Veri Yönetimi")) {
+                            if (title.getText().toString().equals(context.getString(R.string.profile_data_management))) {
                                 card.setVisibility(android.view.View.GONE);
                                 break;
                             }
@@ -872,7 +872,7 @@ public class ProfileTabBuilder {
 
     private void showPlatformQRDialog(String url) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Platforma Gir");
+        builder.setTitle(R.string.profile_open_platform);
 
         LinearLayout dialogLayout = new LinearLayout(context);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
@@ -891,7 +891,7 @@ public class ProfileTabBuilder {
         dialogLayout.addView(qrImageView, qrParams);
 
         builder.setView(dialogLayout);
-        builder.setPositiveButton("Kapat", null);
+        builder.setPositiveButton(R.string.dialog_close, null);
 
         AlertDialog dialog = builder.create();
         dialog.show();
@@ -918,7 +918,7 @@ public class ProfileTabBuilder {
                 handler.post(() -> qrImageView.setImageBitmap(bitmap));
             } catch (WriterException e) {
                 handler.post(() -> {
-                    Toast.makeText(context, "QR kod oluşturulamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, context.getString(R.string.profile_qr_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
                     callback.log("QR kod oluşturma hatası: " + e.getMessage());
                 });
             }
@@ -926,14 +926,14 @@ public class ProfileTabBuilder {
     }
 
     private void styleSendCodeButtonDefault() {
-        profileSendCodeButton.setText("Kod Gönder");
+        profileSendCodeButton.setText(R.string.profile_send_code);
         UiStyles.setButtonStartIconTinted(profileSendCodeButton, R.drawable.ic_mdi_email_outline,
                 UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
     }
 
     private void styleSaveLocationButtonDefault() {
-        profileSaveLocationButton.setText("Mevcut Konumu Kaydet");
+        profileSaveLocationButton.setText(R.string.profile_save_location);
         UiStyles.setButtonStartIconTinted(profileSaveLocationButton, R.drawable.ic_mdi_map_marker,
                 UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));

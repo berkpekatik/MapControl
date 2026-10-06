@@ -79,7 +79,7 @@ public class DriveModeTabBuilder {
         driveTitleRow.addView(driveTitleIcon);
 
         TextView driveModeTitle = new TextView(context);
-        driveModeTitle.setText("Sürüş Modları");
+        driveModeTitle.setText(R.string.drive_modes_title);
         driveModeTitle.setTextSize(20);
         driveModeTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         driveModeTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -113,7 +113,10 @@ public class DriveModeTabBuilder {
         int pianoKeyH = Math.round(100f * density);
         int indicatorHpx = Math.max(1, Math.round(4f * density));
 
-        String[] driveModeNames = {"Hiçbiri", "Eco", "Normal", "Sport", "Snow", "Mud", "Offroad", "Sand"};
+        String[] driveModeNames = {
+                context.getString(R.string.drive_mode_none),
+                "Eco", "Normal", "Sport", "Snow", "Mud", "Offroad", "Sand"
+        };
         int[] driveModeValues = {-1, 0, 1, 2, 3, 4, 5, 7};
         int[] driveModeIds = {9, 10, 11, 12, 13, 14, 15, 17};
         int[] driveModeIconRes = {

@@ -20,15 +20,13 @@ public class DialogHelper {
     public static void showLegalDisclaimer(Context context, Runnable onAccept, Runnable onDecline) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LinearLayout mainContainer = createBaseContainer(context);
-        LinearLayout titleContainer = createTitleContainer(context, "Hoş Geldiniz", "Yasal Uyarı ve Kullanım Koşulları");
+        LinearLayout titleContainer = createTitleContainer(context,
+                context.getString(R.string.dialog_welcome_title),
+                context.getString(R.string.dialog_legal_subtitle));
         mainContainer.addView(titleContainer);
 
         LinearLayout contentContainer = createContentContainer(context);
-        String disclaimerText = "### Yasal Uyarı ve Sorumluluk Reddi\n" +
-                "1. **Ücretsiz Dağıtım:** Bu yazılım, herhangi bir ücret talep edilmeksizin tamamen ücretsiz olarak dağıtılmaktadır. Yazılım içinde belirtilen içerikler ayrı bir ücret karşılığında satılmaz.\n" +
-                "2. **Kullanıcı Onayı ve Risk Kabulü:** Kullanıcı, cihazın bellek (hafıza) ayarlarını veya araç konfigürasyonlarını kendi rızasıyla ve bilinciyle değiştirdiğini onaylar.\n" +
-                "3. **Sorumluluk Reddi:** Geliştirici, bu değişiklikler veya uygulamanın kullanımı sonucunda ortaya çıkabilecek hiçbir doğrudan veya dolaylı zarardan, veri kaybından veya arızadan **sorumlu değildir ve hiçbir yükümlülük kabul etmez.**\n" +
-                "**Onay:** Lütfen uygulamayı kullanmaya başlamadan önce yukarıdaki tüm bilgileri **okuduğunuzu, anladığınızu ve kabul ettiğinizi** onaylayın.";
+        String disclaimerText = context.getString(R.string.dialog_legal_disclaimer);
         TextView messageView = createMessage(context, disclaimerText);
         ScrollView scrollView = new ScrollView(context);
         scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
@@ -39,8 +37,8 @@ public class DialogHelper {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         builder.setView(mainContainer);
-        builder.setPositiveButton("Kabul Ediyorum", (d, w) -> onAccept.run());
-        builder.setNegativeButton("Kabul Etmiyorum", (d, w) -> onDecline.run());
+        builder.setPositiveButton(R.string.dialog_accept, (d, w) -> onAccept.run());
+        builder.setNegativeButton(R.string.dialog_decline, (d, w) -> onDecline.run());
         builder.setCancelable(false);
         AlertDialog dialog = builder.create();
         styleDialog(dialog);
@@ -50,11 +48,13 @@ public class DialogHelper {
     public static void showAppManagementDisclaimer(Context context, Runnable onAccept, Runnable onDecline) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LinearLayout mainContainer = createBaseContainer(context);
-        LinearLayout titleContainer = createTitleContainer(context, "Uygulama Yönetimi", "Yasal Uyarı ve Sorumluluk Reddi");
+        LinearLayout titleContainer = createTitleContainer(context,
+                context.getString(R.string.dialog_app_mgmt_title),
+                context.getString(R.string.dialog_legal_subtitle));
         mainContainer.addView(titleContainer);
 
         LinearLayout contentContainer = createContentContainer(context);
-        String disclaimerText = "Uygulama yükleme ve kaldırma işlemleri tamamen kullanıcının sorumluluğundadır. Geliştirici, kullanıcının yüklediği veya kaldırdığı uygulamalardan kaynaklanan hiçbir sorumluluğu kabul etmez.";
+        String disclaimerText = context.getString(R.string.dialog_app_mgmt_disclaimer);
         TextView messageView = createMessage(context, disclaimerText);
         ScrollView scrollView = new ScrollView(context);
         scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
@@ -65,8 +65,8 @@ public class DialogHelper {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         builder.setView(mainContainer);
-        builder.setPositiveButton("Kabul Ediyorum", (d, w) -> onAccept.run());
-        builder.setNegativeButton("Geri", (d, w) -> onDecline.run());
+        builder.setPositiveButton(R.string.dialog_accept, (d, w) -> onAccept.run());
+        builder.setNegativeButton(R.string.dialog_back, (d, w) -> onDecline.run());
         builder.setCancelable(true);
         AlertDialog dialog = builder.create();
         styleDialog(dialog);
@@ -74,10 +74,10 @@ public class DialogHelper {
     }
 
     public static void showSafetyWarningDialog(Context context, String settingKey, int value, Runnable onConfirm) {
-        String title = settingKey.equals("fcwSetting") ? "Ön Çarpışma Uyarısı" : "Aktif Acil Fren Sistemi";
-        String message = "Bu güvenlik özelliğini devre dışı bırakmak tamamen sizin sorumluluğunuzdadır.\n\n" +
-                "Bu ayar, aracın güvenlik sistemlerini etkiler. Devre dışı bırakıldığında olası risklerden geliştirici sorumlu değildir.\n\n" +
-                "Devam etmek istiyor musunuz?";
+        String title = settingKey.equals("fcwSetting")
+                ? context.getString(R.string.dialog_safety_fcw_title)
+                : context.getString(R.string.dialog_safety_aeb_title);
+        String message = context.getString(R.string.dialog_safety_message);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LinearLayout dialogLayout = new LinearLayout(context);
@@ -102,11 +102,11 @@ public class DialogHelper {
         dialogLayout.addView(messageView);
 
         builder.setView(dialogLayout);
-        builder.setPositiveButton("Kabul Ediyorum", (d, w) -> onConfirm.run());
-        builder.setNegativeButton("İptal", (d, w) -> d.dismiss());
+        builder.setPositiveButton(R.string.dialog_accept, (d, w) -> onConfirm.run());
+        builder.setNegativeButton(R.string.wifi_cancel, (d, w) -> d.dismiss());
         AlertDialog dialog = builder.create();
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(UiStyles.color(context, R.color.surfaceColor)));
         }
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.accentHighlight));
@@ -146,10 +146,10 @@ public class DialogHelper {
         });
 
         if (preferredPackageOrNull != null) {
-            builder.setPositiveButton("Otomatik Seç", (dialog, which) -> onAutoSelect.run());
+            builder.setPositiveButton(R.string.dialog_auto_select, (dialog, which) -> onAutoSelect.run());
         }
-        builder.setNegativeButton("İptal", null);
-        builder.setNeutralButton("Temizle", (dialog, which) -> onClear.run());
+        builder.setNegativeButton(R.string.wifi_cancel, null);
+        builder.setNeutralButton(R.string.common_clear, (dialog, which) -> onClear.run());
 
         AlertDialog dialog = builder.create();
         dialog.show();
@@ -210,7 +210,7 @@ public class DialogHelper {
 
     private static TextView createMessage(Context context, String text) {
         TextView messageView = new TextView(context);
-        messageView.setText(text);
+        messageView.setText(MarkdownUtil.parse(text));
         messageView.setTextSize(15);
         messageView.setTextColor(UiStyles.color(context, R.color.textMessage));
         messageView.setLineSpacing(12, 1.4f);
@@ -219,7 +219,7 @@ public class DialogHelper {
 
     private static void styleDialog(AlertDialog dialog) {
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(UiStyles.color(dialog.getContext(), R.color.transparent)));
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(UiStyles.color(dialog.getContext(), R.color.surfaceColor)));
         }
         dialog.setOnShowListener(dialogInterface -> {
             android.widget.Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);

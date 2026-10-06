@@ -83,13 +83,13 @@ public final class TargetAppPickerOverlay {
 
     private void attach() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(appContext)) {
-            Toast.makeText(appContext, "Overlay izni gerekli", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_overlay_required, Toast.LENGTH_SHORT).show();
             sInstance = null;
             return;
         }
         allRows = ProjectionTargetApps.loadSortedRows(appContext);
         if (allRows.isEmpty()) {
-            Toast.makeText(appContext, "Liste oluşturulamadı", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_list_failed, Toast.LENGTH_SHORT).show();
             sInstance = null;
             return;
         }
@@ -120,7 +120,7 @@ public final class TargetAppPickerOverlay {
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView title = new TextView(themedContext);
-        title.setText("Hedef uygulama");
+        title.setText(R.string.target_picker_title);
         title.setTextSize(20);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
@@ -129,7 +129,7 @@ public final class TargetAppPickerOverlay {
         titleRow.addView(title, titleLp);
 
         TextView btnClose = new TextView(themedContext);
-        btnClose.setText("✕");
+        btnClose.setText(R.string.common_close);
         btnClose.setTextSize(22);
         btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         btnClose.setPadding((int) (8 * density), 0, 0, 0);
@@ -139,7 +139,7 @@ public final class TargetAppPickerOverlay {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView subtitle = new TextView(themedContext);
-        subtitle.setText("Yansıtma için uygulama seçin");
+        subtitle.setText(R.string.target_picker_subtitle);
         subtitle.setTextSize(13);
         subtitle.setTextColor(UiStyles.color(themedContext, R.color.textHint));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -148,7 +148,7 @@ public final class TargetAppPickerOverlay {
         card.addView(subtitle, subLp);
 
         searchInput = new EditText(themedContext);
-        searchInput.setHint("Ara…");
+        searchInput.setHint(R.string.target_picker_search_hint);
         searchInput.setSingleLine(true);
         searchInput.setTextSize(30);
         searchInput.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
@@ -184,7 +184,7 @@ public final class TargetAppPickerOverlay {
         footer.setOrientation(LinearLayout.HORIZONTAL);
         footer.setGravity(Gravity.END);
         TextView btnClear = new TextView(themedContext);
-        btnClear.setText("Temizle");
+        btnClear.setText(R.string.common_clear);
         btnClear.setTextSize(30);
         btnClear.setTypeface(null, Typeface.BOLD);
         btnClear.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
@@ -260,10 +260,10 @@ public final class TargetAppPickerOverlay {
         TargetPackageStore.writeAndBroadcast(appContext, packageName);
         if (packageName == null || packageName.isEmpty()) {
             log("Hedef uygulama temizlendi (overlay)");
-            Toast.makeText(appContext, "Hedef temizlendi", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, R.string.target_picker_cleared, Toast.LENGTH_SHORT).show();
         } else {
             log("Seçilen uygulama (overlay): " + packageName);
-            Toast.makeText(appContext, "Seçildi: " + packageName, Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, appContext.getString(R.string.projection_selected, packageName), Toast.LENGTH_SHORT).show();
         }
         detach();
     }

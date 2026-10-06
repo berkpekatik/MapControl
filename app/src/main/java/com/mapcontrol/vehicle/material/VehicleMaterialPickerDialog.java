@@ -85,9 +85,9 @@ public final class VehicleMaterialPickerDialog {
         scroll.addView(grid, new ScrollView.LayoutParams(gridWidth, ScrollView.LayoutParams.WRAP_CONTENT));
 
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setTitle("Araç görseli seçin")
+                .setTitle(R.string.vehicle_material_pick_title)
                 .setView(scroll)
-                .setNegativeButton("İptal", null)
+                .setNegativeButton(R.string.wifi_cancel, null)
                 .create();
 
         grid.addView(createAutoTile(activity, metrics, dialog, listener));
@@ -97,7 +97,7 @@ public final class VehicleMaterialPickerDialog {
         }
 
         if (entries.isEmpty()) {
-            Toast.makeText(activity, "Yüklü araç paketi bulunamadı; yalnızca otomatik algılama kullanılabilir.",
+            Toast.makeText(activity, activity.getString(R.string.vehicle_material_no_packages),
                     Toast.LENGTH_LONG).show();
         }
 
@@ -152,7 +152,7 @@ public final class VehicleMaterialPickerDialog {
         tile.addView(label, wrapContentLp());
 
         TextView hint = new TextView(activity);
-        hint.setText("EOL");
+        hint.setText(R.string.vehicle_material_eol);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
         hint.setTextColor(UiStyles.color(activity, R.color.textHint));
         hint.setGravity(Gravity.CENTER);
@@ -165,7 +165,7 @@ public final class VehicleMaterialPickerDialog {
                 listener.onAutoDetectionSelected();
             }
             dialog.dismiss();
-            Toast.makeText(activity, "Otomatik algılama etkin", Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, R.string.vehicle_material_auto_on, Toast.LENGTH_SHORT).show();
         });
         return tile;
     }
@@ -199,7 +199,7 @@ public final class VehicleMaterialPickerDialog {
                 listener.onManualSelected(entry);
             }
             dialog.dismiss();
-            Toast.makeText(activity, "Seçildi: " + entry.label, Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, activity.getString(R.string.vehicle_material_selected, entry.label), Toast.LENGTH_SHORT).show();
         });
         return tile;
     }

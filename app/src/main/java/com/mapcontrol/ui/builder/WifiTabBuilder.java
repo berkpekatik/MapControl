@@ -63,7 +63,7 @@ public class WifiTabBuilder {
         card.setPadding(innerPad, innerPad, innerPad, innerPad);
 
         wifiStatusLine = new TextView(context);
-        wifiStatusLine.setText("Bağlı değil");
+        wifiStatusLine.setText(R.string.wifi_not_connected);
         wifiStatusLine.setTextSize(12);
         wifiStatusLine.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         wifiStatusLine.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -80,7 +80,7 @@ public class WifiTabBuilder {
         controlButtonsRow.setBackgroundColor(UiStyles.color(context, R.color.transparent));
 
         btnWifiToggle = new Button(context);
-        btnWifiToggle.setText("Wi-Fi Aç");
+        btnWifiToggle.setText(R.string.wifi_turn_on);
         btnWifiToggle.setTextSize(14);
         btnWifiToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWifiToggle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -93,7 +93,7 @@ public class WifiTabBuilder {
         controlButtonsRow.addView(btnWifiToggle, toggleParams);
 
         btnScanWifi = new Button(context);
-        btnScanWifi.setText("Yenile");
+        btnScanWifi.setText(R.string.wifi_refresh);
         btnScanWifi.setTextSize(14);
         btnScanWifi.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnScanWifi.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -170,10 +170,10 @@ public class WifiTabBuilder {
             boolean isWifiEnabled = wifiManager.isWifiEnabled();
 
             if (isWifiEnabled) {
-                btnWifiToggle.setText("■ Wi-Fi Kapat");
+                btnWifiToggle.setText(R.string.wifi_turn_off_label);
                 UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
             } else {
-                btnWifiToggle.setText("Wi-Fi Aç");
+                btnWifiToggle.setText(R.string.wifi_turn_on);
                 UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.primaryDarkColor));
             }
 
@@ -186,7 +186,7 @@ public class WifiTabBuilder {
         } catch (Exception e) {
             callback.log("Wi-Fi durumu kontrol hatası: " + e.getMessage());
             if (btnWifiToggle != null) {
-                btnWifiToggle.setText("Hata");
+                btnWifiToggle.setText(R.string.wifi_status_error);
                 UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.textLoading));
             }
             if (wifiStatusIcon != null) {
@@ -236,7 +236,7 @@ public class WifiTabBuilder {
                     if (wifiListContainer != null) {
                         wifiListContainer.removeAllViews();
                         TextView emptyText = new TextView(context);
-                        emptyText.setText("Wi-Fi kapalı");
+                        emptyText.setText(R.string.wifi_off_label);
                         emptyText.setTextColor(UiStyles.color(context, R.color.textLoading));
                         emptyText.setTextSize(14);
                         emptyText.setPadding(8, 8, 8, 8);
@@ -252,17 +252,17 @@ public class WifiTabBuilder {
     private void scanWifiNetworks() {
         if (wifiManager == null) {
             callback.log("WifiManager bulunamadı");
-            Toast.makeText(context, "Wi-Fi yöneticisi bulunamadı", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.wifi_manager_missing, Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (!wifiManager.isWifiEnabled()) {
             callback.log("Wi-Fi kapalı, önce Wi-Fi'yi açın");
-            Toast.makeText(context, "Wi-Fi kapalı, önce Wi-Fi'yi açın", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.wifi_enable_first, Toast.LENGTH_SHORT).show();
             if (wifiListContainer != null) {
                 wifiListContainer.removeAllViews();
                 TextView emptyText = new TextView(context);
-                emptyText.setText("Wi-Fi kapalı");
+                emptyText.setText(R.string.wifi_off_label);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textLoading));
                 emptyText.setTextSize(14);
                 emptyText.setPadding(8, 8, 8, 8);
@@ -275,25 +275,25 @@ public class WifiTabBuilder {
             displayWifiNetworks();
             callback.log("Wi-Fi ağları taranıyor...");
             btnScanWifi.setEnabled(false);
-            btnScanWifi.setText("Taranıyor…");
+            btnScanWifi.setText(R.string.wifi_scanning);
 
             boolean scanStarted = wifiManager.startScan();
             if (scanStarted) {
                 handler.postDelayed(() -> {
                     displayWifiNetworks();
                     btnScanWifi.setEnabled(true);
-                    btnScanWifi.setText("Yenile");
+                    btnScanWifi.setText(R.string.wifi_refresh);
                 }, 2000);
             } else {
                 callback.log("Wi-Fi taraması başlatılamadı");
                 btnScanWifi.setEnabled(true);
-                btnScanWifi.setText("Yenile");
+                btnScanWifi.setText(R.string.wifi_refresh);
             }
         } catch (Exception e) {
             callback.log("Wi-Fi tarama hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
             btnScanWifi.setEnabled(true);
-            btnScanWifi.setText("Yenile");
+            btnScanWifi.setText(R.string.wifi_refresh);
         }
     }
 
@@ -330,7 +330,7 @@ public class WifiTabBuilder {
                 emptyCard.addView(emptyIcon);
 
                 TextView noNetworks = new TextView(context);
-                noNetworks.setText("Hiçbir Wi-Fi ağı bulunamadı\n\nLütfen tarama yapın");
+                noNetworks.setText(R.string.wifi_scan_empty);
                 noNetworks.setTextColor(UiStyles.color(context, R.color.textMuted));
                 noNetworks.setTextSize(15);
                 noNetworks.setGravity(android.view.Gravity.CENTER);
@@ -360,7 +360,7 @@ public class WifiTabBuilder {
             callback.log("" + scanResults.size() + " Wi-Fi ağı bulundu");
         } catch (Exception e) {
             callback.log("Wi-Fi listesi hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -405,7 +405,7 @@ public class WifiTabBuilder {
         infoContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         TextView ssidText = new TextView(context);
-        String ssid = result.SSID != null ? result.SSID : "(Gizli Ağ)";
+        String ssid = result.SSID != null ? result.SSID : context.getString(R.string.wifi_hidden_network);
         ssidText.setText(ssid);
         ssidText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         ssidText.setTextSize(18);
@@ -418,12 +418,18 @@ public class WifiTabBuilder {
         detailRow.setPadding(0, 6, 0, 0);
 
         int level = result.level;
-        String security = getSecurityType(result);
+        String security = getSecurityDisplay(result);
+        String sep = context.getString(R.string.wifi_detail_separator);
         String signalQuality;
-        if (level > -50) signalQuality = "Güçlü sinyal";
-        else if (level > -70) signalQuality = "İyi sinyal";
-        else if (level > -85) signalQuality = "Orta sinyal";
-        else signalQuality = "Zayıf sinyal";
+        if (level > -50) {
+            signalQuality = context.getString(R.string.wifi_signal_strong);
+        } else if (level > -70) {
+            signalQuality = context.getString(R.string.wifi_signal_good);
+        } else if (level > -85) {
+            signalQuality = context.getString(R.string.wifi_signal_medium);
+        } else {
+            signalQuality = context.getString(R.string.wifi_signal_weak);
+        }
 
         TextView detailText = new TextView(context);
         if (isConnected) {
@@ -439,19 +445,19 @@ public class WifiTabBuilder {
                             (ip >> 24 & 0xff));
                 }
             }
-            String detailStr = "Bağlı";
-            if (security.contains("Açık")) {
-                detailStr += " • Açık";
+            String detailStr = context.getString(R.string.wifi_list_connected);
+            if (isOpenNetwork(result)) {
+                detailStr += sep + context.getString(R.string.wifi_security_open);
             }
             if (!ipAddress.isEmpty()) {
-                detailStr += " • " + ipAddress;
+                detailStr += sep + ipAddress;
             } else {
-                detailStr += " • " + signalQuality;
+                detailStr += sep + signalQuality;
             }
             detailText.setText(detailStr);
             detailText.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         } else {
-            detailText.setText(security + " • " + signalQuality);
+            detailText.setText(security + sep + signalQuality);
             detailText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         }
         detailText.setTextSize(13);
@@ -487,9 +493,19 @@ public class WifiTabBuilder {
         wifiListContainer.addView(wifiCard, cardParams);
     }
 
-    private String getSecurityType(ScanResult result) {
+    private boolean isOpenNetwork(ScanResult result) {
         String capabilities = result.capabilities;
-        if (capabilities == null) return "Açık";
+        if (capabilities == null) {
+            return true;
+        }
+        return !capabilities.contains("WPA") && !capabilities.contains("WEP");
+    }
+
+    private String getSecurityDisplay(ScanResult result) {
+        String capabilities = result.capabilities;
+        if (capabilities == null) {
+            return context.getString(R.string.wifi_security_open);
+        }
 
         if (capabilities.contains("WPA3")) {
             return "WPA3";
@@ -500,10 +516,9 @@ public class WifiTabBuilder {
         } else if (capabilities.contains("WEP")) {
             return "WEP";
         } else {
-            return "Açık";
+            return context.getString(R.string.wifi_security_open);
         }
     }
-
     private void connectToWifi(ScanResult result) {
         if (wifiManager == null) {
             callback.log("WifiManager bulunamadı");
@@ -534,7 +549,7 @@ public class WifiTabBuilder {
         dialogLayout.setBackgroundColor(UiStyles.color(context, R.color.cardColor));
 
         TextView titleView = new TextView(context);
-        titleView.setText("Wi-Fi Şifresi");
+        titleView.setText(R.string.wifi_password_title);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         titleView.setTextSize(22);
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -551,7 +566,7 @@ public class WifiTabBuilder {
 
         EditText passwordInput = new EditText(context);
         passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        passwordInput.setHint("Şifre giriniz");
+        passwordInput.setHint(R.string.wifi_password_hint);
         passwordInput.setTextColor(UiStyles.color(context, R.color.textPrimary));
         passwordInput.setHintTextColor(UiStyles.color(context, R.color.statusNeutralGray));
         passwordInput.setTextSize(17);
@@ -561,15 +576,15 @@ public class WifiTabBuilder {
 
         AlertDialog dialog = new AlertDialog.Builder(context)
                 .setView(dialogLayout)
-                .setPositiveButton("Bağlan", (d, which) -> {
+                .setPositiveButton(R.string.wifi_connect, (d, which) -> {
                     String password = passwordInput.getText().toString();
                     if (password.isEmpty()) {
-                        Toast.makeText(context, "Şifre boş olamaz", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.wifi_password_empty, Toast.LENGTH_SHORT).show();
                         return;
                     }
                     connectToSecureNetwork(result, password);
                 })
-                .setNegativeButton("İptal", null)
+                .setNegativeButton(R.string.wifi_cancel, null)
                 .create();
 
         if (dialog.getWindow() != null) {
@@ -624,19 +639,19 @@ public class WifiTabBuilder {
                 boolean enabled = wifiManager.enableNetwork(networkId, true);
                 if (enabled) {
                     callback.log("Açık ağa bağlanılıyor: " + result.SSID);
-                    Toast.makeText(context, "Bağlanılıyor: " + result.SSID, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, context.getString(R.string.wifi_connecting_to, result.SSID), Toast.LENGTH_SHORT).show();
                     handler.postDelayed(this::scanWifiNetworks, 2000);
                 } else {
                     callback.log("Ağ etkinleştirilemedi: " + result.SSID);
-                    Toast.makeText(context, "Bağlantı hatası", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.wifi_connection_error, Toast.LENGTH_SHORT).show();
                 }
             } else {
                 callback.log("Ağ eklenemedi: " + result.SSID);
-                Toast.makeText(context, "Ağ eklenemedi", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.wifi_network_add_failed, Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             callback.log("Açık ağ bağlantı hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -706,19 +721,19 @@ public class WifiTabBuilder {
                 boolean enabled = wifiManager.enableNetwork(networkId, true);
                 if (enabled) {
                     callback.log("Şifreli ağa bağlanılıyor: " + result.SSID);
-                    Toast.makeText(context, "Bağlanılıyor: " + result.SSID, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, context.getString(R.string.wifi_connecting_to, result.SSID), Toast.LENGTH_SHORT).show();
                     handler.postDelayed(this::scanWifiNetworks, 2000);
                 } else {
                     callback.log("Ağ etkinleştirilemedi: " + result.SSID);
-                    Toast.makeText(context, "Bağlantı hatası", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.wifi_connection_error, Toast.LENGTH_SHORT).show();
                 }
             } else {
                 callback.log("Ağ eklenemedi: " + result.SSID);
-                Toast.makeText(context, "Ağ eklenemedi", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.wifi_network_add_failed, Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             callback.log("Şifreli ağ bağlantı hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -734,26 +749,26 @@ public class WifiTabBuilder {
                 String rawSsid = wifiInfo.getSSID();
                 if (rawSsid == null) {
                     callback.log("SSID alınamadı");
-                    Toast.makeText(context, "Aktif bağlantı yok", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.wifi_no_active, Toast.LENGTH_SHORT).show();
                     return;
                 }
                 String ssid = rawSsid.replace("\"", "");
                 boolean disconnected = wifiManager.disconnect();
                 if (disconnected) {
                     callback.log("Bağlantı kesildi: " + ssid);
-                    Toast.makeText(context, "Bağlantı kesildi: " + ssid, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, context.getString(R.string.wifi_disconnected, ssid), Toast.LENGTH_SHORT).show();
                     handler.postDelayed(this::scanWifiNetworks, 1000);
                 } else {
                     callback.log("Bağlantı kesilemedi");
-                    Toast.makeText(context, "Bağlantı kesilemedi", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.wifi_disconnect_failed, Toast.LENGTH_SHORT).show();
                 }
             } else {
                 callback.log("Aktif bağlantı yok");
-                Toast.makeText(context, "Aktif bağlantı yok", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.wifi_no_active, Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             callback.log("Bağlantı kesme hatası: " + e.getMessage());
-            Toast.makeText(context, "Hata: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 }

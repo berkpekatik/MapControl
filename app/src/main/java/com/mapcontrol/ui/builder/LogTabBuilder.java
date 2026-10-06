@@ -74,7 +74,7 @@ public class LogTabBuilder {
         logControlPanel.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         TextView logTitle = new TextView(context);
-        logTitle.setText("Sistem Kayıtları");
+        logTitle.setText(R.string.log_system_logs);
         logTitle.setTextSize(20);
         logTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -83,7 +83,7 @@ public class LogTabBuilder {
         logControlPanel.addView(logTitle, logTitleParams);
 
         Button btnCameraTest = new Button(context);
-        btnCameraTest.setText("Kamera Test");
+        btnCameraTest.setText(R.string.log_camera_test);
         btnCameraTest.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnCameraTest.setTextSize(14);
         UiStyles.styleOemButton(btnCameraTest, UiStyles.color(context, R.color.buttonPrimary));
@@ -112,7 +112,7 @@ public class LogTabBuilder {
         logControlPanel.addView(btnCameraTest, cameraTestParams);
 
         Button btnWelcome = new Button(context);
-        btnWelcome.setText("Hoşgeldin");
+        btnWelcome.setText(R.string.log_welcome);
         btnWelcome.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWelcome.setTextSize(14);
         btnWelcome.setTypeface(null, Typeface.BOLD);
@@ -149,7 +149,7 @@ public class LogTabBuilder {
         ttsCardParams.setMargins(0, 0, 0, 10);
 
         TextView ttsSectionTitle = new TextView(context);
-        ttsSectionTitle.setText("Metin (klavye) — Sesle oku (sistem TTS)");
+        ttsSectionTitle.setText(R.string.log_tts_section);
         ttsSectionTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         ttsSectionTitle.setTextColor(UiStyles.color(context, R.color.textSecondary));
         ttsCard.addView(ttsSectionTitle, new LinearLayout.LayoutParams(
@@ -184,7 +184,7 @@ public class LogTabBuilder {
         ttsButtons.setPadding(0, 10, 0, 0);
 
         Button btnReadAloud = new Button(context);
-        btnReadAloud.setText("Sesle oku");
+        btnReadAloud.setText(R.string.log_read_aloud);
         btnReadAloud.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnReadAloud.setTextSize(15);
         btnReadAloud.setTypeface(null, Typeface.BOLD);
@@ -204,7 +204,7 @@ public class LogTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         Button btnClusterVDBusTest = new Button(context);
-        btnClusterVDBusTest.setText("Cluster / VDBus test ekranı");
+        btnClusterVDBusTest.setText(R.string.log_cluster_test);
         btnClusterVDBusTest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         btnClusterVDBusTest.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(btnClusterVDBusTest, UiStyles.color(context, R.color.buttonSecondaryMuted));
