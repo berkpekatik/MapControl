@@ -292,6 +292,9 @@ public class MapControlService extends Service {
                                                     applyAebIfNeeded();
                                                     handler.postDelayed(() -> {
                                                         applySpdLimitIfNeeded();
+                                                        handler.postDelayed(() -> {
+                                                            applyCpdIfNeeded();
+                                                        }, 100);
                                                     }, 100);
                                                 }, 100);
                                             }, 100);
@@ -698,6 +701,53 @@ public class MapControlService extends Service {
 
         } catch (Exception e) {
             log("❌ applyAebInternal hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Powermode 2 olunca kayıtlı CPD (çocuk algılama) ayarını otomatik uygula.
+     * ID_CAR_CIR_ENA_STS (191): 1 = açık, 2 = kapalı — tüm araçlarda desteklenmez.
+     */
+    private void applyCpdIfNeeded() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+            int cpdSetting = prefs.getInt("cpdSetting", -1);
+
+            if (cpdSetting != 2) {
+                log("ℹ️ CPD için geçerli bir kapatma modu seçilmemiş (değer=" + cpdSetting + "), otomatik ayarlama yapılmıyor");
+                return;
+            }
+
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                log("🔌 CarInfoProxy bağlı değil, CPD ayarlanamıyor");
+                return;
+            }
+
+            log("🔄 CPD uygulanıyor: Kapalı (value=2)");
+            applyCpdInternal(2);
+
+        } catch (Exception e) {
+            log("❌ applyCpdIfNeeded hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void applyCpdInternal(int cpdValue) {
+        try {
+            CarInfoProxy carInfo = CarInfoProxy.getInstance();
+            carInfo.sendItemValue(
+                    VDEventCarInfo.MODULE_CAR_SETTING,
+                    CarSettingID.ID_CAR_CIR_ENA_STS,
+                    cpdValue);
+
+            log("✅ CPD gönderildi!");
+            log("   Module: MODULE_CAR_SETTING (" + VDEventCarInfo.MODULE_CAR_SETTING + ")");
+            log("   ID: ID_CAR_CIR_ENA_STS (" + CarSettingID.ID_CAR_CIR_ENA_STS + ")");
+            log("   Value: " + cpdValue + " (" + (cpdValue == 1 ? "Açık" : "Kapalı") + ")");
+
+        } catch (Exception e) {
+            log("❌ applyCpdInternal hatası: " + e.getMessage());
             e.printStackTrace();
         }
     }

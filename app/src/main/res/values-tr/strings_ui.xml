@@ -266,6 +266,8 @@
     <string name="assist_card_ldp">Şeritten Kaçınma (LDP)</string>
     <string name="assist_card_fcw">Ön Çarpışma Uyarısı</string>
     <string name="assist_card_aeb">Aktif Acil Fren</string>
+    <string name="assist_card_cpd">CPD (Çocuk Algılama)</string>
+    <string name="assist_cpd_disclaimer">CPD: Araç içi çocuk algılama. Donanım ve yazılıma bağlıdır; her modelde çalışmayabilir (ör. bazı Tiggo 8 donanımları). Araçta etkisini kontrol edin.</string>
     <string name="assist_status_not_set">Ayarlanmadı</string>
     <string name="assist_status_iss">ISS Kapalı</string>
     <string name="assist_status_spd">Uyarı Kapalı</string>
@@ -273,6 +275,7 @@
     <string name="assist_status_ldp">LDP Kapalı</string>
     <string name="assist_status_fcw">FCW Kapalı</string>
     <string name="assist_status_aeb">AEB Kapalı</string>
+    <string name="assist_status_cpd">CPD Kapalı</string>
     <string name="assist_status_active">Aktif</string>
 
     <string name="dialog_delete">Sil</string>

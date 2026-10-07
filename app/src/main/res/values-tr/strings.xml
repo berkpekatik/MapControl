@@ -135,6 +135,15 @@
     <string name="launcher_dashboard_quick_settings">Hızlı erişim ayarları</string>
     <string name="launcher_dashboard_quick_menu_slot_count">Kısayol sayısını ayarla</string>
     <string name="launcher_dashboard_quick_menu_list_all">Tüm uygulamaları listele</string>
+    <string name="launcher_dashboard_quick_menu_swipes">Kaydırma kısayolları</string>
+    <string name="launcher_swipe_title">Kaydırma kısayolları</string>
+    <string name="launcher_swipe_up">Yukarı</string>
+    <string name="launcher_swipe_down">Aşağı</string>
+    <string name="launcher_swipe_left">Sol</string>
+    <string name="launcher_swipe_right">Sağ</string>
+    <string name="launcher_swipe_unset">Seçilmedi</string>
+    <string name="launcher_swipe_unset_toast">Bu yön için uygulama seçilmedi</string>
+    <string name="launcher_swipe_cleared">Kaydırma kısayolu kaldırıldı</string>
     <string name="launcher_dashboard_quick_menu_launcher_mode">Launcher modu</string>
     <string name="launcher_dashboard_launcher_mode_title">Launcher modu</string>
     <string name="launcher_dashboard_display_mode_3d">3D Model</string>

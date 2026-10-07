@@ -860,7 +860,13 @@ public class FloatingBackButtonManager {
         String foregroundPackage = getForegroundPackage();
 
         if (foregroundPackage != null && foregroundPackage.equals("com.mapcontrol")) {
-            log("[DEBUG] Floating Back: MapControl aktifken BACK tuşu gönderilmedi");
+            handler.post(() -> {
+                if (com.mapcontrol.ui.activity.MainActivity.dispatchOverlayBack()) {
+                    log("[SUCCESS] Floating Back: MapControl içinde geri");
+                } else {
+                    log("[WARN] Floating Back: MapControl önde ama MainActivity yok");
+                }
+            });
             return;
         }
 

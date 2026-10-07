@@ -247,6 +247,8 @@
     <string name="assist_card_ldp">Lane keeping (LDP)</string>
     <string name="assist_card_fcw">Forward collision warning</string>
     <string name="assist_card_aeb">Automatic emergency braking</string>
+    <string name="assist_card_cpd">CPD (child presence detection)</string>
+    <string name="assist_cpd_disclaimer">CPD: In-car child detection. Depends on hardware and software; may not work on every model (e.g. some Tiggo 8 trims). Verify on your vehicle.</string>
     <string name="assist_status_not_set">Not configured</string>
     <string name="assist_status_iss">ISS off</string>
     <string name="assist_status_spd">Warning off</string>
@@ -254,6 +256,7 @@
     <string name="assist_status_ldp">LDP off</string>
     <string name="assist_status_fcw">FCW off</string>
     <string name="assist_status_aeb">AEB off</string>
+    <string name="assist_status_cpd">CPD off</string>
     <string name="assist_status_active">Active</string>
 
     <string name="dialog_delete">Delete</string>

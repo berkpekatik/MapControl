@@ -33,6 +33,8 @@ public final class FloatingOverlayBarSpec {
     public static final float BAR_CARD_PAD_V_DP = 4f;
     public static final float BAR_CORNER_DP = 10f;
     public static final float BAR_COLUMN_GAP_DP = 2f;
+    /** Geri tuşu/yan menü hücreleri için büyütme oranı (dokunma kolaylığı). */
+    public static final float CELL_SCALE = 1.7f;
     public static final float ELEVATION_BACK_DP = 2f;
 
     private FloatingOverlayBarSpec() {
@@ -55,7 +57,7 @@ public final class FloatingOverlayBarSpec {
         int cell = uniformCellSidePx(ctx);
         int inner = rowInnerPadPx(ctx);
         int maxByCell = Math.max(1, cell - 2 * inner);
-        int preferred = dpToPx(30f, d);
+        int preferred = dpToPx(30f * CELL_SCALE, d);
         int floor = dpToPx(22f, d);
         return Math.max(floor, Math.min(maxByCell, preferred));
     }
@@ -120,7 +122,7 @@ public final class FloatingOverlayBarSpec {
         float d = ctx.getResources().getDisplayMetrics().density;
         int half = full / 2;
         int floor = (int) (18 * d);
-        return Math.max(half, floor);
+        return (int) (Math.max(half, floor) * CELL_SCALE);
     }
 
     /**

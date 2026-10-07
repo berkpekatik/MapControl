@@ -134,6 +134,15 @@ Monitor — Foreground apps on display 2</string>
     <string name="launcher_dashboard_quick_settings">Quick access settings</string>
     <string name="launcher_dashboard_quick_menu_slot_count">Set shortcut count</string>
     <string name="launcher_dashboard_quick_menu_list_all">List all apps</string>
+    <string name="launcher_dashboard_quick_menu_swipes">Swipe shortcuts</string>
+    <string name="launcher_swipe_title">Swipe shortcuts</string>
+    <string name="launcher_swipe_up">Up</string>
+    <string name="launcher_swipe_down">Down</string>
+    <string name="launcher_swipe_left">Left</string>
+    <string name="launcher_swipe_right">Right</string>
+    <string name="launcher_swipe_unset">Not set</string>
+    <string name="launcher_swipe_unset_toast">No app set for this swipe</string>
+    <string name="launcher_swipe_cleared">Swipe shortcut removed</string>
     <string name="launcher_dashboard_quick_menu_launcher_mode">Launcher mode</string>
     <string name="launcher_dashboard_launcher_mode_title">Launcher mode</string>
     <string name="launcher_dashboard_display_mode_3d">3D Model</string>

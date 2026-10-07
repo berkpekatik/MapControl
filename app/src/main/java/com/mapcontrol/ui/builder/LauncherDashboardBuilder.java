@@ -26,16 +26,20 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.mapcontrol.R;
 import com.mapcontrol.media.LauncherMediaController;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.ui.widget.LauncherClockSwipeLayout;
 import com.mapcontrol.ui.widget.LauncherLitePanelView;
 import com.mapcontrol.util.AppIconHelper;
 import com.mapcontrol.util.LauncherQuickAppsStore;
+import com.mapcontrol.util.LauncherSwipeStore;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Launcher üst konsolu — sol hızlı erişim, orta araç/medya, sağ sürüş+yakıt.
@@ -101,7 +105,7 @@ public final class LauncherDashboardBuilder implements
     private TextView odoValueView;
     private TextView lowFuelValueView;
 
-    private FrameLayout centerPanelHost;
+    private LauncherClockSwipeLayout centerPanelHost;
     private LauncherLitePanelView litePanelView;
     private GridLayout quickAppsGrid;
     private final ImageView[] quickAppIcons = new ImageView[LauncherQuickAppsStore.MAX_SLOT_COUNT];
@@ -668,6 +672,7 @@ public final class LauncherDashboardBuilder implements
         CharSequence[] items = new CharSequence[]{
                 context.getString(R.string.launcher_dashboard_quick_menu_slot_count),
                 context.getString(R.string.launcher_dashboard_quick_menu_list_all),
+                context.getString(R.string.launcher_dashboard_quick_menu_swipes),
         };
         new AlertDialog.Builder(context)
                 .setTitle(R.string.launcher_dashboard_quick_settings)
@@ -677,6 +682,8 @@ public final class LauncherDashboardBuilder implements
                     } else if (which == 1) {
                         LauncherQuickAppsStore.setShowAllApps(context, true);
                         rebuildQuickAppsArea();
+                    } else if (which == 2) {
+                        showSwipeShortcutDialog();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -837,38 +844,133 @@ public final class LauncherDashboardBuilder implements
     }
 
     private void showQuickAppPicker(int slotIndex) {
-        List<ProjectionTargetApps.Row> userApps = ProjectionTargetApps.loadSortedRows(context);
-        List<ProjectionTargetApps.Row> systemApps = ProjectionTargetApps.loadSortedSystemRows(context);
-        if (userApps.isEmpty() && systemApps.isEmpty()) {
+        showAppPicker(context.getString(R.string.launcher_dashboard_quick_pick_title), packageName -> {
+            LauncherQuickAppsStore.setSlot(context, slotIndex, packageName);
+            bindQuickAppSlots();
+        });
+    }
+
+    private void showAppPicker(String title, java.util.function.Consumer<String> onPick) {
+        Map<String, ProjectionTargetApps.Row> unique = new LinkedHashMap<>();
+        for (ProjectionTargetApps.Row row : ProjectionTargetApps.loadAllLaunchableRows(context)) {
+            if (row.packageName == null || row.packageName.isEmpty()) {
+                continue;
+            }
+            unique.putIfAbsent(row.packageName, row);
+        }
+        if (unique.isEmpty()) {
             Toast.makeText(context, R.string.launcher_dashboard_quick_empty_list, Toast.LENGTH_SHORT)
                     .show();
             return;
         }
 
-        // Tek listede: kullanıcı uygulamaları, sonra sistem (etiketli).
-        final List<ProjectionTargetApps.Row> apps = new ArrayList<>(userApps.size() + systemApps.size());
-        List<CharSequence> labels = new ArrayList<>(userApps.size() + systemApps.size());
-        for (ProjectionTargetApps.Row row : userApps) {
-            apps.add(row);
+        final List<ProjectionTargetApps.Row> apps = new ArrayList<>(unique.values());
+        List<CharSequence> labels = new ArrayList<>(apps.size());
+        for (ProjectionTargetApps.Row row : apps) {
             labels.add(row.label);
-        }
-        String systemSuffix = context.getString(R.string.launcher_dashboard_quick_system_suffix);
-        for (ProjectionTargetApps.Row row : systemApps) {
-            apps.add(row);
-            labels.add(row.label + systemSuffix);
         }
 
         new AlertDialog.Builder(context)
-                .setTitle(R.string.launcher_dashboard_quick_pick_title)
+                .setTitle(title)
                 .setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
                     if (which < 0 || which >= apps.size()) {
                         return;
                     }
-                    LauncherQuickAppsStore.setSlot(context, slotIndex, apps.get(which).packageName);
-                    bindQuickAppSlots();
+                    onPick.accept(apps.get(which).packageName);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void showSwipeShortcutDialog() {
+        int[] directions = {
+                LauncherSwipeStore.UP,
+                LauncherSwipeStore.LEFT,
+                LauncherSwipeStore.RIGHT,
+                LauncherSwipeStore.DOWN
+        };
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        int pad = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        list.setPadding(pad, pad / 2, pad, pad / 2);
+
+        for (int direction : directions) {
+            TextView row = new TextView(context);
+            row.setText(swipeRowLabel(direction));
+            row.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                    context.getResources().getDimension(R.dimen.text_size_medium));
+            row.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            row.setPadding(pad / 2, pad, pad / 2, pad);
+            row.setClickable(true);
+            row.setFocusable(true);
+            applyBorderlessRipple(row);
+            row.setOnClickListener(v -> showAppPicker(
+                    context.getString(directionLabelRes(direction)),
+                    packageName -> {
+                        LauncherSwipeStore.setPackage(context, direction, packageName);
+                        row.setText(swipeRowLabel(direction));
+                    }));
+            row.setOnLongClickListener(v -> {
+                if (LauncherSwipeStore.getPackage(context, direction).isEmpty()) {
+                    return true;
+                }
+                LauncherSwipeStore.clear(context, direction);
+                row.setText(swipeRowLabel(direction));
+                Toast.makeText(context, R.string.launcher_swipe_cleared, Toast.LENGTH_SHORT).show();
+                return true;
+            });
+            list.addView(row, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
+
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.launcher_swipe_title)
+                .setView(list)
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void onClockSwipe(int direction) {
+        String packageName = LauncherSwipeStore.getPackage(context, direction);
+        if (packageName.isEmpty()) {
+            Toast.makeText(context, R.string.launcher_swipe_unset_toast, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (launcherCallback != null) {
+            launcherCallback.onAppLaunchRequested(packageName);
+        }
+    }
+
+    private String swipeRowLabel(int direction) {
+        String name = context.getString(directionLabelRes(direction));
+        String packageName = LauncherSwipeStore.getPackage(context, direction);
+        String app = packageName.isEmpty()
+                ? context.getString(R.string.launcher_swipe_unset)
+                : appLabel(packageName);
+        return name + " · " + app;
+    }
+
+    private String appLabel(String packageName) {
+        try {
+            PackageManager pm = context.getPackageManager();
+            return pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString();
+        } catch (Exception ignored) {
+            return packageName;
+        }
+    }
+
+    private static int directionLabelRes(int direction) {
+        if (direction == LauncherSwipeStore.DOWN) {
+            return R.string.launcher_swipe_down;
+        }
+        if (direction == LauncherSwipeStore.LEFT) {
+            return R.string.launcher_swipe_left;
+        }
+        if (direction == LauncherSwipeStore.RIGHT) {
+            return R.string.launcher_swipe_right;
+        }
+        return R.string.launcher_swipe_up;
     }
 
     private GridLayout buildDashboardShortcutsGrid() {
@@ -1181,7 +1283,8 @@ public final class LauncherDashboardBuilder implements
         LinearLayout card = createCardShell(context.getString(R.string.launcher_dashboard_card_clock));
         LinearLayout body = cardContent(card);
 
-        centerPanelHost = new FrameLayout(context);
+        centerPanelHost = new LauncherClockSwipeLayout(context);
+        centerPanelHost.setListener(this::onClockSwipe);
         body.addView(centerPanelHost, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,

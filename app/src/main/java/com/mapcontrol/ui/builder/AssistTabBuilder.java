@@ -101,7 +101,8 @@ public class AssistTabBuilder {
                 {R.string.assist_card_ldw, R.drawable.ic_mdi_road_variant, 2, -1, "ldwSetting", "LDW"},
                 {R.string.assist_card_ldp, R.drawable.ic_mdi_shield_car, 2, -1, "ldpSetting", "LDP"},
                 {R.string.assist_card_fcw, R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
-                {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"}
+                {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"},
+                {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"}
         };
 
         int[] savedValues = {
@@ -110,7 +111,8 @@ public class AssistTabBuilder {
                 prefs.getInt("ldwSetting", -1),
                 prefs.getInt("ldpSetting", -1),
                 prefs.getInt("fcwSetting", -1),
-                prefs.getInt("aebSetting", -1)
+                prefs.getInt("aebSetting", -1),
+                prefs.getInt("cpdSetting", -1)
         };
 
         final LinearLayout[] cardContainers = new LinearLayout[assistCards.length];
@@ -248,6 +250,16 @@ public class AssistTabBuilder {
         }
 
         container.addView(assistGrid, gridParams);
+
+        TextView cpdDisclaimer = new TextView(context);
+        cpdDisclaimer.setText(R.string.assist_cpd_disclaimer);
+        cpdDisclaimer.setTextSize(12);
+        cpdDisclaimer.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+        cpdDisclaimer.setPadding(16, 0, 16, 16);
+        container.addView(cpdDisclaimer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
         scrollView.addView(container, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT,
                 ScrollView.LayoutParams.WRAP_CONTENT));
@@ -283,6 +295,7 @@ public class AssistTabBuilder {
             case "ldpSetting": return context.getString(R.string.assist_status_ldp);
             case "fcwSetting": return context.getString(R.string.assist_status_fcw);
             case "aebSetting": return context.getString(R.string.assist_status_aeb);
+            case "cpdSetting": return context.getString(R.string.assist_status_cpd);
             default: return context.getString(R.string.assist_status_active);
         }
     }
@@ -314,6 +327,11 @@ public class AssistTabBuilder {
                 } else if (settingKey.equals("spdLimitSetting")) {
                     int[] vals = disable ? new int[]{2, 2} : new int[]{1, 1};
                     CarInfoProxy.getInstance().sendItemValues(VDEventCarInfo.MODULE_CAR_SETTING, CarSettingID.ID_CAR_SPD_LIMIT_WARN_SET, vals);
+                } else if (settingKey.equals("cpdSetting")) {
+                    CarInfoProxy.getInstance().sendItemValue(
+                            VDEventCarInfo.MODULE_CAR_SETTING,
+                            CarSettingID.ID_CAR_CIR_ENA_STS,
+                            disable ? 2 : 1);
                 }
                 callback.log("✅ " + logPrefix + " değeri araca gönderildi");
             }

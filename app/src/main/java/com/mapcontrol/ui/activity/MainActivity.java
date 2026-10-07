@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.Display;
+import android.view.KeyEvent;
 import android.view.View;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import android.widget.Button;
@@ -60,6 +62,7 @@ import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.util.AlertSoundHelper;
+import com.mapcontrol.util.ApkSessionInstaller;
 import com.mapcontrol.manager.WebServerManager;
 import com.mapcontrol.service.GlobalBackService;
 import com.mapcontrol.service.ServiceInitializer;
@@ -212,6 +215,7 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private View launchSplashRoot;
+    private ApkSessionInstaller.Listener apkSessionListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -224,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
             deferredOpenProjectionTargetPicker = true;
             getIntent().removeExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER);
         }
+        ApkSessionInstaller.handleSessionResultIntent(this, getIntent());
 
         // Cold start: önce splash boyansın — initializeApp uzun sürer, siyah frame olmasın
         launchSplashRoot = DisplayHelper.createAppLaunchSplashView(this);
@@ -748,6 +753,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         appsTabContent = MainActivity.this.appsTabBuilder.getTabContent();
+        apkSessionListener = (status, message) -> handler.post(() -> onApkSessionStatus(status, message));
+        ApkSessionInstaller.setListener(apkSessionListener);
 
         // Ayarlar tab içeriği (Builder) — initializeApp içinde bir kez oluşturulur
         settingsTabBuilder = new SettingsTabBuilder(this, prefs,
@@ -1310,6 +1317,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (ApkSessionInstaller.handleSessionResultIntent(this, intent)) {
+            return;
+        }
         if (intent != null && intent.getBooleanExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER, false)) {
             intent.removeExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER);
             deferredOpenProjectionTargetPicker = true;
@@ -1634,8 +1644,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void onApkSessionStatus(int status, String message) {
+        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            log("APK kurulumu kullanıcı onayı bekliyor");
+            return;
+        }
+        if (status == PackageInstaller.STATUS_SUCCESS) {
+            Toast.makeText(this, R.string.apps_installed_success, Toast.LENGTH_SHORT).show();
+            log("APK kuruldu");
+            if (appsTabBuilder != null) {
+                appsTabBuilder.loadAppsFromServer();
+            }
+            return;
+        }
+        String detail = message != null && !message.isEmpty() ? message : ("status " + status);
+        Toast.makeText(this, getString(R.string.apps_install_error, detail), Toast.LENGTH_LONG).show();
+        log("[ERROR] APK kurulum sonucu: " + detail);
+    }
+
     @Override
     protected void onDestroy() {
+        ApkSessionInstaller.clearListener(apkSessionListener);
         if (sBenchHost == this) {
             sBenchHost = null;
         }
@@ -1799,6 +1828,24 @@ public class MainActivity extends AppCompatActivity {
     // parseMarkdown / processBoldText `SettingsTabBuilder` içine taşındı.
     
     // Settings tab builder is created in initializeApp.
+
+    /**
+     * Yüzen geri tuşu MapControl öndeyken sistem BACK'i yutuyor; sekme geri mantığını burada uygula.
+     */
+    public static boolean dispatchOverlayBack() {
+        MainActivity activity = sBenchHost;
+        if (activity == null || activity.isFinishing()) {
+            return false;
+        }
+        activity.handler.post(() -> {
+            if (activity.isFinishing()) {
+                return;
+            }
+            activity.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK));
+            activity.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK));
+        });
+        return true;
+    }
 
     /**
      * Bench ekranından ana loga satır düşer (MainActivity yaşıyorsa).

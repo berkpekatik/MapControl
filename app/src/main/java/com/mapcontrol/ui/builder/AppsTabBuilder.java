@@ -25,7 +25,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
+
+import com.mapcontrol.util.ApkSessionInstaller;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -1027,25 +1028,9 @@ public class AppsTabBuilder {
                             UiStyles.dimenPx(context, R.dimen.spacing_small));
                 });
 
-                boolean installSuccess = installApkViaShell(apkFile);
-                if (!installSuccess) {
-                    android.net.Uri apkUri;
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                        apkUri = FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", apkFile);
-                    } else {
-                        apkUri = android.net.Uri.fromFile(apkFile);
-                    }
-
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    context.startActivity(intent);
-                }
-
                 callback.log(displayName + " indirildi ve kuruluyor...");
                 handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_installing_named, displayName), Toast.LENGTH_SHORT).show());
-                handler.postDelayed(this::loadAppsFromServer, 5000);
+                installApkFile(apkFile);
             } catch (Exception e) {
                 callback.log("[ERROR] APK indirme/yükleme hatası: " + e.getMessage());
                 handler.post(() -> {
@@ -1353,77 +1338,34 @@ public class AppsTabBuilder {
 
     public void installApkFile(File apkFile) {
         if (apkFile == null || !apkFile.exists()) {
-            Toast.makeText(context, R.string.apps_apk_not_found, Toast.LENGTH_SHORT).show();
+            handler.post(() -> Toast.makeText(context, R.string.apps_apk_not_found, Toast.LENGTH_SHORT).show());
             callback.log("APK dosyası bulunamadı");
+            return;
+        }
+        if (activity == null) {
+            handler.post(() -> Toast.makeText(context,
+                    context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show());
+            callback.log("[ERROR] APK kurulumu için Activity yok");
             return;
         }
 
         new Thread(() -> {
             try {
                 handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
-
-                android.net.Uri apkUri;
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    apkUri = FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", apkFile);
-                } else {
-                    apkUri = android.net.Uri.fromFile(apkFile);
-                }
-
-                Intent intent = new Intent(Intent.ACTION_VIEW);
-                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
+                callback.log("PackageInstaller session başlatılıyor: " + apkFile.getAbsolutePath());
+                ApkSessionInstaller.install(activity, apkFile, null);
                 handler.post(() -> {
-                    try {
-                        context.startActivity(intent);
-                        callback.log("APK kurulum intent başlatıldı: " + apkFile.getName());
-                        Toast.makeText(context, R.string.apps_install_started, Toast.LENGTH_SHORT).show();
-                    } catch (Exception e) {
-                        Toast.makeText(context, context.getString(R.string.apps_install_start_failed, e.getMessage()), Toast.LENGTH_LONG).show();
-                        callback.log("[ERROR] APK kurulum intent hatası: " + e.getMessage());
-                    }
+                    callback.log("APK session commit edildi: " + apkFile.getName());
+                    Toast.makeText(context, R.string.apps_install_started, Toast.LENGTH_SHORT).show();
                 });
-
                 handler.postDelayed(this::loadAppsFromServer, 2000);
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_install_error, e.getMessage()), Toast.LENGTH_SHORT).show());
-                callback.log("[ERROR] APK kurulum hatası: " + e.getMessage());
+                String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                handler.post(() -> Toast.makeText(context,
+                        context.getString(R.string.apps_install_start_failed, detail), Toast.LENGTH_LONG).show());
+                callback.log("[ERROR] APK session kurulum hatası: " + detail);
             }
         }).start();
-    }
-
-    private boolean installApkViaShell(File apkFile) {
-        try {
-            String installCmd = "pm install -r " + apkFile.getAbsolutePath();
-            callback.log("Kurulum komutu: " + installCmd);
-
-            Process installProcess = Runtime.getRuntime().exec(installCmd);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(installProcess.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(installProcess.getErrorStream()));
-
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) output.append(line).append("\n");
-            while ((line = errorReader.readLine()) != null) output.append("ERR: ").append(line).append("\n");
-
-            int exitCode = installProcess.waitFor();
-            String outputStr = output.toString().trim();
-            callback.log("pm install exit code: " + exitCode);
-            callback.log("pm install output: " + (outputStr.isEmpty() ? "(boş)" : outputStr));
-
-            if (exitCode == 0 || outputStr.contains("Success")) {
-                handler.post(() -> Toast.makeText(context, R.string.apps_installed_success, Toast.LENGTH_SHORT).show());
-                callback.log("APK shell ile başarıyla kuruldu");
-                return true;
-            } else {
-                callback.log("Shell kurulum başarısız, intent deneniyor");
-                return false;
-            }
-        } catch (Exception e) {
-            callback.log("Shell kurulum hatası: " + e.getMessage());
-            return false;
-        }
     }
 
     public void performReset() {
