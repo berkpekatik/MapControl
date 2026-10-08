@@ -31,6 +31,7 @@ import com.mapcontrol.ui.widget.LauncherLitePanelView;
 import com.mapcontrol.util.AppIconHelper;
 import com.mapcontrol.util.LauncherQuickAppsStore;
 import com.mapcontrol.util.LauncherSwipeStore;
+import com.mapcontrol.util.SystemAppListOpener;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
@@ -904,12 +905,7 @@ public final class LauncherDashboardBuilder implements
             row.setClickable(true);
             row.setFocusable(true);
             applyBorderlessRipple(row);
-            row.setOnClickListener(v -> showAppPicker(
-                    context.getString(directionLabelRes(direction)),
-                    packageName -> {
-                        LauncherSwipeStore.setPackage(context, direction, packageName);
-                        row.setText(swipeRowLabel(direction));
-                    }));
+            row.setOnClickListener(v -> showSwipeTargetPicker(direction, row));
             row.setOnLongClickListener(v -> {
                 if (LauncherSwipeStore.getPackage(context, direction).isEmpty()) {
                     return true;
@@ -931,24 +927,120 @@ public final class LauncherDashboardBuilder implements
                 .show();
     }
 
+    private void showSwipeTargetPicker(int direction, TextView row) {
+        List<String> ids = new ArrayList<>();
+        List<CharSequence> labels = new ArrayList<>();
+        addSwipeChoice(ids, labels, LauncherSwipeStore.ACTION_MAIN_MENU,
+                R.string.launcher_swipe_action_main_menu);
+        addSwipeChoice(ids, labels, LauncherSwipeStore.ACTION_APP_TRAY,
+                R.string.launcher_swipe_action_app_tray);
+        addSwipeChoice(ids, labels, LauncherSwipeStore.ACTION_CLUSTER_TOGGLE,
+                R.string.launcher_swipe_action_cluster_toggle);
+        addSwipeChoice(ids, labels, LauncherSwipeStore.ACTION_CLUSTER_OPEN,
+                R.string.launcher_swipe_action_cluster_open);
+        addSwipeChoice(ids, labels, LauncherSwipeStore.ACTION_CLUSTER_CLOSE,
+                R.string.launcher_swipe_action_cluster_close);
+        for (DashboardShortcut shortcut : dashboardShortcuts()) {
+            ids.add(LauncherSwipeStore.tabAction(shortcut.tabIndex));
+            labels.add(shortcut.title);
+        }
+        ids.add(null);
+        labels.add(context.getString(R.string.launcher_swipe_pick_app));
+
+        new AlertDialog.Builder(context)
+                .setTitle(directionLabelRes(direction))
+                .setItems(labels.toArray(new CharSequence[0]), (dialog, which) -> {
+                    if (which < 0 || which >= ids.size()) {
+                        return;
+                    }
+                    String id = ids.get(which);
+                    if (id == null) {
+                        showAppPicker(
+                                context.getString(directionLabelRes(direction)),
+                                packageName -> {
+                                    LauncherSwipeStore.setPackage(context, direction, packageName);
+                                    row.setText(swipeRowLabel(direction));
+                                });
+                        return;
+                    }
+                    LauncherSwipeStore.setPackage(context, direction, id);
+                    row.setText(swipeRowLabel(direction));
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void addSwipeChoice(List<String> ids, List<CharSequence> labels, String id, int labelRes) {
+        ids.add(id);
+        labels.add(context.getString(labelRes));
+    }
+
     private void onClockSwipe(int direction) {
-        String packageName = LauncherSwipeStore.getPackage(context, direction);
-        if (packageName.isEmpty()) {
+        String target = LauncherSwipeStore.getPackage(context, direction);
+        if (target.isEmpty()) {
             Toast.makeText(context, R.string.launcher_swipe_unset_toast, Toast.LENGTH_SHORT).show();
             return;
         }
-        if (launcherCallback != null) {
-            launcherCallback.onAppLaunchRequested(packageName);
+        if (launcherCallback == null) {
+            return;
         }
+        if (LauncherSwipeStore.ACTION_MAIN_MENU.equals(target)) {
+            launcherCallback.onExitLauncherRequested();
+            return;
+        }
+        if (LauncherSwipeStore.ACTION_APP_TRAY.equals(target)) {
+            if (!SystemAppListOpener.open(context)) {
+                Toast.makeText(context, R.string.launcher_swipe_app_list_missing, Toast.LENGTH_SHORT)
+                        .show();
+            }
+            return;
+        }
+        int tabIndex = LauncherSwipeStore.tabIndex(target);
+        if (tabIndex >= 0) {
+            launcherCallback.onShortcutSelected(tabIndex, describeSwipeTarget(target));
+            return;
+        }
+        if (LauncherSwipeStore.isClusterAction(target)) {
+            launcherCallback.onClusterProjectionRequested(target);
+            return;
+        }
+        launcherCallback.onAppLaunchRequested(target);
     }
 
     private String swipeRowLabel(int direction) {
         String name = context.getString(directionLabelRes(direction));
-        String packageName = LauncherSwipeStore.getPackage(context, direction);
-        String app = packageName.isEmpty()
+        String target = LauncherSwipeStore.getPackage(context, direction);
+        String detail = target.isEmpty()
                 ? context.getString(R.string.launcher_swipe_unset)
-                : appLabel(packageName);
-        return name + " · " + app;
+                : describeSwipeTarget(target);
+        return name + " · " + detail;
+    }
+
+    private String describeSwipeTarget(String target) {
+        if (LauncherSwipeStore.ACTION_MAIN_MENU.equals(target)) {
+            return context.getString(R.string.launcher_swipe_action_main_menu);
+        }
+        if (LauncherSwipeStore.ACTION_APP_TRAY.equals(target)) {
+            return context.getString(R.string.launcher_swipe_action_app_tray);
+        }
+        if (LauncherSwipeStore.ACTION_CLUSTER_TOGGLE.equals(target)) {
+            return context.getString(R.string.launcher_swipe_action_cluster_toggle);
+        }
+        if (LauncherSwipeStore.ACTION_CLUSTER_OPEN.equals(target)) {
+            return context.getString(R.string.launcher_swipe_action_cluster_open);
+        }
+        if (LauncherSwipeStore.ACTION_CLUSTER_CLOSE.equals(target)) {
+            return context.getString(R.string.launcher_swipe_action_cluster_close);
+        }
+        int tabIndex = LauncherSwipeStore.tabIndex(target);
+        if (tabIndex >= 0) {
+            for (DashboardShortcut shortcut : dashboardShortcuts()) {
+                if (shortcut.tabIndex == tabIndex) {
+                    return shortcut.title;
+                }
+            }
+        }
+        return appLabel(target);
     }
 
     private String appLabel(String packageName) {
@@ -978,7 +1070,15 @@ public final class LauncherDashboardBuilder implements
         grid.setColumnCount(QUICK_SHORTCUT_COLUMNS);
         grid.setUseDefaultMargins(false);
 
-        DashboardShortcut[] shortcuts = new DashboardShortcut[]{
+        DashboardShortcut[] shortcuts = dashboardShortcuts();
+        for (DashboardShortcut shortcut : shortcuts) {
+            addCompactShortcutTile(grid, shortcut);
+        }
+        return grid;
+    }
+
+    private DashboardShortcut[] dashboardShortcuts() {
+        return new DashboardShortcut[]{
                 new DashboardShortcut(0, R.drawable.ic_mdi_wifi, context.getString(R.string.launcher_shortcut_wifi)),
                 new DashboardShortcut(1, R.drawable.ic_mdi_web, context.getString(R.string.launcher_shortcut_web)),
                 // Temporarily hidden: Profile shortcut (restore line below when profile tab is re-enabled).
@@ -990,10 +1090,6 @@ public final class LauncherDashboardBuilder implements
                 new DashboardShortcut(8, R.drawable.ic_mdi_volume_high, context.getString(R.string.launcher_shortcut_welcome)),
                 new DashboardShortcut(7, R.drawable.ic_mdi_cog, context.getString(R.string.launcher_shortcut_settings)),
         };
-        for (DashboardShortcut shortcut : shortcuts) {
-            addCompactShortcutTile(grid, shortcut);
-        }
-        return grid;
     }
 
     private void addCompactShortcutTile(GridLayout grid, DashboardShortcut shortcut) {

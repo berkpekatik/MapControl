@@ -531,20 +531,6 @@ public class ProjectionTabBuilder {
                             : "Google Maps cluster kartları kapatıldı");
                 });
 
-        UiStyles.addBinarySegmentedControl(context, mapsClusterBlock,
-                context.getString(R.string.projection_google_maps_cluster_vdbus_label),
-                context.getString(R.string.common_on),
-                context.getString(R.string.common_off),
-                context.getString(R.string.projection_google_maps_cluster_vdbus_on_help),
-                context.getString(R.string.projection_google_maps_cluster_vdbus_off_help),
-                GoogleMapsNavNotificationCoordinator.isClusterVDBusEnabled(context),
-                isEnabled -> {
-                    GoogleMapsNavNotificationCoordinator.setClusterVDBusEnabled(context, isEnabled);
-                    callback.log(isEnabled
-                            ? "Google Maps cluster VDBus yayını açıldı"
-                            : "Google Maps cluster VDBus yayını kapatıldı");
-                });
-
         projectionTabContent.addView(mainCardContainer, mainCardParams);
 
         return scrollView;
@@ -564,16 +550,25 @@ public class ProjectionTabBuilder {
         if (googleMapsNavSummaryText == null) {
             return;
         }
+        CharSequence next;
         if (snapshot == null || !snapshot.active) {
-            googleMapsNavSummaryText.setText(R.string.projection_google_maps_nav_summary_idle);
-            return;
-        }
-        String line = snapshot.formatSummaryLine();
-        if (line == null || line.isEmpty()) {
-            googleMapsNavSummaryText.setText(R.string.projection_google_maps_nav_summary_idle);
+            next = contextText(R.string.projection_google_maps_nav_summary_idle);
         } else {
-            googleMapsNavSummaryText.setText(line);
+            String line = snapshot.formatSummaryLine();
+            if (line == null || line.isEmpty()) {
+                next = contextText(R.string.projection_google_maps_nav_summary_idle);
+            } else {
+                next = line;
+            }
         }
+        CharSequence current = googleMapsNavSummaryText.getText();
+        if (current == null || !current.toString().contentEquals(next)) {
+            googleMapsNavSummaryText.setText(next);
+        }
+    }
+
+    private CharSequence contextText(int resId) {
+        return googleMapsNavSummaryText.getContext().getText(resId);
     }
 
     private void handleButtonClickWithDelay(Button button, String originalText, String loadingText) {

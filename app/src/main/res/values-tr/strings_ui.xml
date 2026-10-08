@@ -143,9 +143,6 @@
     <string name="projection_google_maps_cluster_overlay_label">Cluster kartları</string>
     <string name="projection_google_maps_cluster_overlay_on_help">Gösterge ekranında manevra ve ETA kartlarını göster.</string>
     <string name="projection_google_maps_cluster_overlay_off_help">Cluster navigasyon kartlarını kapat.</string>
-    <string name="projection_google_maps_cluster_vdbus_label">Gösterge VDBus</string>
-    <string name="projection_google_maps_cluster_vdbus_on_help">Bildirim özetini CarLan navigasyon olaylarına gönder (deneysel).</string>
-    <string name="projection_google_maps_cluster_vdbus_off_help">VDBus navigasyon yayını kapalı.</string>
     <string name="projection_select_app_first">Önce bir uygulama seçin!</string>
     <string name="projection_app_not_found">Uygulama bulunamadı: %1$s</string>
     <string name="projection_list_failed">Liste oluşturulamadı</string>

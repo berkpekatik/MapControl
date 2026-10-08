@@ -87,6 +87,7 @@ import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
+import com.mapcontrol.util.LauncherSwipeStore;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
@@ -809,6 +810,20 @@ public class MainActivity extends AppCompatActivity {
                     public void onAppLaunchRequested(String packageName) {
                         if (appsTabBuilder != null) {
                             appsTabBuilder.launchApp(packageName);
+                        }
+                    }
+
+                    @Override
+                    public void onClusterProjectionRequested(String action) {
+                        if (clusterDisplayManager == null) {
+                            return;
+                        }
+                        if (LauncherSwipeStore.ACTION_CLUSTER_CLOSE.equals(action)
+                                || (LauncherSwipeStore.ACTION_CLUSTER_TOGGLE.equals(action)
+                                && isNavigationOpen)) {
+                            clusterDisplayManager.closeClusterDisplay(false);
+                        } else {
+                            clusterDisplayManager.openClusterDisplay();
                         }
                     }
                 });

@@ -7,7 +7,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * Launcher orta saat kartındaki dört yönlü kaydırmanın açacağı paket adları.
+ * Launcher orta saat kartındaki dört yönlü kaydırma hedefi.
+ * Değer bir paket adı ya da {@code action:} ile başlayan yerleşik işlemdir.
  */
 public final class LauncherSwipeStore {
 
@@ -15,6 +16,13 @@ public final class LauncherSwipeStore {
     public static final int DOWN = 1;
     public static final int LEFT = 2;
     public static final int RIGHT = 3;
+
+    public static final String ACTION_MAIN_MENU = "action:main_menu";
+    public static final String ACTION_APP_TRAY = "action:app_tray";
+    public static final String ACTION_CLUSTER_OPEN = "action:cluster_open";
+    public static final String ACTION_CLUSTER_CLOSE = "action:cluster_close";
+    public static final String ACTION_CLUSTER_TOGGLE = "action:cluster_toggle";
+    private static final String ACTION_TAB_PREFIX = "action:tab:";
 
     private static final String PREFS_NAME = "MapControlPrefs";
     private static final String[] KEYS = {
@@ -49,6 +57,28 @@ public final class LauncherSwipeStore {
 
     public static void clear(@NonNull Context context, int direction) {
         setPackage(context, direction, "");
+    }
+
+    public static boolean isClusterAction(@Nullable String value) {
+        return ACTION_CLUSTER_OPEN.equals(value)
+                || ACTION_CLUSTER_CLOSE.equals(value)
+                || ACTION_CLUSTER_TOGGLE.equals(value);
+    }
+
+    @NonNull
+    public static String tabAction(int tabIndex) {
+        return ACTION_TAB_PREFIX + tabIndex;
+    }
+
+    public static int tabIndex(@Nullable String value) {
+        if (value == null || !value.startsWith(ACTION_TAB_PREFIX)) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(value.substring(ACTION_TAB_PREFIX.length()));
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     @Nullable

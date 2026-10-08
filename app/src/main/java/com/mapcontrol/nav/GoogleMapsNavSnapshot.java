@@ -118,38 +118,6 @@ public final class GoogleMapsNavSnapshot {
         return pickRouteSummaryPart(false, false, true);
     }
 
-    /**
-     * Sonraki manevra için metre cinsinden mesafe tahmini (VDBus / gösterge).
-     * Parse edilemezse 0.
-     */
-    public int segmentRemainMeters() {
-        String distance = formatManeuverDistanceLine();
-        if (distance == null) {
-            return 0;
-        }
-        String lower = distance.toLowerCase(Locale.US);
-        try {
-            if (lower.contains(" km")) {
-                String num = lower.split(" km", 2)[0].trim().replace(',', '.');
-                return (int) (Double.parseDouble(num) * 1000.0d);
-            }
-            if (lower.contains(" m")) {
-                String num = lower.split(" m", 2)[0].trim().replace(',', '.');
-                return (int) Double.parseDouble(num);
-            }
-            if (lower.contains(" mi")) {
-                String num = lower.split(" mi", 2)[0].trim().replace(',', '.');
-                return (int) (Double.parseDouble(num) * 1609.344d);
-            }
-            if (lower.contains(" ft")) {
-                String num = lower.split(" ft", 2)[0].trim().replace(',', '.');
-                return (int) (Double.parseDouble(num) * 0.3048d);
-            }
-        } catch (NumberFormatException ignored) {
-        }
-        return 0;
-    }
-
     @Nullable
     private static String splitTitleDistancePart(@Nullable String title) {
         if (title == null) {

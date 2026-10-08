@@ -23,6 +23,7 @@ public final class LauncherMediaNotificationListener extends NotificationListene
 
     @Override
     public void onListenerConnected() {
+        GoogleMapsNavNotificationCoordinator.onListenerConnected(this);
         GoogleMapsNavNotificationCoordinator.resyncActiveNotifications(this);
         Listener current = listener;
         if (current != null) {
@@ -38,5 +39,10 @@ public final class LauncherMediaNotificationListener extends NotificationListene
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
         GoogleMapsNavNotificationCoordinator.onNotificationRemoved(this, sbn);
+    }
+
+    @Override
+    public void onListenerDisconnected() {
+        GoogleMapsNavNotificationCoordinator.onListenerDisconnected();
     }
 }

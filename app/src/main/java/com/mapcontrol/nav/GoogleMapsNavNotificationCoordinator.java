@@ -1,8 +1,11 @@
 package com.mapcontrol.nav;
 
+import android.app.Notification;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
@@ -15,9 +18,14 @@ import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
 
+import java.lang.ref.WeakReference;
+
 /**
  * Google Maps navigasyon bildirimini yansıtma açılışına, cluster kartlarına ve UI yayınına bağlar.
  * Bildirim kalkınca cluster yansıtması kapatılmaz; kartlar gizlenir.
+ *
+ * Yalnızca rehberlik bildirimi izlenir. Trafik, indirme veya arka plan bildirimleri kartı
+ * kapatmaz. Bildirim anahtarı değişince kısa süre son iyi rota tutulur, sonra yeniden taranır.
  */
 public final class GoogleMapsNavNotificationCoordinator {
 
@@ -36,9 +44,21 @@ public final class GoogleMapsNavNotificationCoordinator {
     public static final String EXTRA_SUMMARY = "routeSummary";
 
     private static final long OPEN_DEBOUNCE_MS = 2500L;
+    /** Aynı anahtarın silinip yeniden yazılması kartı söndürmesin. */
+    private static final long INACTIVE_HOLD_MS = 800L;
 
     private static volatile GoogleMapsNavSnapshot lastSnapshot = GoogleMapsNavSnapshot.inactive();
     private static long lastOpenRequestUptimeMs;
+    @Nullable
+    private static volatile String activeNavKey;
+    private static int activeScore = -1;
+    @Nullable
+    private static Context appContext;
+    @Nullable
+    private static WeakReference<NotificationListenerService> serviceRef;
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private static final Runnable confirmInactiveRunnable =
+            GoogleMapsNavNotificationCoordinator::confirmInactive;
 
     private GoogleMapsNavNotificationCoordinator() {
     }
@@ -58,26 +78,51 @@ public final class GoogleMapsNavNotificationCoordinator {
         return lastSnapshot;
     }
 
+    public static void onListenerConnected(@Nullable NotificationListenerService service) {
+        remember(service);
+    }
+
+    public static void onListenerDisconnected() {
+        serviceRef = null;
+    }
+
     public static void onNotificationPosted(Context context, @Nullable StatusBarNotification sbn) {
+        remember(context);
         if (!isGoogleMapsNotification(sbn)) {
             return;
         }
         GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(sbn);
         if (snapshot.active) {
+            int score = score(sbn, snapshot);
+            if (!shouldAdopt(sbn.getKey(), score)) {
+                return;
+            }
+            cancelInactiveCheck();
+            activeNavKey = sbn.getKey();
+            activeScore = score;
             publish(context, snapshot);
             requestOpenIfEligible(context.getApplicationContext());
             return;
         }
-        if (lastSnapshot.active) {
-            publish(context, GoogleMapsNavSnapshot.inactive());
+        if (activeNavKey != null && activeNavKey.equals(sbn.getKey())) {
+            scheduleInactiveCheck(context);
         }
     }
 
     public static void onNotificationRemoved(Context context, @Nullable StatusBarNotification sbn) {
-        if (!shouldClearAfterMapsNotificationRemoved(sbn)) {
+        remember(context);
+        if (!isGoogleMapsNotification(sbn)) {
             return;
         }
-        publish(context, GoogleMapsNavSnapshot.inactive());
+        if (activeNavKey != null && !activeNavKey.equals(sbn.getKey())) {
+            return;
+        }
+        if (activeNavKey == null && !lastSnapshot.active) {
+            return;
+        }
+        activeNavKey = null;
+        activeScore = -1;
+        scheduleInactiveCheck(context);
     }
 
     /**
@@ -87,22 +132,23 @@ public final class GoogleMapsNavNotificationCoordinator {
         if (service == null) {
             return;
         }
+        remember(service);
         try {
             StatusBarNotification[] active = service.getActiveNotifications();
             if (active == null) {
                 return;
             }
-            for (StatusBarNotification sbn : active) {
-                if (!GoogleMapsNavNotificationParser.isNavigationNotification(sbn)) {
-                    continue;
-                }
-                GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(sbn);
-                if (snapshot.active) {
-                    publish(service, snapshot);
-                    return;
-                }
+            NavPick pick = pickBest(active);
+            if (pick != null) {
+                cancelInactiveCheck();
+                activeNavKey = pick.key;
+                activeScore = pick.score;
+                publish(service, pick.snapshot);
+                return;
             }
             if (lastSnapshot.active) {
+                activeNavKey = null;
+                activeScore = -1;
                 publish(service, GoogleMapsNavSnapshot.inactive());
             }
         } catch (Exception ignored) {
@@ -114,28 +160,152 @@ public final class GoogleMapsNavNotificationCoordinator {
                 && GoogleMapsNavNotificationParser.PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName());
     }
 
+    private static void remember(@Nullable Context context) {
+        if (context == null) {
+            return;
+        }
+        if (appContext == null) {
+            appContext = context.getApplicationContext();
+        }
+        if (context instanceof NotificationListenerService) {
+            serviceRef = new WeakReference<>((NotificationListenerService) context);
+        }
+    }
+
+    private static void scheduleInactiveCheck(Context context) {
+        remember(context);
+        mainHandler.removeCallbacks(confirmInactiveRunnable);
+        mainHandler.postDelayed(confirmInactiveRunnable, INACTIVE_HOLD_MS);
+    }
+
+    private static void cancelInactiveCheck() {
+        mainHandler.removeCallbacks(confirmInactiveRunnable);
+    }
+
     /**
-     * Bildirim silinirken extras boşalabilir; son aktif rehberlik veya nav kategorisine bakılır.
+     * İzlenen bildirim silinince hemen kartı kapatma. Kısa aradan sonra hâlâ rehberlik
+     * bildirimi varsa onu göster; yoksa kartı kapat.
      */
-    private static boolean shouldClearAfterMapsNotificationRemoved(@Nullable StatusBarNotification sbn) {
-        if (!isGoogleMapsNotification(sbn)) {
+    private static void confirmInactive() {
+        Context app = appContext;
+        NotificationListenerService service = listenerService();
+        if (app == null || service == null) {
+            return;
+        }
+        try {
+            NavPick pick = pickBest(service.getActiveNotifications());
+            if (pick != null) {
+                activeNavKey = pick.key;
+                activeScore = pick.score;
+                publish(app, pick.snapshot);
+                return;
+            }
+        } catch (Exception ignored) {
+            return;
+        }
+        activeNavKey = null;
+        activeScore = -1;
+        publish(app, GoogleMapsNavSnapshot.inactive());
+    }
+
+    @Nullable
+    private static NotificationListenerService listenerService() {
+        WeakReference<NotificationListenerService> ref = serviceRef;
+        return ref == null ? null : ref.get();
+    }
+
+    private static boolean shouldAdopt(@Nullable String key, int score) {
+        if (key == null) {
             return false;
         }
-        if (lastSnapshot.active) {
+        if (activeNavKey == null || activeNavKey.equals(key)) {
             return true;
         }
-        if (GoogleMapsNavNotificationParser.isNavigationNotification(sbn)) {
-            return true;
+        return score > activeScore;
+    }
+
+    private static int score(@Nullable StatusBarNotification sbn, @Nullable GoogleMapsNavSnapshot snapshot) {
+        if (sbn == null || snapshot == null || !snapshot.active) {
+            return -1;
         }
-        android.app.Notification notification = sbn.getNotification();
-        return notification != null
-                && android.app.Notification.CATEGORY_NAVIGATION.equals(notification.category);
+        int value = 1;
+        Notification notification = sbn.getNotification();
+        if (notification != null) {
+            if (Notification.CATEGORY_NAVIGATION.equals(notification.category)) {
+                value += 100;
+            }
+            if ((notification.flags & Notification.FLAG_ONGOING_EVENT) != 0) {
+                value += 40;
+            }
+        }
+        if (hasDigit(snapshot.distanceTitle) || hasDigit(snapshot.maneuverHint)) {
+            value += 30;
+        }
+        if (snapshot.routeSummary != null && snapshot.routeSummary.indexOf('·') >= 0) {
+            value += 10;
+        }
+        return value;
+    }
+
+    private static boolean hasDigit(@Nullable String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isDigit(value.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    private static NavPick pickBest(@Nullable StatusBarNotification[] active) {
+        if (active == null) {
+            return null;
+        }
+        NavPick best = null;
+        for (StatusBarNotification sbn : active) {
+            if (!isGoogleMapsNotification(sbn)) {
+                continue;
+            }
+            GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(sbn);
+            int value = score(sbn, snapshot);
+            if (value < 0) {
+                continue;
+            }
+            if (best == null || value > best.score) {
+                best = new NavPick(sbn.getKey(), value, snapshot);
+            }
+        }
+        return best;
+    }
+
+    private static final class NavPick {
+        final String key;
+        final int score;
+        final GoogleMapsNavSnapshot snapshot;
+
+        NavPick(String key, int score, GoogleMapsNavSnapshot snapshot) {
+            this.key = key;
+            this.score = score;
+            this.snapshot = snapshot;
+        }
     }
 
     private static void publish(Context context, GoogleMapsNavSnapshot snapshot) {
+        boolean changed = !lastSnapshot.contentEquals(snapshot);
         lastSnapshot = snapshot;
         Context app = context.getApplicationContext();
-        syncClusterPresentation(app, snapshot);
+        appContext = app;
+        if (GoogleMapsClusterNavOverlay.isEnabled(app)) {
+            GoogleMapsClusterNavOverlay.getInstance(app).apply(snapshot);
+        } else {
+            GoogleMapsClusterNavOverlay.getInstance(app).hide();
+        }
+        if (!changed) {
+            return;
+        }
         Intent intent = new Intent(ACTION_GOOGLE_MAPS_NAV_SNAPSHOT);
         intent.setPackage(app.getPackageName());
         intent.putExtra(EXTRA_ACTIVE, snapshot.active);
@@ -151,15 +321,6 @@ public final class GoogleMapsNavNotificationCoordinator {
         app.sendBroadcast(intent);
     }
 
-    private static void syncClusterPresentation(Context app, GoogleMapsNavSnapshot snapshot) {
-        if (GoogleMapsClusterNavOverlay.isEnabled(app)) {
-            GoogleMapsClusterNavOverlay.getInstance(app).apply(snapshot);
-        } else {
-            GoogleMapsClusterNavOverlay.getInstance(app).hide();
-        }
-        GoogleMapsClusterNavVDBusPublisher.publish(app, snapshot);
-    }
-
     public static boolean isClusterOverlayEnabled(Context context) {
         return GoogleMapsClusterNavOverlay.isEnabled(context);
     }
@@ -168,17 +329,6 @@ public final class GoogleMapsNavNotificationCoordinator {
         GoogleMapsClusterNavOverlay.setEnabled(context, enabled);
         if (enabled) {
             GoogleMapsClusterNavOverlay.getInstance(context).apply(getLastSnapshot());
-        }
-    }
-
-    public static boolean isClusterVDBusEnabled(Context context) {
-        return GoogleMapsClusterNavVDBusPublisher.isEnabled(context);
-    }
-
-    public static void setClusterVDBusEnabled(Context context, boolean enabled) {
-        GoogleMapsClusterNavVDBusPublisher.setEnabled(context, enabled);
-        if (enabled) {
-            GoogleMapsClusterNavVDBusPublisher.publish(context, getLastSnapshot());
         }
     }
 

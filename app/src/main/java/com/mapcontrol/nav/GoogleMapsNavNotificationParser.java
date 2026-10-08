@@ -50,22 +50,47 @@ public final class GoogleMapsNavNotificationParser {
             return false;
         }
         Notification notification = sbn.getNotification();
-        if (notification == null || notification.extras == null) {
+        if (notification == null) {
             return false;
         }
-        return notification.extras.get(Notification.EXTRA_SUB_TEXT) != null;
+        return extraText(notification.extras, Notification.EXTRA_SUB_TEXT) != null;
     }
 
     public static GoogleMapsNavSnapshot parse(@Nullable StatusBarNotification sbn) {
-        if (!isNavigationNotification(sbn)) {
+        if (sbn == null || !PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName())) {
             return GoogleMapsNavSnapshot.inactive();
         }
-        Bundle extras = sbn.getNotification().extras;
+        Notification notification = sbn.getNotification();
+        if (notification == null) {
+            return GoogleMapsNavSnapshot.inactive();
+        }
+        Bundle extras = notification.extras;
         return parseFields(
-                extras.getString(Notification.EXTRA_TITLE),
-                extras.getString(Notification.EXTRA_TEXT),
-                extras.getString(Notification.EXTRA_SUB_TEXT),
+                extraText(extras, Notification.EXTRA_TITLE),
+                extraText(extras, Notification.EXTRA_TEXT),
+                extraText(extras, Notification.EXTRA_SUB_TEXT),
                 hasIcon(extras));
+    }
+
+    /**
+     * Bildirim extras çoğu zaman {@link String} değil {@link CharSequence} tutar.
+     * {@link Bundle#getString} bu durumda null döner ve kartlar bir an kapanır.
+     */
+    @Nullable
+    static String normalizeExtra(@Nullable CharSequence value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.toString().trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Nullable
+    private static String extraText(@Nullable Bundle extras, String key) {
+        if (extras == null) {
+            return null;
+        }
+        return normalizeExtra(extras.getCharSequence(key));
     }
 
     /**

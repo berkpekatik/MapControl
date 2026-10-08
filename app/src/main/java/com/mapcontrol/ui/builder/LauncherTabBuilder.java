@@ -19,6 +19,7 @@ public class LauncherTabBuilder {
         void onShortcutSelected(int tabIndex, String title);
         void onExitLauncherRequested();
         void onAppLaunchRequested(String packageName);
+        void onClusterProjectionRequested(String action);
     }
 
     private final Context context;

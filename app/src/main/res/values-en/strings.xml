@@ -141,8 +141,15 @@ Monitor — Foreground apps on display 2</string>
     <string name="launcher_swipe_left">Left</string>
     <string name="launcher_swipe_right">Right</string>
     <string name="launcher_swipe_unset">Not set</string>
-    <string name="launcher_swipe_unset_toast">No app set for this swipe</string>
+    <string name="launcher_swipe_unset_toast">No shortcut set for this swipe</string>
     <string name="launcher_swipe_cleared">Swipe shortcut removed</string>
+    <string name="launcher_swipe_action_main_menu">Back to main menu</string>
+    <string name="launcher_swipe_action_app_tray">Android app list</string>
+    <string name="launcher_swipe_app_list_missing">System app list was not found</string>
+    <string name="launcher_swipe_action_cluster_toggle">Cluster projection on/off</string>
+    <string name="launcher_swipe_action_cluster_open">Turn cluster projection on</string>
+    <string name="launcher_swipe_action_cluster_close">Turn cluster projection off</string>
+    <string name="launcher_swipe_pick_app">Choose an app…</string>
     <string name="launcher_dashboard_quick_menu_launcher_mode">Launcher mode</string>
     <string name="launcher_dashboard_launcher_mode_title">Launcher mode</string>
     <string name="launcher_dashboard_display_mode_3d">3D Model</string>

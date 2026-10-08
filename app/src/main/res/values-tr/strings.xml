@@ -142,8 +142,15 @@
     <string name="launcher_swipe_left">Sol</string>
     <string name="launcher_swipe_right">Sağ</string>
     <string name="launcher_swipe_unset">Seçilmedi</string>
-    <string name="launcher_swipe_unset_toast">Bu yön için uygulama seçilmedi</string>
+    <string name="launcher_swipe_unset_toast">Bu yön için kısayol seçilmedi</string>
     <string name="launcher_swipe_cleared">Kaydırma kısayolu kaldırıldı</string>
+    <string name="launcher_swipe_action_main_menu">Ana menüye dön</string>
+    <string name="launcher_swipe_action_app_tray">Android uygulama listesi</string>
+    <string name="launcher_swipe_app_list_missing">Sistem uygulama listesi bulunamadı</string>
+    <string name="launcher_swipe_action_cluster_toggle">Küme yansıtması aç/kapat</string>
+    <string name="launcher_swipe_action_cluster_open">Küme yansıtmasını aç</string>
+    <string name="launcher_swipe_action_cluster_close">Küme yansıtmasını kapat</string>
+    <string name="launcher_swipe_pick_app">Uygulama seç…</string>
     <string name="launcher_dashboard_quick_menu_launcher_mode">Launcher modu</string>
     <string name="launcher_dashboard_launcher_mode_title">Launcher modu</string>
     <string name="launcher_dashboard_display_mode_3d">3D Model</string>

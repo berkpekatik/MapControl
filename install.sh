@@ -111,6 +111,14 @@ fi
 # İmza/sistem APK'larda medya kontrolü (sideload'da genelde başarısız — sorun değil)
 grant_permission "pm grant com.mapcontrol android.permission.MEDIA_CONTENT_CONTROL" "MEDIA_CONTENT_CONTROL"
 
+echo "🔧 Cihaz sahibi atanıyor..."
+DPM_OUT=$(adb shell dpm set-device-owner com.mapcontrol/.admin.MapControlDeviceAdminReceiver 2>&1 | tr -d '\r')
+if echo "$DPM_OUT" | grep -qiE "Success|already set"; then
+    echo "  ✓ Device owner"
+else
+    echo "  ⚠ Device owner: ${DPM_OUT:-hata}"
+fi
+
 # Not: WAKE_LOCK, BROADCAST_STICKY, ACCESS_COARSE_UPDATES, READ_INTERNAL_STORAGE normal permissions, otomatik verilir
 echo "✅ Yükleme ve izin verme tamamlandı!"
 

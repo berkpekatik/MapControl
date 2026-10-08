@@ -10,6 +10,13 @@ import static org.junit.Assert.assertTrue;
 public class GoogleMapsNavNotificationParserTest {
 
     @Test
+    public void charSequenceExtrasAreKept() {
+        assertNull(GoogleMapsNavNotificationParser.normalizeExtra(null));
+        assertNull(GoogleMapsNavNotificationParser.normalizeExtra("   "));
+        assertEquals("200 m", GoogleMapsNavNotificationParser.normalizeExtra(new StringBuilder(" 200 m ")));
+    }
+
+    @Test
     public void missingSubTextIsInactive() {
         GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
                 "200 m", "Turn left - Main", null, false);
@@ -65,6 +72,5 @@ public class GoogleMapsNavNotificationParserTest {
         assertEquals("143,2 km", snap.etaDistanceLabel());
         assertEquals("1 hr 34 min", snap.etaDurationLabel());
         assertEquals("12:26", snap.etaArrivalLabel());
-        assertEquals(152, snap.segmentRemainMeters());
     }
 }

@@ -133,9 +133,6 @@
     <string name="projection_google_maps_cluster_overlay_label">Cluster cards</string>
     <string name="projection_google_maps_cluster_overlay_on_help">Show maneuver and ETA cards on the cluster display.</string>
     <string name="projection_google_maps_cluster_overlay_off_help">Hide cluster navigation cards.</string>
-    <string name="projection_google_maps_cluster_vdbus_label">Cluster VDBus</string>
-    <string name="projection_google_maps_cluster_vdbus_on_help">Publish notification summary to CarLan navigation events (experimental).</string>
-    <string name="projection_google_maps_cluster_vdbus_off_help">CarLan navigation publish off.</string>
     <string name="projection_select_app_first">Select an app first!</string>
     <string name="projection_app_not_found">App not found: %1$s</string>
     <string name="projection_list_failed">Could not build list</string>

@@ -84,6 +84,16 @@ public final class ApkSessionInstaller {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             params.setInstallReason(PackageManager.INSTALL_REASON_DEVICE_SETUP);
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                android.app.admin.DevicePolicyManager dpm =
+                        (android.app.admin.DevicePolicyManager) activity.getSystemService(Activity.DEVICE_POLICY_SERVICE);
+                if (dpm != null && dpm.isDeviceOwnerApp(activity.getPackageName())) {
+                    params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
 
         int sessionId = packageInstaller.createSession(params);
         PackageInstaller.Session session = packageInstaller.openSession(sessionId);
@@ -131,6 +141,7 @@ public final class ApkSessionInstaller {
         int status = extras.getInt(PackageInstaller.EXTRA_STATUS);
         String message = extras.getString(PackageInstaller.EXTRA_STATUS_MESSAGE);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            InstallerConfirmClicker.arm();
             Intent confirm = readConfirmIntent(extras);
             if (confirm != null) {
                 confirm.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

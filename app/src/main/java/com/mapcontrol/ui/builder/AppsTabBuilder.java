@@ -27,6 +27,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.util.ApkSessionInstaller;
+import com.mapcontrol.util.SilentDexInstaller;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -1342,16 +1343,29 @@ public class AppsTabBuilder {
             callback.log("APK dosyası bulunamadı");
             return;
         }
-        if (activity == null) {
-            handler.post(() -> Toast.makeText(context,
-                    context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show());
-            callback.log("[ERROR] APK kurulumu için Activity yok");
-            return;
-        }
 
         new Thread(() -> {
+            handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
+            callback.log("Sessiz dex kurulumu başlıyor: " + apkFile.getAbsolutePath());
+            SilentDexInstaller.Result dexResult = SilentDexInstaller.install(context, apkFile);
+            if (dexResult.success) {
+                handler.post(() -> {
+                    callback.log(dexResult.message);
+                    Toast.makeText(context, R.string.apps_installed_success, Toast.LENGTH_SHORT).show();
+                });
+                handler.post(this::loadAppsFromServer);
+                return;
+            }
+
+            callback.log("Sessiz dex kurulumu olmadı: " + dexResult.message);
+            if (activity == null) {
+                handler.post(() -> Toast.makeText(context,
+                        context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show());
+                callback.log("[ERROR] APK kurulumu için Activity yok");
+                return;
+            }
+
             try {
-                handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
                 callback.log("PackageInstaller session başlatılıyor: " + apkFile.getAbsolutePath());
                 ApkSessionInstaller.install(activity, apkFile, null);
                 handler.post(() -> {
