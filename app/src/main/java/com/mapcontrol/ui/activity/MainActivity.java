@@ -56,7 +56,6 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
-import com.mapcontrol.admin.MapControlDpmHelper;
 import com.mapcontrol.R;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
@@ -295,7 +294,6 @@ public class MainActivity extends AppCompatActivity {
      * Uygulamayı başlatır (onCreate'in geri kalanı)
      */
     private void initializeApp() {
-        MapControlDpmHelper.tryBlockOwnUninstallIfDeviceOwner(this);
         // SharedPreferences (tüm bölümler için ortak)
         SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
         
