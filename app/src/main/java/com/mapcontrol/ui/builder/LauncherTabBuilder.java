@@ -1,6 +1,7 @@
 package com.mapcontrol.ui.builder;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
@@ -50,17 +51,25 @@ public class LauncherTabBuilder {
 
         dashboardBuilder = new LauncherDashboardBuilder(
                 context, vehicleMetricsRepository, callback);
-        // heightPixels sabiti yok — fillViewport + weight ile gerçek alanın tamamını kapla.
-        // Eski formül: heightPixels - 2*margin + root padding → altta hep "Yüklü Uygulamalar" sızıyordu.
-        LinearLayout.LayoutParams heroLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f);
+        boolean portrait = context.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
+        // Yatay: fillViewport + weight ile kart satırı viewport'u doldurur.
+        // Dikey: kartlar alt alta, yükseklikleri içeriğe göre kayar.
+        LinearLayout.LayoutParams heroLp = portrait
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                : new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f);
         root.addView(dashboardBuilder.build(), heroLp);
 
         scrollView.addView(root, new ScrollView.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT));
+                portrait
+                        ? LinearLayout.LayoutParams.WRAP_CONTENT
+                        : LinearLayout.LayoutParams.MATCH_PARENT));
         return scrollView;
     }
 

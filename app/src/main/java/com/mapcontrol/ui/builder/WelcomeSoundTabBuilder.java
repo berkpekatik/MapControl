@@ -14,6 +14,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.welcome.WelcomeDesignCatalog;
+import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,8 +50,12 @@ public class WelcomeSoundTabBuilder {
     public void rebuild() {
         onHostPause();
         boolean autoPlayInitial = prefs.getBoolean("welcomeAudioAutoPlay", false);
+        String designId = WelcomeDesignCatalog.savedId(prefs);
         WelcomeSoundScreenBuilder.Screen screen = WelcomeSoundScreenBuilder.buildTabScrollView(
-                activity, autoPlayInitial, this::saveAutoPlaySetting);
+                activity, autoPlayInitial, this::saveAutoPlaySetting,
+                designId, this::saveDesignSetting,
+                prefs.getString(WelcomeDesignCatalog.PREF_LINE, ""),
+                this::saveCustomLine);
         this.scrollView = screen.scrollView;
         this.tvFilePath = screen.tvFilePath;
         this.btnSelectFile = screen.btnSelectFile;
@@ -59,6 +65,7 @@ public class WelcomeSoundTabBuilder {
         btnSelectFile.setOnClickListener(v -> selectAudioFile());
         btnPlay.setOnClickListener(v -> playAudio());
         btnStop.setOnClickListener(v -> stopAudio());
+        screen.btnPreview.setOnClickListener(v -> WelcomeScreenPresenter.showSaved(activity));
 
         loadSavedSettings();
     }
@@ -235,6 +242,14 @@ public class WelcomeSoundTabBuilder {
 
     private void saveAutoPlaySetting(boolean enabled) {
         prefs.edit().putBoolean("welcomeAudioAutoPlay", enabled).apply();
+    }
+
+    private void saveDesignSetting(String designId) {
+        prefs.edit().putString(WelcomeDesignCatalog.PREF_KEY, designId).apply();
+    }
+
+    private void saveCustomLine(String line) {
+        prefs.edit().putString(WelcomeDesignCatalog.PREF_LINE, line == null ? "" : line).apply();
     }
 
     private void loadSavedSettings() {

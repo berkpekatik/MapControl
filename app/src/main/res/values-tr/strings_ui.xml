@@ -354,7 +354,7 @@
     <string name="launcher_shortcut_projection">Yansıtma</string>
     <string name="launcher_shortcut_apps">Uygulamalar</string>
     <string name="launcher_shortcut_drive">Hafıza</string>
-    <string name="launcher_shortcut_welcome">Hoş Geldin</string>
+    <string name="launcher_shortcut_welcome">Hoşgeldin Ekranı</string>
     <string name="launcher_shortcut_settings">Ayarlar</string>
     <string name="onboarding_title">Map Control</string>
     <string name="onboarding_subtitle">Başlamak için dilinizi seçin</string>

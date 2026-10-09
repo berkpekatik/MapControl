@@ -37,7 +37,7 @@
     <string name="floating_hub_icon_legend_title">Yüzen çubuktaki simgeler</string>
     <string name="floating_hub_icon_legend_body">Sol ok — Sistem geri (kısa dokunuş); menü açıkken sol ok üzerinde uzun bas — menüyü kapat\nKutu — Harita yansıtması için hedef uygulama seç\nHarita — Küme ekranını aç (yansıt)\nÇarpı — Yansıtmayı durdur\nŞimşek — Hızlı işlemler menüsünü göster / genişlet\nÇift sol ok — Hızlı işlemleri daralt\nTelefon — 1. ekranda önde olan uygulamalar\nMonitör — 2. ekranda önde olan uygulamalar</string>
 
-    <string name="welcome_sound_title"></string>
+    <string name="welcome_sound_title">Hoşgeldin Ekranı</string>
     <string name="welcome_sound_back">Geri</string>
     <string name="welcome_sound_choose_file">Ses dosyası seç</string>
     <string name="welcome_sound_selected_label">Seçilen ses</string>
@@ -60,7 +60,21 @@
     <string name="welcome_sound_folder_error">İndirilenler klasörüne erişilemedi</string>
     <string name="welcome_sound_pick_first">Önce bir ses dosyası seçin</string>
     <string name="welcome_sound_stopped">Durduruldu</string>
-    <string name="side_rail_welcome_sound">Açılış Sesi</string>
+    <string name="side_rail_welcome_sound">Hoşgeldin Ekranı</string>
+    <string name="welcome_design_section_title">Giriş tasarımı</string>
+    <string name="welcome_design_section_desc">Araç açıldığında ana ekranda gösterilir.</string>
+    <string name="welcome_design_off">Kapalı</string>
+    <string name="welcome_design_off_help">Açılışta görsel yok.</string>
+    <string name="welcome_design_signature">Standart Karşılama</string>
+    <string name="welcome_design_signature_help">Büyük saat ve sizin yazdığınız satır.</string>
+    <string name="welcome_design_winter">Kış Dokunuşu</string>
+    <string name="welcome_design_winter_help">Pembe gece, çiçek, kelebek ve yazdığınız satır.</string>
+    <string name="welcome_design_hike">Dağ Yürüyüşü</string>
+    <string name="welcome_design_hike_help">Gün batımı, dağ silüeti ve yazdığınız satır.</string>
+    <string name="welcome_custom_text_label">Karşılama yazısı</string>
+    <string name="welcome_custom_text_hint">Ad soyad</string>
+    <string name="welcome_custom_text_help">Boş bırakırsanız isim satırı görünmez.</string>
+    <string name="welcome_design_preview">Önizle</string>
     <string name="side_rail_vehicle_info">Araç Bilgi</string>
 
     <string name="vehicle_info_title">Araç bilgileri</string>

@@ -114,7 +114,6 @@
             android:launchMode="singleTop"
             android:label="Map Control"
             android:theme="@style/Theme.MapControl.Splash"
-            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

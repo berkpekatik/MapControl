@@ -42,7 +42,7 @@ Lightning — Show / expand quick actions menu
 Double left arrow — Collapse quick actions
 Phone — Foreground apps on display 1
 Monitor — Foreground apps on display 2</string>
-    <string name="welcome_sound_title" />
+    <string name="welcome_sound_title">Welcome Screen</string>
     <string name="welcome_sound_back">Back</string>
     <string name="welcome_sound_choose_file">Choose sound file</string>
     <string name="welcome_sound_selected_label">Selected sound</string>
@@ -65,7 +65,21 @@ Monitor — Foreground apps on display 2</string>
     <string name="welcome_sound_folder_error">Could not access Downloads folder</string>
     <string name="welcome_sound_pick_first">Select a sound file first</string>
     <string name="welcome_sound_stopped">Stopped</string>
-    <string name="side_rail_welcome_sound">Welcome Sound</string>
+    <string name="side_rail_welcome_sound">Welcome Screen</string>
+    <string name="welcome_design_section_title">Entrance design</string>
+    <string name="welcome_design_section_desc">Shown on the main screen when the vehicle starts.</string>
+    <string name="welcome_design_off">Off</string>
+    <string name="welcome_design_off_help">No visual on startup.</string>
+    <string name="welcome_design_signature">Standard Welcome</string>
+    <string name="welcome_design_signature_help">A large clock and the line you write.</string>
+    <string name="welcome_design_winter">Winter Touch</string>
+    <string name="welcome_design_winter_help">A pink night, blossoms, butterflies, and the line you write.</string>
+    <string name="welcome_design_hike">Mountain Hike</string>
+    <string name="welcome_design_hike_help">A sunset ridge and the line you write.</string>
+    <string name="welcome_custom_text_label">Welcome line</string>
+    <string name="welcome_custom_text_hint">First and last name</string>
+    <string name="welcome_custom_text_help">Leave blank to hide the name line.</string>
+    <string name="welcome_design_preview">Preview</string>
     <string name="side_rail_vehicle_info">Vehicle Info</string>
     <string name="vehicle_info_title">Vehicle information</string>
     <string name="vehicle_info_intro">Summary from the instrument cluster and vehicle info. Same source as ODO, AFC, TotaDTE on the IVI EngMode ETM screen; tank liters (FDis) and tank volume (FullCapacity) appear only on that engineering screen.</string>

@@ -35,6 +35,7 @@ import android.net.Uri;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
@@ -67,6 +68,8 @@ public class MapControlService extends Service {
     /** Yansıtma paneli / yüzen kontroller / power modu ile aynı cluster VDBus ve taşıma mantığı ({@link ClusterDisplayManager}). */
     private ClusterDisplayManager clusterDisplayHelper;
     private int lastPowerMode = -1;
+    /** Hoşgeldin: ekran güç alınca bir kez. 1→2 geçişinde tekrar açılmaz. */
+    private int lastWelcomePowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
     
     /**
@@ -271,8 +274,7 @@ public class MapControlService extends Service {
                                 log("⚠️ Araç power aldı ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
                             
-                            // Hoşgeldin ses dosyasını çal (eğer ayar açıksa)
-                            playWelcomeAudio();
+                            // Hoşgeldin ekranı ve ses, ekran güç alır almaz ayrı izleyicide açılır.
                             
                             // Sürüş modu otomatik ayarlama (Spor, Eco, Normal hariç)
                             // Powermode 2 olduğunda her zaman kayıtlı modu uygula
@@ -351,6 +353,41 @@ public class MapControlService extends Service {
                 log("❌ Power mode kontrol hatası: " + e.getMessage());
             }
         }, 0, 2, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::pollWelcomeScreen, 0, 250, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Ekran güç alır almaz (mod 1 veya doğrudan 2) karşılama ekranını ve sesi açar.
+     * Motor çalışınca tekrarlamaz; araç kapanıp yeniden açılınca bir kez daha gelir.
+     */
+    private void pollWelcomeScreen() {
+        try {
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                try {
+                    CarInfoProxy.getInstance().init(getApplicationContext());
+                } catch (Exception ignored) {
+                }
+                return;
+            }
+            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
+                    VDEventCarInfo.MODULE_READONLY_INFO,
+                    ReadOnlyID.ID_SYSTEM_POWER_MODE);
+            if (pwrItems == null || pwrItems.length == 0) {
+                return;
+            }
+            int mode = pwrItems[0];
+            int previous = lastWelcomePowerMode;
+            if (previous == mode) {
+                return;
+            }
+            lastWelcomePowerMode = mode;
+            if (mode >= 1 && previous < 1) {
+                playWelcomeAudio();
+                WelcomeScreenPresenter.showSaved(this);
+            }
+        } catch (Exception e) {
+            log("❌ Hoşgeldin ekranı kontrol hatası: " + e.getMessage());
+        }
     }
 
     /**
@@ -950,7 +987,7 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Hoşgeldin ses dosyasını çal (powerMode == 2 olduğunda)
+     * Hoşgeldin ses dosyasını çal. Ekran güç alınca (mod 1 veya 2) bir kez.
      */
     private void playWelcomeAudio() {
         try {

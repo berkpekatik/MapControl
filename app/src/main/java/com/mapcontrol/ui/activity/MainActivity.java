@@ -155,9 +155,13 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
+    /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
+    private int lastOrientation = -1;
+    private LinearLayout shellHost;
+    private boolean portraitShell;
     private LinearLayout sideRail; // Sol kenar çubuğu kök view'ı (Launcher modunda gizlenebilir)
     private LinearLayout mainContent; // Ana içerik kök view'ı (Launcher modunda tam genişlik olur)
-    private FrameLayout.LayoutParams mainContentParams;
+    private LinearLayout.LayoutParams mainContentParams;
     private int sidebarWidthPx;
     private int screenWidthPx;
     private TopBarBuilder topBarBuilder;
@@ -354,14 +358,6 @@ public class MainActivity extends AppCompatActivity {
         mainRootContainer = new FrameLayout(this);
         UiStyles.setRootBackground(mainRootContainer);
 
-        // Sol şerit: geniş ekranda biraz daralt, dar ekranda biraz aç; min/max dp ile clamp
-        android.util.DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        int screenWidth = displayMetrics.widthPixels;
-        int sidebarWidth = computeSidebarWidthPx(screenWidth, displayMetrics.density);
-        int mainContentWidth = screenWidth - sidebarWidth;
-        screenWidthPx = screenWidth;
-        sidebarWidthPx = sidebarWidth;
-        
         // Sol sabit kenar çubuğu (Builder)
         sideRailBuilder = new SideRailBuilder(this, prefs,
                 new SideRailBuilder.SideRailCallback() {
@@ -385,17 +381,8 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.log(msg);
                     }
                 });
-        LinearLayout sideRail = sideRailBuilder.build();
-        this.sideRail = sideRail;
-        
-        // Sol kenar çubuğunu ekle (%20 genişlik, tam yükseklik)
-        FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
-                sidebarWidth,
-                FrameLayout.LayoutParams.MATCH_PARENT);
-        railParams.gravity = android.view.Gravity.START;
-        mainRootContainer.addView(sideRail, railParams);
 
-        // Ana içerik alanı (ekranın %80'i, header dahil)
+        // Ana içerik alanı (yatayda sağ kolon, dikeyde şeridin altı)
         LinearLayout mainContent = new LinearLayout(this);
         mainContent.setOrientation(LinearLayout.VERTICAL);
         mainContent.setBackgroundColor(UiStyles.color(this, R.color.transparent));
@@ -438,14 +425,7 @@ public class MainActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0, 1f);
         mainContent.addView(tabContentArea, tabContentParams);
-        
-        // Ana içeriği ekle (sağ %80'lik alan)
-        FrameLayout.LayoutParams mainContentParams = new FrameLayout.LayoutParams(
-                mainContentWidth,
-                FrameLayout.LayoutParams.MATCH_PARENT);
-        mainContentParams.gravity = android.view.Gravity.END; // Sağa hizala
-        mainRootContainer.addView(mainContent, mainContentParams);
-        this.mainContentParams = mainContentParams;
+        mountShell(isPortraitConfiguration());
         
         // WebServerManager'ı başlat
         webServerManager = new WebServerManager(this);
@@ -830,6 +810,7 @@ public class MainActivity extends AppCompatActivity {
         launcherScrollView = launcherTabBuilder.build();
 
         presentMainUi(mainRootContainer);
+        lastOrientation = getResources().getConfiguration().orientation;
         lastNightModeUiBits = getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         UiStyles.setUiModeOverride(getResources().getConfiguration());
@@ -1164,7 +1145,15 @@ public class MainActivity extends AppCompatActivity {
             sideRailBuilder.setLauncherModeActive(active);
         }
         if (mainContent != null && mainContentParams != null) {
-            mainContentParams.width = active ? screenWidthPx : (screenWidthPx - sidebarWidthPx);
+            if (portraitShell) {
+                mainContentParams.width = LinearLayout.LayoutParams.MATCH_PARENT;
+                mainContentParams.height = 0;
+                mainContentParams.weight = 1f;
+            } else {
+                mainContentParams.width = active ? screenWidthPx : (screenWidthPx - sidebarWidthPx);
+                mainContentParams.height = LinearLayout.LayoutParams.MATCH_PARENT;
+                mainContentParams.weight = 0f;
+            }
             mainContent.setLayoutParams(mainContentParams);
         }
         if (topBarBuilder != null) {
@@ -1383,6 +1372,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        if (newConfig.orientation != lastOrientation) {
+            lastOrientation = newConfig.orientation;
+            mountShell(newConfig.orientation == Configuration.ORIENTATION_PORTRAIT);
+            boolean launcherMode = LauncherModeManager.isEnabled(this);
+            if (sideRailBuilder != null) {
+                sideRailBuilder.setLauncherModeActive(launcherMode);
+                if (currentTab != TAB_LAUNCHER) {
+                    sideRailBuilder.setSelectionForTabIndex(currentTab);
+                }
+            }
+            applyLauncherChrome(launcherMode);
+            rebuildLauncherForOrientation();
+        }
         int night = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
         if (night == lastNightModeUiBits) {
             return;
@@ -1425,22 +1427,94 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void rebuildSideRailForUiMode() {
-        if (sideRailBuilder == null || mainRootContainer == null) {
+        if (sideRailBuilder == null || shellHost == null) {
             return;
         }
         boolean launcherActive = LauncherModeManager.isEnabled(this);
         int selectTab = currentTab == TAB_LAUNCHER ? 0 : currentTab;
         if (sideRail != null) {
-            mainRootContainer.removeView(sideRail);
+            shellHost.removeView(sideRail);
         }
-        sideRail = sideRailBuilder.build();
-        FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
-                sidebarWidthPx > 0 ? sidebarWidthPx : FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.MATCH_PARENT);
-        railParams.gravity = android.view.Gravity.START;
-        mainRootContainer.addView(sideRail, 0, railParams);
+        sideRail = portraitShell ? sideRailBuilder.buildPortrait() : sideRailBuilder.build();
+        LinearLayout.LayoutParams railParams = portraitShell
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                : new LinearLayout.LayoutParams(
+                        sidebarWidthPx,
+                        LinearLayout.LayoutParams.MATCH_PARENT);
+        shellHost.addView(sideRail, 0, railParams);
         sideRailBuilder.setLauncherModeActive(launcherActive);
         sideRailBuilder.setSelectionForTabIndex(selectTab);
+    }
+
+    private boolean isPortraitConfiguration() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    /**
+     * Yatay: sol şerit + sağ içerik. Dikey: üstte kaydırılan menü, içerik tam genişlik.
+     * Genişlikler configChanges yüzünden activity yeniden kurulmadan burada ölçülür.
+     */
+    private void mountShell(boolean portrait) {
+        portraitShell = portrait;
+        android.util.DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        screenWidthPx = displayMetrics.widthPixels;
+        sidebarWidthPx = portrait ? 0 : computeSidebarWidthPx(screenWidthPx, displayMetrics.density);
+
+        if (shellHost == null) {
+            shellHost = new LinearLayout(this);
+            shellHost.setBackgroundColor(UiStyles.color(this, R.color.transparent));
+            mainRootContainer.addView(shellHost, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+        shellHost.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        shellHost.removeAllViews();
+
+        sideRail = portrait ? sideRailBuilder.buildPortrait() : sideRailBuilder.build();
+        LinearLayout.LayoutParams railParams = portrait
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                : new LinearLayout.LayoutParams(
+                        sidebarWidthPx,
+                        LinearLayout.LayoutParams.MATCH_PARENT);
+        shellHost.addView(sideRail, railParams);
+
+        if (mainContent.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) mainContent.getParent()).removeView(mainContent);
+        }
+        if (portrait) {
+            mainContentParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f);
+        } else {
+            mainContentParams = new LinearLayout.LayoutParams(
+                    screenWidthPx - sidebarWidthPx,
+                    LinearLayout.LayoutParams.MATCH_PARENT);
+        }
+        shellHost.addView(mainContent, mainContentParams);
+    }
+
+    /** Launcher kartları yön değişince yeniden dizilir; normal sekmeler kaydırılmaya devam eder. */
+    private void rebuildLauncherForOrientation() {
+        if (launcherTabBuilder == null) {
+            return;
+        }
+        boolean show = currentTab == TAB_LAUNCHER;
+        launcherTabBuilder.onTabHidden();
+        if (launcherScrollView != null
+                && launcherScrollView.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) launcherScrollView.getParent()).removeView(launcherScrollView);
+        }
+        launcherScrollView = launcherTabBuilder.build();
+        if (show && tabContentArea != null) {
+            tabContentArea.removeAllViews();
+            attachTabContent(TAB_LAUNCHER);
+            applyTabChrome(TAB_LAUNCHER);
+        }
     }
 
     private void rebuildTopBarForUiMode() {

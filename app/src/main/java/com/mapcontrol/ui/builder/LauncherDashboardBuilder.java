@@ -3,6 +3,7 @@ package com.mapcontrol.ui.builder;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.util.TypedValue;
@@ -145,33 +146,62 @@ public final class LauncherDashboardBuilder implements
         // Dış sarmalayıcı kart yok — sadece 3 iç cam kart.
         root.setBackgroundColor(UiStyles.color(context, R.color.transparent));
 
+        boolean portrait = context.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
         LinearLayout cardsRow = new LinearLayout(context);
-        cardsRow.setOrientation(LinearLayout.HORIZONTAL);
+        cardsRow.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         cardsRow.setBaselineAligned(false);
         int cardGap = UiStyles.dimenPx(context, R.dimen.launcher_dashboard_card_gap);
 
         LinearLayout quickCard = buildQuickAccessCard();
         quickAccessCard = quickCard;
-        LinearLayout.LayoutParams quickLp = weightedLp(0.22f);
-        quickLp.setMarginEnd(cardGap / 2);
-        cardsRow.addView(quickCard, quickLp);
-
         vehicleCard = buildVehicleCard();
-        LinearLayout.LayoutParams vehicleLp = weightedLp(0.56f);
-        vehicleLp.setMarginStart(cardGap / 2);
-        vehicleLp.setMarginEnd(cardGap / 2);
-        cardsRow.addView(vehicleCard, vehicleLp);
-
         musicDriveCard = buildMusicDriveCard();
-        LinearLayout.LayoutParams musicDriveLp = weightedLp(0.22f);
-        musicDriveLp.setMarginStart(cardGap / 2);
         musicDriveCard.setMinimumWidth(0);
-        cardsRow.addView(musicDriveCard, musicDriveLp);
 
-        LinearLayout.LayoutParams cardsRowLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f);
+        if (portrait) {
+            int screenH = context.getResources().getDisplayMetrics().heightPixels;
+            float density = context.getResources().getDisplayMetrics().density;
+            int sideH = Math.max(Math.round(screenH * 0.42f), Math.round(360 * density));
+            int vehicleH = Math.max(Math.round(screenH * 0.62f), Math.round(480 * density));
+            LinearLayout.LayoutParams quickLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, sideH);
+            quickLp.bottomMargin = cardGap / 2;
+            cardsRow.addView(quickCard, quickLp);
+
+            LinearLayout.LayoutParams vehicleLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, vehicleH);
+            vehicleLp.topMargin = cardGap / 2;
+            vehicleLp.bottomMargin = cardGap / 2;
+            cardsRow.addView(vehicleCard, vehicleLp);
+
+            LinearLayout.LayoutParams musicDriveLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, sideH);
+            musicDriveLp.topMargin = cardGap / 2;
+            cardsRow.addView(musicDriveCard, musicDriveLp);
+        } else {
+            LinearLayout.LayoutParams quickLp = weightedLp(0.22f);
+            quickLp.setMarginEnd(cardGap / 2);
+            cardsRow.addView(quickCard, quickLp);
+
+            LinearLayout.LayoutParams vehicleLp = weightedLp(0.56f);
+            vehicleLp.setMarginStart(cardGap / 2);
+            vehicleLp.setMarginEnd(cardGap / 2);
+            cardsRow.addView(vehicleCard, vehicleLp);
+
+            LinearLayout.LayoutParams musicDriveLp = weightedLp(0.22f);
+            musicDriveLp.setMarginStart(cardGap / 2);
+            cardsRow.addView(musicDriveCard, musicDriveLp);
+        }
+
+        LinearLayout.LayoutParams cardsRowLp = portrait
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                : new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f);
         root.addView(cardsRow, cardsRowLp);
 
         applySnapshot(repository.currentSnapshot());

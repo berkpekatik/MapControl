@@ -335,7 +335,7 @@
     <string name="launcher_shortcut_projection">Projection</string>
     <string name="launcher_shortcut_apps">Apps</string>
     <string name="launcher_shortcut_drive">Memory</string>
-    <string name="launcher_shortcut_welcome">Welcome</string>
+    <string name="launcher_shortcut_welcome">Welcome Screen</string>
     <string name="launcher_shortcut_settings">Settings</string>
     <string name="onboarding_title">Map Control</string>
     <string name="onboarding_subtitle">Choose your language to get started</string>

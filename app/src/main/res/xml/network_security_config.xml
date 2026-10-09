@@ -4,6 +4,8 @@
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <!-- Araç imajında DigiCert Global Root G3 yok; Dropbox APK indirmesi bu köke bağlı. -->
+            <certificates src="@raw/digicert_global_root_g3" />
         </trust-anchors>
     </base-config>
     

@@ -10,6 +10,8 @@ import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
+import android.text.TextUtils;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -157,7 +159,63 @@ public class SideRailBuilder {
         sideRail.addView(menuScrollView, menuScrollParams);
 
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        bindMenuClicks();
+        return sideRail;
+    }
 
+    /**
+     * Dikey ekran: sol kolon yok. Aynı sekmeler üstte yatay kaydırılan ikon + kısa etiket şeridi.
+     */
+    public LinearLayout buildPortrait() {
+        sideRail = new LinearLayout(context);
+        sideRail.setOrientation(LinearLayout.VERTICAL);
+        UiStyles.setRailPanelBackground(sideRail);
+
+        HorizontalScrollView menuScroll = new HorizontalScrollView(context);
+        menuScroll.setHorizontalScrollBarEnabled(false);
+        menuScroll.setFillViewport(true);
+
+        LinearLayout menuContainer = new LinearLayout(context);
+        menuContainer.setOrientation(LinearLayout.HORIZONTAL);
+        menuContainer.setGravity(Gravity.CENTER_VERTICAL);
+
+        menuWifi = createPortraitRailItem(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
+        menuApps = createPortraitRailItem(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
+        menuFileUpload = createPortraitRailItem(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
+        menuProfile = createPortraitRailItem(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
+        menuDriveMode = createPortraitRailItem(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
+        menuWelcomeSound = createPortraitRailItem(R.drawable.ic_mdi_volume_high,
+                t(R.string.side_rail_welcome_sound));
+        menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuProjection = createPortraitRailItem(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
+        menuVehicleInfo = createPortraitRailItem(R.drawable.ic_mdi_speedometer,
+                t(R.string.side_rail_vehicle_info));
+        menuSettings = createPortraitRailItem(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
+
+        menuContainer.addView(menuWifi);
+        menuContainer.addView(menuApps);
+        menuContainer.addView(menuFileUpload);
+        menuContainer.addView(menuDriveMode);
+        menuContainer.addView(menuWelcomeSound);
+        menuTest.setVisibility(View.GONE);
+        menuContainer.addView(menuTest);
+        menuContainer.addView(menuProjection);
+        menuContainer.addView(menuVehicleInfo);
+        menuContainer.addView(menuSettings);
+
+        menuScroll.addView(menuContainer, new HorizontalScrollView.LayoutParams(
+                HorizontalScrollView.LayoutParams.WRAP_CONTENT,
+                HorizontalScrollView.LayoutParams.WRAP_CONTENT));
+        sideRail.addView(menuScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        bindMenuClicks();
+        return sideRail;
+    }
+
+    private void bindMenuClicks() {
         menuWifi.setOnClickListener(v -> {
             callback.onTabSelected(TAB_WIFI, t(R.string.side_rail_wifi));
             updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
@@ -167,12 +225,6 @@ public class SideRailBuilder {
             callback.onTabSelected(TAB_FILE, t(R.string.side_rail_web));
             updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
-
-        // Temporarily hidden: Profile tab navigation from the side rail.
-        // menuProfile.setOnClickListener(v -> {
-        //     callback.onTabSelected(TAB_PROFILE, t(R.string.side_rail_profile));
-        //     updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
-        // });
 
         menuProjection.setOnClickListener(v -> {
             callback.onTabSelected(TAB_PROJECTION, t(R.string.side_rail_projection));
@@ -208,8 +260,6 @@ public class SideRailBuilder {
             callback.onTabSelected(TAB_WELCOME_SOUND, t(R.string.side_rail_welcome_sound));
             updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
         });
-
-        return sideRail;
     }
 
     /**
@@ -336,6 +386,52 @@ public class SideRailBuilder {
         itemLayout.setTag(R.id.side_rail_icon, iconView);
         itemLayout.setTag(R.id.side_rail_label, textView);
 
+        return itemLayout;
+    }
+
+    private LinearLayout createPortraitRailItem(int iconResId, String text) {
+        float density = context.getResources().getDisplayMetrics().density;
+        LinearLayout itemLayout = new LinearLayout(context);
+        itemLayout.setOrientation(LinearLayout.VERTICAL);
+        int padH = (int) (14 * density);
+        int padV = (int) (10 * density);
+        itemLayout.setPadding(padH, padV, padH, padV);
+        itemLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        itemLayout.setClickable(true);
+        itemLayout.setFocusable(true);
+        itemLayout.setMinimumWidth((int) (88 * density));
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        int m = (int) (4 * density);
+        params.setMargins(m, m, m, m);
+        itemLayout.setLayoutParams(params);
+
+        int iconSize = (int) (28 * density);
+        AppCompatImageView iconView = new AppCompatImageView(context);
+        iconView.setImageResource(iconResId);
+        iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        iconView.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textSecondary)));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        iconLp.gravity = Gravity.CENTER_HORIZONTAL;
+        itemLayout.addView(iconView, iconLp);
+
+        TextView textView = new TextView(context);
+        textView.setText(text);
+        textView.setTextSize(12);
+        textView.setMaxLines(1);
+        textView.setEllipsize(TextUtils.TruncateAt.END);
+        textView.setTextColor(UiStyles.color(context, R.color.textSecondary));
+        textView.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        textParams.topMargin = (int) (4 * density);
+        itemLayout.addView(textView, textParams);
+
+        itemLayout.setTag(R.id.side_rail_icon, iconView);
+        itemLayout.setTag(R.id.side_rail_label, textView);
         return itemLayout;
     }
 
