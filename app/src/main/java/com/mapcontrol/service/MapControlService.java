@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -33,12 +34,17 @@ import java.io.IOException;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.util.BootSession;
+import com.mapcontrol.util.StartupGate;
+import com.mapcontrol.ui.welcome.WelcomeDesignCatalog;
 import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
@@ -48,6 +54,8 @@ public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
     private static final int NOTIFICATION_ID = 1;
     private static final String TAG = "MapControlService";
+    private static final int UI_LAUNCH_ATTEMPTS = 8;
+    private static final long UI_LAUNCH_RETRY_MS = 1000L;
 
     /** Bench: {@link com.mapcontrol.manager.ClusterVDBusBenchManager} — power modu olmadan cluster aç. */
     public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
@@ -71,6 +79,10 @@ public class MapControlService extends Service {
     /** Hoşgeldin: ekran güç alınca bir kez. 1→2 geçişinde tekrar açılmaz. */
     private int lastWelcomePowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
+    private int uiLaunchAttempts;
+    private long nextUiLaunchAt;
+    private CarSystemGestureController carSystemGestureController;
+    private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
     
     /**
      * Log mesajını MainActivity'ye gönder (sistem kayıtlarına)
@@ -89,13 +101,35 @@ public class MapControlService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduleClusterBootSplash();
+        scheduleEqualizerKeeper();
 
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
         MapControlVDBusKeyBridge.acquire(this);
+        carSystemGestureController = new CarSystemGestureController(this, new CarSystemGestureController.Host() {
+            @Override
+            public void openCluster() {
+                openClusterDisplay();
+            }
+
+            @Override
+            public void closeCluster() {
+                closeClusterDisplay(true);
+            }
+        });
+        gesturePrefListener = (sharedPreferences, key) -> {
+            if (key == null || CarSystemGestureController.PREF_ENABLED.equals(key)) {
+                if (carSystemGestureController != null) {
+                    carSystemGestureController.syncRegistration();
+                }
+            }
+        };
+        TargetPackageStore.prefs(this).registerOnSharedPreferenceChangeListener(gesturePrefListener);
+        carSystemGestureController.syncRegistration();
     }
 
     /**
@@ -132,6 +166,25 @@ public class MapControlService extends Service {
         handler.postDelayed(r, 800L);
     }
 
+    private void scheduleEqualizerKeeper() {
+        if (scheduler == null) {
+            return;
+        }
+        scheduler.scheduleWithFixedDelay(() -> {
+            try {
+                AudioEqualizerController.ensureApplied(MapControlService.this);
+            } catch (Throwable ignored) {
+            }
+        }, 20, 20, TimeUnit.SECONDS);
+    }
+
+    private void applySavedEqualizer() {
+        try {
+            AudioEqualizerController.applySaved(this);
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Foreground service için notification oluştur
@@ -149,6 +202,8 @@ public class MapControlService extends Service {
                 .build();
 
         startForeground(NOTIFICATION_ID, notification);
+        applySavedEqualizer();
+        noteBootLaunch(intent);
 
         // Yüzen geri tuşu + yan menü (birleşik hub)
         ensureFloatingBackButtonIfEnabled();
@@ -174,6 +229,20 @@ public class MapControlService extends Service {
         return START_STICKY;
     }
 
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        try {
+            Intent restart = new Intent(getApplicationContext(), MapControlService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(restart);
+            } else {
+                startService(restart);
+            }
+        } catch (Exception ignored) {
+        }
+        super.onTaskRemoved(rootIntent);
+    }
+
     /**
      * Ayarlarda açık kayıtlıysa (varsayılan: açık) overlay'i ana iş parçacığında çizer.
      */
@@ -191,6 +260,15 @@ public class MapControlService extends Service {
 
     @Override
     public void onDestroy() {
+        if (gesturePrefListener != null) {
+            TargetPackageStore.prefs(this).unregisterOnSharedPreferenceChangeListener(gesturePrefListener);
+            gesturePrefListener = null;
+        }
+        if (carSystemGestureController != null) {
+            carSystemGestureController.release();
+            carSystemGestureController = null;
+        }
+        AudioEqualizerController.release();
         super.onDestroy();
         if (scheduler != null) {
             scheduler.shutdown();
@@ -357,8 +435,9 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Ekran güç alır almaz (mod 1 veya doğrudan 2) karşılama ekranını ve sesi açar.
-     * Motor çalışınca tekrarlamaz; araç kapanıp yeniden açılınca bir kez daha gelir.
+     * Ekran güç alır almaz karşılama açılır. Araç kapanınca kayıt silinir, sonraki açılışta yeniden gelir.
+     * Süreç araç açıkken yeniden doğarsa aynı açılışta ikinci karşılama basılmaz.
+     * Ana ekran, açılış yayını bekleyen isteği güç 1 veya üzerindeyken açar.
      */
     private void pollWelcomeScreen() {
         try {
@@ -377,16 +456,89 @@ public class MapControlService extends Service {
             }
             int mode = pwrItems[0];
             int previous = lastWelcomePowerMode;
-            if (previous == mode) {
+            if (previous == mode && mode < 1) {
                 return;
             }
-            lastWelcomePowerMode = mode;
-            if (mode >= 1 && previous < 1) {
+            if (previous != mode) {
+                lastWelcomePowerMode = mode;
+            }
+            SharedPreferences prefs = getSharedPreferences(WelcomeDesignCatalog.PREFS_NAME, MODE_PRIVATE);
+            boolean designEnabled = !WelcomeDesignCatalog.ID_OFF.equals(WelcomeDesignCatalog.savedId(prefs));
+            StartupGate gate = StartupGate.decide(
+                    previous,
+                    mode,
+                    BootSession.isWelcomeShown(this),
+                    designEnabled,
+                    BootSession.isUiPending(this));
+            if (gate.clearWelcome) {
+                BootSession.clearWelcomeShown(this);
+                uiLaunchAttempts = 0;
+            }
+            if (gate.showWelcome) {
                 playWelcomeAudio();
                 WelcomeScreenPresenter.showSaved(this);
+                BootSession.markWelcomeShown(this);
+            }
+            if (gate.launchUi) {
+                maybeLaunchHome();
             }
         } catch (Exception e) {
             log("❌ Hoşgeldin ekranı kontrol hatası: " + e.getMessage());
+        }
+    }
+
+    private void noteBootLaunch(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(BootReceiver.EXTRA_BOOT, false)) {
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
+        boolean ui = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
+        BootSession.setUiPending(this, ui);
+        if (!ui) {
+            return;
+        }
+        uiLaunchAttempts = 0;
+        nextUiLaunchAt = 0L;
+        if (lastWelcomePowerMode >= 1) {
+            maybeLaunchHome();
+        }
+    }
+
+    private void maybeLaunchHome() {
+        if (!BootSession.isUiPending(this) || uiLaunchAttempts >= UI_LAUNCH_ATTEMPTS) {
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (now < nextUiLaunchAt) {
+            return;
+        }
+        nextUiLaunchAt = now + UI_LAUNCH_RETRY_MS;
+        if (handler != null) {
+            handler.post(this::tryLaunchHome);
+        } else {
+            tryLaunchHome();
+        }
+    }
+
+    private void tryLaunchHome() {
+        if (!BootSession.isUiPending(this)) {
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
+        if (!prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true)) {
+            BootSession.setUiPending(this, false);
+            return;
+        }
+        try {
+            Intent activityIntent = new Intent(this, MainActivity.class);
+            activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(activityIntent);
+            BootSession.setUiPending(this, false);
+            uiLaunchAttempts = 0;
+        } catch (Exception e) {
+            uiLaunchAttempts++;
         }
     }
 

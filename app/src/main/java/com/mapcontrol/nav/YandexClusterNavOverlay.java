@@ -57,6 +57,9 @@ public final class YandexClusterNavOverlay {
     private LinearLayout etaTimeRow;
     private LinearLayout maneuverCard;
     private LinearLayout etaCard;
+    private LinearLayout topRow;
+    private FrameLayout.LayoutParams topRowLp;
+    private int layoutTopMargin;
     private WindowManager.LayoutParams overlayLayoutParams;
     private int appliedLayoutVersion = -1;
     private long lastZOrderRaiseUptimeMs = 0L;
@@ -264,6 +267,44 @@ public final class YandexClusterNavOverlay {
         etaTimeRow = null;
         maneuverCard = null;
         etaCard = null;
+        topRow = null;
+        topRowLp = null;
+    }
+
+    /** Yansıtma sekmesindeki X/Y kaydırma; overlay açıksa anında uygulanır. */
+    public void applyStoredOffsets() {
+        mainHandler.post(this::applyStoredOffsetsOnMain);
+    }
+
+    private void applyStoredOffsetsOnMain() {
+        if (maneuverCard == null || etaCard == null) {
+            return;
+        }
+        Context ctx = displayContext != null ? displayContext : appContext;
+        if (topRow != null) {
+            topRow.setTranslationX(0f);
+            topRow.setTranslationY(0f);
+        }
+        if (topRowLp != null) {
+            topRowLp.topMargin = layoutTopMargin;
+            topRow.setLayoutParams(topRowLp);
+        }
+
+        ClusterNavOverlayOffsets.CardLayout maneuver =
+                ClusterNavOverlayOffsets.getCardLayout(
+                        appContext, ClusterNavOverlayOffsets.Provider.YANDEX,
+                        ClusterNavOverlayOffsets.Card.MANEUVER);
+        ClusterNavOverlayOffsets.CardLayout eta =
+                ClusterNavOverlayOffsets.getCardLayout(
+                        appContext, ClusterNavOverlayOffsets.Provider.YANDEX,
+                        ClusterNavOverlayOffsets.Card.ETA);
+
+        ClusterNavOverlayOffsets.applyTranslationAndScale(
+                maneuverCard, ctx,
+                maneuver.offsetXDp, maneuver.offsetYDp, maneuver.scalePercent);
+        ClusterNavOverlayOffsets.applyTranslationAndScale(
+                etaCard, ctx,
+                eta.offsetXDp, eta.offsetYDp, eta.scalePercent);
     }
 
     private void ensureOverlay() {
@@ -328,10 +369,14 @@ public final class YandexClusterNavOverlay {
 
     private View buildOverlay(Context ctx) {
         FrameLayout root = new FrameLayout(ctx);
+        root.setClipChildren(false);
+        root.setClipToPadding(false);
 
-        LinearLayout topRow = new LinearLayout(ctx);
+        topRow = new LinearLayout(ctx);
         topRow.setOrientation(LinearLayout.HORIZONTAL);
         topRow.setGravity(Gravity.CENTER_HORIZONTAL);
+        topRow.setClipChildren(false);
+        topRow.setClipToPadding(false);
 
         maneuverCard = createManeuverCard(ctx);
         maneuverDistanceView = createManeuverText(ctx, 30, true);
@@ -378,13 +423,15 @@ public final class YandexClusterNavOverlay {
 
         topRow.addView(etaCard, cardLp(ctx));
 
-        FrameLayout.LayoutParams rowLp = new FrameLayout.LayoutParams(
+        layoutTopMargin = dp(ctx, TOP_MARGIN_DP);
+        topRowLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        rowLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        rowLp.topMargin = dp(ctx, TOP_MARGIN_DP);
-        root.addView(topRow, rowLp);
+        topRowLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        topRowLp.topMargin = layoutTopMargin;
+        root.addView(topRow, topRowLp);
 
+        applyStoredOffsetsOnMain();
         return root;
     }
 

@@ -61,13 +61,14 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
-        super.onDestroy();
+        InstallerConfirmClicker.disarm();
         try {
             YandexClusterNavOverlay.getInstance(this).hide();
         } catch (Exception ignored) {
         }
         lastGuidanceActive = false;
         instance = null;
+        super.onDestroy();
     }
 
     /**

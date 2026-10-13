@@ -29,12 +29,6 @@ import java.lang.ref.WeakReference;
  */
 public final class GoogleMapsNavNotificationCoordinator {
 
-    /**
-     * Geçici: navigasyon bildirimi gelince cluster yansıtmasını otomatik açma.
-     * Tekrar açmak için {@code false} yapın.
-     */
-    private static final boolean TEMPORARILY_DISABLE_AUTO_CLUSTER_OPEN = true;
-
     public static final String PREF_AUTO_PROJECTION = "google_maps_notification_auto_projection";
     public static final String ACTION_GOOGLE_MAPS_NAV_SNAPSHOT =
             "com.mapcontrol.action.GOOGLE_MAPS_NAV_SNAPSHOT";
@@ -64,14 +58,14 @@ public final class GoogleMapsNavNotificationCoordinator {
     }
 
     public static boolean isAutoProjectionEnabled(Context context) {
-        if (TEMPORARILY_DISABLE_AUTO_CLUSTER_OPEN) {
-            return false;
-        }
         return TargetPackageStore.prefs(context).getBoolean(PREF_AUTO_PROJECTION, true);
     }
 
     public static void setAutoProjectionEnabled(Context context, boolean enabled) {
         TargetPackageStore.prefs(context).edit().putBoolean(PREF_AUTO_PROJECTION, enabled).apply();
+        if (enabled) {
+            resyncActiveNotifications(listenerService());
+        }
     }
 
     public static GoogleMapsNavSnapshot getLastSnapshot() {
@@ -84,6 +78,11 @@ public final class GoogleMapsNavNotificationCoordinator {
 
     public static void onListenerDisconnected() {
         serviceRef = null;
+    }
+
+    /** Bildirim dinleyicisi sürece bağlı mı. Ayarlarda açık olmak bağlantı demek değildir. */
+    public static boolean isListenerBound() {
+        return listenerService() != null;
     }
 
     public static void onNotificationPosted(Context context, @Nullable StatusBarNotification sbn) {
@@ -144,6 +143,7 @@ public final class GoogleMapsNavNotificationCoordinator {
                 activeNavKey = pick.key;
                 activeScore = pick.score;
                 publish(service, pick.snapshot);
+                requestOpenIfEligible(service.getApplicationContext());
                 return;
             }
             if (lastSnapshot.active) {
@@ -333,9 +333,6 @@ public final class GoogleMapsNavNotificationCoordinator {
     }
 
     private static void requestOpenIfEligible(Context app) {
-        if (TEMPORARILY_DISABLE_AUTO_CLUSTER_OPEN) {
-            return;
-        }
         if (!isAutoProjectionEnabled(app)) {
             return;
         }

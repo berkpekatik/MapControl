@@ -1,4 +1,7 @@
 package com.mapcontrol.ui.activity;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.ActivityOptions;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
@@ -16,6 +19,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.graphics.drawable.Drawable;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
@@ -27,6 +31,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -68,6 +73,7 @@ import com.mapcontrol.service.ServiceInitializer;
 import com.mapcontrol.ui.builder.AppsTabBuilder;
 import com.mapcontrol.ui.builder.AssistTabBuilder;
 import com.mapcontrol.ui.builder.DriveModeTabBuilder;
+import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
 import com.mapcontrol.ui.builder.LauncherTabBuilder;
 import com.mapcontrol.ui.builder.LogTabBuilder;
@@ -98,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_OPEN_PROJECTION_TARGET_PICKER = "com.mapcontrol.extra.OPEN_PROJECTION_TARGET_PICKER";
     /** Araç Launcher Modu "Ana Ekran" karşılama sekmesinin {@code switchTab} indeksi. */
     private static final int TAB_LAUNCHER = 10;
+    private static final int TAB_EQUALIZER = 11;
     private TextView tvLogs;
     private ScrollView scrollView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -122,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
     private ScrollView fileUploadScrollView; // Web Yönetimi tab ScrollView
     private FileUploadTabBuilder fileUploadTabBuilder;
     private WelcomeSoundTabBuilder welcomeSoundTabBuilder;
+    private EqualizerTabBuilder equalizerTabBuilder;
     private VehicleInfoTabBuilder vehicleInfoTabBuilder;
     private VehicleMetricsRepository vehicleMetricsRepository;
     private ScrollView vehicleInfoScrollView;
@@ -134,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
     private LogTabBuilder logTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
-    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher)
+    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
@@ -164,6 +172,8 @@ public class MainActivity extends AppCompatActivity {
     private int sidebarWidthPx;
     private int screenWidthPx;
     private TopBarBuilder topBarBuilder;
+    /** Menü yumuşatması: içerik alfa’sı değil, tema renkli örtü. İptal edilen geçiş burada durur. */
+    private final IdentityHashMap<View, ValueAnimator> transitionVeils = new IdentityHashMap<>();
     private ProjectionTabBuilder projectionTabBuilder;
     /** Yüzen kontrolden veya tekilleştirilmiş intent ile hedef uygulama diyaloğu ertelenmiş. */
     private boolean deferredOpenProjectionTargetPicker;
@@ -708,6 +718,7 @@ public class MainActivity extends AppCompatActivity {
         scrollView = logTabBuilder.getScrollView();
 
         welcomeSoundTabBuilder = new WelcomeSoundTabBuilder(this, prefs);
+        equalizerTabBuilder = new EqualizerTabBuilder(this);
 
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
 
@@ -843,6 +854,21 @@ public class MainActivity extends AppCompatActivity {
         DisplayHelper.stopAppLaunchSplashAnimations();
         launchSplashRoot = null;
         setContentView(mainRoot);
+        applyThemedWindowBackground();
+    }
+
+    /**
+     * Pencere arka planı açılış splash temasında kalır. Menü yumuşatması veya alfa düşüşü
+     * bu yüzeyi gösterince gece modunda açık gradient flaş gibi patlar; güncel paleti bas.
+     */
+    private void applyThemedWindowBackground() {
+        if (getWindow() == null) {
+            return;
+        }
+        Drawable background = UiStyles.drawable(this, R.drawable.bg_root_gradient);
+        if (background != null) {
+            getWindow().setBackgroundDrawable(background);
+        }
     }
 
     /**
@@ -1006,10 +1032,10 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Tab değiştirme metodu
-     * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi
+     * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
      */
     private void switchTab(int tabIndex) {
-        if (tabContentArea == null || projectionTabContent == null || wifiTabContent == null || logTabContent == null || appsTabContent == null || driveModeTabContent == null || fileUploadTabContent == null || welcomeSoundTabBuilder == null || vehicleInfoScrollView == null) {
+        if (tabContentArea == null || projectionTabContent == null || wifiTabContent == null || logTabContent == null || appsTabContent == null || driveModeTabContent == null || fileUploadTabContent == null || welcomeSoundTabBuilder == null || equalizerTabBuilder == null || vehicleInfoScrollView == null) {
             return;
         }
 
@@ -1075,6 +1101,8 @@ public class MainActivity extends AppCompatActivity {
             addTabChild(parent, welcomeSoundTabBuilder.getScrollView(), matchParent);
         } else if (tabIndex == 9) {
             addTabChild(parent, vehicleInfoScrollView, matchParent);
+        } else if (tabIndex == TAB_EQUALIZER) {
+            addTabChild(parent, equalizerTabBuilder.getScrollView(), matchParent);
         } else if (tabIndex == TAB_LAUNCHER) {
             if (launcherScrollView != null) {
                 addTabChild(parent, launcherScrollView, matchParent);
@@ -1128,6 +1156,10 @@ public class MainActivity extends AppCompatActivity {
             if (vehicleInfoTabBuilder != null) {
                 vehicleInfoTabBuilder.startListening();
             }
+        } else if (tabIndex == TAB_EQUALIZER) {
+            if (topBarTitle != null) {
+                topBarTitle.setText(getString(R.string.equalizer_title));
+            }
         } else if (tabIndex == TAB_LAUNCHER) {
             if (topBarTitle != null) {
                 topBarTitle.setText(R.string.topbar_vehicle_home);
@@ -1177,30 +1209,103 @@ public class MainActivity extends AppCompatActivity {
 
     /** Fades only the content column (side rail stays put) around a tab switch. */
     private void crossfadeContent(Runnable change) {
-        View target = mainContent;
-        if (target == null) {
-            change.run();
+        crossfadeWithVeil(mainContent, 110L, 200L, change);
+    }
+
+    /** Covers the window, applies the layout switch, then reveals it. */
+    private void crossfadeLauncherTransition(Runnable change) {
+        crossfadeWithVeil(findViewById(android.R.id.content), 140L, 260L, change);
+    }
+
+    /**
+     * İçeriğin kendi alfasını 0’a çekmez. O yol, arkadaki açık pencereyi (veya katman temizleme
+     * rengini) gece modunda flaş gibi gösterir. Örtü {@code bg_root_gradient} olduğu için
+     * gündüz açık, gece koyu tona yumuşar; sekme ve launcher geçişlerinin ikisi de buradan geçer.
+     */
+    private void crossfadeWithVeil(View target, long coverMs, long revealMs, Runnable change) {
+        if (target == null || target.getWidth() <= 0 || target.getHeight() <= 0) {
+            if (change != null) {
+                change.run();
+            }
             return;
         }
         target.animate().cancel();
-        target.animate().alpha(0f).setDuration(110).withEndAction(() -> {
-            change.run();
-            target.animate().alpha(1f).setDuration(200).start();
-        }).start();
-    }
-
-    /** Fades the window out, applies the layout switch, then fades back in. */
-    private void crossfadeLauncherTransition(Runnable change) {
-        View root = findViewById(android.R.id.content);
-        if (root == null) {
-            change.run();
+        target.setAlpha(1f);
+        ValueAnimator running = transitionVeils.remove(target);
+        if (running != null) {
+            running.cancel();
+        }
+        Drawable veil = UiStyles.drawable(this, R.drawable.bg_root_gradient);
+        if (veil == null) {
+            if (change != null) {
+                change.run();
+            }
             return;
         }
-        root.animate().cancel();
-        root.animate().alpha(0f).setDuration(140).withEndAction(() -> {
-            change.run();
-            root.animate().alpha(1f).setDuration(260).start();
-        }).start();
+        veil.setAlpha(0);
+        veil.setBounds(0, 0, target.getWidth(), target.getHeight());
+        target.getOverlay().add(veil);
+        View.OnLayoutChangeListener layout = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                veil.setBounds(0, 0, v.getWidth(), v.getHeight());
+        target.addOnLayoutChangeListener(layout);
+
+        ValueAnimator cover = ValueAnimator.ofInt(0, 255);
+        cover.setDuration(coverMs);
+        cover.addUpdateListener(animation -> veil.setAlpha((int) animation.getAnimatedValue()));
+        transitionVeils.put(target, cover);
+        final boolean[] dropped = {false};
+        cover.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                dropped[0] = true;
+                finishTransitionVeil(target, veil, layout);
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (dropped[0] || transitionVeils.get(target) != cover) {
+                    return;
+                }
+                try {
+                    if (change != null) {
+                        change.run();
+                    }
+                } finally {
+                    veil.setBounds(0, 0, Math.max(target.getWidth(), 0), Math.max(target.getHeight(), 0));
+                    ValueAnimator reveal = ValueAnimator.ofInt(255, 0);
+                    reveal.setDuration(revealMs);
+                    reveal.addUpdateListener(revealAnim -> veil.setAlpha((int) revealAnim.getAnimatedValue()));
+                    transitionVeils.put(target, reveal);
+                    final boolean[] revealDropped = {false};
+                    reveal.addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+                            revealDropped[0] = true;
+                            finishTransitionVeil(target, veil, layout);
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            if (revealDropped[0]) {
+                                return;
+                            }
+                            if (transitionVeils.get(target) == reveal) {
+                                transitionVeils.remove(target);
+                            }
+                            finishTransitionVeil(target, veil, layout);
+                        }
+                    });
+                    reveal.start();
+                }
+            }
+        });
+        cover.start();
+    }
+
+    private void finishTransitionVeil(View target, Drawable veil, View.OnLayoutChangeListener layout) {
+        target.removeOnLayoutChangeListener(layout);
+        target.getOverlay().remove(veil);
+        target.setAlpha(1f);
     }
 
     private void enterLauncherMode() {
@@ -1390,6 +1495,7 @@ public class MainActivity extends AppCompatActivity {
         lastNightModeUiBits = night;
         // AppCompat Activity Resources yapışmasın diye çözümlemeyi newConfig'e kilitle.
         UiStyles.setUiModeOverride(newConfig);
+        applyThemedWindowBackground();
         reapplyUiModeTheme();
     }
 
@@ -1593,6 +1699,9 @@ public class MainActivity extends AppCompatActivity {
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.rebuild();
         }
+        if (equalizerTabBuilder != null) {
+            equalizerTabBuilder.rebuild();
+        }
         if (vehicleInfoTabBuilder != null) {
             boolean listening = currentTab == 9;
             if (listening) {
@@ -1747,6 +1856,9 @@ public class MainActivity extends AppCompatActivity {
         String detail = message != null && !message.isEmpty() ? message : ("status " + status);
         Toast.makeText(this, getString(R.string.apps_install_error, detail), Toast.LENGTH_LONG).show();
         log("[ERROR] APK kurulum sonucu: " + detail);
+        if (appsTabBuilder != null) {
+            appsTabBuilder.clearInstallingProgress();
+        }
     }
 
     @Override

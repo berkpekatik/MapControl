@@ -1,30 +1,49 @@
 package com.mapcontrol.util;
 
 import android.accessibilityservice.AccessibilityService;
-import android.graphics.Rect;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
+import com.mapcontrol.R;
 import com.mapcontrol.service.GlobalBackService;
 
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Paket yükleyici onay penceresindeki INSTALL / Yükle düğmesine basar.
- * MapControl kurulumu ve mağaza uygulamalarının açtığı sistem penceresi için geçerlidir.
+ * Paket yükleyici onay penceresinde 5 sn bekler, sonra INSTALL düğmesine basar.
+ * Yalnızca packageinstaller / permissioncontroller pencereleri.
  */
 public final class InstallerConfirmClicker {
 
     private static final String TAG = "InstallerConfirm";
-    private static final long WINDOW_MS = 8000L;
     private static final long RETRY_MS = 400L;
+    private static final long COOLDOWN_MS = 2500L;
+    private static final int COUNTDOWN_SECONDS = 5;
+    private static final String[] QUESTION_IDS = {
+            "com.android.packageinstaller:id/install_confirm_question",
+            "com.android.packageinstaller:id/install_confirm_question_update",
+            "com.android.packageinstaller:id/install_confirm_question_update_system",
+            "com.google.android.packageinstaller:id/install_confirm_question",
+            "com.miui.packageinstaller:id/install_confirm_question"
+    };
     private static final String[] INSTALL_LABELS = {
-            "install", "yükle", "yukle", "kur", "update", "güncelle", "guncelle"
+            "install", "yükle", "yukle", "kur", "update", "güncelle", "guncelle",
+            "instalar", "actualizar", "установить", "обновить", "安装", "更新",
+            "install anyway", "yine de yükle"
     };
     private static final String[] CANCEL_LABELS = {
             "cancel", "iptal", "vazgeç", "vazgec"
@@ -34,30 +53,36 @@ public final class InstallerConfirmClicker {
     };
 
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
-    private static final long COOLDOWN_MS = 2500L;
-    private static long armedUntil;
     private static long lastScanMs;
     private static long cooldownUntil;
-    private static boolean sawInstaller;
-    private static final Runnable RETRY = new Runnable() {
+    private static boolean pendingArm;
+    private static boolean stripShowing;
+    private static boolean sawInstallerWhileStrip;
+    private static boolean userDismissed;
+    private static int secondsLeft;
+    private static WindowManager windowManager;
+    private static View stripView;
+    private static TextView countdownView;
+
+    private static final Runnable TICK = new Runnable() {
         @Override
         public void run() {
-            if (!isArmed()) {
-                if (armedUntil != 0L) {
-                    armedUntil = 0L;
-                    Log.i(TAG, "INSTALL onayı bulunamadı");
+            if (!stripShowing) {
+                return;
+            }
+            if (secondsLeft <= 1) {
+                AccessibilityService service = GlobalBackService.getInstance();
+                boolean clicked = service != null && clickInstall(service);
+                if (clicked) {
+                    cooldownUntil = SystemClock.uptimeMillis() + COOLDOWN_MS;
                 }
+                Log.i(TAG, "INSTALL onayına basıldı click=" + clicked);
+                dismissStrip();
                 return;
             }
-            GlobalBackService service = GlobalBackService.getInstance();
-            if (service != null && tryClick(service)) {
-                disarm();
-                Log.i(TAG, "INSTALL onayına basıldı");
-                return;
-            }
-            if (isArmed()) {
-                HANDLER.postDelayed(this, RETRY_MS);
-            }
+            secondsLeft--;
+            updateCountdownText();
+            HANDLER.postDelayed(this, 1000L);
         }
     };
 
@@ -65,14 +90,23 @@ public final class InstallerConfirmClicker {
     }
 
     public static void arm() {
-        armedUntil = SystemClock.uptimeMillis() + WINDOW_MS;
-        HANDLER.removeCallbacks(RETRY);
-        HANDLER.post(RETRY);
+        userDismissed = false;
+        AccessibilityService service = GlobalBackService.getInstance();
+        if (service == null) {
+            pendingArm = true;
+            return;
+        }
+        if (stripShowing) {
+            return;
+        }
+        showStrip(service);
     }
 
     public static void disarm() {
-        armedUntil = 0L;
-        HANDLER.removeCallbacks(RETRY);
+        pendingArm = false;
+        userDismissed = false;
+        sawInstallerWhileStrip = false;
+        dismissStrip();
     }
 
     public static void onWindowEvent(AccessibilityService service) {
@@ -80,76 +114,338 @@ public final class InstallerConfirmClicker {
             return;
         }
         long now = SystemClock.uptimeMillis();
-        if (now - lastScanMs < RETRY_MS) {
+        if (!pendingArm && now - lastScanMs < RETRY_MS) {
             return;
         }
         lastScanMs = now;
-        if (tryClick(service)) {
-            cooldownUntil = now + COOLDOWN_MS;
-            disarm();
-            Log.i(TAG, "INSTALL onayına basıldı");
+
+        boolean confirm = hasInstallerConfirm(service);
+        if (userDismissed) {
+            if (!confirm) {
+                userDismissed = false;
+            }
             return;
         }
-        if (sawInstaller) {
-            arm();
+        if (pendingArm && !stripShowing) {
+            pendingArm = false;
+            showStrip(service);
         }
-    }
-
-    private static boolean isArmed() {
-        return armedUntil != 0L && SystemClock.uptimeMillis() < armedUntil;
-    }
-
-    private static boolean tryClick(AccessibilityService service) {
-        sawInstaller = false;
-        boolean clicked = false;
-        List<AccessibilityWindowInfo> windows = service.getWindows();
-        if (windows != null) {
-            for (AccessibilityWindowInfo window : windows) {
-                if (window == null) {
-                    continue;
-                }
-                AccessibilityNodeInfo root = window.getRoot();
-                try {
-                    if (!clicked && root != null && clickInInstallerRoot(service, root)) {
-                        clicked = true;
-                    }
-                } finally {
-                    if (root != null) {
-                        root.recycle();
-                    }
-                    window.recycle();
-                }
+        if (stripShowing) {
+            if (confirm) {
+                sawInstallerWhileStrip = true;
+            } else if (sawInstallerWhileStrip) {
+                dismissStrip();
             }
+            return;
         }
-        if (clicked) {
-            return true;
+        if (confirm) {
+            showStrip(service);
         }
-        AccessibilityNodeInfo active = service.getRootInActiveWindow();
-        if (active == null) {
-            return false;
+    }
+
+    private static void showStrip(AccessibilityService service) {
+        if (stripShowing) {
+            return;
         }
         try {
-            return clickInInstallerRoot(service, active);
-        } finally {
-            active.recycle();
+            windowManager = (WindowManager) service.getSystemService(AccessibilityService.WINDOW_SERVICE);
+            if (windowManager == null) {
+                return;
+            }
+            LinearLayout bar = new LinearLayout(service);
+            bar.setOrientation(LinearLayout.HORIZONTAL);
+            bar.setGravity(Gravity.CENTER_VERTICAL);
+            int pad = dp(service, 16);
+            bar.setPadding(pad, dp(service, 12), pad, dp(service, 12));
+            GradientDrawable background = new GradientDrawable();
+            background.setColor(0xE61B1F27);
+            background.setCornerRadius(dp(service, 18));
+            bar.setBackground(background);
+
+            TextView text = new TextView(service);
+            text.setTextColor(Color.WHITE);
+            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            countdownView = text;
+            secondsLeft = COUNTDOWN_SECONDS;
+            updateCountdownText();
+            bar.addView(text, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            Button cancel = new Button(service);
+            cancel.setText(R.string.installer_confirm_cancel);
+            cancel.setAllCaps(false);
+            cancel.setTextColor(Color.WHITE);
+            cancel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            GradientDrawable cancelBg = new GradientDrawable();
+            cancelBg.setColor(0xFF5C6370);
+            cancelBg.setCornerRadius(dp(service, 12));
+            cancel.setBackground(cancelBg);
+            cancel.setPadding(dp(service, 18), dp(service, 6), dp(service, 18), dp(service, 6));
+            cancel.setMinWidth(0);
+            cancel.setMinHeight(0);
+            cancel.setMinimumWidth(0);
+            cancel.setMinimumHeight(0);
+            cancel.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cancelInstall();
+                }
+            });
+            LinearLayout.LayoutParams cancelLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            cancelLp.leftMargin = dp(service, 12);
+            bar.addView(cancel, cancelLp);
+
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    android.graphics.PixelFormat.TRANSLUCENT);
+            params.gravity = Gravity.BOTTOM;
+            params.y = dp(service, 24);
+            windowManager.addView(bar, params);
+            stripView = bar;
+            stripShowing = true;
+            sawInstallerWhileStrip = hasInstallerConfirm(service);
+            HANDLER.removeCallbacks(TICK);
+            HANDLER.postDelayed(TICK, 1000L);
+        } catch (Exception e) {
+            Log.w(TAG, "Şerit açılamadı", e);
+            stripShowing = false;
+            stripView = null;
+            countdownView = null;
         }
     }
 
-    private static boolean clickInInstallerRoot(AccessibilityService service, AccessibilityNodeInfo root) {
-        if (!isInstallerPackage(root.getPackageName())) {
-            return false;
+    private static void updateCountdownText() {
+        TextView text = countdownView;
+        AccessibilityService service = GlobalBackService.getInstance();
+        if (text == null || service == null) {
+            return;
         }
-        sawInstaller = true;
-        for (String label : INSTALL_LABELS) {
-            if (activateMatches(service, root.findAccessibilityNodeInfosByText(label), true)) {
+        text.setText(service.getString(R.string.installer_confirm_countdown, secondsLeft));
+    }
+
+    private static void cancelInstall() {
+        AccessibilityService service = GlobalBackService.getInstance();
+        if (service != null) {
+            clickViewId(service, "android:id/button2", false);
+        }
+        userDismissed = true;
+        dismissStrip();
+    }
+
+    private static void dismissStrip() {
+        HANDLER.removeCallbacks(TICK);
+        View view = stripView;
+        WindowManager wm = windowManager;
+        stripView = null;
+        countdownView = null;
+        stripShowing = false;
+        sawInstallerWhileStrip = false;
+        if (view != null && wm != null) {
+            try {
+                wm.removeView(view);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static boolean clickInstall(AccessibilityService service) {
+        if (clickViewId(service, "android:id/button1", true)) {
+            return true;
+        }
+        if (clickLabels(service)) {
+            return true;
+        }
+        if (clickIdSuffixes(service)) {
+            return true;
+        }
+        scrollInstaller(service);
+        if (clickViewId(service, "android:id/button1", true)) {
+            return true;
+        }
+        if (clickLabels(service)) {
+            return true;
+        }
+        return clickIdSuffixes(service);
+    }
+
+    private static boolean hasInstallerConfirm(AccessibilityService service) {
+        return anyInstallerRoot(service, new RootHandler() {
+            @Override
+            public boolean handle(AccessibilityNodeInfo root) {
+                return hasQuestion(root) || hasInstallButton(root);
+            }
+        });
+    }
+
+    private static boolean hasQuestion(AccessibilityNodeInfo root) {
+        for (String id : QUESTION_IDS) {
+            if (hasViewId(root, id)) {
                 return true;
             }
         }
-        if (findInstallById(service, root)) {
+        return hasViewIdSuffix(root, "install_confirm_question");
+    }
+
+    private static boolean hasViewId(AccessibilityNodeInfo root, String id) {
+        try {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(id);
+            if (nodes == null) {
+                return false;
+            }
+            boolean found = !nodes.isEmpty();
+            recycle(nodes);
+            return found;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean hasViewIdSuffix(AccessibilityNodeInfo node, String suffix) {
+        String viewId = node.getViewIdResourceName();
+        if (viewId != null && viewId.endsWith("/" + suffix)) {
             return true;
         }
-        scrollForward(root);
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) {
+                continue;
+            }
+            boolean found = hasViewIdSuffix(child, suffix);
+            child.recycle();
+            if (found) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    private static boolean hasInstallButton(AccessibilityNodeInfo root) {
+        for (String label : INSTALL_LABELS) {
+            List<AccessibilityNodeInfo> nodes = findByText(root, label);
+            if (nodes == null) {
+                continue;
+            }
+            try {
+                for (AccessibilityNodeInfo node : nodes) {
+                    if (isEnabledInstallButton(node)) {
+                        return true;
+                    }
+                }
+            } finally {
+                recycle(nodes);
+            }
+        }
+        return false;
+    }
+
+    private static boolean clickViewId(AccessibilityService service, final String viewId, final boolean skipInstallOnCancel) {
+        return anyInstallerRoot(service, new RootHandler() {
+            @Override
+            public boolean handle(AccessibilityNodeInfo root) {
+                List<AccessibilityNodeInfo> nodes;
+                try {
+                    nodes = root.findAccessibilityNodeInfosByViewId(viewId);
+                } catch (Exception ignored) {
+                    return false;
+                }
+                if (nodes == null) {
+                    return false;
+                }
+                try {
+                    for (AccessibilityNodeInfo node : nodes) {
+                        if (node == null || !node.isEnabled()) {
+                            continue;
+                        }
+                        if (skipInstallOnCancel && isCancel(node)) {
+                            continue;
+                        }
+                        if (!skipInstallOnCancel && isInstallLabel(node)) {
+                            continue;
+                        }
+                        if (activate(node)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                } finally {
+                    recycle(nodes);
+                }
+            }
+        });
+    }
+
+    private static boolean clickLabels(AccessibilityService service) {
+        return anyInstallerRoot(service, new RootHandler() {
+            @Override
+            public boolean handle(AccessibilityNodeInfo root) {
+                for (String label : INSTALL_LABELS) {
+                    List<AccessibilityNodeInfo> nodes = findByText(root, label);
+                    if (nodes == null) {
+                        continue;
+                    }
+                    try {
+                        for (AccessibilityNodeInfo node : nodes) {
+                            if (!isEnabledInstallButton(node)) {
+                                continue;
+                            }
+                            if (activate(node)) {
+                                return true;
+                            }
+                        }
+                    } finally {
+                        recycle(nodes);
+                    }
+                }
+                return false;
+            }
+        });
+    }
+
+    private static boolean clickIdSuffixes(AccessibilityService service) {
+        return anyInstallerRoot(service, new RootHandler() {
+            @Override
+            public boolean handle(AccessibilityNodeInfo root) {
+                return activateIdSuffix(root);
+            }
+        });
+    }
+
+    private static boolean activateIdSuffix(AccessibilityNodeInfo node) {
+        String viewId = node.getViewIdResourceName();
+        if (viewId != null && node.isEnabled() && !isCancel(node)) {
+            for (String suffix : INSTALL_IDS) {
+                if (viewId.endsWith("/" + suffix) && activate(node)) {
+                    return true;
+                }
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) {
+                continue;
+            }
+            boolean found = activateIdSuffix(child);
+            child.recycle();
+            if (found) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void scrollInstaller(AccessibilityService service) {
+        anyInstallerRoot(service, new RootHandler() {
+            @Override
+            public boolean handle(AccessibilityNodeInfo root) {
+                scrollForward(root);
+                return true;
+            }
+        });
     }
 
     private static void scrollForward(AccessibilityNodeInfo node) {
@@ -171,52 +467,108 @@ public final class InstallerConfirmClicker {
         }
     }
 
-    private static boolean findInstallById(AccessibilityService service, AccessibilityNodeInfo node) {
-        String viewId = node.getViewIdResourceName();
-        if (viewId != null && node.isEnabled() && !isCancel(node)) {
-            for (String suffix : INSTALL_IDS) {
-                if (viewId.endsWith("/" + suffix)) {
-                    return activate(node);
-                }
-            }
+    private static boolean isEnabledInstallButton(AccessibilityNodeInfo node) {
+        if (node == null || !node.isEnabled() || isCancel(node) || !isInstallLabel(node)) {
+            return false;
         }
-        for (int i = 0; i < node.getChildCount(); i++) {
-            AccessibilityNodeInfo child = node.getChild(i);
-            if (child == null) {
-                continue;
+        if (node.isClickable()) {
+            return true;
+        }
+        CharSequence className = node.getClassName();
+        return className != null && className.toString().contains("Button");
+    }
+
+    private static boolean activate(AccessibilityNodeInfo start) {
+        AccessibilityNodeInfo current = start;
+        for (int i = 0; i < 4 && current != null; i++) {
+            if (isCancel(current)) {
+                if (current != start) {
+                    current.recycle();
+                }
+                return false;
             }
-            boolean found = findInstallById(service, child);
-            child.recycle();
-            if (found) {
+            if (current.isEnabled() && current.isClickable()
+                    && current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                Log.i(TAG, "INSTALL tıklandı id=" + current.getViewIdResourceName());
+                if (current != start) {
+                    current.recycle();
+                }
                 return true;
             }
+            AccessibilityNodeInfo parent = current.getParent();
+            if (current != start) {
+                current.recycle();
+            }
+            current = parent;
+        }
+        if (current != null && current != start) {
+            current.recycle();
         }
         return false;
     }
 
-    private static boolean activateMatches(AccessibilityService service, List<AccessibilityNodeInfo> nodes,
-                                           boolean requireInstallLabel) {
-        if (nodes == null) {
-            return false;
-        }
+    private interface RootHandler {
+        boolean handle(AccessibilityNodeInfo root);
+    }
+
+    private static boolean anyInstallerRoot(AccessibilityService service, RootHandler handler) {
+        boolean handled = false;
         try {
-            for (AccessibilityNodeInfo node : nodes) {
-                if (node == null || !node.isEnabled() || isCancel(node)) {
-                    continue;
-                }
-                if (requireInstallLabel && !isInstallLabel(node)) {
-                    continue;
-                }
-                if (activate(node)) {
-                    return true;
+            List<AccessibilityWindowInfo> windows = service.getWindows();
+            if (windows != null) {
+                for (AccessibilityWindowInfo window : windows) {
+                    if (window == null) {
+                        continue;
+                    }
+                    AccessibilityNodeInfo root = window.getRoot();
+                    try {
+                        if (!handled && root != null && isInstallerPackage(root.getPackageName())) {
+                            handled = handler.handle(root);
+                        }
+                    } finally {
+                        if (root != null) {
+                            root.recycle();
+                        }
+                        window.recycle();
+                    }
                 }
             }
+        } catch (Exception ignored) {
+        }
+        if (handled) {
+            return true;
+        }
+        AccessibilityNodeInfo active = null;
+        try {
+            active = service.getRootInActiveWindow();
+            if (active == null || !isInstallerPackage(active.getPackageName())) {
+                return false;
+            }
+            return handler.handle(active);
+        } catch (Exception ignored) {
             return false;
         } finally {
-            for (AccessibilityNodeInfo node : nodes) {
-                if (node != null) {
-                    node.recycle();
-                }
+            if (active != null) {
+                active.recycle();
+            }
+        }
+    }
+
+    private static List<AccessibilityNodeInfo> findByText(AccessibilityNodeInfo root, String label) {
+        try {
+            return root.findAccessibilityNodeInfosByText(label);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static void recycle(List<AccessibilityNodeInfo> nodes) {
+        if (nodes == null) {
+            return;
+        }
+        for (AccessibilityNodeInfo node : nodes) {
+            if (node != null) {
+                node.recycle();
             }
         }
     }
@@ -263,43 +615,10 @@ public final class InstallerConfirmClicker {
         return text.toString().trim().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean activate(AccessibilityNodeInfo start) {
-        Rect bounds = new Rect();
-        start.getBoundsInScreen(bounds);
-        boolean clicked = clickInstallNode(start, bounds);
-        Log.i(TAG, "INSTALL denemesi click=" + clicked + " bounds=" + bounds);
-        return clicked;
-    }
-
-    private static boolean clickInstallNode(AccessibilityNodeInfo start, Rect labelBounds) {
-        AccessibilityNodeInfo current = start;
-        for (int i = 0; i < 4 && current != null; i++) {
-            if (isCancel(current)) {
-                if (current != start) {
-                    current.recycle();
-                }
-                return false;
-            }
-            Rect currentBounds = new Rect();
-            current.getBoundsInScreen(currentBounds);
-            boolean sameTarget = current == start
-                    || currentBounds.width() <= labelBounds.width() * 2;
-            if (sameTarget && current.isEnabled() && current.isClickable()
-                    && current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                if (current != start) {
-                    current.recycle();
-                }
-                return true;
-            }
-            AccessibilityNodeInfo parent = current.getParent();
-            if (current != start) {
-                current.recycle();
-            }
-            current = parent;
-        }
-        if (current != null && current != start) {
-            current.recycle();
-        }
-        return false;
+    private static int dp(AccessibilityService service, int value) {
+        return (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                value,
+                service.getResources().getDisplayMetrics());
     }
 }

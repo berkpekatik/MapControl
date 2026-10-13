@@ -9,7 +9,7 @@ import com.mapcontrol.R;
 import com.mapcontrol.service.GlobalBackService;
 
 /**
- * Ayarlardan açılınca Yandex durumunu kontrol eder ve cluster overlay'i senkronize eder.
+ * Yansıtma sekmesinden açılınca Yandex durumunu kontrol eder ve cluster overlay'i senkronize eder.
  */
 public final class YandexClusterNavCoordinator {
 

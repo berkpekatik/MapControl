@@ -60,6 +60,13 @@ public final class GoogleMapsClusterNavOverlay {
     private LinearLayout etaTimeRow;
     private LinearLayout maneuverCard;
     private LinearLayout etaCard;
+    private FrameLayout.LayoutParams maneuverCardLp;
+    private FrameLayout.LayoutParams etaCardLp;
+    private int layoutManeuverLeft;
+    private int layoutEtaLeft;
+    private int layoutTopMargin;
+    private int layoutCardWidthPx;
+    private int layoutScreenWidthPx;
     private WindowManager.LayoutParams overlayLayoutParams;
     private int appliedLayoutVersion = -1;
     private long lastZOrderRaiseUptimeMs = 0L;
@@ -282,6 +289,43 @@ public final class GoogleMapsClusterNavOverlay {
         etaTimeRow = null;
         maneuverCard = null;
         etaCard = null;
+        maneuverCardLp = null;
+        etaCardLp = null;
+    }
+
+    /** Yansıtma sekmesindeki X/Y kaydırma; overlay açıksa anında uygulanır. */
+    public void applyStoredOffsets() {
+        mainHandler.post(this::applyStoredOffsetsOnMain);
+    }
+
+    private void applyStoredOffsetsOnMain() {
+        if (maneuverCard == null || etaCard == null
+                || maneuverCardLp == null || etaCardLp == null) {
+            return;
+        }
+        Context ctx = displayContext != null ? displayContext : appContext;
+        ClusterNavOverlayOffsets.CardLayout maneuver =
+                ClusterNavOverlayOffsets.getCardLayout(
+                        appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
+                        ClusterNavOverlayOffsets.Card.MANEUVER);
+        ClusterNavOverlayOffsets.CardLayout eta =
+                ClusterNavOverlayOffsets.getCardLayout(
+                        appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
+                        ClusterNavOverlayOffsets.Card.ETA);
+
+        maneuverCardLp.leftMargin = layoutManeuverLeft;
+        maneuverCardLp.topMargin = layoutTopMargin;
+        maneuverCard.setLayoutParams(maneuverCardLp);
+        ClusterNavOverlayOffsets.applyTranslationAndScale(
+                maneuverCard, ctx,
+                maneuver.offsetXDp, maneuver.offsetYDp, maneuver.scalePercent);
+
+        etaCardLp.leftMargin = layoutEtaLeft;
+        etaCardLp.topMargin = layoutTopMargin;
+        etaCard.setLayoutParams(etaCardLp);
+        ClusterNavOverlayOffsets.applyTranslationAndScale(
+                etaCard, ctx,
+                eta.offsetXDp, eta.offsetYDp, eta.scalePercent);
     }
 
     private void ensureOverlay() {
@@ -395,22 +439,29 @@ public final class GoogleMapsClusterNavOverlay {
         etaStatusLp.topMargin = dp(ctx, 6);
         etaCard.addView(etaStatusView, etaStatusLp);
 
-        FrameLayout.LayoutParams maneuverLp = new FrameLayout.LayoutParams(
+        layoutScreenWidthPx = screenWidth;
+        layoutCardWidthPx = cardWidthPx;
+        layoutManeuverLeft = Math.max(0, maneuverLeft);
+        layoutEtaLeft = Math.min(screenWidth - cardWidthPx, etaLeft);
+        layoutTopMargin = topMarginPx;
+
+        maneuverCardLp = new FrameLayout.LayoutParams(
                 cardWidthPx,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        maneuverLp.gravity = Gravity.TOP | Gravity.START;
-        maneuverLp.leftMargin = Math.max(0, maneuverLeft);
-        maneuverLp.topMargin = topMarginPx;
-        root.addView(maneuverCard, maneuverLp);
+        maneuverCardLp.gravity = Gravity.TOP | Gravity.START;
+        maneuverCardLp.leftMargin = layoutManeuverLeft;
+        maneuverCardLp.topMargin = layoutTopMargin;
+        root.addView(maneuverCard, maneuverCardLp);
 
-        FrameLayout.LayoutParams etaLp = new FrameLayout.LayoutParams(
+        etaCardLp = new FrameLayout.LayoutParams(
                 cardWidthPx,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        etaLp.gravity = Gravity.TOP | Gravity.START;
-        etaLp.leftMargin = Math.min(screenWidth - cardWidthPx, etaLeft);
-        etaLp.topMargin = topMarginPx;
-        root.addView(etaCard, etaLp);
+        etaCardLp.gravity = Gravity.TOP | Gravity.START;
+        etaCardLp.leftMargin = layoutEtaLeft;
+        etaCardLp.topMargin = layoutTopMargin;
+        root.addView(etaCard, etaCardLp);
 
+        applyStoredOffsetsOnMain();
         return root;
     }
 

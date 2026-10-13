@@ -1118,6 +1118,7 @@ public final class LauncherDashboardBuilder implements
                 new DashboardShortcut(6, R.drawable.ic_mdi_car, context.getString(R.string.launcher_shortcut_drive)),
                 new DashboardShortcut(9, R.drawable.ic_mdi_speedometer, context.getString(R.string.side_rail_vehicle_info)),
                 new DashboardShortcut(8, R.drawable.ic_mdi_volume_high, context.getString(R.string.launcher_shortcut_welcome)),
+                new DashboardShortcut(11, R.drawable.ic_mdi_equalizer, context.getString(R.string.launcher_shortcut_equalizer)),
                 new DashboardShortcut(7, R.drawable.ic_mdi_cog, context.getString(R.string.launcher_shortcut_settings)),
         };
     }

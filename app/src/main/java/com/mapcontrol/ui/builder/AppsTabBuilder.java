@@ -1,5 +1,6 @@
 package com.mapcontrol.ui.builder;
 import android.app.Activity;
+import android.app.admin.DevicePolicyManager;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -17,7 +18,6 @@ import android.os.Looper;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -40,7 +40,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.NetworkWifiHelper;
@@ -77,6 +79,38 @@ public class AppsTabBuilder {
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean networkCallbackRegistered;
 
+    /** Sunucu listesi yeniden çizilse de indirme yüzdesi ve kurulum yazısı kaybolmasın. */
+    private final Map<String, DownloadProgress> downloadProgress = new HashMap<>();
+    private final Map<String, AppRow> appRows = new HashMap<>();
+    private JSONArray lastServerList;
+    private boolean serverListBound;
+    private int downloadGenerationSeq;
+
+    private static final class DownloadProgress {
+        static final int DOWNLOADING = 1;
+        static final int INSTALLING = 2;
+        static final int FAILED = 3;
+
+        int generation;
+        int phase;
+        int percent = -1;
+        long bytes;
+        String displayName;
+        String downloadUrl;
+    }
+
+    private static final class AppRow {
+        final Button button;
+        final TextView status;
+        final String displayName;
+
+        AppRow(Button button, TextView status, String displayName) {
+            this.button = button;
+            this.status = status;
+            this.displayName = displayName;
+        }
+    }
+
     private final Runnable serverRetryRunnable = () -> {
         if (!isLocalMode && serverLoadNeedsRetry) {
             loadAppsFromServerInternal(false);
@@ -91,6 +125,8 @@ public class AppsTabBuilder {
     }
 
     public LinearLayout build() {
+        appRows.clear();
+        serverListBound = false;
         tabContent = new LinearLayout(context);
         tabContent.setOrientation(LinearLayout.VERTICAL);
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
@@ -119,6 +155,10 @@ public class AppsTabBuilder {
         tabContent.addView(card, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0, 1f));
+
+        if (!isLocalMode && lastServerList != null) {
+            displayAppsList(lastServerList);
+        }
 
         return tabContent;
     }
@@ -188,34 +228,51 @@ public class AppsTabBuilder {
         toggleParams.setMargins(0, 0, 4, 0);
         container.addView(btnModeToggle, toggleParams);
 
-        Button overflowMenu = new Button(ctx);
-        overflowMenu.setTextSize(20);
-        overflowMenu.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        overflowMenu.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
-        overflowMenu.setPadding(12, 12, 12, 12);
-        UiStyles.setButtonIconOnlyTinted(overflowMenu, R.drawable.ic_mdi_dots_vertical,
-                UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_menu_more_options));
-        overflowMenu.setOnClickListener(v -> {
-            PopupMenu popupMenu = new PopupMenu(ctx, overflowMenu);
-            popupMenu.getMenu().add(0, 1, 0, R.string.apps_menu_delete_all);
-            popupMenu.setOnMenuItemClickListener(item -> {
-                if (item.getItemId() == 1) {
-                    new AlertDialog.Builder(ctx)
-                            .setTitle(R.string.apps_dialog_delete_all_title)
-                            .setMessage(R.string.apps_dialog_delete_all_message)
-                            .setPositiveButton(R.string.dialog_delete, (d, which) -> performReset())
-                            .setNegativeButton(R.string.wifi_cancel, null)
-                            .create()
-                            .show();
-                    return true;
-                }
-                return false;
-            });
-            popupMenu.show();
-        });
-        container.addView(overflowMenu);
+        int destructive = UiStyles.color(ctx, R.color.textDestructive);
+        int iconGap = UiStyles.dimenPx(ctx, R.dimen.spacing_small);
+
+        Button btnDeleteOps = new Button(ctx);
+        styleTopBarAction(btnDeleteOps, destructive);
+        btnDeleteOps.setText(R.string.apps_delete_ops);
+        UiStyles.setButtonStartIconTinted(btnDeleteOps, R.drawable.ic_mdi_delete, destructive, iconGap);
+        btnDeleteOps.setOnClickListener(v -> performReset());
+        container.addView(btnDeleteOps, topBarActionParams());
+
+        Button btnDeleteSelf = new Button(ctx);
+        styleTopBarAction(btnDeleteSelf, destructive);
+        btnDeleteSelf.setText(R.string.apps_delete_self);
+        UiStyles.setButtonStartIconTinted(btnDeleteSelf, R.drawable.ic_mdi_delete, destructive, iconGap);
+        btnDeleteSelf.setOnClickListener(v -> confirmDeleteSelf());
+        container.addView(btnDeleteSelf, topBarActionParams());
 
         return container;
+    }
+
+    private static LinearLayout.LayoutParams topBarActionParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 4, 0);
+        return params;
+    }
+
+    private static void styleTopBarAction(Button button, int color) {
+        button.setAllCaps(false);
+        button.setTextSize(15);
+        button.setTextColor(color);
+        button.setBackgroundColor(UiStyles.color(button.getContext(), R.color.transparent));
+        button.setPadding(12, 12, 12, 12);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+    }
+
+    private void confirmDeleteSelf() {
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.apps_delete_self)
+                .setMessage(R.string.apps_dialog_reset_confirm_self)
+                .setPositiveButton(R.string.dialog_delete, (d, which) -> deleteSelfApp())
+                .setNegativeButton(R.string.wifi_cancel, null)
+                .show();
     }
 
     private void updateModeToggleButton(Button btnModeToggle) {
@@ -291,6 +348,8 @@ public class AppsTabBuilder {
 
     private void displayLocalAppsList(List<PackageInfo> packages) {
         if (appsListContainer == null) return;
+        serverListBound = false;
+        appRows.clear();
 
         try {
             PackageManager pm = context.getPackageManager();
@@ -453,8 +512,31 @@ public class AppsTabBuilder {
     public void onTabVisible() {
         tabVisible = true;
         registerNetworkCallback();
+        for (String packageName : new ArrayList<>(downloadProgress.keySet())) {
+            refreshRow(packageName);
+        }
         if (!isLocalMode && serverLoadNeedsRetry) {
             loadAppsFromServer();
+        }
+    }
+
+    /** Kurulum oturumu başarısız olunca "Kuruluyor" yazısını yerel dosya veya indirme durumuna çevirir. */
+    public void clearInstallingProgress() {
+        Runnable clear = () -> {
+            ArrayList<String> packages = new ArrayList<>();
+            for (Map.Entry<String, DownloadProgress> entry : downloadProgress.entrySet()) {
+                if (entry.getValue().phase == DownloadProgress.INSTALLING) {
+                    packages.add(entry.getKey());
+                }
+            }
+            for (String packageName : packages) {
+                releaseInstallUi(packageName);
+            }
+        };
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            clear.run();
+        } else {
+            handler.post(clear);
         }
     }
 
@@ -508,6 +590,7 @@ public class AppsTabBuilder {
                         if (generation != serverLoadGeneration) return;
                         serverLoadNeedsRetry = false;
                         cancelServerAutoRetry();
+                        lastServerList = listArray;
                         appsListContainer.removeAllViews();
                         displayAppsList(listArray);
                     });
@@ -532,6 +615,11 @@ public class AppsTabBuilder {
     }
 
     private void showServerLoadingState(boolean reconnecting) {
+        if (serverListBound && hasActiveTransfer()) {
+            return;
+        }
+        serverListBound = false;
+        appRows.clear();
         appsListContainer.removeAllViews();
         TextView loadingText = new TextView(context);
         loadingText.setText(reconnecting ? R.string.apps_server_reconnecting : R.string.common_loading);
@@ -607,6 +695,8 @@ public class AppsTabBuilder {
 
     private void displayAppsList(JSONArray listArray) {
         if (appsListContainer == null || listArray == null) return;
+        serverListBound = true;
+        appRows.clear();
 
         try {
             PackageManager pm = context.getPackageManager();
@@ -629,9 +719,18 @@ public class AppsTabBuilder {
                     isInstalled = false;
                 }
 
-                File downloadDir = new File(context.getCacheDir(), "downloads");
-                File downloadedFile = new File(downloadDir, packageName + ".apk");
-                boolean isDownloaded = downloadedFile.exists() && downloadedFile.isFile();
+                DownloadProgress progress = downloadProgress.get(packageName);
+                if (progress != null && progress.phase == DownloadProgress.INSTALLING && isInstalled) {
+                    downloadProgress.remove(packageName);
+                    progress = null;
+                }
+                if (progress != null && progress.phase == DownloadProgress.FAILED
+                        && readyCachedApk(packageName) != null) {
+                    downloadProgress.remove(packageName);
+                    progress = null;
+                }
+                boolean trackProgress = progress != null;
+                File readyFile = trackProgress ? null : readyCachedApk(packageName);
 
                 LinearLayout appCard = new LinearLayout(context);
                 appCard.setOrientation(LinearLayout.HORIZONTAL);
@@ -686,7 +785,10 @@ public class AppsTabBuilder {
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
-                if (isInstalled) {
+                if (!trackProgress && readyFile != null) {
+                    statusText.setText(context.getString(R.string.apps_status_local_ready, formatFileSize(readyFile.length())));
+                    statusText.setTextColor(UiStyles.color(context, R.color.statusSuccess));
+                } else if (isInstalled) {
                     statusText.setText(context.getString(R.string.apps_status_installed, currentVersion));
                     statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 } else {
@@ -713,14 +815,15 @@ public class AppsTabBuilder {
                 actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 actionButton.setPadding(24, 12, 24, 12);
 
-                if (hasUpdate) {
+                if (trackProgress) {
+                    actionButton.setEnabled(false);
+                } else if (hasUpdate) {
                     actionButton.setText(R.string.apps_action_update);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
                     actionButton.setOnClickListener(v -> {
                         callback.log(displayName + " güncelleniyor...");
-                        actionButton.setTag(downloadUrl);
-                        downloadAndInstallApp(packageName, displayName, downloadUrl, actionButton);
+                        downloadAndInstallApp(packageName, displayName, downloadUrl);
                     });
                 } else if (isInstalled && !isLocked) {
                     actionButton.setText(R.string.apps_action_open);
@@ -732,22 +835,18 @@ public class AppsTabBuilder {
                     actionButton.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
                     actionButton.setEnabled(false);
-                } else if (isDownloaded) {
-                    actionButton.setText(R.string.apps_action_install);
-                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
-                    actionButton.setOnClickListener(v -> {
-                        callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
-                        installApkFile(downloadedFile);
-                    });
+                } else if (readyFile != null) {
+                    bindLocalInstallButton(actionButton, statusText, displayName, readyFile);
                 } else {
                     actionButton.setText(R.string.apps_action_install);
                     actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
-                    actionButton.setOnClickListener(v -> {
-                        actionButton.setTag(downloadUrl);
-                        downloadAndInstallApp(packageName, displayName, downloadUrl, actionButton);
-                    });
+                    actionButton.setOnClickListener(v -> downloadAndInstallApp(packageName, displayName, downloadUrl));
+                }
+
+                appRows.put(packageName, new AppRow(actionButton, statusText, displayName));
+                if (trackProgress) {
+                    refreshRow(packageName);
                 }
 
                 rightContainer.addView(actionButton);
@@ -892,22 +991,201 @@ public class AppsTabBuilder {
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTypeface(null, android.graphics.Typeface.BOLD);
     }
 
-    private void downloadAndInstallApp(String packageName, String displayName, String downloadUrl, Button button) {
-        // (same as MainActivity implementation) - kept as-is but with context replacements
+    private File cacheDownloadDir() {
+        return new File(context.getCacheDir(), "downloads");
+    }
+
+    private File cachedApkFile(String packageName) {
+        return new File(cacheDownloadDir(), packageName + ".apk");
+    }
+
+    /** Tamamlanmış önbellek APK'si. İndirme sırasındaki .part dosyası sayılmaz. */
+    private File readyCachedApk(String packageName) {
+        File file = cachedApkFile(packageName);
+        if (file.isFile() && file.length() > 0) return file;
+        return null;
+    }
+
+    private boolean hasActiveTransfer() {
+        for (DownloadProgress progress : downloadProgress.values()) {
+            if (progress.phase == DownloadProgress.DOWNLOADING
+                    || progress.phase == DownloadProgress.INSTALLING) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void bindLocalInstallButton(Button button, TextView status, String displayName, File readyFile) {
+        status.setText(context.getString(R.string.apps_status_local_ready, formatFileSize(readyFile.length())));
+        status.setTextColor(UiStyles.color(context, R.color.statusSuccess));
+        button.setEnabled(true);
+        button.setText(R.string.apps_action_install_local);
+        button.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+        UiStyles.clearButtonCompoundDrawables(button);
+        button.setOnClickListener(v -> {
+            callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
+            installApkFile(readyFile);
+        });
+    }
+
+    private CharSequence progressLabel(DownloadProgress progress) {
+        if (progress.percent >= 0) {
+            return context.getString(R.string.apps_downloading_percent, progress.percent);
+        }
+        if (progress.bytes > 0) {
+            return context.getString(R.string.apps_downloading_size, formatFileSize(progress.bytes));
+        }
+        return context.getString(R.string.apps_downloading);
+    }
+
+    private void refreshRow(String packageName) {
+        AppRow row = appRows.get(packageName);
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (row == null || progress == null) return;
+
+        Button button = row.button;
+        TextView status = row.status;
+        int iconGap = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        int iconColor = UiStyles.color(context, R.color.textPrimary);
+
+        if (progress.phase == DownloadProgress.DOWNLOADING) {
+            CharSequence label = progressLabel(progress);
+            button.setEnabled(false);
+            button.setText(label);
+            button.setTextColor(iconColor);
+            status.setText(label);
+            status.setTextColor(UiStyles.color(context, R.color.statusInfo));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand, iconColor, iconGap);
+        } else if (progress.phase == DownloadProgress.INSTALLING) {
+            button.setEnabled(false);
+            button.setText(R.string.apps_installing);
+            button.setTextColor(iconColor);
+            status.setText(R.string.apps_installing);
+            status.setTextColor(UiStyles.color(context, R.color.statusInfo));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_package_variant, iconColor, iconGap);
+        } else if (progress.phase == DownloadProgress.FAILED) {
+            button.setEnabled(true);
+            button.setText(R.string.apps_manual_download);
+            button.setTextColor(iconColor);
+            status.setText(R.string.apps_status_download_failed);
+            status.setTextColor(UiStyles.color(context, R.color.statusError));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonPrimary));
+            UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download, iconColor, iconGap);
+            String retryName = progress.displayName != null ? progress.displayName : row.displayName;
+            String retryUrl = progress.downloadUrl;
+            button.setOnClickListener(v -> downloadAndInstallApp(packageName, retryName, retryUrl));
+        }
+    }
+
+    private void postDownloadUi(String packageName, int generation, int percent, long bytes) {
+        handler.post(() -> {
+            DownloadProgress progress = downloadProgress.get(packageName);
+            if (progress == null || progress.generation != generation) return;
+            if (progress.phase != DownloadProgress.DOWNLOADING) return;
+            progress.percent = percent;
+            progress.bytes = bytes;
+            refreshRow(packageName);
+        });
+    }
+
+    private void onDownloadFailedUi(String packageName, int generation) {
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (progress == null || progress.generation != generation) return;
+        File ready = readyCachedApk(packageName);
+        AppRow row = appRows.get(packageName);
+        if (ready != null && row != null) {
+            downloadProgress.remove(packageName);
+            bindLocalInstallButton(row.button, row.status, row.displayName, ready);
+            return;
+        }
+        progress.phase = DownloadProgress.FAILED;
+        refreshRow(packageName);
+    }
+
+    private void markInstalling(String packageName) {
+        if (!appRows.containsKey(packageName) && !downloadProgress.containsKey(packageName)) return;
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (progress == null) {
+            progress = new DownloadProgress();
+            progress.displayName = packageName;
+            downloadProgress.put(packageName, progress);
+        }
+        progress.phase = DownloadProgress.INSTALLING;
+        refreshRow(packageName);
+    }
+
+    private void releaseInstallUi(String packageName) {
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (progress == null || progress.phase != DownloadProgress.INSTALLING) return;
+        File ready = readyCachedApk(packageName);
+        AppRow row = appRows.get(packageName);
+        if (ready != null && row != null) {
+            downloadProgress.remove(packageName);
+            bindLocalInstallButton(row.button, row.status, row.displayName, ready);
+            return;
+        }
+        if (progress.downloadUrl != null) {
+            progress.phase = DownloadProgress.FAILED;
+            refreshRow(packageName);
+            return;
+        }
+        downloadProgress.remove(packageName);
+    }
+
+    private void publishCompletedApk(File downloadDir, String packageName, File partial) throws Exception {
+        File dest = new File(downloadDir, packageName + ".apk");
+        File backup = new File(downloadDir, packageName + ".apk.bak");
+        if (backup.exists()) backup.delete();
+        if (dest.exists() && !dest.renameTo(backup)) {
+            throw new Exception("Eski APK yedeklenemedi");
+        }
+        if (!partial.renameTo(dest)) {
+            if (backup.exists()) backup.renameTo(dest);
+            throw new Exception("APK tamamlanamadı");
+        }
+        if (!dest.exists() || dest.length() == 0) {
+            if (dest.exists()) dest.delete();
+            if (backup.exists()) backup.renameTo(dest);
+            throw new Exception("APK dosyası boş veya oluşturulamadı");
+        }
+        if (backup.exists()) backup.delete();
+    }
+
+    private void restoreBackupIfNeeded(String packageName) {
+        File dest = cachedApkFile(packageName);
+        File backup = new File(cacheDownloadDir(), packageName + ".apk.bak");
+        if (!dest.exists() && backup.exists()) {
+            backup.renameTo(dest);
+        } else if (dest.exists() && backup.exists()) {
+            backup.delete();
+        }
+    }
+
+    private void downloadAndInstallApp(String packageName, String displayName, String downloadUrl) {
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (progress == null) {
+            progress = new DownloadProgress();
+            downloadProgress.put(packageName, progress);
+        }
+        progress.generation = ++downloadGenerationSeq;
+        progress.phase = DownloadProgress.DOWNLOADING;
+        progress.percent = -1;
+        progress.bytes = 0;
+        progress.displayName = displayName;
+        progress.downloadUrl = downloadUrl;
+        final int generation = progress.generation;
+        refreshRow(packageName);
+
         new Thread(() -> {
-            File apkFile = null;
+            File partial = null;
             InputStream inputStream = null;
             FileOutputStream outputStream = null;
             HttpURLConnection connection = null;
             try {
-                handler.post(() -> {
-                    button.setEnabled(false);
-                    button.setText(R.string.apps_downloading);
-                    UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                            UiStyles.color(context, R.color.textPrimary),
-                            UiStyles.dimenPx(context, R.dimen.spacing_small));
-                });
-
                 callback.log("[INFO] APK indirme başlatılıyor: " + displayName);
                 callback.log("[INFO] URL: " + downloadUrl);
 
@@ -956,12 +1234,12 @@ public class AppsTabBuilder {
                 callback.log("[INFO] Beklenen dosya boyutu: " + fileLength + " bytes");
 
                 inputStream = connection.getInputStream();
-                File downloadDir = new File(context.getCacheDir(), "downloads");
+                File downloadDir = cacheDownloadDir();
                 if (!downloadDir.exists()) downloadDir.mkdirs();
-                apkFile = new File(downloadDir, packageName + ".apk");
-                if (apkFile.exists()) apkFile.delete();
+                partial = new File(downloadDir, packageName + ".apk.part");
+                if (partial.exists()) partial.delete();
 
-                outputStream = new FileOutputStream(apkFile);
+                outputStream = new FileOutputStream(partial);
                 byte[] buffer = new byte[8192];
                 long total = 0;
                 int count;
@@ -978,25 +1256,11 @@ public class AppsTabBuilder {
                         if (percent > 100) percent = 100;
                         if (percent != lastUiPercent) {
                             lastUiPercent = percent;
-                            final int p = percent;
-                            handler.post(() -> {
-                                button.setText(context.getString(R.string.apps_downloading_percent, p));
-                                UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                                        UiStyles.color(context, R.color.textPrimary),
-                                        UiStyles.dimenPx(context, R.dimen.spacing_small));
-                            });
+                            postDownloadUi(packageName, generation, percent, total);
                         }
-                    } else {
-                        if (currentTime - lastUiBytesUpdate >= 400L) {
-                            lastUiBytesUpdate = currentTime;
-                            final String sizeLabel = formatFileSize(total);
-                            handler.post(() -> {
-                                button.setText(context.getString(R.string.apps_downloading_size, sizeLabel));
-                                UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand,
-                                        UiStyles.color(context, R.color.textPrimary),
-                                        UiStyles.dimenPx(context, R.dimen.spacing_small));
-                            });
-                        }
+                    } else if (currentTime - lastUiBytesUpdate >= 400L) {
+                        lastUiBytesUpdate = currentTime;
+                        postDownloadUi(packageName, generation, -1, total);
                     }
                     if (currentTime - lastLogTime > 1000) {
                         if (fileLength > 0) {
@@ -1018,29 +1282,23 @@ public class AppsTabBuilder {
                 connection.disconnect();
                 connection = null;
 
-                long actualFileSize = apkFile.length();
-                callback.log("[INFO] İndirilen dosya boyutu: " + actualFileSize + " bytes");
-                if (!apkFile.exists() || actualFileSize == 0) throw new Exception("APK dosyası boş veya oluşturulamadı");
-
-                handler.post(() -> {
-                    button.setText(R.string.apps_installing);
-                    UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_package_variant,
-                            UiStyles.color(context, R.color.textPrimary),
-                            UiStyles.dimenPx(context, R.dimen.spacing_small));
-                });
+                publishCompletedApk(downloadDir, packageName, partial);
+                partial = null;
+                File apkFile = cachedApkFile(packageName);
+                callback.log("[INFO] İndirilen dosya boyutu: " + apkFile.length() + " bytes");
 
                 callback.log(displayName + " indirildi ve kuruluyor...");
-                handler.post(() -> Toast.makeText(context, context.getString(R.string.apps_installing_named, displayName), Toast.LENGTH_SHORT).show());
-                installApkFile(apkFile);
-            } catch (Exception e) {
-                callback.log("[ERROR] APK indirme/yükleme hatası: " + e.getMessage());
                 handler.post(() -> {
-                    button.setEnabled(true);
-                    button.setText(R.string.apps_manual_download);
-                    UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download,
-                            UiStyles.color(context, R.color.textPrimary),
-                            UiStyles.dimenPx(context, R.dimen.spacing_small));
+                    DownloadProgress current = downloadProgress.get(packageName);
+                    if (current == null || current.generation != generation) return;
+                    Toast.makeText(context, context.getString(R.string.apps_installing_named, displayName), Toast.LENGTH_SHORT).show();
+                    installApkFile(apkFile);
                 });
+            } catch (Exception e) {
+                if (partial != null && partial.exists()) partial.delete();
+                restoreBackupIfNeeded(packageName);
+                callback.log("[ERROR] APK indirme/yükleme hatası: " + e.getMessage());
+                handler.post(() -> onDownloadFailedUi(packageName, generation));
             } finally {
                 try { if (inputStream != null) inputStream.close(); } catch (Exception ignored) {}
                 try { if (outputStream != null) outputStream.close(); } catch (Exception ignored) {}
@@ -1344,6 +1602,16 @@ public class AppsTabBuilder {
             return;
         }
 
+        final String trackedPackage = packageNameFromApkFile(apkFile);
+        if (trackedPackage != null) {
+            Runnable mark = () -> markInstalling(trackedPackage);
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                mark.run();
+            } else {
+                handler.post(mark);
+            }
+        }
+
         new Thread(() -> {
             handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
             callback.log("Sessiz dex kurulumu başlıyor: " + apkFile.getAbsolutePath());
@@ -1359,8 +1627,11 @@ public class AppsTabBuilder {
 
             callback.log("Sessiz dex kurulumu olmadı: " + dexResult.message);
             if (activity == null) {
-                handler.post(() -> Toast.makeText(context,
-                        context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show());
+                handler.post(() -> {
+                    Toast.makeText(context,
+                            context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show();
+                    if (trackedPackage != null) releaseInstallUi(trackedPackage);
+                });
                 callback.log("[ERROR] APK kurulumu için Activity yok");
                 return;
             }
@@ -1375,11 +1646,22 @@ public class AppsTabBuilder {
                 handler.postDelayed(this::loadAppsFromServer, 2000);
             } catch (Exception e) {
                 String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                handler.post(() -> Toast.makeText(context,
-                        context.getString(R.string.apps_install_start_failed, detail), Toast.LENGTH_LONG).show());
+                handler.post(() -> {
+                    Toast.makeText(context,
+                            context.getString(R.string.apps_install_start_failed, detail), Toast.LENGTH_LONG).show();
+                    if (trackedPackage != null) releaseInstallUi(trackedPackage);
+                });
                 callback.log("[ERROR] APK session kurulum hatası: " + detail);
             }
         }).start();
+    }
+
+    private static String packageNameFromApkFile(File apkFile) {
+        String name = apkFile.getName();
+        if (name.endsWith(".apk")) {
+            return name.substring(0, name.length() - 4);
+        }
+        return null;
     }
 
     public void performReset() {
@@ -1508,11 +1790,28 @@ public class AppsTabBuilder {
         }).start();
     }
 
+    @SuppressWarnings("deprecation")
+    private void releaseDeviceOwnerIfNeeded(String selfPackage) {
+        try {
+            DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+            if (dpm == null || !dpm.isDeviceOwnerApp(selfPackage)) {
+                return;
+            }
+            dpm.clearDeviceOwnerApp(selfPackage);
+            callback.log("Cihaz sahibi bırakıldı: " + selfPackage);
+        } catch (SecurityException e) {
+            callback.log("Cihaz sahibi bırakılamadı: " + e.getMessage());
+        } catch (Exception e) {
+            callback.log("Cihaz sahibi bırakma hatası: " + e.getMessage());
+        }
+    }
+
     private void deleteSelfApp() {
         handler.post(() -> {
             try {
                 String selfPackage = context.getPackageName();
                 callback.log("Uygulama kendisini siliyor: " + selfPackage);
+                releaseDeviceOwnerIfNeeded(selfPackage);
                 Toast.makeText(context, R.string.apps_self_uninstall, Toast.LENGTH_SHORT).show();
 
                 handler.postDelayed(() -> {

@@ -25,12 +25,10 @@ import androidx.core.content.ContextCompat;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.manager.FloatingBackButtonManager;
-import com.mapcontrol.nav.YandexClusterNavCoordinator;
-import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.service.BootReceiver;
-import com.mapcontrol.service.GlobalBackService;
 import com.mapcontrol.util.AppLocaleManager;
 import com.mapcontrol.util.LauncherModeManager;
+import com.mapcontrol.util.PermissionProbeDialog;
 import com.mapcontrol.vehicle.material.MaterialVehiclePreferences;
 import com.mapcontrol.vehicle.material.MaterialVehicleResources;
 import com.mapcontrol.vehicle.material.VehicleMaterialPickerDialog;
@@ -91,8 +89,8 @@ public class SettingsTabBuilder {
         createLanguageSection(settingsTabContent);
         createAppInfoSection(settingsTabContent);
         createBootAutostartSection(settingsTabContent);
+        createPermissionsSection(settingsTabContent);
         createFloatingBackButtonSection(settingsTabContent);
-        createYandexClusterNavSection(settingsTabContent);
         createLauncherModeSection(settingsTabContent);
         createVehicleModelSection(settingsTabContent);
         return scrollView;
@@ -139,82 +137,6 @@ public class SettingsTabBuilder {
                 });
     }
 
-    private void createYandexClusterNavSection(LinearLayout parentContainer) {
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.yandex_cluster_nav_section_title);
-        sectionTitle.setTextSize(18);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
-        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.yandex_cluster_nav_section_desc);
-        sectionDesc.setTextSize(13);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setPadding(16, 0, 16, 12);
-        sectionDesc.setLineSpacing(3, 1.05f);
-        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        final boolean savedEnabled = YandexClusterNavOverlay.isEnabled(context);
-        final UiStyles.BinarySegmentHandle[] handleRef = new UiStyles.BinarySegmentHandle[1];
-        handleRef[0] = UiStyles.addBinarySegmentedControl(context, parentContainer,
-                null,
-                context.getString(R.string.common_on), context.getString(R.string.common_off),
-                context.getString(R.string.yandex_cluster_nav_help_on),
-                context.getString(R.string.yandex_cluster_nav_help_off),
-                savedEnabled,
-                isEnabled -> {
-                    if (!isEnabled) {
-                        YandexClusterNavCoordinator.deactivate(context);
-                        callback.log("Yandex cluster nav: Kapalı");
-                        return;
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                            && !android.provider.Settings.canDrawOverlays(context)) {
-                        try {
-                            Intent intent = new Intent(
-                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
-                            intent.setData(android.net.Uri.parse(
-                                    "package:" + context.getPackageName()));
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            context.startActivity(intent);
-                            Toast.makeText(context,
-                                    R.string.overlay_permission_toast,
-                                    Toast.LENGTH_LONG).show();
-                        } catch (Exception e) {
-                            callback.log("İzin ayarlarına gidilemedi: " + e.getMessage());
-                        }
-                        handleRef[0].setLeftSelected(false);
-                        return;
-                    }
-                    if (!GlobalBackService.isRegisteredInSystemAccessibilitySettings(context)) {
-                        YandexClusterNavCoordinator.openAccessibilitySettings(context);
-                        Toast.makeText(context,
-                                R.string.yandex_cluster_nav_toast_accessibility,
-                                Toast.LENGTH_LONG).show();
-                        handleRef[0].setLeftSelected(false);
-                        return;
-                    }
-                    YandexClusterNavCoordinator.ActivateResult result =
-                            YandexClusterNavCoordinator.activate(context);
-                    callback.log("Yandex cluster nav: Açık — " + result.name());
-                    YandexClusterNavCoordinator.showActivateToast(context, result);
-                    if (result == YandexClusterNavCoordinator.ActivateResult.SERVICE_CONNECTING) {
-                        handler.postDelayed(() -> {
-                            YandexClusterNavCoordinator.ActivateResult retry =
-                                    YandexClusterNavCoordinator.syncNow(context);
-                            YandexClusterNavCoordinator.showActivateToast(context, retry);
-                            callback.log("Yandex cluster nav yeniden deneme: " + retry.name());
-                        }, 500);
-                    }
-                });
-    }
-
     private void createBootAutostartSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(R.string.settings_boot_section_title);
@@ -258,6 +180,42 @@ public class SettingsTabBuilder {
                     prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, on).apply();
                     callback.log("Açılışta ekran: " + (on ? "Açık" : "Kapalı"));
                 });
+    }
+
+    private void createPermissionsSection(LinearLayout parentContainer) {
+        TextView sectionTitle = new TextView(context);
+        sectionTitle.setText(R.string.settings_permissions_title);
+        sectionTitle.setTextSize(18);
+        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        sectionTitle.setPadding(16, 24, 16, 8);
+        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView sectionDesc = new TextView(context);
+        sectionDesc.setText(R.string.settings_permissions_desc);
+        sectionDesc.setTextSize(13);
+        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        sectionDesc.setPadding(16, 0, 16, 12);
+        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        final Button toggle = new Button(context);
+        toggle.setText(R.string.settings_permissions_show);
+        UiStyles.styleOemButton(toggle, UiStyles.color(context, R.color.accentHighlight));
+        LinearLayout.LayoutParams toggleLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        toggleLp.setMargins(16, 0, 16, 8);
+        toggle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PermissionProbeDialog.show(context);
+            }
+        });
+        parentContainer.addView(toggle, toggleLp);
     }
 
     private void createFloatingBackButtonSection(LinearLayout parentContainer) {

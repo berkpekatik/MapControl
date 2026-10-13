@@ -39,6 +39,7 @@ public class SideRailBuilder {
     private static final int TAB_SETTINGS = 7;
     private static final int TAB_WELCOME_SOUND = 8;
     private static final int TAB_VEHICLE_INFO = 9;
+    private static final int TAB_EQUALIZER = 11;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -52,6 +53,7 @@ public class SideRailBuilder {
     private LinearLayout menuDriveMode;
     private LinearLayout menuTest;
     private LinearLayout menuWelcomeSound;
+    private LinearLayout menuEqualizer;
     private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
     private LinearLayout sideRail;
@@ -130,6 +132,8 @@ public class SideRailBuilder {
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
+        menuEqualizer = createRailMenuItemView(R.drawable.ic_mdi_equalizer,
+                t(R.string.side_rail_equalizer));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
         menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
@@ -142,6 +146,7 @@ public class SideRailBuilder {
         // menuContainer.addView(menuProfile); // Temporarily hidden — see comment above menuProfile creation.
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
+        menuContainer.addView(menuEqualizer);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
         menuContainer.addView(menuProjection);
@@ -186,6 +191,8 @@ public class SideRailBuilder {
         menuDriveMode = createPortraitRailItem(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createPortraitRailItem(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
+        menuEqualizer = createPortraitRailItem(R.drawable.ic_mdi_equalizer,
+                t(R.string.side_rail_equalizer));
         menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
         menuProjection = createPortraitRailItem(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createPortraitRailItem(R.drawable.ic_mdi_speedometer,
@@ -197,6 +204,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuFileUpload);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
+        menuContainer.addView(menuEqualizer);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
         menuContainer.addView(menuProjection);
@@ -260,6 +268,11 @@ public class SideRailBuilder {
             callback.onTabSelected(TAB_WELCOME_SOUND, t(R.string.side_rail_welcome_sound));
             updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
         });
+
+        menuEqualizer.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_EQUALIZER, t(R.string.side_rail_equalizer));
+            updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
     }
 
     /**
@@ -284,10 +297,7 @@ public class SideRailBuilder {
         if (appTitleText != null) {
             appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         }
-        LinearLayout[] rows = {
-                menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound
-        };
+        LinearLayout[] rows = menuRows();
         for (LinearLayout row : rows) {
             if (row != null) {
                 applyRailRowSelectedState(row, row == selectedMenuRow);
@@ -330,6 +340,9 @@ public class SideRailBuilder {
                 break;
             case 9:
                 updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                break;
+            case 11:
+                updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             default:
                 break;
@@ -459,11 +472,25 @@ public class SideRailBuilder {
         }
     }
 
+    private LinearLayout[] menuRows() {
+        return new LinearLayout[]{
+                menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer
+        };
+    }
+
     private void updateMenuSelection(LinearLayout selected, LinearLayout... others) {
         selectedMenuRow = selected;
         applyRailRowSelectedState(selected, true);
         for (LinearLayout other : others) {
-            applyRailRowSelectedState(other, false);
+            if (other != null && other != selected) {
+                applyRailRowSelectedState(other, false);
+            }
+        }
+        for (LinearLayout row : menuRows()) {
+            if (row != null && row != selected) {
+                applyRailRowSelectedState(row, false);
+            }
         }
     }
 }
