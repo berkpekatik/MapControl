@@ -18,6 +18,7 @@ public final class MapControlApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        GlitchTip.start(this);
         AppLocaleManager.applyStoredLocale(this);
         LauncherLegacyPrefs.applyMigrations(this);
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);

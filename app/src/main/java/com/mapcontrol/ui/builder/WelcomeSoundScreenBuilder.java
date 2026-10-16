@@ -31,21 +31,48 @@ public final class WelcomeSoundScreenBuilder {
 
     public static final class Screen {
         public final ScrollView scrollView;
+        public final TextView usbStatus;
+        public final LinearLayout usbList;
         public final TextView tvFilePath;
-        public final Button btnSelectFile;
-        public final Button btnPlay;
-        public final Button btnStop;
+        public final LinearLayout rowSelect;
+        public final LinearLayout playbackRow;
+        public final TextView playbackLabel;
         public final Button btnPreview;
 
-        Screen(ScrollView scrollView, TextView tvFilePath, Button btnSelectFile,
-                Button btnPlay, Button btnStop, Button btnPreview) {
+        Screen(ScrollView scrollView, TextView usbStatus, LinearLayout usbList, TextView tvFilePath,
+                LinearLayout rowSelect, LinearLayout playbackRow, TextView playbackLabel,
+                Button btnPreview) {
             this.scrollView = scrollView;
+            this.usbStatus = usbStatus;
+            this.usbList = usbList;
             this.tvFilePath = tvFilePath;
-            this.btnSelectFile = btnSelectFile;
-            this.btnPlay = btnPlay;
-            this.btnStop = btnStop;
+            this.rowSelect = rowSelect;
+            this.playbackRow = playbackRow;
+            this.playbackLabel = playbackLabel;
             this.btnPreview = btnPreview;
         }
+    }
+
+    /** Tasarım kartlarıyla aynı yüzey: yuvarlak köşe, ince çerçeve, tek satır yazı. */
+    public static LinearLayout actionRow(Context context, CharSequence label) {
+        int primary = UiStyles.color(context, R.color.textPrimary);
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setPadding(16, 14, 16, 14);
+        TextView title = new TextView(context);
+        title.setText(label);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        title.setTextColor(primary);
+        row.addView(title);
+        paintCard(context, row);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 0, 8);
+        row.setLayoutParams(params);
+        return row;
     }
 
     public static Screen buildTabScrollView(Context context, boolean autoPlayInitial,
@@ -54,7 +81,6 @@ public final class WelcomeSoundScreenBuilder {
             Consumer<String> onLineCommitted) {
         int primary = UiStyles.color(context, R.color.textPrimary);
         int secondary = UiStyles.color(context, R.color.textSecondary);
-        int padSmall = UiStyles.dimenPx(context, R.dimen.spacing_small);
 
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);
@@ -71,22 +97,37 @@ public final class WelcomeSoundScreenBuilder {
         titleText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         titleText.setTextColor(primary);
         titleText.setTypeface(null, android.graphics.Typeface.BOLD);
-        titleText.setPadding(0, 0, 0, 24);
+        titleText.setPadding(0, 0, 0, 12);
         mainContainer.addView(titleText);
 
-        Button btnSelectFile = new Button(context);
-        btnSelectFile.setText(R.string.welcome_sound_choose_file);
-        btnSelectFile.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        btnSelectFile.setTextColor(primary);
-        UiStyles.styleOemButton(btnSelectFile, UiStyles.color(context, R.color.buttonPrimary));
-        btnSelectFile.setPadding(24, 16, 24, 16);
-        UiStyles.setButtonStartIconTinted(btnSelectFile, R.drawable.ic_mdi_folder,
-                primary, padSmall);
-        LinearLayout.LayoutParams selectBtnParams = new LinearLayout.LayoutParams(
+        TextView steps = new TextView(context);
+        steps.setText(R.string.welcome_sound_steps);
+        steps.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        steps.setTextColor(UiStyles.color(context, R.color.textHint));
+        steps.setLineSpacing(0f, 1.25f);
+        steps.setPadding(0, 0, 0, 16);
+        mainContainer.addView(steps);
+
+        TextView usbTitle = new TextView(context);
+        usbTitle.setText(R.string.welcome_sound_usb_title);
+        usbTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        usbTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
+        usbTitle.setPadding(0, 0, 0, 8);
+        mainContainer.addView(usbTitle);
+
+        TextView usbStatus = new TextView(context);
+        usbStatus.setText(R.string.welcome_sound_usb_absent);
+        usbStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        usbStatus.setTextColor(UiStyles.color(context, R.color.textHint));
+        usbStatus.setPadding(0, 0, 0, 12);
+        mainContainer.addView(usbStatus);
+
+        LinearLayout usbList = new LinearLayout(context);
+        usbList.setOrientation(LinearLayout.VERTICAL);
+        usbList.setVisibility(android.view.View.GONE);
+        mainContainer.addView(usbList, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        selectBtnParams.setMargins(0, 0, 0, 16);
-        mainContainer.addView(btnSelectFile, selectBtnParams);
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView filePathLabel = new TextView(context);
         filePathLabel.setText(R.string.welcome_sound_selected_label);
@@ -111,33 +152,13 @@ public final class WelcomeSoundScreenBuilder {
         filePathParams.setMargins(0, 0, 0, 24);
         mainContainer.addView(tvFilePath, filePathParams);
 
-        LinearLayout buttonsContainer = new LinearLayout(context);
-        buttonsContainer.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout rowSelect = actionRow(context, context.getString(R.string.welcome_sound_choose_file));
+        mainContainer.addView(rowSelect);
 
-        Button btnPlay = new Button(context);
-        btnPlay.setText(R.string.welcome_sound_play);
-        btnPlay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        btnPlay.setTextColor(primary);
-        UiStyles.styleOemButton(btnPlay, UiStyles.color(context, R.color.buttonSuccessBright));
-        btnPlay.setPadding(24, 16, 24, 16);
-        btnPlay.setEnabled(false);
-        LinearLayout.LayoutParams playBtnParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        playBtnParams.setMargins(0, 0, 8, 0);
-        buttonsContainer.addView(btnPlay, playBtnParams);
-
-        Button btnStop = new Button(context);
-        btnStop.setText(R.string.welcome_sound_stop);
-        btnStop.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        btnStop.setTextColor(primary);
-        UiStyles.styleOemButton(btnStop, UiStyles.color(context, R.color.statusErrorBright));
-        btnStop.setPadding(24, 16, 24, 16);
-        btnStop.setEnabled(false);
-        LinearLayout.LayoutParams stopBtnParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        buttonsContainer.addView(btnStop, stopBtnParams);
-
-        mainContainer.addView(buttonsContainer);
+        LinearLayout playbackRow = actionRow(context, context.getString(R.string.welcome_sound_play));
+        playbackRow.setAlpha(0.45f);
+        TextView playbackLabel = (TextView) playbackRow.getChildAt(0);
+        mainContainer.addView(playbackRow);
 
         TextView autoPlayTitle = new TextView(context);
         autoPlayTitle.setText(R.string.welcome_sound_autoplay_title);
@@ -172,7 +193,19 @@ public final class WelcomeSoundScreenBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        return new Screen(scrollView, tvFilePath, btnSelectFile, btnPlay, btnStop, btnPreview);
+        return new Screen(scrollView, usbStatus, usbList, tvFilePath, rowSelect, playbackRow,
+                playbackLabel, btnPreview);
+    }
+
+    private static void paintCard(Context context, LinearLayout row) {
+        float radius = context.getResources().getDimension(R.dimen.oem_button_radius);
+        float density = context.getResources().getDisplayMetrics().density;
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(UiStyles.color(context, R.color.surfaceCard));
+        bg.setCornerRadius(radius);
+        bg.setStroke(Math.max(1, Math.round(density)),
+                UiStyles.color(context, R.color.outline));
+        row.setBackground(bg);
     }
 
     private static Button addDesignPicker(Context context, LinearLayout parent,

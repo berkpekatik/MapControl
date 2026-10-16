@@ -173,6 +173,11 @@
     <string name="apps_action_install">INSTALL</string>
     <string name="apps_action_install_local">INSTALL LOCAL</string>
     <string name="apps_action_remove">REMOVE</string>
+    <string name="apps_companion_dialog_title">Related package</string>
+    <string name="apps_companion_install_all">Install required too</string>
+    <string name="apps_companion_install_one">Only this one</string>
+    <string name="apps_companion_required">%1$s required</string>
+    <string name="apps_companion_fallback_warning">%2$s should also be installed for %1$s. You can still install them separately.</string>
     <string name="apps_local_empty">No local apps found</string>
     <string name="apps_remote_empty">No apps found yet</string>
     <string name="apps_open_failed">Could not open app</string>

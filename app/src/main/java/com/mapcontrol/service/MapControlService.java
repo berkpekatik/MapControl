@@ -110,6 +110,9 @@ public class MapControlService extends Service {
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
         MapControlVDBusKeyBridge.acquire(this);
+        scheduler.scheduleAtFixedRate(
+                () -> MapControlVDBusKeyBridge.refreshSubscription(false, false),
+                30, 30, TimeUnit.SECONDS);
         carSystemGestureController = new CarSystemGestureController(this, new CarSystemGestureController.Host() {
             @Override
             public void openCluster() {
@@ -194,7 +197,7 @@ public class MapControlService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("ClusterMap")
+                .setContentTitle("MapControl")
                 .setContentText("Arka planda çalışıyor")
                 .setSmallIcon(android.R.drawable.ic_menu_info_details)
                 .setContentIntent(pendingIntent)
@@ -285,10 +288,10 @@ public class MapControlService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "ClusterMap Service",
+                    "MapControl Service",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("ClusterMap arka plan servisi");
+            channel.setDescription("MapControl arka plan servisi");
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
@@ -340,6 +343,10 @@ public class MapControlService extends Service {
                         // Power mode 2 = Araç çalışıyor (ON)
                         // Power mode 1 = Araç power aldı (STANDBY)
                         // Power mode 0 = Araç kapalı (OFF)
+
+                        if (currentPowerMode == 1 || currentPowerMode == 2) {
+                            MapControlVDBusKeyBridge.refreshSubscription(true, true);
+                        }
 
                         int powerModeSetting = getPowerModeSetting();
 

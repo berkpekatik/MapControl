@@ -1,27 +1,32 @@
 package com.mapcontrol.ui.builder;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.welcome.WelcomeAudioFiles;
 import com.mapcontrol.ui.welcome.WelcomeDesignCatalog;
 import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -31,18 +36,34 @@ public class WelcomeSoundTabBuilder {
 
     private final AppCompatActivity activity;
     private final SharedPreferences prefs;
+    private final ActivityResultLauncher<Intent> audioPicker;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final BroadcastReceiver mediaReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            refreshUsb();
+        }
+    };
+
     private ScrollView scrollView;
+    private TextView usbStatus;
+    private LinearLayout usbList;
     private TextView tvFilePath;
-    private Button btnSelectFile;
-    private Button btnPlay;
-    private Button btnStop;
+    private LinearLayout playbackRow;
+    private TextView playbackLabel;
     private MediaPlayer mediaPlayer;
     private String selectedFilePath;
+    private boolean playing;
+    private boolean copying;
+    private boolean mediaRegistered;
+    private int usbScanGen;
 
-    public WelcomeSoundTabBuilder(AppCompatActivity activity, SharedPreferences prefs) {
+    public WelcomeSoundTabBuilder(AppCompatActivity activity, SharedPreferences prefs,
+            ActivityResultLauncher<Intent> audioPicker) {
         this.activity = activity;
         this.prefs = prefs;
+        this.audioPicker = audioPicker;
+        registerMedia();
         rebuild();
     }
 
@@ -57,21 +78,50 @@ public class WelcomeSoundTabBuilder {
                 prefs.getString(WelcomeDesignCatalog.PREF_LINE, ""),
                 this::saveCustomLine);
         this.scrollView = screen.scrollView;
+        this.usbStatus = screen.usbStatus;
+        this.usbList = screen.usbList;
         this.tvFilePath = screen.tvFilePath;
-        this.btnSelectFile = screen.btnSelectFile;
-        this.btnPlay = screen.btnPlay;
-        this.btnStop = screen.btnStop;
+        this.playbackRow = screen.playbackRow;
+        this.playbackLabel = screen.playbackLabel;
 
-        btnSelectFile.setOnClickListener(v -> selectAudioFile());
-        btnPlay.setOnClickListener(v -> playAudio());
-        btnStop.setOnClickListener(v -> stopAudio());
+        screen.rowSelect.setOnClickListener(v -> selectAudioFile());
+        playbackRow.setOnClickListener(v -> {
+            if (playing) {
+                stopAudio();
+            } else {
+                playAudio();
+            }
+        });
         screen.btnPreview.setOnClickListener(v -> WelcomeScreenPresenter.showSaved(activity));
 
         loadSavedSettings();
+        refreshUsb();
     }
 
     public ScrollView getScrollView() {
         return scrollView;
+    }
+
+    /** Sekme açılınca USB listesini yeniler. */
+    public void onTabVisible() {
+        refreshUsb();
+    }
+
+    /** Sistem ses seçicisinin sonucu. */
+    public void onAudioPicked(ActivityResult result) {
+        if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) {
+            return;
+        }
+        Uri uri = result.getData().getData();
+        if (uri == null) {
+            return;
+        }
+        try {
+            activity.getContentResolver().takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignored) {
+        }
+        importUri(uri);
     }
 
     /** Başka sekmeye veya uygulama arka planına geçerken çağrılır. */
@@ -79,24 +129,92 @@ public class WelcomeSoundTabBuilder {
         if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
         }
+        setPlaying(false);
     }
 
     /** Aktivite yok edilirken oynatıcıyı serbest bırakır. */
     public void releaseAudioFully() {
-        if (mediaPlayer != null) {
+        releasePlayer();
+        if (mediaRegistered) {
             try {
-                if (mediaPlayer.isPlaying()) {
-                    mediaPlayer.stop();
-                }
-                mediaPlayer.release();
+                activity.unregisterReceiver(mediaReceiver);
             } catch (Exception ignored) {
             }
-            mediaPlayer = null;
+            mediaRegistered = false;
+        }
+    }
+
+    private void registerMedia() {
+        if (mediaRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_EJECT);
+        filter.addAction(Intent.ACTION_MEDIA_REMOVED);
+        filter.addDataScheme("file");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.registerReceiver(mediaReceiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            activity.registerReceiver(mediaReceiver, filter);
+        }
+        mediaRegistered = true;
+    }
+
+    private void refreshUsb() {
+        final int gen = ++usbScanGen;
+        new Thread(() -> {
+            WelcomeAudioFiles.UsbScan scan = WelcomeAudioFiles.scanUsb(activity);
+            handler.post(() -> {
+                if (gen != usbScanGen || usbList == null) {
+                    return;
+                }
+                renderUsb(scan);
+            });
+        }, "welcome-usb").start();
+    }
+
+    private void renderUsb(WelcomeAudioFiles.UsbScan scan) {
+        usbList.removeAllViews();
+        if (scan.files.isEmpty()) {
+            usbList.setVisibility(android.view.View.GONE);
+            usbStatus.setVisibility(android.view.View.VISIBLE);
+            usbStatus.setText(scan.present
+                    ? R.string.welcome_sound_usb_empty
+                    : R.string.welcome_sound_usb_absent);
+            return;
+        }
+        usbStatus.setVisibility(android.view.View.GONE);
+        usbList.setVisibility(android.view.View.VISIBLE);
+        for (File file : scan.files) {
+            LinearLayout row = WelcomeSoundScreenBuilder.actionRow(activity, file.getName());
+            row.setOnClickListener(v -> importFile(file));
+            usbList.addView(row);
         }
     }
 
     private void selectAudioFile() {
-        List<File> audioFiles = getAudioFilesFromDownload();
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("audio/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        if (intent.resolveActivity(activity.getPackageManager()) == null) {
+            selectFromDownloads();
+            return;
+        }
+        audioPicker.launch(intent);
+    }
+
+    private void selectFromDownloads() {
+        List<File> audioFiles;
+        try {
+            audioFiles = WelcomeAudioFiles.scanDownloads();
+        } catch (Exception e) {
+            Toast.makeText(activity, R.string.welcome_sound_folder_error, Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (audioFiles.isEmpty()) {
             new AlertDialog.Builder(activity)
                     .setTitle(R.string.welcome_sound_no_files_title)
@@ -105,52 +223,6 @@ public class WelcomeSoundTabBuilder {
                     .show();
             return;
         }
-        showAudioFileDialog(audioFiles);
-    }
-
-    private List<File> getAudioFilesFromDownload() {
-        List<File> audioFiles = new ArrayList<>();
-        List<String> audioExtensions = Arrays.asList(
-                ".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma", ".amr");
-        try {
-            File downloadDir;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                downloadDir = new File(android.os.Environment.getExternalStoragePublicDirectory(
-                        android.os.Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
-            } else {
-                downloadDir = android.os.Environment.getExternalStoragePublicDirectory(
-                        android.os.Environment.DIRECTORY_DOWNLOADS);
-            }
-            if (downloadDir == null || !downloadDir.exists() || !downloadDir.isDirectory()) {
-                downloadDir = new File("/storage/emulated/0/Download");
-                if (!downloadDir.exists()) {
-                    downloadDir = new File("/sdcard/Download");
-                }
-            }
-            if (downloadDir.exists() && downloadDir.isDirectory()) {
-                File[] files = downloadDir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.isFile()) {
-                            String fileName = file.getName().toLowerCase();
-                            for (String ext : audioExtensions) {
-                                if (fileName.endsWith(ext)) {
-                                    audioFiles.add(file);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Collections.sort(audioFiles, (f1, f2) -> f1.getName().compareToIgnoreCase(f2.getName()));
-        } catch (Exception e) {
-            Toast.makeText(activity, R.string.welcome_sound_folder_error, Toast.LENGTH_SHORT).show();
-        }
-        return audioFiles;
-    }
-
-    private void showAudioFileDialog(List<File> audioFiles) {
         String[] fileNames = new String[audioFiles.size()];
         for (int i = 0; i < audioFiles.size(); i++) {
             fileNames[i] = audioFiles.get(i).getName();
@@ -159,16 +231,57 @@ public class WelcomeSoundTabBuilder {
                 + " (" + audioFiles.size() + ")";
         new AlertDialog.Builder(activity)
                 .setTitle(title)
-                .setItems(fileNames, (dialog, which) -> {
-                    File selectedFile = audioFiles.get(which);
-                    selectedFilePath = Uri.fromFile(selectedFile).toString();
-                    tvFilePath.setText(selectedFile.getName());
-                    btnPlay.setEnabled(true);
-                    btnStop.setEnabled(false);
-                    saveSelectedFilePath(selectedFile.getAbsolutePath());
-                })
+                .setItems(fileNames, (dialog, which) -> importFile(audioFiles.get(which)))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void importFile(File source) {
+        if (copying) {
+            return;
+        }
+        copying = true;
+        Toast.makeText(activity, R.string.welcome_sound_copying, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                File dest = WelcomeAudioFiles.copyFile(activity, source);
+                handler.post(() -> applySelected(dest));
+            } catch (Exception e) {
+                handler.post(() -> {
+                    copying = false;
+                    Toast.makeText(activity, R.string.welcome_sound_copy_error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        }, "welcome-copy").start();
+    }
+
+    private void importUri(Uri uri) {
+        if (copying) {
+            return;
+        }
+        copying = true;
+        Toast.makeText(activity, R.string.welcome_sound_copying, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                File dest = WelcomeAudioFiles.copyUri(activity, uri);
+                handler.post(() -> applySelected(dest));
+            } catch (Exception e) {
+                handler.post(() -> {
+                    copying = false;
+                    Toast.makeText(activity, R.string.welcome_sound_copy_error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        }, "welcome-copy").start();
+    }
+
+    private void applySelected(File dest) {
+        copying = false;
+        releasePlayer();
+        selectedFilePath = Uri.fromFile(dest).toString();
+        tvFilePath.setText(dest.getName());
+        saveSelectedFilePath(dest.getAbsolutePath());
+        setPlaying(false);
+        Toast.makeText(activity, R.string.welcome_sound_saved, Toast.LENGTH_SHORT).show();
     }
 
     private void playAudio() {
@@ -177,63 +290,67 @@ public class WelcomeSoundTabBuilder {
             return;
         }
         try {
-            if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-                mediaPlayer.stop();
-                mediaPlayer.release();
-                mediaPlayer = null;
-            }
+            releasePlayer();
             mediaPlayer = new MediaPlayer();
             Uri audioUri = Uri.parse(selectedFilePath);
-            if (audioUri.getScheme() != null && audioUri.getScheme().equals("file")) {
+            if ("file".equals(audioUri.getScheme())) {
                 File audioFile = new File(audioUri.getPath());
-                if (audioFile.exists()) {
-                    mediaPlayer.setDataSource(audioFile.getAbsolutePath());
-                } else {
+                if (!audioFile.exists()) {
                     throw new IOException("missing");
                 }
+                mediaPlayer.setDataSource(audioFile.getAbsolutePath());
             } else {
                 mediaPlayer.setDataSource(activity, audioUri);
             }
             mediaPlayer.prepare();
             mediaPlayer.setOnCompletionListener(mp -> handler.post(() -> {
-                btnPlay.setEnabled(true);
-                btnStop.setEnabled(false);
+                setPlaying(false);
                 Toast.makeText(activity, R.string.welcome_sound_play_done, Toast.LENGTH_SHORT).show();
             }));
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
                 handler.post(() -> {
                     Toast.makeText(activity, R.string.welcome_sound_play_error, Toast.LENGTH_SHORT).show();
-                    btnPlay.setEnabled(true);
-                    btnStop.setEnabled(false);
+                    setPlaying(false);
                 });
                 return true;
             });
             mediaPlayer.start();
-            btnPlay.setEnabled(false);
-            btnStop.setEnabled(true);
+            setPlaying(true);
             Toast.makeText(activity, R.string.welcome_sound_playing, Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            Toast.makeText(activity, R.string.welcome_sound_file_open_error, Toast.LENGTH_SHORT).show();
-            btnPlay.setEnabled(true);
-            btnStop.setEnabled(false);
         } catch (Exception e) {
             Toast.makeText(activity, R.string.welcome_sound_file_open_error, Toast.LENGTH_SHORT).show();
-            btnPlay.setEnabled(true);
-            btnStop.setEnabled(false);
+            setPlaying(false);
         }
     }
 
     private void stopAudio() {
-        if (mediaPlayer != null) {
+        releasePlayer();
+        setPlaying(false);
+        Toast.makeText(activity, R.string.welcome_sound_stopped, Toast.LENGTH_SHORT).show();
+    }
+
+    private void releasePlayer() {
+        if (mediaPlayer == null) {
+            return;
+        }
+        try {
             if (mediaPlayer.isPlaying()) {
                 mediaPlayer.stop();
             }
             mediaPlayer.release();
-            mediaPlayer = null;
-            btnPlay.setEnabled(true);
-            btnStop.setEnabled(false);
-            Toast.makeText(activity, R.string.welcome_sound_stopped, Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) {
         }
+        mediaPlayer = null;
+    }
+
+    private void setPlaying(boolean active) {
+        playing = active;
+        if (playbackLabel == null || playbackRow == null) {
+            return;
+        }
+        playbackLabel.setText(active ? R.string.welcome_sound_stop : R.string.welcome_sound_play);
+        boolean ready = selectedFilePath != null && !selectedFilePath.isEmpty();
+        playbackRow.setAlpha(ready ? 1f : 0.45f);
     }
 
     private void saveSelectedFilePath(String filePath) {
@@ -259,8 +376,8 @@ public class WelcomeSoundTabBuilder {
             if (file.exists()) {
                 selectedFilePath = Uri.fromFile(file).toString();
                 tvFilePath.setText(file.getName());
-                btnPlay.setEnabled(true);
             }
         }
+        setPlaying(false);
     }
 }

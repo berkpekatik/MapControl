@@ -185,6 +185,11 @@
     <string name="apps_action_install">KUR</string>
     <string name="apps_action_install_local">YERELDEN KUR</string>
     <string name="apps_action_remove">KALDIR</string>
+    <string name="apps_companion_dialog_title">Ortak paket</string>
+    <string name="apps_companion_install_all">Eksikleri de kur</string>
+    <string name="apps_companion_install_one">Sadece bunu kur</string>
+    <string name="apps_companion_required">%1$s gerekli</string>
+    <string name="apps_companion_fallback_warning">%1$s için %2$s de kurulmalıdır. Paketleri ayrı da kurabilirsiniz.</string>
     <string name="apps_local_empty">Yerel uygulama bulunamadı</string>
     <string name="apps_remote_empty">Henüz uygulama bulunamadı</string>
     <string name="apps_open_failed">Uygulama açılamadı</string>

@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import com.desaysv.ivi.vdb.IVDBusNotify;
 import com.desaysv.ivi.vdb.client.VDBus;
@@ -35,10 +36,13 @@ public class VDBusManager {
     private final VDBusCallback callback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    private static final String TAG = "VDBusManager";
+
     private final Object vdbusKeyLock = new Object();
     private VDBus vdbusKeyBus;
     private VDEvent vdbusSmsKeyEvent;
     private boolean vdbusKeySubscribed = false;
+    private boolean listening = false;
 
     private final IVDBusNotify.Stub vdbusKeyNotify = new IVDBusNotify.Stub() {
         @Override
@@ -74,7 +78,7 @@ public class VDBusManager {
         public void onVDConnected(VDServiceDef.ServiceType serviceType) {
             if (serviceType == VDServiceDef.ServiceType.SMS) {
                 callback.log("VDBus key listener: SMS service bağlandı, subscribe ediliyor");
-                subscribeToSmsKeyEvents();
+                subscribeToSmsKeyEvents(true);
             }
         }
 
@@ -123,7 +127,41 @@ public class VDBusManager {
         stop();
     }
 
+    /**
+     * SMS eski callback'i düşürmüş olsa da aynı süreç yeni subscribe yapsın.
+     * Araç uykusu binder'ı öldürmeden tuş listesini temizleyebiliyor.
+     */
+    public void refreshSubscription(boolean announce) {
+        if (!listening || vdbusKeyBus == null) {
+            return;
+        }
+        synchronized (vdbusKeyLock) {
+            if (vdbusKeySubscribed && vdbusSmsKeyEvent != null) {
+                try {
+                    vdbusKeyBus.unsubscribe(vdbusSmsKeyEvent, vdbusKeyNotify);
+                } catch (Throwable t) {
+                    Log.d(TAG, "refresh unsubscribe: " + t.getMessage());
+                }
+            }
+            vdbusKeySubscribed = false;
+            vdbusSmsKeyEvent = null;
+        }
+        if (vdbusKeyBus.isServiceConnected(VDServiceDef.ServiceType.SMS)) {
+            subscribeToSmsKeyEvents(announce);
+        } else {
+            try {
+                vdbusKeyBus.bindService(VDServiceDef.ServiceType.SMS);
+                if (announce) {
+                    callback.log("VDBus key listener: SMS kopuk, yeniden bind");
+                }
+            } catch (Throwable t) {
+                callback.log("VDBus key listener: bindService hata: " + t.getMessage());
+            }
+        }
+    }
+
     public void start() {
+        listening = true;
         try {
             if (vdbusKeyBus == null) {
                 vdbusKeyBus = VDBus.getDefault();
@@ -144,7 +182,7 @@ public class VDBusManager {
         }
 
         if (vdbusKeyBus != null && vdbusKeyBus.isServiceConnected(VDServiceDef.ServiceType.SMS)) {
-            subscribeToSmsKeyEvents();
+            subscribeToSmsKeyEvents(true);
         } else if (vdbusKeyBus != null) {
             try {
                 vdbusKeyBus.bindService(VDServiceDef.ServiceType.SMS);
@@ -155,6 +193,7 @@ public class VDBusManager {
     }
 
     public void stop() {
+        listening = false;
         synchronized (vdbusKeyLock) {
             if (!vdbusKeySubscribed || vdbusSmsKeyEvent == null || vdbusKeyBus == null) {
                 vdbusKeySubscribed = false;
@@ -181,7 +220,7 @@ public class VDBusManager {
         }
     }
 
-    private void subscribeToSmsKeyEvents() {
+    private void subscribeToSmsKeyEvents(boolean announce) {
         if (vdbusKeyBus == null) {
             return;
         }
@@ -195,7 +234,11 @@ public class VDBusManager {
                 vdbusSmsKeyEvent = new VDEvent(VDEventSms.ID_SMS_KEY_EVENT, bundle);
                 vdbusKeyBus.subscribe(vdbusSmsKeyEvent, vdbusKeyNotify);
                 vdbusKeySubscribed = true;
-                callback.log("VDBus key listener: SMS key event subscribe edildi");
+                if (announce) {
+                    callback.log("VDBus key listener: SMS key event subscribe edildi");
+                } else {
+                    Log.d(TAG, "SMS key event subscribe yenilendi");
+                }
             } catch (Throwable t) {
                 callback.log("VDBus key listener subscribe hatası: " + t.getMessage());
             }

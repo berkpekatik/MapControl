@@ -44,7 +44,14 @@ Phone — Foreground apps on display 1
 Monitor — Foreground apps on display 2</string>
     <string name="welcome_sound_title">Welcome Screen</string>
     <string name="welcome_sound_back">Back</string>
-    <string name="welcome_sound_choose_file">Choose sound file</string>
+    <string name="welcome_sound_steps">1. Download a sound file on your phone (mp3, wav, m4a, ogg, flac, aac, wma, amr).\n2. Plug the USB drive into the car. The file shows on this screen. Touch its name.\n3. If you have no USB drive, send the file to Downloads from the Web screen, then touch Choose sound.</string>
+    <string name="welcome_sound_usb_title">Sounds on USB</string>
+    <string name="welcome_sound_usb_absent">No USB drive is plugged in.</string>
+    <string name="welcome_sound_usb_empty">No sound file on the USB drive.</string>
+    <string name="welcome_sound_choose_file">Choose sound</string>
+    <string name="welcome_sound_copying">Copying sound…</string>
+    <string name="welcome_sound_saved">Sound saved</string>
+    <string name="welcome_sound_copy_error">Could not copy sound</string>
     <string name="welcome_sound_selected_label">Selected sound</string>
     <string name="welcome_sound_no_file_yet">Not selected yet</string>
     <string name="welcome_sound_play">Play</string>

@@ -33,6 +33,8 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.desaysv.ivi.vdb.client.bind.VDServiceDef;
@@ -129,6 +131,14 @@ public class MainActivity extends AppCompatActivity {
     private ScrollView fileUploadScrollView; // Web Yönetimi tab ScrollView
     private FileUploadTabBuilder fileUploadTabBuilder;
     private WelcomeSoundTabBuilder welcomeSoundTabBuilder;
+    private final ActivityResultLauncher<Intent> welcomeAudioPicker =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (welcomeSoundTabBuilder != null) {
+                            welcomeSoundTabBuilder.onAudioPicked(result);
+                        }
+                    });
     private EqualizerTabBuilder equalizerTabBuilder;
     private VehicleInfoTabBuilder vehicleInfoTabBuilder;
     private VehicleMetricsRepository vehicleMetricsRepository;
@@ -717,7 +727,7 @@ public class MainActivity extends AppCompatActivity {
         tvLogs = logTabBuilder.getLogsTextView();
         scrollView = logTabBuilder.getScrollView();
 
-        welcomeSoundTabBuilder = new WelcomeSoundTabBuilder(this, prefs);
+        welcomeSoundTabBuilder = new WelcomeSoundTabBuilder(this, prefs, welcomeAudioPicker);
         equalizerTabBuilder = new EqualizerTabBuilder(this);
 
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
@@ -1148,6 +1158,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == 8) {
             if (topBarTitle != null) {
                 topBarTitle.setText(getString(R.string.welcome_sound_title));
+            }
+            if (welcomeSoundTabBuilder != null) {
+                welcomeSoundTabBuilder.onTabVisible();
             }
         } else if (tabIndex == 9) {
             if (topBarTitle != null) {
@@ -1718,6 +1731,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
         sBenchHost = this;
         // Arka plandayken Floating Back / overlay hedef seçimi prefs'e yazılır; yayın onPause'da

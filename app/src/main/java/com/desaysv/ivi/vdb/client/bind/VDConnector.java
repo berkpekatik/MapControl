@@ -109,6 +109,7 @@ public class VDConnector {
         public void onServiceDisconnected(ComponentName componentName) {
             Log.w(VDConnector.TAG, "onServiceDisconnected: component=" + componentName + " service=" + VDConnector.this.mServiceInfo.getServiceName());
             VDConnector.this.mIVDBus = null;
+            VDConnector.this.onVDBusDisconnected();
         }
     };
     /* access modifiers changed from: private */

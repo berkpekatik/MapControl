@@ -2,6 +2,7 @@ package com.mapcontrol.manager;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.SystemClock;
 import android.util.Log;
 
 import com.mapcontrol.util.AlertSoundHelper;
@@ -21,6 +22,7 @@ public final class MapControlVDBusKeyBridge {
     private static VDBusManager manager;
     private static ClusterDisplayManager clusterDisplayManager;
     private static int refCount;
+    private static long lastRefreshElapsedMs;
 
     private MapControlVDBusKeyBridge() {
     }
@@ -62,6 +64,22 @@ public final class MapControlVDBusKeyBridge {
         if (manager != null) {
             manager.stop();
         }
+    }
+
+    /**
+     * SMS tuş listesini yeniden yazar. Araç uyanınca {@code force=true}.
+     * Periyodik çağrı 15 sn içinde tekrar etmez.
+     */
+    public static synchronized void refreshSubscription(boolean announce, boolean force) {
+        if (manager == null) {
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (!force && now - lastRefreshElapsedMs < 15_000L) {
+            return;
+        }
+        lastRefreshElapsedMs = now;
+        manager.refreshSubscription(announce);
     }
 
     private static VDBusManager.VDBusCallback createCallback(Context app) {

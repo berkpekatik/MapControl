@@ -30,6 +30,7 @@ import com.mapcontrol.util.ApkSessionInstaller;
 import com.mapcontrol.util.SilentDexInstaller;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -39,10 +40,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.NetworkWifiHelper;
@@ -83,6 +88,11 @@ public class AppsTabBuilder {
     private final Map<String, DownloadProgress> downloadProgress = new HashMap<>();
     private final Map<String, AppRow> appRows = new HashMap<>();
     private JSONArray lastServerList;
+    private JSONArray lastServerGroups;
+    private final Map<String, CatalogApp> catalogApps = new LinkedHashMap<>();
+    private final Map<String, CatalogGroup> catalogGroups = new LinkedHashMap<>();
+    private final ArrayDeque<InstallJob> installQueue = new ArrayDeque<>();
+    private int installQueueGeneration;
     private boolean serverListBound;
     private int downloadGenerationSeq;
 
@@ -108,6 +118,65 @@ public class AppsTabBuilder {
             this.button = button;
             this.status = status;
             this.displayName = displayName;
+        }
+    }
+
+    private static final class CatalogGroup {
+        final String title;
+        final String warning;
+
+        CatalogGroup(String title, String warning) {
+            this.title = title != null ? title : "";
+            this.warning = warning != null ? warning : "";
+        }
+    }
+
+    private static final class CatalogApp {
+        final String packageName;
+        final String displayName;
+        final String downloadUrl;
+        final String groupId;
+        final List<String> requires;
+
+        CatalogApp(String packageName, String displayName, String downloadUrl,
+                   String groupId, List<String> requires) {
+            this.packageName = packageName;
+            this.displayName = displayName;
+            this.downloadUrl = downloadUrl;
+            this.groupId = groupId;
+            this.requires = requires;
+        }
+
+        static CatalogApp from(JSONObject appObj) {
+            String groupId = appObj.optString("group", "").trim();
+            List<String> requires = new ArrayList<>();
+            JSONArray array = appObj.optJSONArray("requires");
+            if (array != null) {
+                for (int i = 0; i < array.length(); i++) {
+                    String req = array.optString(i, "").trim();
+                    if (!req.isEmpty()) requires.add(req);
+                }
+            }
+            return new CatalogApp(
+                    appObj.optString("packageName", "").trim(),
+                    appObj.optString("displayName", ""),
+                    appObj.optString("downloadUrl", ""),
+                    groupId,
+                    requires);
+        }
+    }
+
+    private static final class InstallJob {
+        final String packageName;
+        final String displayName;
+        final String downloadUrl;
+        final File readyFile;
+
+        InstallJob(String packageName, String displayName, String downloadUrl, File readyFile) {
+            this.packageName = packageName;
+            this.displayName = displayName;
+            this.downloadUrl = downloadUrl;
+            this.readyFile = readyFile;
         }
     }
 
@@ -585,12 +654,14 @@ public class AppsTabBuilder {
 
                     JSONObject jsonObject = new JSONObject(response.toString());
                     JSONArray listArray = jsonObject.getJSONArray("list");
+                    JSONArray groupsArray = jsonObject.optJSONArray("groups");
 
                     handler.post(() -> {
                         if (generation != serverLoadGeneration) return;
                         serverLoadNeedsRetry = false;
                         cancelServerAutoRetry();
                         lastServerList = listArray;
+                        lastServerGroups = groupsArray;
                         appsListContainer.removeAllViews();
                         displayAppsList(listArray);
                     });
@@ -700,175 +771,19 @@ public class AppsTabBuilder {
 
         try {
             PackageManager pm = context.getPackageManager();
+            rebuildCatalog(listArray);
 
+            Set<String> renderedGroups = new HashSet<>();
             for (int i = 0; i < listArray.length(); i++) {
                 JSONObject appObj = listArray.getJSONObject(i);
-                String packageName = appObj.getString("packageName");
-                String displayName = appObj.getString("displayName");
-                String downloadUrl = appObj.getString("downloadUrl");
-                String version = appObj.getString("version");
-                String currentVersion = "0";
-
-                boolean isInstalled;
-                try {
-                    PackageInfo info = pm.getPackageInfo(packageName, 0);
-                    currentVersion = info.versionName;
-                    callback.log("currentVersion: " + currentVersion + " packageName: " + packageName);
-                    isInstalled = true;
-                } catch (PackageManager.NameNotFoundException e) {
-                    isInstalled = false;
-                }
-
-                DownloadProgress progress = downloadProgress.get(packageName);
-                if (progress != null && progress.phase == DownloadProgress.INSTALLING && isInstalled) {
-                    downloadProgress.remove(packageName);
-                    progress = null;
-                }
-                if (progress != null && progress.phase == DownloadProgress.FAILED
-                        && readyCachedApk(packageName) != null) {
-                    downloadProgress.remove(packageName);
-                    progress = null;
-                }
-                boolean trackProgress = progress != null;
-                File readyFile = trackProgress ? null : readyCachedApk(packageName);
-
-                LinearLayout appCard = new LinearLayout(context);
-                appCard.setOrientation(LinearLayout.HORIZONTAL);
-                appCard.setPadding(20, 20, 20, 20);
-                appCard.setGravity(android.view.Gravity.CENTER_VERTICAL);
-                appCard.setClickable(true);
-                appCard.setFocusable(true);
-
-                UiStyles.applySolidRoundedBackgroundDp(appCard,
-                        UiStyles.color(context, R.color.surfaceCardInner), 16f);
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    appCard.setElevation(2f);
-                }
-
-                LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT);
-                cardParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.oem_card_margin));
-                appCard.setMinimumHeight((int) (120 * context.getResources().getDisplayMetrics().density));
-
-                android.widget.ImageView appIcon = new android.widget.ImageView(context);
-                try {
-                    if (isInstalled) {
-                        android.graphics.drawable.Drawable icon = pm.getApplicationIcon(packageName);
-                        appIcon.setImageDrawable(icon);
-                    } else {
-                        appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+                String groupId = appObj.optString("group", "").trim();
+                if (!groupId.isEmpty()) {
+                    if (renderedGroups.add(groupId)) {
+                        addGroupSection(groupId, listArray, pm);
                     }
-                } catch (Exception e) {
-                    appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+                    continue;
                 }
-                appIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                        (int) (44 * context.getResources().getDisplayMetrics().density),
-                        (int) (44 * context.getResources().getDisplayMetrics().density));
-                iconParams.setMargins(0, 0, 16, 0);
-                appCard.addView(appIcon, iconParams);
-
-                LinearLayout infoContainer = new LinearLayout(context);
-                infoContainer.setOrientation(LinearLayout.VERTICAL);
-                infoContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
-
-                final boolean hasUpdate = isInstalled && !currentVersion.equals(version);
-                final boolean isLocked = packageName.equals("com.mapcontrol");
-                final boolean finalIsInstalled = isInstalled;
-
-                TextView nameText = new TextView(context);
-                nameText.setText(displayName);
-                nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                nameText.setTextSize(17);
-                nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
-                infoContainer.addView(nameText);
-
-                TextView statusText = new TextView(context);
-                if (!trackProgress && readyFile != null) {
-                    statusText.setText(context.getString(R.string.apps_status_local_ready, formatFileSize(readyFile.length())));
-                    statusText.setTextColor(UiStyles.color(context, R.color.statusSuccess));
-                } else if (isInstalled) {
-                    statusText.setText(context.getString(R.string.apps_status_installed, currentVersion));
-                    statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                } else {
-                    statusText.setText(R.string.apps_status_not_installed);
-                    statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
-                }
-                statusText.setTextSize(13);
-                LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT);
-                statusParams.setMargins(0, 4, 0, 0);
-                infoContainer.addView(statusText, statusParams);
-
-                LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
-                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-                appCard.addView(infoContainer, infoParams);
-
-                LinearLayout rightContainer = new LinearLayout(context);
-                rightContainer.setOrientation(LinearLayout.HORIZONTAL);
-                rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
-
-                Button actionButton = new Button(context);
-                actionButton.setTextSize(14);
-                actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
-                actionButton.setPadding(24, 12, 24, 12);
-
-                if (trackProgress) {
-                    actionButton.setEnabled(false);
-                } else if (hasUpdate) {
-                    actionButton.setText(R.string.apps_action_update);
-                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
-                    actionButton.setOnClickListener(v -> {
-                        callback.log(displayName + " güncelleniyor...");
-                        downloadAndInstallApp(packageName, displayName, downloadUrl);
-                    });
-                } else if (isInstalled && !isLocked) {
-                    actionButton.setText(R.string.apps_action_open);
-                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
-                    actionButton.setOnClickListener(v -> launchApp(packageName));
-                } else if (isLocked) {
-                    actionButton.setText(R.string.apps_action_locked);
-                    actionButton.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
-                    actionButton.setEnabled(false);
-                } else if (readyFile != null) {
-                    bindLocalInstallButton(actionButton, statusText, displayName, readyFile);
-                } else {
-                    actionButton.setText(R.string.apps_action_install);
-                    actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
-                    actionButton.setOnClickListener(v -> downloadAndInstallApp(packageName, displayName, downloadUrl));
-                }
-
-                appRows.put(packageName, new AppRow(actionButton, statusText, displayName));
-                if (trackProgress) {
-                    refreshRow(packageName);
-                }
-
-                rightContainer.addView(actionButton);
-
-                if (finalIsInstalled && !isLocked) {
-                    Button removeButton = new Button(context);
-                    removeButton.setText(R.string.apps_action_remove);
-                    removeButton.setTextSize(14);
-                    removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
-                    removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
-                    removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
-                    removeButton.setPadding(18, 12, 18, 12);
-                    removeButton.setOnClickListener(v -> uninstallApp(packageName, displayName));
-                    LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT);
-                    removeParams.setMargins(UiStyles.dimenPx(context, R.dimen.spacing_medium), 0, 0, 0);
-                    rightContainer.addView(removeButton, removeParams);
-                }
-
-                appCard.addView(rightContainer);
-                appsListContainer.addView(appCard, cardParams);
+                addServerAppCard(appObj, pm, appsListContainer);
             }
 
             if (listArray.length() == 0) {
@@ -898,6 +813,402 @@ public class AppsTabBuilder {
             }
         } catch (Exception e) {
             callback.log("Uygulama listesi gösterim hatası: " + e.getMessage());
+        }
+    }
+
+    private void addGroupSection(String groupId, JSONArray listArray, PackageManager pm) throws JSONException {
+        CatalogGroup group = catalogGroups.get(groupId);
+        float density = context.getResources().getDisplayMetrics().density;
+        int pad = Math.round(12 * density);
+
+        LinearLayout section = new LinearLayout(context);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(pad, pad, pad, Math.round(4 * density));
+        UiStyles.applySolidRoundedBackgroundDp(section,
+                UiStyles.color(context, R.color.surfaceCardElevated), 16f);
+
+        TextView title = new TextView(context);
+        String titleText = group != null && !group.title.trim().isEmpty() ? group.title.trim() : groupId;
+        title.setText(titleText);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        title.setTextSize(15);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        section.addView(title);
+
+        if (group != null && !group.warning.trim().isEmpty()) {
+            TextView warn = new TextView(context);
+            warn.setText(group.warning.trim());
+            warn.setTextColor(UiStyles.color(context, R.color.statusWarning));
+            warn.setTextSize(13);
+            LinearLayout.LayoutParams warnParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            warnParams.topMargin = Math.round(4 * density);
+            warnParams.bottomMargin = Math.round(8 * density);
+            section.addView(warn, warnParams);
+        }
+
+        for (int i = 0; i < listArray.length(); i++) {
+            JSONObject appObj = listArray.getJSONObject(i);
+            if (groupId.equals(appObj.optString("group", "").trim())) {
+                addServerAppCard(appObj, pm, section);
+            }
+        }
+
+        LinearLayout.LayoutParams sectionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        sectionParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.oem_card_margin));
+        appsListContainer.addView(section, sectionParams);
+    }
+
+    private void addServerAppCard(JSONObject appObj, PackageManager pm, LinearLayout container) throws JSONException {
+        String packageName = appObj.getString("packageName");
+        String displayName = appObj.getString("displayName");
+        String downloadUrl = appObj.getString("downloadUrl");
+        String version = appObj.getString("version");
+        String currentVersion = "0";
+
+        boolean isInstalled;
+        try {
+            PackageInfo info = pm.getPackageInfo(packageName, 0);
+            currentVersion = info.versionName;
+            callback.log("currentVersion: " + currentVersion + " packageName: " + packageName);
+            isInstalled = true;
+        } catch (PackageManager.NameNotFoundException e) {
+            isInstalled = false;
+        }
+
+        DownloadProgress progress = downloadProgress.get(packageName);
+        if (progress != null && progress.phase == DownloadProgress.INSTALLING && isInstalled) {
+            downloadProgress.remove(packageName);
+            progress = null;
+        }
+        if (progress != null && progress.phase == DownloadProgress.FAILED
+                && readyCachedApk(packageName) != null) {
+            downloadProgress.remove(packageName);
+            progress = null;
+        }
+        boolean trackProgress = progress != null;
+        File readyFile = trackProgress ? null : readyCachedApk(packageName);
+
+        LinearLayout appCard = new LinearLayout(context);
+        appCard.setOrientation(LinearLayout.HORIZONTAL);
+        appCard.setPadding(20, 20, 20, 20);
+        appCard.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        appCard.setClickable(true);
+        appCard.setFocusable(true);
+
+        UiStyles.applySolidRoundedBackgroundDp(appCard,
+                UiStyles.color(context, R.color.surfaceCardInner), 16f);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            appCard.setElevation(2f);
+        }
+
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        cardParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.oem_card_margin));
+        appCard.setMinimumHeight((int) (120 * context.getResources().getDisplayMetrics().density));
+
+        android.widget.ImageView appIcon = new android.widget.ImageView(context);
+        try {
+            if (isInstalled) {
+                android.graphics.drawable.Drawable icon = pm.getApplicationIcon(packageName);
+                appIcon.setImageDrawable(icon);
+            } else {
+                appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+            }
+        } catch (Exception e) {
+            appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+        }
+        appIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
+                (int) (44 * context.getResources().getDisplayMetrics().density),
+                (int) (44 * context.getResources().getDisplayMetrics().density));
+        iconParams.setMargins(0, 0, 16, 0);
+        appCard.addView(appIcon, iconParams);
+
+        LinearLayout infoContainer = new LinearLayout(context);
+        infoContainer.setOrientation(LinearLayout.VERTICAL);
+        infoContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        final boolean hasUpdate = isInstalled && !currentVersion.equals(version);
+        final boolean isLocked = packageName.equals("com.mapcontrol");
+        final boolean finalIsInstalled = isInstalled;
+
+        TextView nameText = new TextView(context);
+        nameText.setText(displayName);
+        nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        nameText.setTextSize(17);
+        nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
+        infoContainer.addView(nameText);
+
+        TextView statusText = new TextView(context);
+        if (!trackProgress && readyFile != null) {
+            statusText.setText(context.getString(R.string.apps_status_local_ready, formatFileSize(readyFile.length())));
+            statusText.setTextColor(UiStyles.color(context, R.color.statusSuccess));
+        } else if (isInstalled) {
+            statusText.setText(context.getString(R.string.apps_status_installed, currentVersion));
+            statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+        } else {
+            statusText.setText(R.string.apps_status_not_installed);
+            statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
+        }
+        statusText.setTextSize(13);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        statusParams.setMargins(0, 4, 0, 0);
+        infoContainer.addView(statusText, statusParams);
+
+        String companionNote = missingCompanionLabel(appObj);
+        if (companionNote != null) {
+            TextView companionText = new TextView(context);
+            companionText.setText(companionNote);
+            companionText.setTextColor(UiStyles.color(context, R.color.statusWarning));
+            companionText.setTextSize(12);
+            LinearLayout.LayoutParams companionParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            companionParams.setMargins(0, 2, 0, 0);
+            infoContainer.addView(companionText, companionParams);
+        }
+
+        LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        appCard.addView(infoContainer, infoParams);
+
+        LinearLayout rightContainer = new LinearLayout(context);
+        rightContainer.setOrientation(LinearLayout.HORIZONTAL);
+        rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        Button actionButton = new Button(context);
+        actionButton.setTextSize(14);
+        actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
+        actionButton.setPadding(24, 12, 24, 12);
+
+        if (trackProgress) {
+            actionButton.setEnabled(false);
+        } else if (hasUpdate) {
+            actionButton.setText(R.string.apps_action_update);
+            actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
+            actionButton.setOnClickListener(v -> {
+                callback.log(displayName + " güncelleniyor...");
+                requestInstall(packageName, displayName, downloadUrl, null);
+            });
+        } else if (isInstalled && !isLocked) {
+            actionButton.setText(R.string.apps_action_open);
+            actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
+            actionButton.setOnClickListener(v -> launchApp(packageName));
+        } else if (isLocked) {
+            actionButton.setText(R.string.apps_action_locked);
+            actionButton.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
+            actionButton.setEnabled(false);
+        } else if (readyFile != null) {
+            bindLocalInstallButton(actionButton, statusText, displayName, readyFile);
+        } else {
+            actionButton.setText(R.string.apps_action_install);
+            actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
+            actionButton.setOnClickListener(v -> requestInstall(packageName, displayName, downloadUrl, null));
+        }
+
+        appRows.put(packageName, new AppRow(actionButton, statusText, displayName));
+        if (trackProgress) {
+            refreshRow(packageName);
+        }
+
+        rightContainer.addView(actionButton);
+
+        if (finalIsInstalled && !isLocked) {
+            Button removeButton = new Button(context);
+            removeButton.setText(R.string.apps_action_remove);
+            removeButton.setTextSize(14);
+            removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
+            removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
+            removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
+            removeButton.setPadding(18, 12, 18, 12);
+            removeButton.setOnClickListener(v -> uninstallApp(packageName, displayName));
+            LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            removeParams.setMargins(UiStyles.dimenPx(context, R.dimen.spacing_medium), 0, 0, 0);
+            rightContainer.addView(removeButton, removeParams);
+        }
+
+        appCard.addView(rightContainer);
+        container.addView(appCard, cardParams);
+    }
+
+    private void rebuildCatalog(JSONArray listArray) {
+        catalogApps.clear();
+        catalogGroups.clear();
+        if (lastServerGroups != null) {
+            for (int i = 0; i < lastServerGroups.length(); i++) {
+                JSONObject obj = lastServerGroups.optJSONObject(i);
+                if (obj == null) continue;
+                String id = obj.optString("id", "").trim();
+                if (id.isEmpty()) continue;
+                catalogGroups.put(id, new CatalogGroup(obj.optString("title", ""), obj.optString("warning", "")));
+            }
+        }
+        for (int i = 0; i < listArray.length(); i++) {
+            JSONObject appObj = listArray.optJSONObject(i);
+            if (appObj == null) continue;
+            CatalogApp app = CatalogApp.from(appObj);
+            if (!app.packageName.isEmpty()) {
+                catalogApps.put(app.packageName, app);
+            }
+        }
+    }
+
+    private String missingCompanionLabel(JSONObject appObj) {
+        JSONArray requires = appObj.optJSONArray("requires");
+        if (requires == null || requires.length() == 0) return null;
+        StringBuilder names = new StringBuilder();
+        for (int i = 0; i < requires.length(); i++) {
+            String req = requires.optString(i, "").trim();
+            if (req.isEmpty() || isPackageInstalled(req)) continue;
+            if (names.length() > 0) names.append(", ");
+            CatalogApp app = catalogApps.get(req);
+            names.append(app != null && app.displayName != null && !app.displayName.trim().isEmpty()
+                    ? app.displayName.trim() : req);
+        }
+        if (names.length() == 0) return null;
+        return context.getString(R.string.apps_companion_required, names.toString());
+    }
+
+    private boolean isPackageInstalled(String packageName) {
+        try {
+            context.getPackageManager().getPackageInfo(packageName, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    private List<CatalogApp> missingRequires(String packageName) {
+        List<CatalogApp> missing = new ArrayList<>();
+        collectMissingRequires(packageName, missing, new HashSet<>());
+        return missing;
+    }
+
+    private void collectMissingRequires(String packageName, List<CatalogApp> missing, Set<String> seen) {
+        CatalogApp app = catalogApps.get(packageName);
+        if (app == null) return;
+        for (String req : app.requires) {
+            if (!seen.add(req)) continue;
+            collectMissingRequires(req, missing, seen);
+            if (isPackageInstalled(req)) continue;
+            CatalogApp required = catalogApps.get(req);
+            if (required != null) missing.add(required);
+        }
+    }
+
+    private void requestInstall(String packageName, String displayName, String downloadUrl, File readyFile) {
+        List<CatalogApp> missing = missingRequires(packageName);
+        if (missing.isEmpty()) {
+            startSingleInstall(packageName, displayName, downloadUrl, readyFile);
+            return;
+        }
+        showCompanionDialog(packageName, displayName, downloadUrl, readyFile, missing);
+    }
+
+    private void showCompanionDialog(String packageName, String displayName, String downloadUrl,
+                                     File readyFile, List<CatalogApp> missing) {
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle(R.string.apps_companion_dialog_title)
+                .setMessage(companionWarning(packageName, displayName, missing))
+                .setPositiveButton(R.string.apps_companion_install_all, (d, which) ->
+                        startCompanionInstall(packageName, displayName, downloadUrl, readyFile, missing))
+                .setNeutralButton(R.string.apps_companion_install_one, (d, which) ->
+                        startSingleInstall(packageName, displayName, downloadUrl, readyFile))
+                .setNegativeButton(R.string.wifi_cancel, null)
+                .create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.statusSuccess));
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(UiStyles.color(context, R.color.textPrimary));
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.statusNeutralGray));
+    }
+
+    private String companionWarning(String packageName, String displayName, List<CatalogApp> missing) {
+        CatalogApp selected = catalogApps.get(packageName);
+        if (selected != null && selected.groupId != null && !selected.groupId.isEmpty()) {
+            CatalogGroup group = catalogGroups.get(selected.groupId);
+            if (group != null && !group.warning.trim().isEmpty()) {
+                return group.warning.trim();
+            }
+        }
+        StringBuilder names = new StringBuilder();
+        for (CatalogApp app : missing) {
+            if (names.length() > 0) names.append(", ");
+            names.append(app.displayName != null && !app.displayName.trim().isEmpty()
+                    ? app.displayName.trim() : app.packageName);
+        }
+        return context.getString(R.string.apps_companion_fallback_warning, displayName, names.toString());
+    }
+
+    private void startSingleInstall(String packageName, String displayName, String downloadUrl, File readyFile) {
+        if (readyFile != null) {
+            callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
+            installApkFile(readyFile);
+            return;
+        }
+        if (downloadUrl == null || downloadUrl.isEmpty()) {
+            callback.log("İndirme adresi yok: " + packageName);
+            return;
+        }
+        downloadAndInstallApp(packageName, displayName, downloadUrl);
+    }
+
+    private void startCompanionInstall(String packageName, String displayName, String downloadUrl,
+                                       File readyFile, List<CatalogApp> missing) {
+        List<InstallJob> jobs = new ArrayList<>();
+        for (CatalogApp req : missing) {
+            File cached = readyCachedApk(req.packageName);
+            if (cached == null && (req.downloadUrl == null || req.downloadUrl.isEmpty())) {
+                callback.log("Bağımlılık atlandı, adres yok: " + req.packageName);
+                continue;
+            }
+            jobs.add(new InstallJob(req.packageName, req.displayName, req.downloadUrl, cached));
+        }
+        jobs.add(new InstallJob(packageName, displayName, downloadUrl, readyFile));
+        beginInstallSequence(jobs);
+    }
+
+    private void beginInstallSequence(List<InstallJob> jobs) {
+        installQueueGeneration++;
+        if (installQueueGeneration == Integer.MAX_VALUE) installQueueGeneration = 1;
+        installQueue.clear();
+        installQueue.addAll(jobs);
+        advanceInstallQueue(installQueueGeneration);
+    }
+
+    private void advanceInstallQueue(int generation) {
+        if (generation != installQueueGeneration) return;
+        InstallJob next = installQueue.pollFirst();
+        if (next == null) return;
+        int continueGeneration = installQueue.isEmpty() ? 0 : generation;
+        if (next.readyFile != null && next.readyFile.isFile()) {
+            installApkFile(next.readyFile, continueGeneration);
+            return;
+        }
+        if (next.downloadUrl == null || next.downloadUrl.isEmpty()) {
+            callback.log("İndirme adresi yok: " + next.packageName);
+            advanceInstallQueue(generation);
+            return;
+        }
+        downloadAndInstallApp(next.packageName, next.displayName, next.downloadUrl, continueGeneration);
+    }
+
+    private void abandonInstallQueue(int generation) {
+        if (generation != 0 && generation == installQueueGeneration) {
+            installQueue.clear();
+            installQueueGeneration++;
         }
     }
 
@@ -1025,8 +1336,13 @@ public class AppsTabBuilder {
         UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
         UiStyles.clearButtonCompoundDrawables(button);
         button.setOnClickListener(v -> {
-            callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
-            installApkFile(readyFile);
+            String pkg = packageNameFromApkFile(readyFile);
+            if (pkg == null) {
+                callback.log(displayName + " kuruluyor (indirilmiş dosyadan)...");
+                installApkFile(readyFile);
+                return;
+            }
+            requestInstall(pkg, displayName, null, readyFile);
         });
     }
 
@@ -1077,7 +1393,7 @@ public class AppsTabBuilder {
             UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download, iconColor, iconGap);
             String retryName = progress.displayName != null ? progress.displayName : row.displayName;
             String retryUrl = progress.downloadUrl;
-            button.setOnClickListener(v -> downloadAndInstallApp(packageName, retryName, retryUrl));
+            button.setOnClickListener(v -> requestInstall(packageName, retryName, retryUrl, null));
         }
     }
 
@@ -1166,6 +1482,10 @@ public class AppsTabBuilder {
     }
 
     private void downloadAndInstallApp(String packageName, String displayName, String downloadUrl) {
+        downloadAndInstallApp(packageName, displayName, downloadUrl, 0);
+    }
+
+    private void downloadAndInstallApp(String packageName, String displayName, String downloadUrl, int queueGeneration) {
         DownloadProgress progress = downloadProgress.get(packageName);
         if (progress == null) {
             progress = new DownloadProgress();
@@ -1292,13 +1612,16 @@ public class AppsTabBuilder {
                     DownloadProgress current = downloadProgress.get(packageName);
                     if (current == null || current.generation != generation) return;
                     Toast.makeText(context, context.getString(R.string.apps_installing_named, displayName), Toast.LENGTH_SHORT).show();
-                    installApkFile(apkFile);
+                    installApkFile(apkFile, queueGeneration);
                 });
             } catch (Exception e) {
                 if (partial != null && partial.exists()) partial.delete();
                 restoreBackupIfNeeded(packageName);
                 callback.log("[ERROR] APK indirme/yükleme hatası: " + e.getMessage());
-                handler.post(() -> onDownloadFailedUi(packageName, generation));
+                handler.post(() -> {
+                    onDownloadFailedUi(packageName, generation);
+                    abandonInstallQueue(queueGeneration);
+                });
             } finally {
                 try { if (inputStream != null) inputStream.close(); } catch (Exception ignored) {}
                 try { if (outputStream != null) outputStream.close(); } catch (Exception ignored) {}
@@ -1596,8 +1919,15 @@ public class AppsTabBuilder {
     }
 
     public void installApkFile(File apkFile) {
+        installApkFile(apkFile, 0);
+    }
+
+    private void installApkFile(File apkFile, int queueGeneration) {
         if (apkFile == null || !apkFile.exists()) {
-            handler.post(() -> Toast.makeText(context, R.string.apps_apk_not_found, Toast.LENGTH_SHORT).show());
+            handler.post(() -> {
+                Toast.makeText(context, R.string.apps_apk_not_found, Toast.LENGTH_SHORT).show();
+                abandonInstallQueue(queueGeneration);
+            });
             callback.log("APK dosyası bulunamadı");
             return;
         }
@@ -1620,12 +1950,16 @@ public class AppsTabBuilder {
                 handler.post(() -> {
                     callback.log(dexResult.message);
                     Toast.makeText(context, R.string.apps_installed_success, Toast.LENGTH_SHORT).show();
+                    if (queueGeneration != 0 && queueGeneration == installQueueGeneration) {
+                        advanceInstallQueue(queueGeneration);
+                    }
+                    loadAppsFromServer();
                 });
-                handler.post(this::loadAppsFromServer);
                 return;
             }
 
             callback.log("Sessiz dex kurulumu olmadı: " + dexResult.message);
+            handler.post(() -> abandonInstallQueue(queueGeneration));
             if (activity == null) {
                 handler.post(() -> {
                     Toast.makeText(context,

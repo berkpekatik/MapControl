@@ -39,7 +39,14 @@
 
     <string name="welcome_sound_title">Hoşgeldin Ekranı</string>
     <string name="welcome_sound_back">Geri</string>
-    <string name="welcome_sound_choose_file">Ses dosyası seç</string>
+    <string name="welcome_sound_steps">1. Telefonda bir ses dosyası indirin (mp3, wav, m4a, ogg, flac, aac, wma, amr).\n2. USB belleği araca takın. Dosya bu ekranda görünür; adına dokunun.\n3. USB yoksa Web ekranından İndirilenler’e gönderin, sonra Ses seç ile bulun.</string>
+    <string name="welcome_sound_usb_title">USB’deki sesler</string>
+    <string name="welcome_sound_usb_absent">USB takılı değil.</string>
+    <string name="welcome_sound_usb_empty">USB’de ses dosyası yok.</string>
+    <string name="welcome_sound_choose_file">Ses seç</string>
+    <string name="welcome_sound_copying">Ses kopyalanıyor…</string>
+    <string name="welcome_sound_saved">Ses kaydedildi</string>
+    <string name="welcome_sound_copy_error">Ses kopyalanamadı</string>
     <string name="welcome_sound_selected_label">Seçilen ses</string>
     <string name="welcome_sound_no_file_yet">Henüz seçilmedi</string>
     <string name="welcome_sound_play">Çal</string>
