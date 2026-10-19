@@ -51,6 +51,7 @@ import java.io.InputStreamReader;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.lang.ref.WeakReference;
 import java.util.Locale;
 import java.util.ArrayList;
 import android.content.pm.PackageInfo;
@@ -160,7 +161,13 @@ public class MainActivity extends AppCompatActivity {
     private ServiceInitializer serviceInitializer;
     private SideRailBuilder sideRailBuilder;
     /** {@link ClusterVDBusTestActivity} bench — yalnızca görünürken; {@link #onResume()} atanır. */
-    private static volatile MainActivity sBenchHost;
+    private static volatile WeakReference<MainActivity> sBenchHost;
+
+    @androidx.annotation.Nullable
+    private static MainActivity getBenchHost() {
+        WeakReference<MainActivity> ref = sBenchHost;
+        return ref != null ? ref.get() : null;
+    }
     /** Oturumda LOG sekmesine ilk geçişte hoşgeldin TTS bir kez */
     private boolean logWelcomeTtsDone;
     private TextToSpeech systemTts;
@@ -974,21 +981,7 @@ public class MainActivity extends AppCompatActivity {
      * Cluster display ID'sini al
      */
     private int getClusterDisplayId() {
-        try {
-            DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-            Display[] displays = dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-            if (displays.length == 0) {
-                displays = dm.getDisplays();
-            }
-            for (Display d : displays) {
-                if (d.getDisplayId() != Display.DEFAULT_DISPLAY) {
-                    return d.getDisplayId();
-                }
-            }
-        } catch (Exception e) {
-            log("getClusterDisplayId hatası: " + e.getMessage());
-        }
-        return 2; // Varsayılan cluster display ID
+        return com.mapcontrol.util.AppLaunchHelper.getClusterDisplayId(this);
     }
 
     /**
@@ -1010,6 +1003,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             String[] preferred = new String[] {
+                    "com.huawei.maps.app",
                     "ru.yandex.yandexnavi",
                     "ru.yandex.yandexmaps",
                     "com.google.android.apps.maps",
@@ -1490,7 +1484,9 @@ public class MainActivity extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
         if (newConfig.orientation != lastOrientation) {
             lastOrientation = newConfig.orientation;
-            mountShell(newConfig.orientation == Configuration.ORIENTATION_PORTRAIT);
+            if (mainRootContainer != null) {
+                mountShell(newConfig.orientation == Configuration.ORIENTATION_PORTRAIT);
+            }
             boolean launcherMode = LauncherModeManager.isEnabled(this);
             if (sideRailBuilder != null) {
                 sideRailBuilder.setLauncherModeActive(launcherMode);
@@ -1574,6 +1570,9 @@ public class MainActivity extends AppCompatActivity {
      * Genişlikler configChanges yüzünden activity yeniden kurulmadan burada ölçülür.
      */
     private void mountShell(boolean portrait) {
+        if (mainRootContainer == null) {
+            return;
+        }
         portraitShell = portrait;
         android.util.DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
         screenWidthPx = displayMetrics.widthPixels;
@@ -1733,7 +1732,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
-        sBenchHost = this;
+        sBenchHost = new WeakReference<>(this);
         // Arka plandayken Floating Back / overlay hedef seçimi prefs'e yazılır; yayın onPause'da
         // alıcı kapatıldığı için kaçırılabilir — her öne gelişte disk ile bellek senkronu.
         loadTargetPackage();
@@ -1767,11 +1766,7 @@ public class MainActivity extends AppCompatActivity {
         }
         try {
             IntentFilter filter = new IntentFilter(TargetPackageStore.ACTION_TARGET_PACKAGE_UPDATED);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(targetPackageUpdatedReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                registerReceiver(targetPackageUpdatedReceiver, filter);
-            }
+            ContextCompat.registerReceiver(this, targetPackageUpdatedReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
             targetPackageBroadcastRegistered = true;
         } catch (Exception e) {
             log("Hedef paket yayını kaydı: " + e.getMessage());
@@ -1795,11 +1790,7 @@ public class MainActivity extends AppCompatActivity {
         }
         try {
             IntentFilter filter = new IntentFilter(ClusterNavigationState.ACTION_NAVIGATION_CLUSTER_STATE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(navigationClusterStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                registerReceiver(navigationClusterStateReceiver, filter);
-            }
+            ContextCompat.registerReceiver(this, navigationClusterStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
             navigationClusterBroadcastRegistered = true;
         } catch (Exception e) {
             log("Cluster durum yayını kaydı: " + e.getMessage());
@@ -1824,11 +1815,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             IntentFilter filter = new IntentFilter(
                     GoogleMapsNavNotificationCoordinator.ACTION_GOOGLE_MAPS_NAV_SNAPSHOT);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(googleMapsNavSnapshotReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                registerReceiver(googleMapsNavSnapshotReceiver, filter);
-            }
+            ContextCompat.registerReceiver(this, googleMapsNavSnapshotReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
             googleMapsNavBroadcastRegistered = true;
         } catch (Exception e) {
             log("Google Maps bildirim yayını kaydı: " + e.getMessage());
@@ -1876,9 +1863,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @androidx.annotation.NonNull String[] permissions, @androidx.annotation.NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1001) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted && wifiTabBuilder != null) {
+                wifiTabBuilder.onLocationPermissionGranted();
+            }
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         ApkSessionInstaller.clearListener(apkSessionListener);
-        if (sBenchHost == this) {
+        MainActivity host = getBenchHost();
+        if (host == this) {
             sBenchHost = null;
         }
         if (welcomeSoundTabBuilder != null) {
@@ -2022,8 +2021,8 @@ public class MainActivity extends AppCompatActivity {
         if (uri == null) {
             return false;
         }
-        String h = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
-        String p = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
+        String h = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+        String p = uri.getPath() != null ? uri.getPath().toLowerCase(Locale.ROOT) : "";
         if (h.contains("yandex") && p.contains("maps")) {
             return true;
         }
@@ -2046,7 +2045,7 @@ public class MainActivity extends AppCompatActivity {
      * Yüzen geri tuşu MapControl öndeyken sistem BACK'i yutuyor; sekme geri mantığını burada uygula.
      */
     public static boolean dispatchOverlayBack() {
-        MainActivity activity = sBenchHost;
+        MainActivity activity = getBenchHost();
         if (activity == null || activity.isFinishing()) {
             return false;
         }
@@ -2064,7 +2063,7 @@ public class MainActivity extends AppCompatActivity {
      * Bench ekranından ana loga satır düşer (MainActivity yaşıyorsa).
      */
     public static void appendBenchLogToMainIfActive(String msg) {
-        MainActivity a = sBenchHost;
+        MainActivity a = getBenchHost();
         if (a == null || msg == null) {
             return;
         }
@@ -2073,7 +2072,7 @@ public class MainActivity extends AppCompatActivity {
 
     /** VDBus 26/4 ile aynı cluster toggle yolu. */
     public static void benchNavKeyToggle() {
-        MainActivity a = sBenchHost;
+        MainActivity a = getBenchHost();
         if (a == null) {
             Log.w("MainActivity", "[Bench] Ana ekran hazır değil (MainActivity yok)");
             return;
@@ -2092,7 +2091,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static void benchAlertTone() {
-        MainActivity a = sBenchHost;
+        MainActivity a = getBenchHost();
         if (a == null) {
             Log.w("MainActivity", "[Bench] Ana ekran hazır değil; uyarı sesi atlandı");
             return;
@@ -2101,7 +2100,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static void benchClusterOpenDirect() {
-        MainActivity a = sBenchHost;
+        MainActivity a = getBenchHost();
         if (a == null) {
             Log.w("MainActivity", "[Bench] Ana ekran hazır değil; cluster aç atlandı");
             return;
@@ -2116,7 +2115,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static void benchClusterCloseDirect() {
-        MainActivity a = sBenchHost;
+        MainActivity a = getBenchHost();
         if (a == null) {
             Log.w("MainActivity", "[Bench] Ana ekran hazır değil; cluster kapat atlandı");
             return;

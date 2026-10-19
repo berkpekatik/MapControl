@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="apps_local_uninstall_explanation">Android will ask to remove MapControl only. Any device owner role will be released first and will not be restored if you cancel. Vehicle settings changed by earlier installations will not be restored.</string>
+    <string name="apps_local_uninstall_blocked">Removal could not be started. See the app log. No automatic fallback was attempted.</string>
+    <string name="wifi_global_stabilize_title">Preparing Wi-Fi connection</string>
+    <string name="wifi_global_stabilize_eyebrow">Please wait</string>
+    <string name="wifi_global_toast_eyebrow_ok">Connection</string>
+    <string name="wifi_global_status_internet_ok">Wi-Fi connected</string>
+    <string name="wifi_global_toast_eyebrow_fail">Connection issue</string>
+    <string name="wifi_global_status_wifi_failed">Could not connect to Wi-Fi</string>
+    <string name="local_wifi_permission_denied">Required Wi-Fi permission was not granted.</string>
+    <string name="local_web_server_disabled">Web management is disabled in this local build until access authentication is implemented.</string>
+    <string name="wifi_location_permission_needed">Android 10+ requires Location Permission to scan for Wi-Fi networks.</string>
+    <string name="permission_grant_button">Grant Location Permission</string>
+    <string name="wifi_location_service_needed">Location service must be turned on to scan for Wi-Fi networks.</string>
+    <string name="wifi_open_location_settings">Open Location Settings</string>
+</resources>

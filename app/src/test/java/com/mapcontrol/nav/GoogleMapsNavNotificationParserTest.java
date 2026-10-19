@@ -17,11 +17,12 @@ public class GoogleMapsNavNotificationParserTest {
     }
 
     @Test
-    public void missingSubTextIsInactive() {
+    public void petalMapsNotificationWithoutSubTextIsActive() {
         GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
-                "200 m", "Turn left - Main", null, false);
-        assertFalse(snap.active);
-        assertNull(snap.formatSummaryLine());
+                "200 m", "Turn left", null, false);
+        assertTrue(snap.active);
+        assertEquals("200 m", snap.distanceTitle);
+        assertEquals("Turn left", snap.maneuverHint);
     }
 
     @Test

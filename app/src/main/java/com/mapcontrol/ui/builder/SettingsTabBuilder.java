@@ -157,7 +157,7 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        boolean serviceOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, true);
+        boolean serviceOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, false);
         UiStyles.addBinarySegmentedControl(context, parentContainer,
                 context.getString(R.string.settings_boot_service_title),
                 context.getString(R.string.common_on), context.getString(R.string.common_off),
@@ -169,7 +169,7 @@ public class SettingsTabBuilder {
                     callback.log("Açılışta servis: " + (on ? "Açık" : "Kapalı"));
                 });
 
-        boolean uiOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
+        boolean uiOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, false);
         UiStyles.addBinarySegmentedControl(context, parentContainer,
                 context.getString(R.string.settings_boot_ui_title),
                 context.getString(R.string.common_on), context.getString(R.string.common_off),

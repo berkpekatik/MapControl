@@ -93,6 +93,7 @@ public class MapControlService extends Service {
         
         // MainActivity'ye broadcast gönder
         Intent intent = new Intent(ACTION_LOG);
+        intent.setPackage(getPackageName());
         intent.putExtra(EXTRA_LOG_MESSAGE, msg);
         sendBroadcast(intent);
     }
@@ -104,7 +105,7 @@ public class MapControlService extends Service {
         BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduleClusterBootSplash();
+        // No automatic cluster overlay on service startup in the local build.
         scheduleEqualizerKeeper();
 
         // Power mode kontrolünü başlat
@@ -499,7 +500,7 @@ public class MapControlService extends Service {
             return;
         }
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
-        boolean ui = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
+        boolean ui = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, false);
         BootSession.setUiPending(this, ui);
         if (!ui) {
             return;
@@ -532,7 +533,7 @@ public class MapControlService extends Service {
             return;
         }
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
-        if (!prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true)) {
+        if (!prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, false)) {
             BootSession.setUiPending(this, false);
             return;
         }

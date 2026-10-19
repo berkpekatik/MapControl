@@ -21,6 +21,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.os.Environment;
 
@@ -74,57 +75,11 @@ public class WebServerManager {
      * HTTP server'ı başlat (7462 portunda)
      */
     public void startServer() {
-        if (isRunning.get()) {
-            if (listener != null) listener.onLog("Server zaten çalışıyor");
-            return;
-        }
-
-        try {
-            // Sabit port kullan (7462)
-            serverPort = 7462;
-            
-            serverSocket = new ServerSocket(serverPort);
-            isRunning.set(true);
-            
-            serverThread = new Thread(() -> {
-                try {
-                    String localIp = getLocalIpAddress();
-                    if (listener != null) {
-                        listener.onServerStarted(serverPort, localIp);
-                    }
-                    
-                    if (listener != null) listener.onLog("HTTP Server başlatıldı: http://" + localIp + ":" + serverPort);
-                    
-                    while (isRunning.get() && !serverSocket.isClosed()) {
-                        try {
-                            Socket clientSocket = serverSocket.accept();
-                            handleClient(clientSocket);
-                        } catch (IOException e) {
-                            if (isRunning.get()) {
-                                if (listener != null) listener.onLog("[ERROR] Client bağlantı hatası: " + e.getMessage());
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    if (listener != null) listener.onLog("[ERROR] Server hatası: " + e.getMessage());
-                    if (listener != null) {
-                        listener.onError("Server hatası: " + e.getMessage());
-                    }
-                } finally {
-                    isRunning.set(false);
-                    if (listener != null) {
-                        listener.onServerStopped();
-                    }
-                }
-            });
-            
-            serverThread.start();
-        } catch (IOException e) {
-            if (listener != null) listener.onLog("[ERROR] Server başlatma hatası: " + e.getMessage());
-            isRunning.set(false);
-            if (listener != null) {
-                listener.onError("Server başlatma hatası: " + e.getMessage());
-            }
+        // This local maintenance build does not expose unauthenticated remote controls.
+        String message = context.getString(R.string.local_web_server_disabled);
+        if (listener != null) {
+            listener.onLog(message);
+            listener.onError(message);
         }
     }
 
@@ -354,7 +309,7 @@ public class WebServerManager {
             String transferEncoding = null;
             
             for (String line : headerLines) {
-                String lowerLine = line.toLowerCase();
+                String lowerLine = line.toLowerCase(Locale.ROOT);
                 if (lowerLine.startsWith("content-length:")) {
                     try {
                         contentLength = Long.parseLong(line.substring(15).trim());
@@ -367,7 +322,7 @@ public class WebServerManager {
                     contentType = line.substring(13).trim();
                 } else if (lowerLine.startsWith("transfer-encoding:")) {
                     hasTransferEncoding = true;
-                    transferEncoding = line.substring(18).trim().toLowerCase();
+                    transferEncoding = line.substring(18).trim().toLowerCase(Locale.ROOT);
                 }
             }
             
@@ -394,7 +349,7 @@ public class WebServerManager {
             
             // Boundary'yi bul
             String boundary = null;
-            if (contentType != null && contentType.toLowerCase().startsWith("multipart/form-data")) {
+            if (contentType != null && contentType.toLowerCase(Locale.ROOT).startsWith("multipart/form-data")) {
                 int boundaryIndex = contentType.indexOf("boundary=");
                 if (boundaryIndex != -1) {
                     String boundaryValue = contentType.substring(boundaryIndex + 9);
@@ -612,7 +567,7 @@ public class WebServerManager {
             }
             
             // 2. APK için hızlı kontrol
-            if (fileName.toLowerCase().endsWith(".apk")) {
+            if (fileName.toLowerCase(Locale.ROOT).endsWith(".apk")) {
                 try {
                     if (actualFileSize < 2) {
                         if (listener != null) listener.onLog("[ERROR] APK dosyası çok küçük: " + actualFileSize + " bytes");
@@ -701,7 +656,7 @@ public class WebServerManager {
             if (l.isEmpty()) {
                 break;
             }
-            if (l.toLowerCase().startsWith("content-length:")) {
+            if (l.toLowerCase(Locale.ROOT).startsWith("content-length:")) {
                 try {
                     return Integer.parseInt(l.substring(15).trim());
                 } catch (NumberFormatException e) {
@@ -763,7 +718,7 @@ public class WebServerManager {
         if (scheme == null) {
             return false;
         }
-        String s = scheme.toLowerCase();
+        String s = scheme.toLowerCase(Locale.ROOT);
         if ("javascript".equals(s) || "file".equals(s) || "data".equals(s) || "content".equals(s)) {
             return false;
         }
@@ -1019,7 +974,7 @@ public class WebServerManager {
             }
             
             // Güvenlik: sadece APK dosyaları
-            if (!fileName.toLowerCase().endsWith(".apk")) {
+            if (!fileName.toLowerCase(Locale.ROOT).endsWith(".apk")) {
                 sendErrorResponse(output, 400, "Sadece APK dosyaları kurulabilir");
                 return;
             }
@@ -1285,9 +1240,9 @@ public class WebServerManager {
      */
     private String formatFileSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.2f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
-        return String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        if (bytes < 1024 * 1024) return String.format(Locale.getDefault(), "%.2f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format(Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024.0));
+        return String.format(Locale.getDefault(), "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
     
     /**
@@ -1313,7 +1268,7 @@ public class WebServerManager {
                 WifiInfo wifiInfo = wifiManager.getConnectionInfo();
                 int ipAddress = wifiInfo.getIpAddress();
                 if (ipAddress != 0) {
-                    return String.format("%d.%d.%d.%d",
+                    return String.format(Locale.ROOT, "%d.%d.%d.%d",
                             (ipAddress & 0xff),
                             (ipAddress >> 8 & 0xff),
                             (ipAddress >> 16 & 0xff),

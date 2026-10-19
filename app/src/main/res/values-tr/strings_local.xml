@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="apps_local_uninstall_explanation">Sistem yalnızca MapControl için kaldırma onayı isteyecek. Cihaz sahibi yetkisi varsa önce bırakılacak; iptal ederseniz bu yetki otomatik geri verilmez. Önceki kurulumun değiştirdiği araç ayarları geri yüklenmez.</string>
+    <string name="apps_local_uninstall_blocked">Kaldırma başlatılamadı. Ayrıntılar uygulama günlüğünde; otomatik alternatif işlem yapılmadı.</string>
+    <string name="wifi_global_stabilize_title">Wi-Fi bağlantısı hazırlanıyor</string>
+    <string name="wifi_global_stabilize_eyebrow">Lütfen bekleyin</string>
+    <string name="wifi_global_toast_eyebrow_ok">Bağlantı</string>
+    <string name="wifi_global_status_internet_ok">Wi-Fi bağlı</string>
+    <string name="wifi_global_toast_eyebrow_fail">Bağlantı sorunu</string>
+    <string name="wifi_global_status_wifi_failed">Wi-Fi bağlantısı kurulamadı</string>
+    <string name="local_wifi_permission_denied">Wi-Fi işlemi için gerekli izin verilmedi.</string>
+    <string name="local_web_server_disabled">Web yönetimi bu yerel sürümde kapalıdır. Erişim doğrulaması tamamlanmadan açılmaz.</string>
+    <string name="wifi_location_permission_needed">Android 10+ güvenliği gereği Wi-Fi ağlarını tarayabilmek için Konum İzni gereklidir.</string>
+    <string name="permission_grant_button">Konum İzni Ver</string>
+    <string name="wifi_location_service_needed">Wi-Fi ağlarını tarayabilmek için cihazın Konum servisi açık olmalıdır.</string>
+    <string name="wifi_open_location_settings">Konum Ayarlarını Aç</string>
+</resources>

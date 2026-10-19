@@ -40,8 +40,7 @@ public final class TargetPackageStore {
      */
     public static void writeAndBroadcast(Context context, String packageName) {
         String v = normalize(packageName);
-        // commit: yayın alıcıları hemen okuduğunda disk ile uyumlu olsun (apply gecikmesi yok)
-        prefs(context).edit().putString(KEY_TARGET_PACKAGE, v).commit();
+        prefs(context).edit().putString(KEY_TARGET_PACKAGE, v).apply();
         broadcast(context);
     }
 

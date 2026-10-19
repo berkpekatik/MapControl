@@ -20,7 +20,12 @@ public class ServiceInitializer {
     }
 
     public void onCreate() {
-        startForegroundService();
+        if (context.getSharedPreferences(BootReceiver.PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(BootReceiver.KEY_BOOT_AUTO_START, false)) {
+            startForegroundService();
+        } else {
+            callback.log("Automatic background service is disabled");
+        }
         registerLogReceiver();
     }
 
@@ -60,7 +65,8 @@ public class ServiceInitializer {
         };
 
         IntentFilter filter = new IntentFilter("com.mapcontrol.LOG_MESSAGE");
-        context.registerReceiver(logReceiver, filter);
+        androidx.core.content.ContextCompat.registerReceiver(
+                context, logReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     public void unregisterLogReceiver() {

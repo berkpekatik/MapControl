@@ -1,6 +1,7 @@
 package com.mapcontrol.ui.builder;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.Locale;
 
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
@@ -249,7 +251,14 @@ public class WifiTabBuilder {
         }
     }
 
-    private void scanWifiNetworks() {
+    public void onLocationPermissionGranted() {
+        handler.post(() -> {
+            updateWifiStatus();
+            scanWifiNetworks();
+        });
+    }
+
+    public void scanWifiNetworks() {
         if (wifiManager == null) {
             callback.log("WifiManager bulunamadı");
             Toast.makeText(context, R.string.wifi_manager_missing, Toast.LENGTH_SHORT).show();
@@ -329,8 +338,30 @@ public class WifiTabBuilder {
                 emptyIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textMuted)));
                 emptyCard.addView(emptyIcon);
 
+                boolean hasLoc = androidx.core.content.ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+
+                boolean isLocServiceEnabled = true;
+                try {
+                    android.location.LocationManager lm = (android.location.LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+                    if (lm != null) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            isLocServiceEnabled = lm.isLocationEnabled();
+                        } else {
+                            isLocServiceEnabled = lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                                    || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+                        }
+                    }
+                } catch (Exception ignore) {}
+
                 TextView noNetworks = new TextView(context);
-                noNetworks.setText(R.string.wifi_scan_empty);
+                if (!hasLoc) {
+                    noNetworks.setText(R.string.wifi_location_permission_needed);
+                } else if (!isLocServiceEnabled) {
+                    noNetworks.setText(R.string.wifi_location_service_needed);
+                } else {
+                    noNetworks.setText(R.string.wifi_scan_empty);
+                }
                 noNetworks.setTextColor(UiStyles.color(context, R.color.textMuted));
                 noNetworks.setTextSize(15);
                 noNetworks.setGravity(android.view.Gravity.CENTER);
@@ -340,8 +371,47 @@ public class WifiTabBuilder {
                 noNetLp.topMargin = Math.round(16 * context.getResources().getDisplayMetrics().density);
                 emptyCard.addView(noNetworks, noNetLp);
 
+                if (!hasLoc) {
+                    Button btnPerm = new Button(context);
+                    btnPerm.setText(R.string.permission_grant_button);
+                    btnPerm.setTextSize(14);
+                    btnPerm.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(btnPerm, UiStyles.color(context, R.color.buttonPrimary));
+                    LinearLayout.LayoutParams permLp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT);
+                    permLp.topMargin = Math.round(16 * context.getResources().getDisplayMetrics().density);
+                    btnPerm.setOnClickListener(v -> {
+                        if (context instanceof android.app.Activity) {
+                            androidx.core.app.ActivityCompat.requestPermissions(
+                                    (android.app.Activity) context,
+                                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                                    1001);
+                        }
+                    });
+                    emptyCard.addView(btnPerm, permLp);
+                } else if (!isLocServiceEnabled) {
+                    Button btnSettings = new Button(context);
+                    btnSettings.setText(R.string.wifi_open_location_settings);
+                    btnSettings.setTextSize(14);
+                    btnSettings.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                    UiStyles.styleOemButton(btnSettings, UiStyles.color(context, R.color.buttonPrimary));
+                    LinearLayout.LayoutParams settingsLp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT);
+                    settingsLp.topMargin = Math.round(16 * context.getResources().getDisplayMetrics().density);
+                    btnSettings.setOnClickListener(v -> {
+                        try {
+                            context.startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        } catch (Exception e) {
+                            callback.log("Konum ayarları açılamadı: " + e.getMessage());
+                        }
+                    });
+                    emptyCard.addView(btnSettings, settingsLp);
+                }
+
                 wifiListContainer.addView(emptyCard);
-                callback.log("Wi-Fi ağı bulunamadı");
+                callback.log(!hasLoc ? "Wi-Fi taraması: Konum izni eksik" : (!isLocServiceEnabled ? "Wi-Fi taraması: Konum servisi kapalı" : "Wi-Fi ağı bulunamadı"));
                 return;
             }
 
@@ -358,6 +428,9 @@ public class WifiTabBuilder {
             }
 
             callback.log("" + scanResults.size() + " Wi-Fi ağı bulundu");
+        } catch (SecurityException e) {
+            callback.log("Wi-Fi permission denied: " + e.getMessage());
+            Toast.makeText(context, R.string.local_wifi_permission_denied, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             callback.log("Wi-Fi listesi hatası: " + e.getMessage());
             Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
@@ -438,7 +511,7 @@ public class WifiTabBuilder {
             if (wifiInfo != null) {
                 int ip = wifiInfo.getIpAddress();
                 if (ip != 0) {
-                    ipAddress = String.format("%d.%d.%d.%d",
+                    ipAddress = String.format(Locale.ROOT, "%d.%d.%d.%d",
                             (ip & 0xff),
                             (ip >> 8 & 0xff),
                             (ip >> 16 & 0xff),
@@ -649,6 +722,9 @@ public class WifiTabBuilder {
                 callback.log("Ağ eklenemedi: " + result.SSID);
                 Toast.makeText(context, R.string.wifi_network_add_failed, Toast.LENGTH_SHORT).show();
             }
+        } catch (SecurityException e) {
+            callback.log("Wi-Fi permission denied: " + e.getMessage());
+            Toast.makeText(context, R.string.local_wifi_permission_denied, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             callback.log("Açık ağ bağlantı hatası: " + e.getMessage());
             Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
@@ -731,6 +807,9 @@ public class WifiTabBuilder {
                 callback.log("Ağ eklenemedi: " + result.SSID);
                 Toast.makeText(context, R.string.wifi_network_add_failed, Toast.LENGTH_SHORT).show();
             }
+        } catch (SecurityException e) {
+            callback.log("Wi-Fi permission denied: " + e.getMessage());
+            Toast.makeText(context, R.string.local_wifi_permission_denied, Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             callback.log("Şifreli ağ bağlantı hatası: " + e.getMessage());
             Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();

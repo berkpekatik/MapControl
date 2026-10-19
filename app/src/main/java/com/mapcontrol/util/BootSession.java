@@ -45,7 +45,7 @@ public final class BootSession {
     }
 
     public static void setUiPending(Context context, boolean pending) {
-        prefs(context).edit().putBoolean(KEY_UI_PENDING, pending).commit();
+        prefs(context).edit().putBoolean(KEY_UI_PENDING, pending).apply();
     }
 
     public static boolean isUiPending(Context context) {

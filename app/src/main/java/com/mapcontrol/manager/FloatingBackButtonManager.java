@@ -179,7 +179,7 @@ public class FloatingBackButtonManager {
                 .putBoolean(KEY_FLOATING_BACK_POS_SAVED, true)
                 .putInt(KEY_FLOATING_BACK_POS_X, params.x)
                 .putInt(KEY_FLOATING_BACK_POS_Y, params.y)
-                .commit();
+                .apply();
     }
 
     private void applyInitialPosition(int screenWidth, int screenHeight, float density) {

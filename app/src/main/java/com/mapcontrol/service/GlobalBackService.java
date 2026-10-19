@@ -14,7 +14,6 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
 import com.mapcontrol.nav.YandexClusterNavOverlay;
-import com.mapcontrol.util.InstallerConfirmClicker;
 import com.mapcontrol.nav.YandexNavScraper;
 import com.mapcontrol.nav.YandexNavSnapshot;
 
@@ -42,7 +41,6 @@ public class GlobalBackService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         maybeScrapeYandexNav(event);
-        InstallerConfirmClicker.onWindowEvent(this);
     }
     
     @Override
@@ -61,7 +59,6 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
-        InstallerConfirmClicker.disarm();
         try {
             YandexClusterNavOverlay.getInstance(this).hide();
         } catch (Exception ignored) {

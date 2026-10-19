@@ -3,6 +3,8 @@ package com.mapcontrol.vehicle.material;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Locale;
+
 import androidx.annotation.Nullable;
 
 /**
@@ -90,6 +92,6 @@ public final class MaterialVehiclePreferences {
         if (suffix.startsWith(".")) {
             suffix = suffix.substring(1);
         }
-        return suffix.toUpperCase().replace('.', ' ');
+        return suffix.toUpperCase(Locale.ROOT).replace('.', ' ');
     }
 }

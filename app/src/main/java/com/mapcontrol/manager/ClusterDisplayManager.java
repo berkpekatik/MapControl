@@ -34,7 +34,7 @@ public class ClusterDisplayManager {
     private final AtomicInteger openSessionId = new AtomicInteger(0);
 
     public ClusterDisplayManager(Context context, ClusterCallback callback) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.callback = callback;
         this.handler = new Handler(Looper.getMainLooper());
     }
@@ -43,7 +43,11 @@ public class ClusterDisplayManager {
         final int session = openSessionId.incrementAndGet();
         try {
             int targetDisplay = AppLaunchHelper.getClusterDisplayId(context);
-            if (targetDisplay != 0) {
+            if (targetDisplay <= 0) {
+                callback.log("Cluster açılmadı: tek ve geçerli ikincil ekran bulunamadı.");
+                return;
+            }
+            if (targetDisplay > 0) {
                 DisplayHelper.hideBootSplash();
                 DisplayHelper.showPreparingMessageOnDisplay(context, targetDisplay);
                 Runnable timeoutRunnable = () -> {
@@ -56,33 +60,7 @@ public class ClusterDisplayManager {
                 handler.postDelayed(timeoutRunnable, 7000);
             }
 
-            String appOnDisplay2 = getAppOnDisplay2();
-            if (appOnDisplay2 != null && !appOnDisplay2.isEmpty() && !"com.mapcontrol".equals(appOnDisplay2)) {
-                callback.log("Display 2'de açık uygulama bulundu: " + appOnDisplay2 + " - Display 0'a taşınıyor ve kapatılıyor");
-                try {
-                    if (appOnDisplay2 == null || appOnDisplay2.equals("com.mapcontrol")) {
-                        callback.log("com.mapcontrol paketi taşınmayacak: " + appOnDisplay2);
-                    } else {
-                        PackageManager pm = context.getPackageManager();
-                        Intent li = pm.getLaunchIntentForPackage(appOnDisplay2);
-                        if (li == null) {
-                            callback.log("Uygulama intent bulunamadı: " + appOnDisplay2);
-                        } else {
-                            AppLaunchHelper.moveAppToDefaultDisplay(context, appOnDisplay2);
-                            callback.log("Uygulama default display'e taşındı (arka planda): " + appOnDisplay2);
-                        }
-                    }
-                } catch (Exception e) {
-                    callback.log("moveAppToDefaultDisplay hatası: " + e.getMessage());
-                }
-                Intent homeIntent = new Intent(Intent.ACTION_MAIN);
-                homeIntent.addCategory(Intent.CATEGORY_HOME);
-                homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(homeIntent);
-            } else if ("com.mapcontrol".equals(appOnDisplay2)) {
-                callback.log("Display 2'de com.mapcontrol bulundu - taşıma işlemi atlandı");
-            }
-
+            // Running processes do not identify their display. Do not move an unrelated app.
             VDNaviDisplayCluster payloadwakeUp = new VDNaviDisplayCluster();
             payloadwakeUp.setNaviFrontDeskStatus("true");
             payloadwakeUp.setDisplayCluster("true");
@@ -94,6 +72,11 @@ public class ClusterDisplayManager {
 
             handler.postDelayed(() -> {
                 if (session != openSessionId.get()) {
+                    return;
+                }
+                if (AppLaunchHelper.getClusterDisplayId(context) != targetDisplay) {
+                    DisplayHelper.hidePreparingMessage();
+                    callback.log("Cluster açılışı durdu: ekran bağlantısı değişti.");
                     return;
                 }
                 VDNaviDisplayArea payloadDA = new VDNaviDisplayArea();
@@ -152,14 +135,8 @@ public class ClusterDisplayManager {
      * "Ana Ekrana Al" sonrası boş cluster için {@link DisplayHelper#showBootSplashOnDisplay} ile aynı yol.
      */
     public void showBootSplashOnClusterIfNoForegroundApp() {
-        String appOnDisplay2 = getAppOnDisplay2();
-        if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
-            return;
-        }
-        int clusterId = AppLaunchHelper.getClusterDisplayId(context);
-        if (clusterId != 0) {
-            DisplayHelper.showBootSplashOnDisplay(context, clusterId);
-        }
+        // Android running-process APIs cannot prove that the cluster is empty.
+        callback.log("Otomatik cluster görseli atlandı: ekranın boş olduğu doğrulanamıyor.");
     }
 
     public void closeClusterDisplay(boolean sendBackground) {
@@ -225,85 +202,4 @@ public class ClusterDisplayManager {
         }
     }
 
-    private String getAppOnDisplay2() {
-        try {
-            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-            if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
-                if (processes != null) {
-                    for (ActivityManager.RunningAppProcessInfo processInfo : processes) {
-                        if (processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
-                                && processInfo.pkgList != null && processInfo.pkgList.length > 0) {
-                            String packageName = processInfo.pkgList[0];
-                            if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
-                                return packageName;
-                            }
-                        }
-                    }
-                }
-            }
-
-            Process process = Runtime.getRuntime().exec("dumpsys activity activities | grep -A 5 'displayId=2'");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            String lastPackage = null;
-            while ((line = reader.readLine()) != null) {
-                if (!line.contains("com.")) {
-                    continue;
-                }
-                int startIndex = line.indexOf("com.");
-                if (startIndex == -1) {
-                    continue;
-                }
-                int endIndex = line.indexOf("/", startIndex);
-                if (endIndex == -1) {
-                    endIndex = line.indexOf(" ", startIndex);
-                }
-                if (endIndex == -1) {
-                    endIndex = line.length();
-                }
-                String packageName = line.substring(startIndex, endIndex).trim();
-                if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
-                    lastPackage = packageName;
-                }
-            }
-            reader.close();
-            if (lastPackage != null) {
-                callback.log("Display 2'de uygulama bulundu: " + lastPackage);
-            }
-            return lastPackage;
-        } catch (Exception e) {
-            callback.log("getAppOnDisplay2 hatası: " + e.getMessage());
-            return null;
-        }
-    }
-
-    private boolean isSystemOrPrivApp(String packageName) {
-        try {
-            if (packageName == null || packageName.isEmpty()) {
-                return true;
-            }
-            if ("com.mapcontrol".equals(packageName)) {
-                return false;
-            }
-            PackageManager pm = context.getPackageManager();
-            ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
-            boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-            boolean isUpdatedSystemApp = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
-            if (isSystemApp || isUpdatedSystemApp) {
-                return true;
-            }
-            String sourceDir = appInfo.sourceDir;
-            String publicSourceDir = appInfo.publicSourceDir;
-            if (sourceDir != null && (sourceDir.contains("/system/priv-app/") || sourceDir.contains("/system/app/"))) {
-                return true;
-            }
-            if (publicSourceDir != null && (publicSourceDir.contains("/system/priv-app/") || publicSourceDir.contains("/system/app/"))) {
-                return true;
-            }
-            return false;
-        } catch (Exception ignored) {
-            return true;
-        }
-    }
 }

@@ -180,13 +180,13 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
         surfaceTexture.setDefaultBufferSize(this.outputSize.getWidth(), this.outputSize.getHeight());
         Surface surface = new Surface(surfaceTexture);
         try {
-            cameraBean.setCaptureRequestBuilder(cameraDevice.createCaptureRequest(1));
+            cameraBean.setCaptureRequestBuilder(cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW));
         } catch (CameraAccessException e2) {
             e2.printStackTrace();
         }
         cameraBean.getCaptureRequestBuilder().addTarget(surface);
         try {
-            cameraDevice.createCaptureSession(new SessionConfiguration(0, Collections.singletonList(new OutputConfiguration(surface)), new ThreadPoolExecutor(2, 4, 2L, TimeUnit.SECONDS, new LinkedBlockingQueue(), new ThreadFactory() {
+            cameraDevice.createCaptureSession(new SessionConfiguration(SessionConfiguration.SESSION_REGULAR, Collections.singletonList(new OutputConfiguration(surface)), new ThreadPoolExecutor(2, 4, 2L, TimeUnit.SECONDS, new LinkedBlockingQueue(), new ThreadFactory() {
                 @Override
                 public final Thread newThread(Runnable runnable) {
                     return CameraActivity.lambda$createCameraPreview$1(runnable);
@@ -242,7 +242,7 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
 
     private void initCameraManager() throws CameraAccessException {
         if (this.cameraManager == null) {
-            this.cameraManager = (CameraManager) getApplicationContext().getSystemService("camera");
+            this.cameraManager = (CameraManager) getApplicationContext().getSystemService(android.content.Context.CAMERA_SERVICE);
         }
         updateCameraDevices();
         this.cameraManager.registerAvailabilityCallback(this.availabilityCallback, this.handler);
@@ -387,6 +387,7 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
      */
     private void log(String msg) {
         Intent intent = new Intent(ACTION_LOG);
+        intent.setPackage(getPackageName());
         intent.putExtra(EXTRA_LOG_MESSAGE, msg);
         sendBroadcast(intent);
     }

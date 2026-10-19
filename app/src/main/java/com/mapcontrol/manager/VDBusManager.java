@@ -102,7 +102,7 @@ public class VDBusManager {
     };
 
     public VDBusManager(Context context, VDBusCallback callback) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.callback = callback;
     }
 

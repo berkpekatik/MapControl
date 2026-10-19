@@ -13,6 +13,8 @@ public final class GoogleMapsNavSnapshot {
 
     private static final Pattern ARRIVAL_TIME = Pattern.compile(
             "\\b([01]?\\d|2[0-3]):[0-5]\\d\\b");
+    private static final Pattern SEGMENT_DISTANCE = Pattern.compile(
+            "^(\\d+(?:[.,]\\d+)?)\\s*(km|m|mi|ft)$", Pattern.CASE_INSENSITIVE);
 
     public final boolean active;
     @Nullable public final String maneuverHint;
@@ -91,6 +93,22 @@ public final class GoogleMapsNavSnapshot {
     @Nullable
     public String formatManeuverDistanceLine() {
         return splitTitleDistancePart(distanceTitle);
+    }
+
+    /** Meters to the next maneuver; zero is the existing bus convention for no distance. */
+    public int segmentRemainMeters() {
+        String distance = formatManeuverDistanceLine();
+        if (!active || distance == null) return 0;
+        Matcher match = SEGMENT_DISTANCE.matcher(distance.replace('\u00a0', ' ')
+                .replace('\u202f', ' ').trim());
+        if (!match.matches()) return 0;
+        double quantity = Double.parseDouble(match.group(1).replace(',', '.'));
+        String unit = match.group(2).toLowerCase(Locale.ROOT);
+        double multiplier = "km".equals(unit) ? 1000.0
+                : "mi".equals(unit) ? 1609.344 : "ft".equals(unit) ? 0.3048 : 1.0;
+        double meters = quantity * multiplier;
+        if (!Double.isFinite(meters) || meters > Integer.MAX_VALUE) return 0;
+        return (int) Math.round(meters);
     }
 
     /** Manevra yönü: başlıktaki talimat veya hedef satırı. */

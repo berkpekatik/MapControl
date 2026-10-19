@@ -1,0 +1,10 @@
+<resources>
+    <item type="id" name="local_drive_none"/>
+    <item type="id" name="local_drive_eco"/>
+    <item type="id" name="local_drive_normal"/>
+    <item type="id" name="local_drive_sport"/>
+    <item type="id" name="local_drive_snow"/>
+    <item type="id" name="local_drive_mud"/>
+    <item type="id" name="local_drive_offroad"/>
+    <item type="id" name="local_drive_sand"/>
+</resources>

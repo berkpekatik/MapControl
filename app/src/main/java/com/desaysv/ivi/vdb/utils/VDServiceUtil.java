@@ -59,7 +59,7 @@ public class VDServiceUtil {
     }
 
     public static boolean isServiceStarted(Context context, String str) {
-        List<ActivityManager.RunningServiceInfo> runningServices = ((ActivityManager) context.getSystemService("activity")).getRunningServices(1000);
+        List<ActivityManager.RunningServiceInfo> runningServices = ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getRunningServices(1000);
         for (int i9 = 0; i9 < runningServices.size(); i9++) {
             if (runningServices.get(i9).service.getClassName().equals(str)) {
                 return true;

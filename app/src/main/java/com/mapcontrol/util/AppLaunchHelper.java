@@ -15,6 +15,7 @@ public final class AppLaunchHelper {
     private static final String TAG = "AppLaunchHelper";
 
     public static final String GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps";
+    public static final String PETAL_MAPS_PACKAGE = "com.huawei.maps.app";
     /**
      * Google Maps car/cluster surface.
      */
@@ -28,22 +29,20 @@ public final class AppLaunchHelper {
      */
     public static int getClusterDisplayId(Context context) {
         try {
-            DisplayManager dm = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-            if (dm == null) {
-                return 2;
+            DisplayManager manager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+            if (manager == null) return -1;
+            Display[] displays = manager.getDisplays();
+            int[] ids = new int[displays.length];
+            for (int i = 0; i < displays.length; i++) {
+                ids[i] = displays[i].isValid() ? displays[i].getDisplayId() : -1;
             }
-            Display[] displays = dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-            if (displays.length == 0) {
-                displays = dm.getDisplays();
-            }
-            for (Display d : displays) {
-                if (d.getDisplayId() != Display.DEFAULT_DISPLAY) {
-                    return d.getDisplayId();
-                }
-            }
-        } catch (Exception ignored) {
+            int selected = SecondaryDisplaySelector.select(ids);
+            if (selected < 0) Log.w(TAG, "No unambiguous secondary display; cluster launch blocked");
+            return selected;
+        } catch (RuntimeException error) {
+            Log.w(TAG, "Cannot inspect displays", error);
+            return -1;
         }
-        return 2;
     }
 
     /**
@@ -71,6 +70,11 @@ public final class AppLaunchHelper {
      * Google Maps on a non-default display tries {@code EmbeddedClusterActivity} first, then the normal launcher.
      */
     public static void launchAppOnDisplay(Context context, String packageName, int displayId, int additionalFlags) {
+        DisplayManager manager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+        if (displayId < 0 || manager == null || manager.getDisplay(displayId) == null) {
+            Log.w(TAG, "Launch blocked: display unavailable " + displayId);
+            return;
+        }
         Intent intent = buildLaunchIntent(context, packageName, displayId);
         if (intent == null) {
             return;

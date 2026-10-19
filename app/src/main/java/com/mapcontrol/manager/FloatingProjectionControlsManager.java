@@ -122,7 +122,7 @@ public class FloatingProjectionControlsManager {
                 .putBoolean(KEY_POS_SAVED, true)
                 .putInt(KEY_POS_X, params.x)
                 .putInt(KEY_POS_Y, params.y)
-                .commit();
+                .apply();
     }
 
     private void applyInitialPosition(int screenWidth, int screenHeight, float density) {

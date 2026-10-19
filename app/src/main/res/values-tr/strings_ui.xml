@@ -132,10 +132,10 @@
     <string name="projection_stop_desc">Araç kapanınca yansıtma otomatik kapansın mı?</string>
     <string name="projection_map_key_title">Harita kontrol tuşu</string>
     <string name="projection_map_key_desc">Göstergedeki haritayı aracın donanım tuşuyla kontrol etmek ister misiniz?</string>
-    <string name="projection_google_maps_nav_title">Google Maps bildirimi</string>
-    <string name="projection_google_maps_nav_desc">Google Maps navigasyonu başladığında gösterge yansıtmasını otomatik açar. Bildirim erişimi ve yansıtma hedefinin Google Maps olması gerekir. Navigasyon bitince yansıtma kapanmaz.</string>
-    <string name="projection_google_maps_nav_on_help">Google Maps navigasyon bildirimi gelince yansıtmayı aç.</string>
-    <string name="projection_google_maps_nav_off_help">Google Maps bildiriminden yansıtma açma.</string>
+    <string name="projection_google_maps_nav_title">Navigasyon bildirimi (Google / Petal)</string>
+    <string name="projection_google_maps_nav_desc">Google Maps veya Petal Maps navigasyonu başladığında gösterge yansıtmasını otomatik açar. Bildirim erişimi ve yansıtma hedefinin ilgili harita olması gerekir. Navigasyon bitince yansıtma kapanmaz.</string>
+    <string name="projection_google_maps_nav_on_help">Navigasyon bildirimi gelince yansıtmayı aç.</string>
+    <string name="projection_google_maps_nav_off_help">Navigasyon bildiriminden yansıtma açma.</string>
     <string name="projection_google_maps_nav_need_access">Önce MapControl için bildirim erişimini açın.</string>
     <string name="projection_map_swipe_title">Harita kaydırma</string>
     <string name="projection_map_swipe_desc">Kapalı gelir; istemezseniz açmayın. İki parmak sola: cluster kapalıyken ana ekrandaki Google Maps veya Yandex Maps göstergeye alınır. Google Maps mevcut cluster haritasıyla açılır. Cluster zaten bu haritalardan birini gösteriyorsa ve diğeri ana ekrandaysa yer değiştirirler. İki parmak sağa gösterge yansıtmasını kapatır. Diğer uygulamalar yok sayılır, araç ekranı onlar için hareket ettirilmez. Kullanım erişimi gerekir.</string>

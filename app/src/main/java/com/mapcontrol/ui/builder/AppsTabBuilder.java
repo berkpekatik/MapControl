@@ -12,6 +12,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,7 +28,6 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.util.ApkSessionInstaller;
-import com.mapcontrol.util.SilentDexInstaller;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import com.mapcontrol.R;
@@ -241,17 +242,22 @@ public class AppsTabBuilder {
         container.setOrientation(LinearLayout.HORIZONTAL);
         container.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
+        float density = ctx.getResources().getDisplayMetrics().density;
+        int btnSize = Math.round(38 * density);
+        int marginEnd = Math.round(4 * density);
+        int pad = Math.round(8 * density);
+
         Button btnRefreshApps = new Button(ctx);
-        btnRefreshApps.setTextSize(20);
-        btnRefreshApps.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        btnRefreshApps.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
-        btnRefreshApps.setPadding(12, 12, 12, 12);
+        btnRefreshApps.setMinWidth(0);
+        btnRefreshApps.setMinimumWidth(0);
+        btnRefreshApps.setMinHeight(0);
+        btnRefreshApps.setMinimumHeight(0);
+        btnRefreshApps.setPadding(pad, pad, pad, pad);
+        UiStyles.setGlassCardBackground(btnRefreshApps);
         UiStyles.setButtonIconOnlyTinted(btnRefreshApps, R.drawable.ic_mdi_refresh,
                 UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_cd_refresh_list));
-        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        refreshParams.setMargins(0, 0, 4, 0);
+        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(btnSize, btnSize);
+        refreshParams.setMargins(0, 0, marginEnd, 0);
         container.addView(btnRefreshApps, refreshParams);
         btnRefreshApps.setOnClickListener(v -> {
             if (isLocalMode) {
@@ -262,25 +268,33 @@ public class AppsTabBuilder {
         });
 
         Button btnDownloadedFiles = new Button(ctx);
-        btnDownloadedFiles.setTextSize(20);
-        btnDownloadedFiles.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        btnDownloadedFiles.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
-        btnDownloadedFiles.setPadding(12, 12, 12, 12);
+        btnDownloadedFiles.setMinWidth(0);
+        btnDownloadedFiles.setMinimumWidth(0);
+        btnDownloadedFiles.setMinHeight(0);
+        btnDownloadedFiles.setMinimumHeight(0);
+        btnDownloadedFiles.setPadding(pad, pad, pad, pad);
+        UiStyles.setGlassCardBackground(btnDownloadedFiles);
         UiStyles.setButtonIconOnlyTinted(btnDownloadedFiles, R.drawable.ic_mdi_folder,
                 UiStyles.color(ctx, R.color.textPrimary), ctx.getString(R.string.apps_cd_downloads));
-        LinearLayout.LayoutParams filesParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        filesParams.setMargins(0, 0, 4, 0);
+        LinearLayout.LayoutParams filesParams = new LinearLayout.LayoutParams(btnSize, btnSize);
+        filesParams.setMargins(0, 0, marginEnd, 0);
         container.addView(btnDownloadedFiles, filesParams);
         btnDownloadedFiles.setOnClickListener(v -> showDownloadedFiles());
 
         Button btnModeToggle = new Button(ctx);
-        updateModeToggleButton(btnModeToggle);
-        btnModeToggle.setTextSize(16);
+        btnModeToggle.setMinWidth(0);
+        btnModeToggle.setMinimumWidth(0);
+        btnModeToggle.setMinHeight(0);
+        btnModeToggle.setMinimumHeight(0);
+        btnModeToggle.setSingleLine(true);
+        btnModeToggle.setTextSize(13);
         btnModeToggle.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        btnModeToggle.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
-        btnModeToggle.setPadding(12, 12, 12, 12);
+        btnModeToggle.setAllCaps(false);
+        UiStyles.setGlassCardBackground(btnModeToggle);
+        int padH = Math.round(8 * density);
+        int padV = Math.round(6 * density);
+        btnModeToggle.setPadding(padH, padV, padH, padV);
+        updateModeToggleButton(btnModeToggle);
         btnModeToggle.setOnClickListener(v -> {
             isLocalMode = !isLocalMode;
             updateModeToggleButton(btnModeToggle);
@@ -292,53 +306,31 @@ public class AppsTabBuilder {
             }
         });
         LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        toggleParams.setMargins(0, 0, 4, 0);
+                LinearLayout.LayoutParams.WRAP_CONTENT, btnSize);
+        toggleParams.setMargins(0, 0, marginEnd, 0);
         container.addView(btnModeToggle, toggleParams);
 
         int destructive = UiStyles.color(ctx, R.color.textDestructive);
-        int iconGap = UiStyles.dimenPx(ctx, R.dimen.spacing_small);
-
-        Button btnDeleteOps = new Button(ctx);
-        styleTopBarAction(btnDeleteOps, destructive);
-        btnDeleteOps.setText(R.string.apps_delete_ops);
-        UiStyles.setButtonStartIconTinted(btnDeleteOps, R.drawable.ic_mdi_delete, destructive, iconGap);
-        btnDeleteOps.setOnClickListener(v -> performReset());
-        container.addView(btnDeleteOps, topBarActionParams());
-
         Button btnDeleteSelf = new Button(ctx);
-        styleTopBarAction(btnDeleteSelf, destructive);
-        btnDeleteSelf.setText(R.string.apps_delete_self);
-        UiStyles.setButtonStartIconTinted(btnDeleteSelf, R.drawable.ic_mdi_delete, destructive, iconGap);
+        btnDeleteSelf.setMinWidth(0);
+        btnDeleteSelf.setMinimumWidth(0);
+        btnDeleteSelf.setMinHeight(0);
+        btnDeleteSelf.setMinimumHeight(0);
+        btnDeleteSelf.setPadding(pad, pad, pad, pad);
+        UiStyles.setGlassCardBackground(btnDeleteSelf);
+        UiStyles.setButtonIconOnlyTinted(btnDeleteSelf, R.drawable.ic_mdi_delete,
+                destructive, ctx.getString(R.string.apps_delete_self));
+        LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(btnSize, btnSize);
+        container.addView(btnDeleteSelf, deleteParams);
         btnDeleteSelf.setOnClickListener(v -> confirmDeleteSelf());
-        container.addView(btnDeleteSelf, topBarActionParams());
 
         return container;
-    }
-
-    private static LinearLayout.LayoutParams topBarActionParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 0, 4, 0);
-        return params;
-    }
-
-    private static void styleTopBarAction(Button button, int color) {
-        button.setAllCaps(false);
-        button.setTextSize(15);
-        button.setTextColor(color);
-        button.setBackgroundColor(UiStyles.color(button.getContext(), R.color.transparent));
-        button.setPadding(12, 12, 12, 12);
-        button.setMinWidth(0);
-        button.setMinimumWidth(0);
     }
 
     private void confirmDeleteSelf() {
         new AlertDialog.Builder(context)
                 .setTitle(R.string.apps_delete_self)
-                .setMessage(R.string.apps_dialog_reset_confirm_self)
+                .setMessage(R.string.apps_local_uninstall_explanation)
                 .setPositiveButton(R.string.dialog_delete, (d, which) -> deleteSelfApp())
                 .setNegativeButton(R.string.wifi_cancel, null)
                 .show();
@@ -348,6 +340,9 @@ public class AppsTabBuilder {
         if (btnModeToggle == null) return;
         int icon = isLocalMode ? R.drawable.ic_mdi_cellphone : R.drawable.ic_mdi_web;
         btnModeToggle.setText(isLocalMode ? R.string.apps_mode_local : R.string.apps_mode_server);
+        btnModeToggle.setSingleLine(true);
+        btnModeToggle.setMinWidth(0);
+        btnModeToggle.setMinimumWidth(0);
         UiStyles.setButtonStartIconTinted(btnModeToggle, icon,
                 UiStyles.color(context, R.color.textPrimary),
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
@@ -439,9 +434,12 @@ public class AppsTabBuilder {
                 final String finalDisplayName = displayName;
                 final String finalCurrentVersion = currentVersion;
 
+                float density = context.getResources().getDisplayMetrics().density;
                 LinearLayout appCard = new LinearLayout(context);
                 appCard.setOrientation(LinearLayout.HORIZONTAL);
-                appCard.setPadding(20, 20, 20, 20);
+                int padH = Math.round(14 * density);
+                int padV = Math.round(12 * density);
+                appCard.setPadding(padH, padV, padH, padV);
                 appCard.setGravity(android.view.Gravity.CENTER_VERTICAL);
                 appCard.setClickable(true);
                 appCard.setFocusable(true);
@@ -457,7 +455,7 @@ public class AppsTabBuilder {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
                 cardParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.oem_card_margin));
-                appCard.setMinimumHeight((int) (120 * context.getResources().getDisplayMetrics().density));
+                appCard.setMinimumHeight(Math.round(64 * density));
 
                 android.widget.ImageView appIcon = new android.widget.ImageView(context);
                 try {
@@ -468,26 +466,31 @@ public class AppsTabBuilder {
                 }
                 appIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                        (int) (44 * context.getResources().getDisplayMetrics().density),
-                        (int) (44 * context.getResources().getDisplayMetrics().density));
-                iconParams.setMargins(0, 0, 16, 0);
+                        Math.round(44 * density),
+                        Math.round(44 * density));
+                iconParams.setMargins(0, 0, Math.round(12 * density), 0);
                 appCard.addView(appIcon, iconParams);
 
                 LinearLayout infoContainer = new LinearLayout(context);
                 infoContainer.setOrientation(LinearLayout.VERTICAL);
                 infoContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                infoContainer.setMinimumWidth(Math.round(90 * density));
 
                 TextView nameText = new TextView(context);
                 nameText.setText(finalDisplayName);
                 nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                nameText.setTextSize(17);
+                nameText.setTextSize(16);
+                nameText.setSingleLine(true);
+                nameText.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
                 statusText.setText(context.getString(R.string.apps_status_installed, finalCurrentVersion));
                 statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                statusText.setTextSize(13);
+                statusText.setTextSize(12);
+                statusText.setSingleLine(true);
+                statusText.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -496,17 +499,25 @@ public class AppsTabBuilder {
 
                 LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
                         0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+                infoParams.setMargins(0, 0, Math.round(8 * density), 0);
                 appCard.addView(infoContainer, infoParams);
 
                 LinearLayout rightContainer = new LinearLayout(context);
                 rightContainer.setOrientation(LinearLayout.HORIZONTAL);
-                rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL | android.view.Gravity.END);
 
                 Button actionButton = new Button(context);
                 actionButton.setText(R.string.apps_action_open);
-                actionButton.setTextSize(14);
+                actionButton.setTextSize(13);
+                actionButton.setSingleLine(true);
                 actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
-                actionButton.setPadding(24, 12, 24, 12);
+                actionButton.setMinWidth(0);
+                actionButton.setMinimumWidth(0);
+                int btnPadH = Math.round(10 * density);
+                int btnPadV = Math.round(5 * density);
+                actionButton.setPadding(btnPadH, btnPadV, btnPadH, btnPadV);
+                actionButton.setMinHeight(0);
+                actionButton.setMinimumHeight(Math.round(34 * density));
 
                 UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
                 actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
@@ -528,19 +539,28 @@ public class AppsTabBuilder {
 
                 Button removeButton = new Button(context);
                 removeButton.setText(R.string.apps_action_remove);
-                removeButton.setTextSize(14);
+                removeButton.setTextSize(12);
+                removeButton.setSingleLine(true);
                 removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
                 removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
-                removeButton.setPadding(18, 12, 18, 12);
+                removeButton.setMinWidth(0);
+                removeButton.setMinimumWidth(0);
+                int remPadH = Math.round(6 * density);
+                removeButton.setPadding(remPadH, btnPadV, remPadH, btnPadV);
+                removeButton.setMinHeight(0);
+                removeButton.setMinimumHeight(Math.round(34 * density));
                 removeButton.setOnClickListener(v -> uninstallApp(finalPackageName, finalDisplayName));
                 LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
-                removeParams.setMargins(UiStyles.dimenPx(context, R.dimen.spacing_medium), 0, 0, 0);
+                removeParams.setMargins(Math.round(4 * density), 0, 0, 0);
                 rightContainer.addView(removeButton, removeParams);
 
-                appCard.addView(rightContainer);
+                LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                appCard.addView(rightContainer, rightParams);
                 appsListContainer.addView(appCard, cardParams);
             }
 
@@ -655,6 +675,43 @@ public class AppsTabBuilder {
                     JSONObject jsonObject = new JSONObject(response.toString());
                     JSONArray listArray = jsonObject.getJSONArray("list");
                     JSONArray groupsArray = jsonObject.optJSONArray("groups");
+
+                    // Aurora Store, Petal Maps ve HMS Core'u kataloğa dahil et
+                    boolean hasPetal = false;
+                    boolean hasHms = false;
+                    boolean hasAurora = false;
+                    for (int i = 0; i < listArray.length(); i++) {
+                        String pkg = listArray.getJSONObject(i).optString("packageName", "");
+                        if ("com.huawei.maps.app".equals(pkg)) hasPetal = true;
+                        if ("com.huawei.hwid".equals(pkg)) hasHms = true;
+                        if ("com.aurora.store".equals(pkg)) hasAurora = true;
+                    }
+                    if (!hasAurora) {
+                        JSONObject auroraObj = new JSONObject();
+                        auroraObj.put("packageName", "com.aurora.store");
+                        auroraObj.put("displayName", "Aurora Store (Play Mağazası)");
+                        auroraObj.put("version", "4.6.1");
+                        auroraObj.put("downloadUrl", "https://f-droid.org/repo/com.aurora.store_65.apk");
+                        listArray.put(auroraObj);
+                    }
+                    if (!hasPetal) {
+                        JSONObject petalObj = new JSONObject();
+                        petalObj.put("packageName", "com.huawei.maps.app");
+                        petalObj.put("displayName", "Petal Maps");
+                        petalObj.put("version", "4.7.0.312");
+                        petalObj.put("downloadUrl", "");
+                        petalObj.put("group", "navigation");
+                        listArray.put(petalObj);
+                    }
+                    if (!hasHms) {
+                        JSONObject hmsObj = new JSONObject();
+                        hmsObj.put("packageName", "com.huawei.hwid");
+                        hmsObj.put("displayName", "HMS Core (Huawei)");
+                        hmsObj.put("version", "6.13.0");
+                        hmsObj.put("downloadUrl", "");
+                        hmsObj.put("group", "system");
+                        listArray.put(hmsObj);
+                    }
 
                     handler.post(() -> {
                         if (generation != serverLoadGeneration) return;
@@ -828,7 +885,16 @@ public class AppsTabBuilder {
                 UiStyles.color(context, R.color.surfaceCardElevated), 16f);
 
         TextView title = new TextView(context);
-        String titleText = group != null && !group.title.trim().isEmpty() ? group.title.trim() : groupId;
+        String titleText;
+        if (group != null && !group.title.trim().isEmpty()) {
+            titleText = group.title.trim();
+        } else if ("navigation".equalsIgnoreCase(groupId)) {
+            titleText = "Navigasyon";
+        } else if ("system".equalsIgnoreCase(groupId)) {
+            titleText = "Sistem & Altyapı";
+        } else {
+            titleText = groupId;
+        }
         title.setText(titleText);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setTextSize(15);
@@ -862,17 +928,42 @@ public class AppsTabBuilder {
         appsListContainer.addView(section, sectionParams);
     }
 
+    private static boolean isNewerVersion(String serverVersion, String installedVersion) {
+        if (serverVersion == null || serverVersion.trim().isEmpty()) return false;
+        if (installedVersion == null || installedVersion.trim().isEmpty()) return false;
+        if (serverVersion.trim().equals(installedVersion.trim())) return false;
+        try {
+            String[] sParts = serverVersion.trim().split("[^0-9]+");
+            String[] iParts = installedVersion.trim().split("[^0-9]+");
+            int len = Math.max(sParts.length, iParts.length);
+            for (int i = 0; i < len; i++) {
+                int sNum = 0;
+                if (i < sParts.length && !sParts[i].isEmpty()) {
+                    sNum = Integer.parseInt(sParts[i]);
+                }
+                int iNum = 0;
+                if (i < iParts.length && !iParts[i].isEmpty()) {
+                    iNum = Integer.parseInt(iParts[i]);
+                }
+                if (sNum > iNum) return true;
+                if (sNum < iNum) return false;
+            }
+        } catch (Exception ignore) {
+        }
+        return false;
+    }
+
     private void addServerAppCard(JSONObject appObj, PackageManager pm, LinearLayout container) throws JSONException {
-        String packageName = appObj.getString("packageName");
-        String displayName = appObj.getString("displayName");
-        String downloadUrl = appObj.getString("downloadUrl");
-        String version = appObj.getString("version");
+        String packageName = appObj.optString("packageName", "");
+        String displayName = appObj.optString("displayName", packageName);
+        String downloadUrl = appObj.optString("downloadUrl", "");
+        String version = appObj.optString("version", "");
         String currentVersion = "0";
 
         boolean isInstalled;
         try {
             PackageInfo info = pm.getPackageInfo(packageName, 0);
-            currentVersion = info.versionName;
+            currentVersion = info.versionName != null ? info.versionName : "0";
             callback.log("currentVersion: " + currentVersion + " packageName: " + packageName);
             isInstalled = true;
         } catch (PackageManager.NameNotFoundException e) {
@@ -892,9 +983,12 @@ public class AppsTabBuilder {
         boolean trackProgress = progress != null;
         File readyFile = trackProgress ? null : readyCachedApk(packageName);
 
+        float density = context.getResources().getDisplayMetrics().density;
         LinearLayout appCard = new LinearLayout(context);
         appCard.setOrientation(LinearLayout.HORIZONTAL);
-        appCard.setPadding(20, 20, 20, 20);
+        int padH = Math.round(14 * density);
+        int padV = Math.round(12 * density);
+        appCard.setPadding(padH, padV, padH, padV);
         appCard.setGravity(android.view.Gravity.CENTER_VERTICAL);
         appCard.setClickable(true);
         appCard.setFocusable(true);
@@ -909,7 +1003,7 @@ public class AppsTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         cardParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.oem_card_margin));
-        appCard.setMinimumHeight((int) (120 * context.getResources().getDisplayMetrics().density));
+        appCard.setMinimumHeight(Math.round(64 * density));
 
         android.widget.ImageView appIcon = new android.widget.ImageView(context);
         try {
@@ -924,23 +1018,26 @@ public class AppsTabBuilder {
         }
         appIcon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                (int) (44 * context.getResources().getDisplayMetrics().density),
-                (int) (44 * context.getResources().getDisplayMetrics().density));
-        iconParams.setMargins(0, 0, 16, 0);
+                Math.round(44 * density),
+                Math.round(44 * density));
+        iconParams.setMargins(0, 0, Math.round(12 * density), 0);
         appCard.addView(appIcon, iconParams);
 
         LinearLayout infoContainer = new LinearLayout(context);
         infoContainer.setOrientation(LinearLayout.VERTICAL);
         infoContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        infoContainer.setMinimumWidth(Math.round(90 * density));
 
-        final boolean hasUpdate = isInstalled && !currentVersion.equals(version);
         final boolean isLocked = packageName.equals("com.mapcontrol");
+        final boolean hasUpdate = !isLocked && isInstalled && !downloadUrl.isEmpty() && isNewerVersion(version, currentVersion);
         final boolean finalIsInstalled = isInstalled;
 
         TextView nameText = new TextView(context);
         nameText.setText(displayName);
         nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        nameText.setTextSize(17);
+        nameText.setTextSize(16);
+        nameText.setSingleLine(true);
+        nameText.setEllipsize(android.text.TextUtils.TruncateAt.END);
         nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
         infoContainer.addView(nameText);
 
@@ -955,7 +1052,9 @@ public class AppsTabBuilder {
             statusText.setText(R.string.apps_status_not_installed);
             statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
         }
-        statusText.setTextSize(13);
+        statusText.setTextSize(12);
+        statusText.setSingleLine(true);
+        statusText.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -968,6 +1067,8 @@ public class AppsTabBuilder {
             companionText.setText(companionNote);
             companionText.setTextColor(UiStyles.color(context, R.color.statusWarning));
             companionText.setTextSize(12);
+            companionText.setSingleLine(true);
+            companionText.setEllipsize(android.text.TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams companionParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -977,16 +1078,24 @@ public class AppsTabBuilder {
 
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        infoParams.setMargins(0, 0, Math.round(8 * density), 0);
         appCard.addView(infoContainer, infoParams);
 
         LinearLayout rightContainer = new LinearLayout(context);
         rightContainer.setOrientation(LinearLayout.HORIZONTAL);
-        rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL | android.view.Gravity.END);
 
         Button actionButton = new Button(context);
-        actionButton.setTextSize(14);
+        actionButton.setTextSize(13);
+        actionButton.setSingleLine(true);
         actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
-        actionButton.setPadding(24, 12, 24, 12);
+        actionButton.setMinWidth(0);
+        actionButton.setMinimumWidth(0);
+        int btnPadH = Math.round(10 * density);
+        int btnPadV = Math.round(5 * density);
+        actionButton.setPadding(btnPadH, btnPadV, btnPadH, btnPadV);
+        actionButton.setMinHeight(0);
+        actionButton.setMinimumHeight(Math.round(34 * density));
 
         if (trackProgress) {
             actionButton.setEnabled(false);
@@ -1010,6 +1119,10 @@ public class AppsTabBuilder {
             actionButton.setEnabled(false);
         } else if (readyFile != null) {
             bindLocalInstallButton(actionButton, statusText, displayName, readyFile);
+        } else if (downloadUrl.isEmpty()) {
+            actionButton.setText(R.string.apps_status_not_installed);
+            actionButton.setEnabled(false);
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.textMuted));
         } else {
             actionButton.setText(R.string.apps_action_install);
             actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
@@ -1027,20 +1140,29 @@ public class AppsTabBuilder {
         if (finalIsInstalled && !isLocked) {
             Button removeButton = new Button(context);
             removeButton.setText(R.string.apps_action_remove);
-            removeButton.setTextSize(14);
+            removeButton.setTextSize(12);
+            removeButton.setSingleLine(true);
             removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
             removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
             removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
-            removeButton.setPadding(18, 12, 18, 12);
+            removeButton.setMinWidth(0);
+            removeButton.setMinimumWidth(0);
+            int remPadH = Math.round(6 * density);
+            removeButton.setPadding(remPadH, btnPadV, remPadH, btnPadV);
+            removeButton.setMinHeight(0);
+            removeButton.setMinimumHeight(Math.round(34 * density));
             removeButton.setOnClickListener(v -> uninstallApp(packageName, displayName));
             LinearLayout.LayoutParams removeParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
-            removeParams.setMargins(UiStyles.dimenPx(context, R.dimen.spacing_medium), 0, 0, 0);
+            removeParams.setMargins(Math.round(4 * density), 0, 0, 0);
             rightContainer.addView(removeButton, removeParams);
         }
 
-        appCard.addView(rightContainer);
+        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        appCard.addView(rightContainer, rightParams);
         container.addView(appCard, cardParams);
     }
 
@@ -1251,7 +1373,15 @@ public class AppsTabBuilder {
                 context.getApplicationContext().startActivity(launchIntent);
                 callback.log("Uygulama açıldı: " + packageName);
             } else {
-                callback.log("Uygulama açılamadı (launch intent bulunamadı): " + packageName);
+                try {
+                    Intent detailsIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    detailsIntent.setData(Uri.parse("package:" + packageName));
+                    detailsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(detailsIntent);
+                    callback.log("Uygulama ayarları açıldı: " + packageName);
+                } catch (Exception ex) {
+                    callback.log("Uygulama açılamadı (launch intent bulunamadı): " + packageName);
+                }
             }
         } catch (Exception e) {
             callback.log("Uygulama açma hatası: " + e.getMessage());
@@ -1310,10 +1440,26 @@ public class AppsTabBuilder {
         return new File(cacheDownloadDir(), packageName + ".apk");
     }
 
-    /** Tamamlanmış önbellek APK'si. İndirme sırasındaki .part dosyası sayılmaz. */
+    /** Tamamlanmış önbellek veya yerel indirme APK'si. İndirme sırasındaki .part dosyası sayılmaz. */
     private File readyCachedApk(String packageName) {
         File file = cachedApkFile(packageName);
         if (file.isFile() && file.length() > 0) return file;
+        File pubFile = new File(android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS), packageName + ".apk");
+        if (pubFile.isFile() && pubFile.length() > 0) return pubFile;
+        File pubDir = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS);
+        if (pubDir != null && pubDir.exists()) {
+            File[] list = pubDir.listFiles();
+            if (list != null) {
+                for (File f : list) {
+                    if (f.isFile() && f.getName().toLowerCase().endsWith(".apk")) {
+                        String pkg = packageNameFromApkFile(f);
+                        if (packageName.equals(pkg)) return f;
+                    }
+                }
+            }
+        }
         return null;
     }
 
@@ -1646,24 +1792,29 @@ public class AppsTabBuilder {
                 downloadedFilesDialog = null;
             }
 
-            File downloadDir;
-            String folderName;
-            if (isLocalMode) {
-                downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
-                folderName = context.getString(R.string.apps_folder_downloads);
-            } else {
-                downloadDir = new File(context.getCacheDir(), "downloads");
-                folderName = context.getString(R.string.apps_folder_cache);
-            }
-            if (!downloadDir.exists()) downloadDir.mkdirs();
+            List<File> apkFileList = new ArrayList<>();
+            java.util.Set<String> seenFileNames = new java.util.HashSet<>();
+            File extDownloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+            File cacheDownloadDir = new File(context.getCacheDir(), "downloads");
 
-            File[] files = downloadDir.listFiles();
-            int fileCount = 0;
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile() && file.getName().endsWith(".apk")) fileCount++;
+            File[] extFiles = extDownloadDir != null && extDownloadDir.exists() ? extDownloadDir.listFiles() : null;
+            if (extFiles != null) {
+                for (File f : extFiles) {
+                    if (f.isFile() && f.getName().endsWith(".apk") && seenFileNames.add(f.getName())) {
+                        apkFileList.add(f);
+                    }
                 }
             }
+            File[] cacheFiles = cacheDownloadDir.exists() ? cacheDownloadDir.listFiles() : null;
+            if (cacheFiles != null) {
+                for (File f : cacheFiles) {
+                    if (f.isFile() && f.getName().endsWith(".apk") && seenFileNames.add(f.getName())) {
+                        apkFileList.add(f);
+                    }
+                }
+            }
+            int fileCount = apkFileList.size();
+            String folderName = isLocalMode ? context.getString(R.string.apps_folder_downloads) : context.getString(R.string.apps_folder_cache);
 
             LinearLayout dialogLayout = new LinearLayout(context);
             dialogLayout.setOrientation(LinearLayout.VERTICAL);
@@ -1712,16 +1863,8 @@ public class AppsTabBuilder {
                             .setTitle(R.string.apps_dialog_delete_all_title)
                             .setMessage(R.string.apps_dialog_delete_all_message)
                             .setPositiveButton(R.string.dialog_delete, (d, which) -> {
-                                File dirToDelete = isLocalMode
-                                        ? android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-                                        : new File(context.getCacheDir(), "downloads");
-                                if (dirToDelete.exists()) {
-                                    File[] del = dirToDelete.listFiles();
-                                    if (del != null) {
-                                        for (File f : del) {
-                                            if (f.isFile() && f.getName().endsWith(".apk")) f.delete();
-                                        }
-                                    }
+                                for (File f : apkFileList) {
+                                    if (f.exists()) f.delete();
                                 }
                                 showDownloadedFilesDialog();
                             })
@@ -1768,8 +1911,8 @@ public class AppsTabBuilder {
                 etP.topMargin = Math.round(12 * context.getResources().getDisplayMetrics().density);
                 emptyWrap.addView(emptyText, etP);
                 filesLayout.addView(emptyWrap);
-            } else if (files != null) {
-                for (File file : files) {
+            } else {
+                for (File file : apkFileList) {
                     if (!file.isFile() || !file.getName().endsWith(".apk")) continue;
 
                     LinearLayout fileCard = new LinearLayout(context);
@@ -1903,8 +2046,8 @@ public class AppsTabBuilder {
 
     private String formatFileSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.2f KB", bytes / 1024.0);
-        return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+        if (bytes < 1024 * 1024) return String.format(Locale.getDefault(), "%.2f KB", bytes / 1024.0);
+        return String.format(Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024.0));
     }
 
     public void installApkFile(String fileName) {
@@ -1944,21 +2087,7 @@ public class AppsTabBuilder {
 
         new Thread(() -> {
             handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
-            callback.log("Sessiz dex kurulumu başlıyor: " + apkFile.getAbsolutePath());
-            SilentDexInstaller.Result dexResult = SilentDexInstaller.install(context, apkFile);
-            if (dexResult.success) {
-                handler.post(() -> {
-                    callback.log(dexResult.message);
-                    Toast.makeText(context, R.string.apps_installed_success, Toast.LENGTH_SHORT).show();
-                    if (queueGeneration != 0 && queueGeneration == installQueueGeneration) {
-                        advanceInstallQueue(queueGeneration);
-                    }
-                    loadAppsFromServer();
-                });
-                return;
-            }
-
-            callback.log("Sessiz dex kurulumu olmadı: " + dexResult.message);
+            callback.log("Android PackageInstaller ile kullanıcı onaylı kurulum hazırlanıyor");
             handler.post(() -> abandonInstallQueue(queueGeneration));
             if (activity == null) {
                 handler.post(() -> {
@@ -1998,192 +2127,33 @@ public class AppsTabBuilder {
         return null;
     }
 
+    /** Kept for callers; removal is limited to this application. */
     public void performReset() {
-        callback.log("Reset işlemi başlatılıyor...");
-
-        new Thread(() -> {
-            try {
-                ArrayList<String> matchingPackages = new ArrayList<>();
-                for (PackageInfo info : getLocalApps()) {
-                    matchingPackages.add(info.packageName);
-                    callback.log("Silinecek yerel uygulama: " + info.packageName);
-                }
-
-                handler.post(() -> {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                    builder.setTitle(R.string.apps_dialog_reset_option_title);
-                    builder.setMessage(R.string.apps_dialog_reset_option_message);
-
-                    if (!matchingPackages.isEmpty()) {
-                        builder.setPositiveButton(R.string.apps_dialog_remove_local_only, (dialog, which) ->
-                                showDeleteConfirmationDialog(matchingPackages, true, false));
-                    }
-
-                    builder.setNeutralButton(R.string.apps_dialog_remove_local_and_self, (dialog, which) ->
-                            showDeleteConfirmationDialog(matchingPackages, true, true));
-
-                    builder.setNegativeButton(R.string.wifi_cancel, (dialog, which) -> {
-                        dialog.dismiss();
-                        callback.log("Reset işlemi iptal edildi");
-                    });
-                    builder.setCancelable(false);
-                    builder.show();
-                });
-
-            } catch (Exception e) {
-                handler.post(() -> Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show());
-                callback.log("Reset işlemi hatası: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    private void showDeleteConfirmationDialog(ArrayList<String> matchingPackages, boolean deleteRelatedFiles, boolean deleteSelf) {
-        int appCount = matchingPackages != null ? matchingPackages.size() : 0;
-        String message;
-        if (appCount == 0) {
-            message = context.getString(R.string.apps_dialog_reset_confirm_self);
-        } else {
-            message = context.getString(deleteSelf
-                    ? R.string.apps_dialog_reset_confirm_multi
-                    : R.string.apps_dialog_reset_confirm_local, appCount);
-            if (deleteRelatedFiles) {
-                message += context.getString(R.string.apps_dialog_reset_confirm_multi_files);
-            }
-            message += context.getString(R.string.apps_dialog_reset_confirm_multi_suffix);
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(R.string.apps_dialog_reset_confirm_title);
-        builder.setMessage(message);
-        builder.setPositiveButton(R.string.common_yes, (dialog, which) -> deleteMatchingApps(matchingPackages, deleteRelatedFiles, deleteSelf));
-        builder.setNegativeButton(R.string.common_no, (dialog, which) -> {
-            dialog.dismiss();
-            callback.log("Reset işlemi iptal edildi");
-        });
-        builder.setCancelable(false);
-        builder.show();
-    }
-
-    private void deleteMatchingApps(ArrayList<String> packages, boolean deleteRelatedFiles, boolean deleteSelf) {
-        new Thread(() -> {
-            try {
-                callback.log("Uygulama silme işlemi başlatılıyor...");
-                if (packages != null && packages.size() > 0) {
-                    deletePackagesSequentially(packages, 0, deleteRelatedFiles, deleteSelf);
-                } else {
-                    if (deleteSelf) deleteSelfApp();
-                }
-            } catch (Exception e) {
-                callback.log("Uygulama silme işlemi hatası: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    private void deletePackagesSequentially(ArrayList<String> packages, int index, boolean deleteRelatedFiles, boolean deleteSelf) {
-        if (index >= packages.size()) {
-            if (deleteRelatedFiles) deleteRelatedFiles();
-            if (deleteSelf) deleteSelfApp();
-            return;
-        }
-
-        String packageName = packages.get(index);
-        callback.log("Siliniyor: " + packageName);
-
-        try {
-            Intent uninstallIntent = new Intent(Intent.ACTION_DELETE);
-            uninstallIntent.setData(android.net.Uri.parse("package:" + packageName));
-            uninstallIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            handler.post(() -> {
-                try {
-                    context.startActivity(uninstallIntent);
-                    callback.log("Silme Intent'i gönderildi: " + packageName);
-                } catch (Exception e) {
-                    callback.log("Intent ile silme başarısız, pm komutu deneniyor: " + e.getMessage());
-                    tryUninstallViaPm(packageName);
-                }
-            });
-
-            handler.postDelayed(() -> deletePackagesSequentially(packages, index + 1, deleteRelatedFiles, deleteSelf), 500);
-        } catch (Exception intentEx) {
-            callback.log("Intent hatası, pm komutu deneniyor: " + intentEx.getMessage());
-            tryUninstallViaPm(packageName);
-            handler.postDelayed(() -> deletePackagesSequentially(packages, index + 1, deleteRelatedFiles, deleteSelf), 500);
-        }
-    }
-
-    private void deleteRelatedFiles() {
-        new Thread(() -> {
-            try {
-                callback.log("/data/local/tmp altındaki APK'lar siliniyor...");
-                Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "rm -f /data/local/tmp/*.apk"});
-                process.waitFor();
-                callback.log("/data/local/tmp temizleme işlemi tamamlandı");
-            } catch (Exception e) {
-                callback.log("/data/local/tmp temizleme hatası: " + e.getMessage());
-            }
-        }).start();
+        handler.post(this::confirmDeleteSelf);
     }
 
     @SuppressWarnings("deprecation")
-    private void releaseDeviceOwnerIfNeeded(String selfPackage) {
-        try {
-            DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-            if (dpm == null || !dpm.isDeviceOwnerApp(selfPackage)) {
-                return;
-            }
-            dpm.clearDeviceOwnerApp(selfPackage);
-            callback.log("Cihaz sahibi bırakıldı: " + selfPackage);
-        } catch (SecurityException e) {
-            callback.log("Cihaz sahibi bırakılamadı: " + e.getMessage());
-        } catch (Exception e) {
-            callback.log("Cihaz sahibi bırakma hatası: " + e.getMessage());
-        }
-    }
-
     private void deleteSelfApp() {
         handler.post(() -> {
             try {
                 String selfPackage = context.getPackageName();
-                callback.log("Uygulama kendisini siliyor: " + selfPackage);
-                releaseDeviceOwnerIfNeeded(selfPackage);
-                Toast.makeText(context, R.string.apps_self_uninstall, Toast.LENGTH_SHORT).show();
-
-                handler.postDelayed(() -> {
-                    try {
-                        Intent uninstallIntent = new Intent(Intent.ACTION_DELETE);
-                        uninstallIntent.setData(android.net.Uri.parse("package:" + selfPackage));
-                        uninstallIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(uninstallIntent);
-                        callback.log("Uygulama silme Intent'i gönderildi");
-                        handler.postDelayed(() -> {
-                            new Thread(() -> {
-                                try {
-                                    Runtime.getRuntime().exec(new String[]{"sh", "-c", "pm uninstall " + selfPackage});
-                                    callback.log("Uygulama silme pm komutu da gönderildi");
-                                } catch (Exception ignored) {
-                                }
-                            }).start();
-                        }, 2000);
-                    } catch (Exception e) {
-                        callback.log("Uygulama silme hatası: " + e.getMessage());
-                    }
-                }, 1000);
+                DevicePolicyManager dpm = (DevicePolicyManager)
+                        context.getSystemService(Context.DEVICE_POLICY_SERVICE);
+                com.mapcontrol.util.SelfUninstallGate.prepare(dpm == null ? null :
+                        new com.mapcontrol.util.SelfUninstallGate.OwnerAccess() {
+                            public boolean isOwner() { return dpm.isDeviceOwnerApp(selfPackage); }
+                            public void clearOwner() { dpm.clearDeviceOwnerApp(selfPackage); }
+                        });
+                Intent intent = new Intent(Intent.ACTION_DELETE);
+                intent.setData(android.net.Uri.parse("package:" + selfPackage));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                callback.log("Sistem kaldırma ekranı açıldı: " + selfPackage
+                        + "; kaldırma henüz doğrulanmadı. İptal edilirse başka komut çalıştırılmaz.");
             } catch (Exception e) {
-                callback.log("Uygulama silme hatası: " + e.getMessage());
+                callback.log("Kaldırma durduruldu: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                Toast.makeText(context, R.string.apps_local_uninstall_blocked, Toast.LENGTH_LONG).show();
             }
         });
     }
-
-    private void tryUninstallViaPm(String packageName) {
-        new Thread(() -> {
-            try {
-                callback.log("pm komutu ile silme deneniyor: " + packageName);
-                Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "pm uninstall " + packageName});
-                process.waitFor();
-            } catch (Exception e) {
-                callback.log("pm komutu silme hatası (" + packageName + "): " + e.getMessage());
-            }
-        }).start();
-    }
 }
-

@@ -36,14 +36,12 @@ public final class DisplayHelper {
     private static View preparingMessageView = null;
     private static android.view.WindowManager preparingWindowManager = null;
     private static android.view.WindowManager.LayoutParams preparingParams = null;
-    private static Context displayContext = null;
     private static final List<android.animation.Animator> preparingAnimators = new ArrayList<>();
 
     /** Boot splash — açılışta cluster ekranını siyah bırakmamak için kalıcı, harita temalı overlay. */
     private static View bootSplashView = null;
     private static android.view.WindowManager bootSplashWindowManager = null;
     private static android.view.WindowManager.LayoutParams bootSplashParams = null;
-    private static Context bootSplashDisplayContext = null;
     /** {@link Display#INVALID_DISPLAY} when splash kapalı. */
     private static int bootSplashDisplayId = Display.INVALID_DISPLAY;
     private static final List<android.animation.Animator> bootSplashAnimators = new ArrayList<>();
@@ -72,18 +70,19 @@ public final class DisplayHelper {
                 return;
             }
 
+            Context targetDisplayContext;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                displayContext = context.createDisplayContext(targetDisplay);
+                targetDisplayContext = context.createDisplayContext(targetDisplay);
             } else {
-                displayContext = context;
+                targetDisplayContext = context;
             }
 
-            preparingWindowManager = (android.view.WindowManager) displayContext.getSystemService(Context.WINDOW_SERVICE);
+            preparingWindowManager = (android.view.WindowManager) targetDisplayContext.getSystemService(Context.WINDOW_SERVICE);
             if (preparingWindowManager == null) {
                 return;
             }
 
-            View overlay = buildPreparingOverlay(displayContext);
+            View overlay = buildPreparingOverlay(targetDisplayContext);
 
             preparingParams = new android.view.WindowManager.LayoutParams(
                     android.view.WindowManager.LayoutParams.MATCH_PARENT,
@@ -297,7 +296,6 @@ public final class DisplayHelper {
                                     preparingMessageView = null;
                                     preparingWindowManager = null;
                                     preparingParams = null;
-                                    displayContext = null;
                                 }
                             })
                             .start();
@@ -314,7 +312,6 @@ public final class DisplayHelper {
             preparingMessageView = null;
             preparingWindowManager = null;
             preparingParams = null;
-            displayContext = null;
         }
     }
 
@@ -356,22 +353,23 @@ public final class DisplayHelper {
 
             bootSplashDisplayId = displayId;
 
+            Context targetDisplayContext;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                 Configuration cfg = new Configuration(
                         context.getApplicationContext().getResources().getConfiguration());
-                bootSplashDisplayContext = context.getApplicationContext()
+                targetDisplayContext = context.getApplicationContext()
                         .createDisplayContext(targetDisplay)
                         .createConfigurationContext(cfg);
             } else {
-                bootSplashDisplayContext = context;
+                targetDisplayContext = context;
             }
 
-            bootSplashWindowManager = (android.view.WindowManager) bootSplashDisplayContext.getSystemService(Context.WINDOW_SERVICE);
+            bootSplashWindowManager = (android.view.WindowManager) targetDisplayContext.getSystemService(Context.WINDOW_SERVICE);
             if (bootSplashWindowManager == null) {
                 return;
             }
 
-            View overlay = buildBootSplashOverlay(bootSplashDisplayContext);
+            View overlay = buildBootSplashOverlay(targetDisplayContext);
 
             bootSplashParams = new android.view.WindowManager.LayoutParams(
                     android.view.WindowManager.LayoutParams.MATCH_PARENT,
@@ -409,7 +407,6 @@ public final class DisplayHelper {
                                     bootSplashView = null;
                                     bootSplashWindowManager = null;
                                     bootSplashParams = null;
-                                    bootSplashDisplayContext = null;
                                     bootSplashDisplayId = Display.INVALID_DISPLAY;
                                 }
                             })
@@ -421,7 +418,6 @@ public final class DisplayHelper {
                 bootSplashView = null;
                 bootSplashWindowManager = null;
                 bootSplashParams = null;
-                bootSplashDisplayContext = null;
                 bootSplashDisplayId = Display.INVALID_DISPLAY;
             }
         } catch (Exception ignored) {
@@ -465,15 +461,15 @@ public final class DisplayHelper {
             }
             bootSplashView = null;
             bootSplashWindowManager = null;
-            bootSplashDisplayContext = null;
 
             Configuration cfg = new Configuration(app.getResources().getConfiguration());
+            Context targetDisplayContext;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                bootSplashDisplayContext = app.createDisplayContext(targetDisplay).createConfigurationContext(cfg);
+                targetDisplayContext = app.createDisplayContext(targetDisplay).createConfigurationContext(cfg);
             } else {
-                bootSplashDisplayContext = app;
+                targetDisplayContext = app;
             }
-            bootSplashWindowManager = (android.view.WindowManager) bootSplashDisplayContext.getSystemService(
+            bootSplashWindowManager = (android.view.WindowManager) targetDisplayContext.getSystemService(
                     Context.WINDOW_SERVICE);
             if (bootSplashWindowManager == null) {
                 bootSplashDisplayId = Display.INVALID_DISPLAY;
@@ -481,14 +477,13 @@ public final class DisplayHelper {
                 return;
             }
 
-            View overlay = buildBootSplashOverlay(bootSplashDisplayContext);
+            View overlay = buildBootSplashOverlay(targetDisplayContext);
             bootSplashView = overlay;
             bootSplashWindowManager.addView(bootSplashView, bootSplashParams);
             startBootSplashAnimations(overlay);
         } catch (Exception ignored) {
             bootSplashDisplayId = Display.INVALID_DISPLAY;
             bootSplashParams = null;
-            bootSplashDisplayContext = null;
             bootSplashWindowManager = null;
             bootSplashView = null;
         }
