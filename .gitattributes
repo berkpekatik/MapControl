@@ -1,6 +1,0 @@
-*.sh text eol=lf
-gradlew text eol=lf
-*.bat text eol=crlf
-
-# Preserve the vendor sources original CRLF blobs without normalizing whole files.
-app/src/main/java/com/desaysv/** -text whitespace=cr-at-eol

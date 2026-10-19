@@ -1,9 +1,0 @@
-<resources>
-    <string name="app_name">TIGGO Ön Kontrol</string>
-    <string name="refresh">Bilgileri yenile</string>
-    <string name="description">Bu uygulama yalnız Android ve ekran bilgilerini okur. Araç ayarı değiştirmez; harita veya cluster kontrolü yapmaz. Listelenen ikincil ekranın gösterge paneli olduğu henüz doğrulanmış değildir.</string>
-    <string name="device_info">Android: %1$s (API %2$d)\nModel: %3$s\nMimari: %4$s\nUygulama alanındaki kullanılabilir yer: %5$d MB\n</string>
-    <string name="display_info">\nEkran %1$d: %2$s\nBoyut: %3$d × %4$d, durum: %5$d\n</string>
-    <string name="display_error">Ekran bilgisi okunamadı: %1$s</string>
-    <string name="no_secondary">İkincil ekran görünmüyor. Bu sonuç tek başına aracın cluster desteklemediğini göstermez.</string>
-</resources>
