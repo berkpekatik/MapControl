@@ -31,6 +31,7 @@ import com.mapcontrol.nav.ClusterNavOverlayOffsets;
 import com.mapcontrol.nav.GoogleMapsClusterNavOverlay;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.nav.GoogleMapsNavSnapshot;
+import com.mapcontrol.nav.PetalMapsNavNotificationCoordinator;
 import com.mapcontrol.nav.YandexClusterNavCoordinator;
 import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.service.GlobalBackService;
@@ -674,6 +675,78 @@ public class ProjectionTabBuilder {
                 ClusterNavOverlayOffsets.Provider.YANDEX,
                 () -> YandexClusterNavOverlay.getInstance(context).applyStoredOffsets());
 
+        TextView petalTitle = new TextView(context);
+        petalTitle.setText(R.string.petal_cluster_nav_section_title);
+        petalTitle.setTextSize(15);
+        petalTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
+        petalTitle.setTypeface(null, Typeface.NORMAL);
+        petalTitle.setPadding(20, 20, 20, 8);
+        mainCardContainer.addView(petalTitle);
+
+        TextView petalDesc = new TextView(context);
+        petalDesc.setText(R.string.petal_cluster_nav_section_desc);
+        petalDesc.setTextSize(13);
+        petalDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        petalDesc.setPadding(20, 0, 20, 12);
+        petalDesc.setLineSpacing(3, 1.05f);
+        mainCardContainer.addView(petalDesc);
+
+        LinearLayout petalBlock = new LinearLayout(context);
+        petalBlock.setOrientation(LinearLayout.VERTICAL);
+        petalBlock.setPadding(20, 0, 20, 0);
+        mainCardContainer.addView(petalBlock);
+
+        final UiStyles.BinarySegmentHandle[] petalHandle = new UiStyles.BinarySegmentHandle[1];
+        petalHandle[0] = UiStyles.addBinarySegmentedControl(context, petalBlock,
+                null,
+                context.getString(R.string.common_on),
+                context.getString(R.string.common_off),
+                context.getString(R.string.petal_cluster_nav_help_on),
+                context.getString(R.string.petal_cluster_nav_help_off),
+                PetalMapsNavNotificationCoordinator.isClusterOverlayEnabled(context),
+                isEnabled -> {
+                    if (!isEnabled) {
+                        PetalMapsNavNotificationCoordinator.setClusterOverlayEnabled(context, false);
+                        callback.log("Petal Maps cluster kartları: Kapalı");
+                        return;
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                            && !android.provider.Settings.canDrawOverlays(context)) {
+                        try {
+                            Intent intent = new Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                            intent.setData(android.net.Uri.parse(
+                                    "package:" + context.getPackageName()));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(intent);
+                            Toast.makeText(context,
+                                    R.string.overlay_permission_toast,
+                                    Toast.LENGTH_LONG).show();
+                        } catch (Exception e) {
+                            callback.log("İzin ayarlarına gidilemedi: " + e.getMessage());
+                        }
+                        petalHandle[0].setLeftSelected(false);
+                        return;
+                    }
+                    if (!LauncherMediaController.isNotificationAccessEnabled(context)) {
+                        new LauncherMediaController(context).openNotificationAccessSettings();
+                        Toast.makeText(context,
+                                R.string.projection_google_maps_nav_need_access,
+                                Toast.LENGTH_LONG).show();
+                        petalHandle[0].setLeftSelected(false);
+                        callback.log("Petal Maps kartları: bildirim erişimi kapalı");
+                        return;
+                    }
+                    PetalMapsNavNotificationCoordinator.setClusterOverlayEnabled(context, true);
+                    callback.log("Petal Maps cluster kartları: Açık");
+                });
+
+        addClusterOverlayLayoutSection(
+                mainCardContainer,
+                R.string.projection_petal_cluster_position_title,
+                ClusterNavOverlayOffsets.Provider.PETAL,
+                () -> GoogleMapsClusterNavOverlay.getPetalInstance(context).applyStoredOffsets());
+
         projectionTabContent.addView(mainCardContainer, mainCardParams);
 
         return scrollView;
@@ -772,6 +845,8 @@ public class ProjectionTabBuilder {
             applyOverlay.run();
             callback.log(provider == ClusterNavOverlayOffsets.Provider.GOOGLE
                     ? "Google Maps cluster kart düzeni sıfırlandı"
+                    : provider == ClusterNavOverlayOffsets.Provider.PETAL
+                    ? "Petal Maps cluster kart düzeni sıfırlandı"
                     : "Yandex cluster kart düzeni sıfırlandı");
             Toast.makeText(context, R.string.projection_cluster_layout_reset_done, Toast.LENGTH_SHORT).show();
         });

@@ -12,6 +12,10 @@
     <string name="yandex_cluster_nav_toast_no_nav">Yandex açık; rehberlik başlayınca kartlar otomatik görünür.</string>
     <string name="yandex_cluster_nav_toast_accessibility">Önce MapControl erişilebilirlik servisini açın.</string>
     <string name="yandex_cluster_nav_toast_service_wait">Erişilebilirlik servisi bağlanıyor…</string>
+    <string name="petal_cluster_nav_section_title">Petal Maps → Cluster</string>
+    <string name="petal_cluster_nav_section_desc">Petal Maps rehberlik bilgilerini (manevra, ETA) navigasyon bildiriminden okuyup cluster ekranında kart olarak gösterir. Ana ekrandaki sol kadran alanını örtmez. Bildirim erişimi gerekir.</string>
+    <string name="petal_cluster_nav_help_on">Petal Maps rehberliği sırasında cluster’da manevra ve ETA kartlarını göster.</string>
+    <string name="petal_cluster_nav_help_off">Petal Maps cluster kartlarını kapat.</string>
     <string name="log_tts_hint">Okunacak metni yazın</string>
     <string name="log_tts_welcome_phrase">MapControl kayıt ekranına hoş geldiniz</string>
     <string name="web_server_toast_wifi_ok_title">Wi‑Fi bağlı</string>

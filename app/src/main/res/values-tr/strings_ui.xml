@@ -138,8 +138,8 @@
     <string name="projection_google_maps_nav_off_help">Google Maps bildiriminden yansıtma açma.</string>
     <string name="projection_google_maps_nav_need_access">Önce MapControl için bildirim erişimini açın.</string>
     <string name="projection_map_swipe_title">Harita kaydırma</string>
-    <string name="projection_map_swipe_desc">Kapalı gelir; istemezseniz açmayın. İki parmak sola: cluster kapalıyken ana ekrandaki Google Maps veya Yandex Maps göstergeye alınır. Google Maps mevcut cluster haritasıyla açılır. Cluster zaten bu haritalardan birini gösteriyorsa ve diğeri ana ekrandaysa yer değiştirirler. İki parmak sağa gösterge yansıtmasını kapatır. Diğer uygulamalar yok sayılır, araç ekranı onlar için hareket ettirilmez. Kullanım erişimi gerekir.</string>
-    <string name="projection_map_swipe_on_help">Yalnızca Google Maps ve Yandex Maps için iki parmak kaydırmayı işle.</string>
+    <string name="projection_map_swipe_desc">Kapalı gelir; istemezseniz açmayın. İki parmak sola: cluster kapalıyken ana ekrandaki Google Maps, Yandex Maps veya Petal Maps göstergeye alınır. Google Maps mevcut cluster haritasıyla açılır. Cluster zaten bu haritalardan birini gösteriyorsa ve diğeri ana ekrandaysa yer değiştirirler. İki parmak sağa gösterge yansıtmasını kapatır. Diğer uygulamalar yok sayılır, araç ekranı onlar için hareket ettirilmez. Kullanım erişimi gerekir.</string>
+    <string name="projection_map_swipe_on_help">Yalnızca Google Maps, Yandex Maps ve Petal Maps için iki parmak kaydırmayı işle.</string>
     <string name="projection_map_swipe_off_help">Araç kaydırmasını yok say. MapControl uygulama taşımaz.</string>
     <string name="projection_map_swipe_need_access">Önce MapControl için kullanım erişimini açın. Erişim yokken kaydırma kapalı kalır.</string>
     <string name="projection_google_maps_nav_summary_idle">Aktif Google Maps navigasyon bildirimi yok.</string>
@@ -150,6 +150,7 @@
     <string name="projection_google_maps_cluster_overlay_off_help">Cluster navigasyon kartlarını kapat.</string>
     <string name="projection_google_cluster_position_title">Google Maps kart konumu</string>
     <string name="projection_yandex_cluster_position_title">Yandex kart konumu</string>
+    <string name="projection_petal_cluster_position_title">Petal Maps kart konumu</string>
     <string name="projection_cluster_offset_desc">Her kart ayrı: konum cluster ekran boyutuna göre (genişlik/yüksekliğin yarısı kadar ± dp), boyut %%50–%%150.</string>
     <string name="projection_cluster_layout_reset">Sıfırla</string>
     <string name="projection_cluster_layout_reset_done">Kart konumu ve boyutu varsayılana döndü.</string>

@@ -15,6 +15,7 @@ public final class AppLaunchHelper {
     private static final String TAG = "AppLaunchHelper";
 
     public static final String GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps";
+    public static final String PETAL_MAPS_PACKAGE = "com.huawei.maps.app";
     /**
      * Google Maps car/cluster surface.
      */

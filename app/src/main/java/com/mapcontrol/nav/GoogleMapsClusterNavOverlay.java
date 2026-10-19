@@ -32,6 +32,7 @@ import com.mapcontrol.util.AppLaunchHelper;
 public final class GoogleMapsClusterNavOverlay {
 
     public static final String PREF_ENABLED = "google_maps_cluster_nav_overlay";
+    public static final String PREF_PETAL_ENABLED = "petal_maps_cluster_nav_overlay";
     private static final String PREFS = "MapControlPrefs";
     private static final int LAYOUT_VERSION = 4;
     private static final int CARD_WIDTH_DP = 188;
@@ -41,8 +42,11 @@ public final class GoogleMapsClusterNavOverlay {
     private static final float CARD_OUTWARD_SHIFT_RATIO = 0.15f;
 
     private static GoogleMapsClusterNavOverlay instance;
+    private static GoogleMapsClusterNavOverlay petalInstance;
 
     private final Context appContext;
+    private final String enabledPref;
+    private final ClusterNavOverlayOffsets.Provider offsetProvider;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private WindowManager windowManager;
@@ -75,15 +79,32 @@ public final class GoogleMapsClusterNavOverlay {
     @Nullable
     private GoogleMapsNavSnapshot lastApplied;
 
-    private GoogleMapsClusterNavOverlay(Context context) {
+    private GoogleMapsClusterNavOverlay(Context context, String enabledPref,
+            ClusterNavOverlayOffsets.Provider offsetProvider) {
         this.appContext = context.getApplicationContext();
+        this.enabledPref = enabledPref;
+        this.offsetProvider = offsetProvider;
     }
 
     public static synchronized GoogleMapsClusterNavOverlay getInstance(Context context) {
         if (instance == null) {
-            instance = new GoogleMapsClusterNavOverlay(context);
+            instance = new GoogleMapsClusterNavOverlay(
+                    context, PREF_ENABLED, ClusterNavOverlayOffsets.Provider.GOOGLE);
         }
         return instance;
+    }
+
+    public static synchronized GoogleMapsClusterNavOverlay getPetalInstance(Context context) {
+        if (petalInstance == null) {
+            petalInstance = new GoogleMapsClusterNavOverlay(
+                    context, PREF_PETAL_ENABLED, ClusterNavOverlayOffsets.Provider.PETAL);
+        }
+        return petalInstance;
+    }
+
+    private boolean enabled() {
+        return appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(enabledPref, true);
     }
 
     public static boolean isEnabled(Context context) {
@@ -128,7 +149,7 @@ public final class GoogleMapsClusterNavOverlay {
     }
 
     private void applyOnMain(@Nullable GoogleMapsNavSnapshot snapshot) {
-        if (!isEnabled(appContext)) {
+        if (!enabled()) {
             hideInternal();
             return;
         }
@@ -306,11 +327,11 @@ public final class GoogleMapsClusterNavOverlay {
         Context ctx = displayContext != null ? displayContext : appContext;
         ClusterNavOverlayOffsets.CardLayout maneuver =
                 ClusterNavOverlayOffsets.getCardLayout(
-                        appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
+                        appContext, offsetProvider,
                         ClusterNavOverlayOffsets.Card.MANEUVER);
         ClusterNavOverlayOffsets.CardLayout eta =
                 ClusterNavOverlayOffsets.getCardLayout(
-                        appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
+                        appContext, offsetProvider,
                         ClusterNavOverlayOffsets.Card.ETA);
 
         maneuverCardLp.leftMargin = layoutManeuverLeft;

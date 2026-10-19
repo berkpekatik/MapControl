@@ -4,6 +4,7 @@ import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
+import com.mapcontrol.nav.PetalMapsNavNotificationCoordinator;
 
 /**
  * Aktif medya oturumlarını okumak ve Google Maps navigasyon bildirimini izlemek için dinleyici.
@@ -25,6 +26,7 @@ public final class LauncherMediaNotificationListener extends NotificationListene
     public void onListenerConnected() {
         GoogleMapsNavNotificationCoordinator.onListenerConnected(this);
         GoogleMapsNavNotificationCoordinator.resyncActiveNotifications(this);
+        PetalMapsNavNotificationCoordinator.resyncActiveNotifications(this);
         Listener current = listener;
         if (current != null) {
             current.onListenerConnected();
@@ -34,11 +36,13 @@ public final class LauncherMediaNotificationListener extends NotificationListene
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         GoogleMapsNavNotificationCoordinator.onNotificationPosted(this, sbn);
+        PetalMapsNavNotificationCoordinator.onNotificationPosted(this, sbn);
     }
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
         GoogleMapsNavNotificationCoordinator.onNotificationRemoved(this, sbn);
+        PetalMapsNavNotificationCoordinator.onNotificationRemoved(this, sbn);
     }
 
     @Override

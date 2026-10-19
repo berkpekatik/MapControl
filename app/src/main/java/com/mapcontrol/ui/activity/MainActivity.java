@@ -1014,7 +1014,8 @@ public class MainActivity extends AppCompatActivity {
                     "ru.yandex.yandexmaps",
                     "com.google.android.apps.maps",
                     "com.waze",
-                    "com.sygic.aura"
+                    "com.sygic.aura",
+                    "com.huawei.maps.app"
             };
 
             for (String pkg : preferred) {

@@ -215,6 +215,7 @@ public final class CarSystemGestureController {
         long onMainAt = -1L;
         long googleUnknownAt = -1L;
         long yandexUnknownAt = -1L;
+        long petalUnknownAt = -1L;
         while (events.hasNextEvent()) {
             if (!events.getNextEvent(event)) {
                 break;
@@ -238,18 +239,24 @@ public final class CarSystemGestureController {
                     googleUnknownAt = at;
                 } else if (YandexNavScraper.PACKAGE_YANDEX_MAPS.equals(pkg) && at >= yandexUnknownAt) {
                     yandexUnknownAt = at;
+                } else if (AppLaunchHelper.PETAL_MAPS_PACKAGE.equals(pkg) && at >= petalUnknownAt) {
+                    petalUnknownAt = at;
                 }
             }
         }
         if (onMain != null) {
             return onMain;
         }
-        if (googleUnknownAt < 0 && yandexUnknownAt < 0) {
+        if (googleUnknownAt < 0 && yandexUnknownAt < 0 && petalUnknownAt < 0) {
             return null;
         }
-        return googleUnknownAt >= yandexUnknownAt
-                ? AppLaunchHelper.GOOGLE_MAPS_PACKAGE
-                : YandexNavScraper.PACKAGE_YANDEX_MAPS;
+        if (googleUnknownAt >= yandexUnknownAt && googleUnknownAt >= petalUnknownAt) {
+            return AppLaunchHelper.GOOGLE_MAPS_PACKAGE;
+        }
+        if (yandexUnknownAt >= petalUnknownAt) {
+            return YandexNavScraper.PACKAGE_YANDEX_MAPS;
+        }
+        return AppLaunchHelper.PETAL_MAPS_PACKAGE;
     }
 
     private static int displayIdOf(UsageEvents.Event event) {
@@ -272,7 +279,8 @@ public final class CarSystemGestureController {
 
     static boolean isMapPackage(String packageName) {
         return AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(packageName)
-                || YandexNavScraper.PACKAGE_YANDEX_MAPS.equals(packageName);
+                || YandexNavScraper.PACKAGE_YANDEX_MAPS.equals(packageName)
+                || AppLaunchHelper.PETAL_MAPS_PACKAGE.equals(packageName);
     }
 
     private void syncRegistrationOnMain() {

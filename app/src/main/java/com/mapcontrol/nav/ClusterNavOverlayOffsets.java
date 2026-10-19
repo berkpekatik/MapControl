@@ -43,9 +43,17 @@ public final class ClusterNavOverlayOffsets {
     private static final String YANDEX_ETA_Y = "yandex_cluster_nav_eta_offset_y_dp";
     private static final String YANDEX_ETA_SCALE = "yandex_cluster_nav_eta_scale_pct";
 
+    private static final String PETAL_MANEUVER_X = "petal_cluster_nav_maneuver_offset_x_dp";
+    private static final String PETAL_MANEUVER_Y = "petal_cluster_nav_maneuver_offset_y_dp";
+    private static final String PETAL_MANEUVER_SCALE = "petal_cluster_nav_maneuver_scale_pct";
+    private static final String PETAL_ETA_X = "petal_cluster_nav_eta_offset_x_dp";
+    private static final String PETAL_ETA_Y = "petal_cluster_nav_eta_offset_y_dp";
+    private static final String PETAL_ETA_SCALE = "petal_cluster_nav_eta_scale_pct";
+
     public enum Provider {
         GOOGLE,
-        YANDEX
+        YANDEX,
+        PETAL
     }
 
     public enum Card {
@@ -136,6 +144,13 @@ public final class ClusterNavOverlayOffsets {
                 }
                 return readCardLayout(context, prefs, GOOGLE_ETA_X, GOOGLE_ETA_Y, GOOGLE_ETA_SCALE,
                         LEGACY_GOOGLE_OFFSET_X_DP, LEGACY_GOOGLE_OFFSET_Y_DP);
+            case PETAL:
+                if (card == Card.MANEUVER) {
+                    return readCardLayout(context, prefs, PETAL_MANEUVER_X, PETAL_MANEUVER_Y,
+                            PETAL_MANEUVER_SCALE, PETAL_MANEUVER_X, PETAL_MANEUVER_Y);
+                }
+                return readCardLayout(context, prefs, PETAL_ETA_X, PETAL_ETA_Y, PETAL_ETA_SCALE,
+                        PETAL_ETA_X, PETAL_ETA_Y);
             case YANDEX:
             default:
                 if (card == Card.MANEUVER) {
@@ -164,6 +179,17 @@ public final class ClusterNavOverlayOffsets {
                     xKey = GOOGLE_ETA_X;
                     yKey = GOOGLE_ETA_Y;
                     scaleKey = GOOGLE_ETA_SCALE;
+                }
+                break;
+            case PETAL:
+                if (card == Card.MANEUVER) {
+                    xKey = PETAL_MANEUVER_X;
+                    yKey = PETAL_MANEUVER_Y;
+                    scaleKey = PETAL_MANEUVER_SCALE;
+                } else {
+                    xKey = PETAL_ETA_X;
+                    yKey = PETAL_ETA_Y;
+                    scaleKey = PETAL_ETA_SCALE;
                 }
                 break;
             case YANDEX:
@@ -197,6 +223,10 @@ public final class ClusterNavOverlayOffsets {
                 putDefaults(editor, GOOGLE_ETA_X, GOOGLE_ETA_Y, GOOGLE_ETA_SCALE);
                 editor.remove(LEGACY_GOOGLE_OFFSET_X_DP);
                 editor.remove(LEGACY_GOOGLE_OFFSET_Y_DP);
+                break;
+            case PETAL:
+                putDefaults(editor, PETAL_MANEUVER_X, PETAL_MANEUVER_Y, PETAL_MANEUVER_SCALE);
+                putDefaults(editor, PETAL_ETA_X, PETAL_ETA_Y, PETAL_ETA_SCALE);
                 break;
             case YANDEX:
             default:
