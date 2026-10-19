@@ -10,15 +10,16 @@
     <uses-permission android:name="ivi.vds.permission.SERVICE" />
     
     <!-- System level permissions (may be required for VDBus) -->
+    <uses-permission android:name="android.permission.READ_SECURE_SETTINGS" 
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" 
         tools:ignore="ProtectedPermissions" />
-    <!-- Special app access: checked through Settings.System.canWrite; not a runtime grant. -->
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.READ_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Optional privileged diagnostics only; normal install does not grant READ_LOGS. -->
-    <uses-permission android:name="android.permission.READ_LOGS" tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.READ_LOGS"/>
     
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -28,7 +29,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Camera permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
     
@@ -36,9 +36,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
-        android:usesPermissionFlags="neverForLocation"
-        tools:targetApi="31" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL"
         tools:ignore="ProtectedPermissions" />
     
@@ -47,6 +45,8 @@
         tools:ignore="ScopedStorage" />
     
     <!-- VPN (for ACTIVATE_VPN appops) -->
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
+    
     <!-- System Alert Window (for SYSTEM_ALERT_WINDOW appops) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     
@@ -67,7 +67,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_UPDATES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
     
     <!-- Package uninstall permissions -->
     <!-- REQUEST_DELETE_PACKAGES: Diğer uygulamaların kaldırılmasını talep etmek için (ACTION_DELETE) -->

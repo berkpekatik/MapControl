@@ -37,11 +37,11 @@ public class BootReceiver extends BroadcastReceiver {
 
         Context app = context.getApplicationContext();
         SharedPreferences prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        if (!prefs.getBoolean(KEY_BOOT_AUTO_START, false)) {
+        if (!prefs.getBoolean(KEY_BOOT_AUTO_START, true)) {
             return;
         }
 
-        BootSession.setUiPending(app, prefs.getBoolean(KEY_BOOT_AUTO_LAUNCH_UI, false));
+        BootSession.setUiPending(app, prefs.getBoolean(KEY_BOOT_AUTO_LAUNCH_UI, true));
 
         Intent serviceIntent = new Intent(app, MapControlService.class);
         serviceIntent.putExtra(EXTRA_BOOT, true);

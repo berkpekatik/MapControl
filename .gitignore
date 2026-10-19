@@ -16,7 +16,6 @@ outputs/
 captures/
 .externalNativeBuild/
 .cxx/
-build-local.log
 
 # Keystore — never commit (signing keys)
 *.keystore
@@ -26,6 +25,6 @@ build-local.log
 .DS_Store
 Thumbs.db
 
-maintenance-build.log
-relocation-build.log
-audit-lint.log
+# Python
+__pycache__/
+*.pyc

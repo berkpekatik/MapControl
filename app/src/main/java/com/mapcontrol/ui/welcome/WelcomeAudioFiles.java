@@ -88,7 +88,7 @@ public final class WelcomeAudioFiles {
         if (downloadDir == null || !downloadDir.isDirectory()) {
             downloadDir = new File("/storage/emulated/0/Download");
             if (!downloadDir.isDirectory()) {
-                downloadDir = new File(Environment.getExternalStorageDirectory(), "Download");
+                downloadDir = new File("/sdcard/Download");
             }
         }
         collect(downloadDir, audio, new LinkedHashSet<>(), 1);
@@ -137,8 +137,6 @@ public final class WelcomeAudioFiles {
         }
     }
 
-    // getDirectory() API 30 öncesinde public değildi; API 29 (Android 10) için getPath yansıma ile okunur.
-    @android.annotation.SuppressLint("DiscouragedPrivateApi")
     private static File volumeDirectory(StorageVolume volume) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             File directory = volume.getDirectory();

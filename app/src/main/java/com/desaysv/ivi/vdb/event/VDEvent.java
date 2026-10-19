@@ -90,7 +90,7 @@ public class VDEvent implements Parcelable {
 
     protected VDEvent(Parcel parcel) {
         this.mId = parcel.readInt();
-        this.mPayload = parcel.readBundle(getClass().getClassLoader());
+        this.mPayload = parcel.readBundle();
         this.mThreadType = parcel.readInt();
         this.mTimeMillis = parcel.readLong();
     }

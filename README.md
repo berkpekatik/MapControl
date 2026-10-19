@@ -1,9 +1,5 @@
 # Map Control
 
-> **Yerel geliştirme dalı:** Kurulum/kaldırma davranışı upstream sürümünden farklıdır.
-> Güncel kapsam, Windows derlemesi ve doğrulama için [LOCAL-CHANGES.md](LOCAL-CHANGES.md)
-> dosyasını okuyun. Aşağıdaki upstream araç kurulum açıklamaları bu dal için doğrulanmış değildir.
-
  ⚠️ **Bilinen sorunlar / Known issues**
 
  | | |

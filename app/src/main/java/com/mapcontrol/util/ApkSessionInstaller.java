@@ -141,6 +141,7 @@ public final class ApkSessionInstaller {
         int status = extras.getInt(PackageInstaller.EXTRA_STATUS);
         String message = extras.getString(PackageInstaller.EXTRA_STATUS_MESSAGE);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            InstallerConfirmClicker.arm();
             Intent confirm = readConfirmIntent(extras);
             if (confirm != null) {
                 confirm.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

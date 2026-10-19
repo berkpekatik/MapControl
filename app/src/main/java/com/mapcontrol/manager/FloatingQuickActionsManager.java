@@ -129,7 +129,7 @@ public class FloatingQuickActionsManager {
                 .putBoolean(KEY_POS_SAVED, true)
                 .putInt(KEY_POS_X, params.x)
                 .putInt(KEY_POS_Y, params.y)
-                .apply();
+                .commit();
     }
 
     private void applyInitialPosition(int screenWidth, int screenHeight, float d) {

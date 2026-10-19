@@ -211,7 +211,7 @@ public interface IVDBus extends IInterface {
                 parcel2.writeNoException();
                 if (vDEvent2 != null) {
                     parcel2.writeInt(1);
-                    vDEvent2.writeToParcel(parcel2, android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+                    vDEvent2.writeToParcel(parcel2, 1);
                 } else {
                     parcel2.writeInt(0);
                 }

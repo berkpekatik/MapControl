@@ -60,8 +60,7 @@ public class ServiceInitializer {
         };
 
         IntentFilter filter = new IntentFilter("com.mapcontrol.LOG_MESSAGE");
-        androidx.core.content.ContextCompat.registerReceiver(
-                context, logReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+        context.registerReceiver(logReceiver, filter);
     }
 
     public void unregisterLogReceiver() {

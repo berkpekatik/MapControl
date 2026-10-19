@@ -53,8 +53,8 @@ public class TopBarBuilder {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setBackgroundColor(Color.TRANSPARENT);
         row.setPadding(
-                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, context.getResources().getDisplayMetrics()),
-                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, context.getResources().getDisplayMetrics()),
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, context.getResources().getDisplayMetrics()),
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 14, context.getResources().getDisplayMetrics()),
                 (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, context.getResources().getDisplayMetrics()),
                 (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, context.getResources().getDisplayMetrics()));
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -81,13 +81,11 @@ public class TopBarBuilder {
 
         titleView = new TextView(context);
         titleView.setText(R.string.topbar_wifi_management);
-        titleView.setTextSize(17);
+        titleView.setTextSize(18);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleView.setClickable(true);
         titleView.setFocusable(true);
-        titleView.setSingleLine(true);
-        titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         row.addView(titleView, titleParams);

@@ -24,19 +24,16 @@ final class GoogleMapsClusterNavManeuverMapper {
         if (combined == null || combined.isEmpty()) {
             return ACTION_NONE;
         }
-        String lower = combined.toLowerCase(Locale.ROOT);
+        String lower = combined.toLowerCase(Locale.US);
         if (containsAny(lower,
                 "u-turn", "uturn", "roundabout", "rotary", "ramp", "exit",
                 "turn left", "turn right", "bear left", "bear right",
                 "slight left", "slight right", "sharp left", "sharp right",
-                "keep left", "keep right", "fork", "merge",
-                "sağa dön", "sola dön", "u dönüşü", "dönel kavşak", "kavşak",
-                "sağdan", "soldan", "çıkış", "katıl", "çatallan")) {
+                "keep left", "keep right", "fork", "merge")) {
             return ACTION_TURN;
         }
         if (containsAny(lower,
-                "head ", "continue", "straight", "south", "north", "east", "west",
-                "düz", "devam", "ilerle", "boyunca")) {
+                "head ", "continue", "straight", "south", "north", "east", "west")) {
             return ACTION_CONTINUE;
         }
         return ACTION_CONTINUE;

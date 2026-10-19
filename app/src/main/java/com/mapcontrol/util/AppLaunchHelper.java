@@ -15,7 +15,6 @@ public final class AppLaunchHelper {
     private static final String TAG = "AppLaunchHelper";
 
     public static final String GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps";
-    public static final String PETAL_MAPS_PACKAGE = "com.huawei.maps.app";
     /**
      * Google Maps car/cluster surface.
      */
@@ -38,7 +37,7 @@ public final class AppLaunchHelper {
                 displays = dm.getDisplays();
             }
             for (Display d : displays) {
-                if (d.isValid() && d.getDisplayId() != Display.DEFAULT_DISPLAY) {
+                if (d.getDisplayId() != Display.DEFAULT_DISPLAY) {
                     return d.getDisplayId();
                 }
             }
@@ -72,11 +71,6 @@ public final class AppLaunchHelper {
      * Google Maps on a non-default display tries {@code EmbeddedClusterActivity} first, then the normal launcher.
      */
     public static void launchAppOnDisplay(Context context, String packageName, int displayId, int additionalFlags) {
-        DisplayManager manager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-        if (displayId < 0 || manager == null || manager.getDisplay(displayId) == null) {
-            Log.w(TAG, "Launch blocked: display unavailable " + displayId);
-            return;
-        }
         Intent intent = buildLaunchIntent(context, packageName, displayId);
         if (intent == null) {
             return;

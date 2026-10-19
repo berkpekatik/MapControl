@@ -32,7 +32,6 @@ import com.mapcontrol.util.TargetPackageStore;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Tam ekran overlay ile hedef uygulama seçimi; MainActivity açılmaz.
@@ -242,15 +241,13 @@ public final class TargetAppPickerOverlay {
     }
 
     private void applyFilter(String query) {
-        Locale defaultLocale = Locale.getDefault();
-        String q = query != null ? query.trim().toLowerCase(defaultLocale) : "";
+        String q = query != null ? query.trim().toLowerCase() : "";
         filteredRows.clear();
         if (q.isEmpty()) {
             filteredRows.addAll(allRows);
         } else {
             for (ProjectionTargetApps.Row r : allRows) {
-                if (r.label.toLowerCase(defaultLocale).contains(q)
-                        || r.packageName.toLowerCase(Locale.ROOT).contains(q)) {
+                if (r.label.toLowerCase().contains(q) || r.packageName.toLowerCase().contains(q)) {
                     filteredRows.add(r);
                 }
             }

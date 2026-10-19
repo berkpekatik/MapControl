@@ -39,7 +39,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -241,7 +240,7 @@ public final class PermissionProbe {
             }
             String out = outFuture.get(1, TimeUnit.SECONDS);
             String err = errFuture.get(1, TimeUnit.SECONDS).trim();
-            String errLower = err.toLowerCase(Locale.ROOT);
+            String errLower = err.toLowerCase();
             if (errLower.contains("permission") || errLower.contains("denied")) {
                 return fail("READ_LOGS", context.getString(R.string.settings_perm_logcat_fail, clip(err)));
             }
@@ -402,8 +401,6 @@ public final class PermissionProbe {
                 return ok("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_ok));
             }
             return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, "recordingState=" + state));
-        } catch (SecurityException e) {
-            return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, errorText(e)));
         } catch (Exception e) {
             return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, errorText(e)));
         } finally {
@@ -414,9 +411,6 @@ public final class PermissionProbe {
     }
 
     private static Result probeBluetooth(Context context) {
-        if (Build.VERSION.SDK_INT >= 31 && !isGranted(context, Manifest.permission.BLUETOOTH_CONNECT)) {
-            return fail("BLUETOOTH_CONNECT", "Bluetooth permission not granted");
-        }
         try {
             BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
             BluetoothAdapter adapter = manager == null ? null : manager.getAdapter();
@@ -425,8 +419,6 @@ public final class PermissionProbe {
             }
             int bonded = adapter.getBondedDevices() == null ? 0 : adapter.getBondedDevices().size();
             return ok("BLUETOOTH_CONNECT", context.getString(R.string.settings_perm_bt_ok, bonded));
-        } catch (SecurityException e) {
-            return fail("BLUETOOTH_CONNECT", context.getString(R.string.settings_perm_bt_fail, errorText(e)));
         } catch (Exception e) {
             return fail("BLUETOOTH_CONNECT", context.getString(R.string.settings_perm_bt_fail, errorText(e)));
         }
@@ -515,8 +507,6 @@ public final class PermissionProbe {
             }
             int type = telephony.getDataNetworkType();
             return ok("READ_PHONE_STATE", context.getString(R.string.settings_perm_phone_ok, type));
-        } catch (SecurityException e) {
-            return fail("READ_PHONE_STATE", context.getString(R.string.settings_perm_phone_fail, errorText(e)));
         } catch (Exception e) {
             return fail("READ_PHONE_STATE", context.getString(R.string.settings_perm_phone_fail, errorText(e)));
         }
@@ -591,7 +581,7 @@ public final class PermissionProbe {
 
     private static Result probeBoot(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(BootReceiver.PREFS_NAME, Context.MODE_PRIVATE);
-        boolean on = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, false);
+        boolean on = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, true);
         String state = context.getString(on ? R.string.settings_perm_on : R.string.settings_perm_off);
         if (isGranted(context, Manifest.permission.RECEIVE_BOOT_COMPLETED)) {
             return skip("RECEIVE_BOOT_COMPLETED", context.getString(R.string.settings_perm_boot_granted, state));

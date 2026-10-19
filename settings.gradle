@@ -16,5 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MapControl"
 include ':app'
-include ':preflight'
 

@@ -391,7 +391,7 @@ public class VDConnector {
             IntentFilter intentFilter = new IntentFilter();
             intentFilter.addAction(this.mServiceInfo.getServiceReboot());
             if (Build.VERSION.SDK_INT >= 34) {
-                Intent unused = this.mContext.registerReceiver(this.mRebootReceiver, intentFilter, Context.RECEIVER_EXPORTED);
+                Intent unused = this.mContext.registerReceiver(this.mRebootReceiver, intentFilter, 2);
             } else {
                 this.mContext.registerReceiver(this.mRebootReceiver, intentFilter);
             }

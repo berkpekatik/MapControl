@@ -18,6 +18,12 @@
     <string name="web_server_toast_wifi_ok_sub">Internet connection is active.</string>
     <string name="web_server_toast_wifi_off_title">Could not connect to Wi‑Fi</string>
     <string name="web_server_toast_wifi_off_sub">No network or not connected yet. Check Wi‑Fi or hotspot on startup.</string>
+    <string name="wifi_global_stabilize_title">Preparing Wi-Fi connection</string>
+    <string name="wifi_global_stabilize_eyebrow">Please wait</string>
+    <string name="wifi_global_toast_eyebrow_ok">Connection</string>
+    <string name="wifi_global_status_internet_ok">Wi-Fi connected</string>
+    <string name="wifi_global_toast_eyebrow_fail">Connection issue</string>
+    <string name="wifi_global_status_wifi_failed">Could not connect to Wi-Fi</string>
     <string name="floating_qa_no_apps_on_display">No open apps found for this display (dumpsys mismatch).</string>
     <string name="floating_qa_usage_access_required">Grant usage access in Settings for the open apps list; redirecting.</string>
     <string name="floating_qa_no_recent_apps">No matching (foreground) apps in the last hour. Open apps and try again.</string>

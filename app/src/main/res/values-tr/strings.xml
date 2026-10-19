@@ -18,6 +18,12 @@
     <string name="web_server_toast_wifi_ok_sub">İnternet bağlantısı aktif.</string>
     <string name="web_server_toast_wifi_off_title">Wi‑Fi’ye bağlanılamadı</string>
     <string name="web_server_toast_wifi_off_sub">Ağ yok veya henüz bağlanılamadı. Açılışta Wi‑Fi’yi veya erişim noktasını kontrol edin.</string>
+    <string name="wifi_global_stabilize_title">Wi-Fi bağlantısı hazırlanıyor</string>
+    <string name="wifi_global_stabilize_eyebrow">Lütfen bekleyin</string>
+    <string name="wifi_global_toast_eyebrow_ok">Bağlantı</string>
+    <string name="wifi_global_status_internet_ok">Wi-Fi bağlı</string>
+    <string name="wifi_global_toast_eyebrow_fail">Bağlantı sorunu</string>
+    <string name="wifi_global_status_wifi_failed">Wi-Fi bağlantısı kurulamadı</string>
     <string name="floating_qa_no_apps_on_display">Bu ekran için açık uygulama bulunamadı (dumpsys eşleşmedi).</string>
     <string name="floating_qa_usage_access_required">Açık uygulamalar listesi için Ayarlar’da uygulama kullanım erişimine izin verin; yönlendiriliyorsunuz.</string>
     <string name="floating_qa_no_recent_apps">Son 1 saatte eşleşen (ön plandaki) uygulama yok. Uygulamaları açıp tekrar deneyin.</string>

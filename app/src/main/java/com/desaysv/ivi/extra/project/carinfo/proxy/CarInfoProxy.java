@@ -16,6 +16,7 @@ public class CarInfoProxy implements VDBindListener {
     private static volatile CarInfoProxy mInstance;
     private IVDBus mAidl = null;
     private final List<IServiceConnectListener> mConnectListeners = new CopyOnWriteArrayList();
+    private Context mContext = null;
     private boolean mIsServiceConnnected = false;
 
     public static CarInfoProxy getInstance() {
@@ -49,8 +50,8 @@ public class CarInfoProxy implements VDBindListener {
     }
 
     public void init(Context context) {
-        Context app = context != null ? context.getApplicationContext() : null;
-        VDBus.getDefault().init(app != null ? app : context);
+        this.mContext = context;
+        VDBus.getDefault().init(context);
         VDBus.getDefault().registerVDBindListener(this);
         VDBus.getDefault().bindService(VDServiceDef.ServiceType.CAR_INFO);
     }

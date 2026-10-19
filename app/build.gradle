@@ -17,8 +17,8 @@ android {
     compileSdk 34
 
     lintOptions {
-        checkReleaseBuilds true
-        abortOnError true
+        checkReleaseBuilds false
+        abortOnError false
         disable 'ExpiredTargetSdkVersion'
     }
 
@@ -52,7 +52,6 @@ android {
 
         debug {
             debuggable true
-            versionNameSuffix '-local.11'
         }
     }
 

@@ -14,7 +14,6 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Display;
-import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.nav.YandexNavScraper;
 import com.mapcontrol.util.AppLaunchHelper;
@@ -273,7 +272,6 @@ public final class CarSystemGestureController {
 
     static boolean isMapPackage(String packageName) {
         return AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(packageName)
-                || AppLaunchHelper.PETAL_MAPS_PACKAGE.equals(packageName)
                 || YandexNavScraper.PACKAGE_YANDEX_MAPS.equals(packageName);
     }
 
@@ -288,7 +286,11 @@ public final class CarSystemGestureController {
             }
             IntentFilter filter = new IntentFilter(ACTION);
             try {
-                ContextCompat.registerReceiver(appContext, receiver, filter, ContextCompat.RECEIVER_EXPORTED);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+                } else {
+                    appContext.registerReceiver(receiver, filter);
+                }
                 registered = true;
                 Log.i(TAG, "gesture receiver registered");
             } catch (Exception e) {

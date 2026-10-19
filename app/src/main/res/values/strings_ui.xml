@@ -122,10 +122,10 @@
     <string name="projection_stop_desc">Close projection automatically when the vehicle shuts down?</string>
     <string name="projection_map_key_title">Map control key</string>
     <string name="projection_map_key_desc">Use the vehicle\'s hardware key to control the map on the cluster?</string>
-    <string name="projection_google_maps_nav_title">Navigation notification (Google / Petal)</string>
-    <string name="projection_google_maps_nav_desc">When Google Maps or Petal Maps starts guidance, open cluster projection automatically. Requires notification access and the selected map as the projection target. Stopping guidance does not close projection.</string>
-    <string name="projection_google_maps_nav_on_help">Open cluster when a navigation notification arrives.</string>
-    <string name="projection_google_maps_nav_off_help">Do not open cluster from navigation notifications.</string>
+    <string name="projection_google_maps_nav_title">Google Maps notification</string>
+    <string name="projection_google_maps_nav_desc">When Google Maps starts guidance, open cluster projection automatically. Requires notification access and Google Maps as the projection target. Stopping guidance does not close projection.</string>
+    <string name="projection_google_maps_nav_on_help">Open cluster when a Google Maps navigation notification arrives.</string>
+    <string name="projection_google_maps_nav_off_help">Do not open cluster from Google Maps notifications.</string>
     <string name="projection_google_maps_nav_need_access">Enable notification access for MapControl first.</string>
     <string name="projection_map_swipe_title">Map swipe</string>
     <string name="projection_map_swipe_desc">Off unless you turn it on. Two fingers left: if the cluster is closed, Google Maps or Yandex Maps on the main screen opens on the cluster. Google Maps uses the existing cluster map. If the cluster is already showing one of those maps and the other is on the main screen, they swap. Two fingers right closes cluster projection. Other apps are ignored, so the car screen is not taken over. Usage access is required.</string>

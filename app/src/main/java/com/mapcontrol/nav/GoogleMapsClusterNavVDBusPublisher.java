@@ -3,8 +3,6 @@ package com.mapcontrol.nav;
 import android.content.Context;
 import android.util.Log;
 
-import java.util.Locale;
-
 import androidx.annotation.Nullable;
 
 import com.desaysv.ivi.vdb.client.VDBus;
@@ -93,7 +91,7 @@ public final class GoogleMapsClusterNavVDBusPublisher {
         if (durationLabel == null) {
             return 0;
         }
-        String lower = durationLabel.toLowerCase(Locale.ROOT);
+        String lower = durationLabel.toLowerCase();
         int minutes = 0;
         try {
             if (lower.contains("hr") || lower.contains("sa")) {
