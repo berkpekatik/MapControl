@@ -32,7 +32,8 @@ public final class MapControlVDBusKeyBridge {
         Context app = context.getApplicationContext();
         if (manager == null) {
             manager = new VDBusManager(app, createCallback(app));
-            manager.init();
+            final VDBusManager m = manager;
+            new Thread(() -> m.init(), "VDBus-Init-Thread").start();
         }
         refCount++;
         logToBroadcast(app, "VDBus key bridge acquire (refs=" + refCount + ")");
