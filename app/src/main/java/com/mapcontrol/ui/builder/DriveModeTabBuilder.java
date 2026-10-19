@@ -234,14 +234,6 @@ public class DriveModeTabBuilder {
         driveModeScroll.addView(driveModeTrack, driveModeTrackParams);
         tabContent.addView(driveModeScroll, driveModeScrollParams);
 
-        if (savedMode == -1) {
-            driveModeRadioGroup.check(R.id.local_drive_none);
-        } else {
-            int initialId = mapModeToRadioId(savedMode);
-            if (initialId != -1) {
-                driveModeRadioGroup.check(initialId);
-            }
-        }
 
         driveModeRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
             int selectedMode = -1;
@@ -302,8 +294,17 @@ public class DriveModeTabBuilder {
                 }
             }
         });
+ 
+         if (savedMode == -1) {
+             driveModeRadioGroup.check(R.id.local_drive_none);
+         } else {
+             int initialId = mapModeToRadioId(savedMode);
+             if (initialId != -1) {
+                 driveModeRadioGroup.check(initialId);
+             }
+         }
 
-        return scrollView;
+         return scrollView;
     }
 
     private int mapModeToRadioId(int mode) {

@@ -676,23 +676,13 @@ public class AppsTabBuilder {
                     JSONArray listArray = jsonObject.getJSONArray("list");
                     JSONArray groupsArray = jsonObject.optJSONArray("groups");
 
-                    // Aurora Store, Petal Maps ve HMS Core'u kataloğa dahil et
+                    // Petal Maps ve HMS Core'u kataloğa dahil et
                     boolean hasPetal = false;
                     boolean hasHms = false;
-                    boolean hasAurora = false;
                     for (int i = 0; i < listArray.length(); i++) {
                         String pkg = listArray.getJSONObject(i).optString("packageName", "");
                         if ("com.huawei.maps.app".equals(pkg)) hasPetal = true;
                         if ("com.huawei.hwid".equals(pkg)) hasHms = true;
-                        if ("com.aurora.store".equals(pkg)) hasAurora = true;
-                    }
-                    if (!hasAurora) {
-                        JSONObject auroraObj = new JSONObject();
-                        auroraObj.put("packageName", "com.aurora.store");
-                        auroraObj.put("displayName", "Aurora Store (Play Mağazası)");
-                        auroraObj.put("version", "4.6.1");
-                        auroraObj.put("downloadUrl", "https://f-droid.org/repo/com.aurora.store_65.apk");
-                        listArray.put(auroraObj);
                     }
                     if (!hasPetal) {
                         JSONObject petalObj = new JSONObject();

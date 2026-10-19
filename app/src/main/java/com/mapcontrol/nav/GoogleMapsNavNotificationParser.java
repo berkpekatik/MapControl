@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 public final class GoogleMapsNavNotificationParser {
 
     public static final String PACKAGE_GOOGLE_MAPS = AppLaunchHelper.GOOGLE_MAPS_PACKAGE;
-    public static final String PACKAGE_PETAL_MAPS = AppLaunchHelper.PETAL_MAPS_PACKAGE;
 
     private static final Pattern IMPERIAL = Pattern.compile(
             "(\\d+(?:[.,]\\d+)?)\\s*(ft|mi)\\b", Pattern.CASE_INSENSITIVE);
@@ -31,30 +30,19 @@ public final class GoogleMapsNavNotificationParser {
     private GoogleMapsNavNotificationParser() {
     }
 
-    public static boolean isSupportedMapPackage(@Nullable String pkg) {
-        return PACKAGE_GOOGLE_MAPS.equals(pkg) || PACKAGE_PETAL_MAPS.equals(pkg);
-    }
-
     public static boolean isNavigationNotification(@Nullable StatusBarNotification sbn) {
-        if (sbn == null || !isSupportedMapPackage(sbn.getPackageName())) {
+        if (sbn == null || !PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName())) {
             return false;
         }
         Notification notification = sbn.getNotification();
         if (notification == null) {
             return false;
         }
-        Bundle extras = notification.extras;
-        // Google Maps subtext kullanır; Petal Maps bazen text/title veya subtext kullanır
-        if (extraText(extras, Notification.EXTRA_SUB_TEXT) != null) {
-            return true;
-        }
-        String title = extraText(extras, Notification.EXTRA_TITLE);
-        String text = extraText(extras, Notification.EXTRA_TEXT);
-        return looksLikeNavigation(title, text, null);
+        return extraText(notification.extras, Notification.EXTRA_SUB_TEXT) != null;
     }
 
     public static GoogleMapsNavSnapshot parse(@Nullable StatusBarNotification sbn) {
-        if (sbn == null || !isSupportedMapPackage(sbn.getPackageName())) {
+        if (sbn == null || !PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName())) {
             return GoogleMapsNavSnapshot.inactive();
         }
         Notification notification = sbn.getNotification();
@@ -98,18 +86,14 @@ public final class GoogleMapsNavNotificationParser {
             @Nullable String text,
             @Nullable String subText,
             boolean hadIcon) {
-        if (!looksLikeNavigation(title, text, subText)) {
+        if (subText == null || !looksLikeNavigation(title, text, subText)) {
             return GoogleMapsNavSnapshot.inactive();
-        }
-        String maneuver = maneuverFrom(text);
-        if (maneuver.isEmpty() && text != null && !hasQuantity(text)) {
-            maneuver = text.trim();
         }
         return new GoogleMapsNavSnapshot(
                 true,
-                maneuver,
+                maneuverFrom(text),
                 toMetric(stripClockLabels(title)),
-                toMetric(stripClockLabels(subText != null ? subText : text)),
+                toMetric(stripClockLabels(subText)),
                 hadIcon);
     }
 

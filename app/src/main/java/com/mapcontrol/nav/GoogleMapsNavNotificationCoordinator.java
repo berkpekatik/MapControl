@@ -157,7 +157,7 @@ public final class GoogleMapsNavNotificationCoordinator {
 
     private static boolean isGoogleMapsNotification(@Nullable StatusBarNotification sbn) {
         return sbn != null
-                && GoogleMapsNavNotificationParser.isSupportedMapPackage(sbn.getPackageName());
+                && GoogleMapsNavNotificationParser.PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName());
     }
 
     private static void remember(@Nullable Context context) {
@@ -339,9 +339,7 @@ public final class GoogleMapsNavNotificationCoordinator {
         if (!LauncherMediaController.isNotificationAccessEnabled(app)) {
             return;
         }
-        String target = TargetPackageStore.read(app);
-        if (!AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(target)
-                && !AppLaunchHelper.PETAL_MAPS_PACKAGE.equals(target)) {
+        if (!AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(TargetPackageStore.read(app))) {
             return;
         }
         if (ClusterNavigationState.getLastKnownOpen()) {
