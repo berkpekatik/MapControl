@@ -11,10 +11,17 @@ def releaseStore = signingProperties.getProperty('RELEASE_STORE_FILE')
 def releaseStorePassword = signingProperties.getProperty('RELEASE_STORE_PASSWORD')
 def releaseKeyPassword = signingProperties.getProperty('RELEASE_KEY_PASSWORD')
 def hasReleaseSigning = releaseStore && releaseStorePassword && releaseKeyPassword
+def readSetting = { String name ->
+    providers.gradleProperty(name).orNull ?: System.getenv(name) ?: signingProperties.getProperty(name, '')
+}
 
 android {
     namespace 'com.mapcontrol'
     compileSdk 34
+
+    buildFeatures {
+        buildConfig true
+    }
 
     lintOptions {
         checkReleaseBuilds false
@@ -28,6 +35,7 @@ android {
         targetSdk 28
         versionCode 2
         versionName "1.2.4"
+        buildConfigField 'String', 'GLITCHTIP_DSN', groovy.json.JsonOutput.toJson(readSetting('GLITCHTIP_DSN') ?: '')
     }
 
     signingConfigs {
@@ -68,6 +76,7 @@ android {
 }
 
 dependencies {
+    implementation 'io.sentry:sentry-android:8.24.0'
     testImplementation 'junit:junit:4.13.2'
     def filamentVersion = '1.53.4'
     implementation "com.google.android.filament:filament-android:${filamentVersion}"

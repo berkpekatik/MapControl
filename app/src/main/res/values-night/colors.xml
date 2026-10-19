@@ -119,35 +119,6 @@
     <color name="terminalDotGreen">#6B9E7A</color>
     <color name="wifiScreenBg">#00000000</color>
 
-    <color name="wifi_toast_global_eyebrow_ok">#9FD4B0</color>
-    <color name="wifi_toast_global_eyebrow_fail">#E8B89A</color>
-    <color name="wifi_toast_global_text_primary">#F0F4FA</color>
-    <color name="wifi_toast_global_icon_tint_ok">#B8E8C8</color>
-    <color name="wifi_toast_global_icon_tint_fail">#F0B8A0</color>
-    <color name="wifi_toast_preparing_eyebrow">#9FC8E8</color>
-    <color name="wifi_toast_preparing_icon">#9EC8E8</color>
-
-    <!-- Wi-Fi global toast card + halo — dark (was hardcoded in drawables) -->
-    <color name="wifi_toast_success_grad_start">#E8223038</color>
-    <color name="wifi_toast_success_grad_center">#E8182430</color>
-    <color name="wifi_toast_success_grad_end">#E810141C</color>
-    <color name="wifi_toast_success_stroke">#5088C49A</color>
-    <color name="wifi_toast_error_grad_start">#E8322420</color>
-    <color name="wifi_toast_error_grad_center">#E8281C1C</color>
-    <color name="wifi_toast_error_grad_end">#E8141014</color>
-    <color name="wifi_toast_error_stroke">#50E0A07A</color>
-    <color name="wifi_toast_preparing_grad_start">#E0222834</color>
-    <color name="wifi_toast_preparing_grad_center">#E0182230</color>
-    <color name="wifi_toast_preparing_grad_end">#E0101820</color>
-    <color name="wifi_toast_preparing_stroke">#5098B4D0</color>
-    <color name="wifi_toast_halo_ok_grad_start">#404A9A72</color>
-    <color name="wifi_toast_halo_ok_grad_center">#302E6B4A</color>
-    <color name="wifi_toast_halo_ok_grad_end">#20182A20</color>
-    <color name="wifi_toast_halo_ok_stroke">#45A0C4A5</color>
-    <color name="wifi_toast_halo_error_grad_start">#50D07050</color>
-    <color name="wifi_toast_halo_error_grad_center">#30C24A2A</color>
-    <color name="wifi_toast_halo_error_grad_end">#20181014</color>
-    <color name="wifi_toast_halo_error_stroke">#50E8A07A</color>
     <color name="wifi_toast_halo_preparing_grad_start">#404A7AA0</color>
     <color name="wifi_toast_halo_preparing_grad_center">#302E5B8A</color>
     <color name="wifi_toast_halo_preparing_grad_end">#20162A2E</color>

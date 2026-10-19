@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.text.TextUtils;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -93,34 +92,25 @@ public class DriveModeTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        HorizontalScrollView driveModeScroll = new HorizontalScrollView(context);
-        driveModeScroll.setFillViewport(true);
-        driveModeScroll.setHorizontalScrollBarEnabled(false);
-        driveModeScroll.setOverScrollMode(android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        LinearLayout.LayoutParams driveModeScrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        driveModeScrollParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
-
         LinearLayout driveModeTrack = new LinearLayout(context);
         driveModeTrack.setOrientation(LinearLayout.HORIZONTAL);
         driveModeTrack.setBackgroundResource(R.drawable.bg_segment_track);
         int trackPad = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
         driveModeTrack.setPadding(trackPad, trackPad, trackPad, trackPad);
-        HorizontalScrollView.LayoutParams driveModeTrackParams = new HorizontalScrollView.LayoutParams(
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT,
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams driveModeTrackParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        driveModeTrackParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
 
         RadioGroup driveModeRadioGroup = new RadioGroup(context);
         driveModeRadioGroup.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams radioGroupLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+        RadioGroup.LayoutParams radioGroupLp = new RadioGroup.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         driveModeRadioGroup.setLayoutParams(radioGroupLp);
 
         float density = context.getResources().getDisplayMetrics().density;
-        int minCardWidth = Math.round(76f * density);
-        int pianoKeyH = Math.round(88f * density);
+        int pianoKeyH = Math.round(100f * density);
         int indicatorHpx = Math.max(1, Math.round(4f * density));
 
         String[] driveModeNames = {
@@ -128,7 +118,7 @@ public class DriveModeTabBuilder {
                 "Eco", "Normal", "Sport", "Snow", "Mud", "Offroad", "Sand"
         };
         int[] driveModeValues = {-1, 0, 1, 2, 3, 4, 5, 7};
-        int[] driveModeIds = {R.id.local_drive_none, R.id.local_drive_eco, R.id.local_drive_normal, R.id.local_drive_sport, R.id.local_drive_snow, R.id.local_drive_mud, R.id.local_drive_offroad, R.id.local_drive_sand};
+        int[] driveModeIds = {9, 10, 11, 12, 13, 14, 15, 17};
         int[] driveModeIconRes = {
                 R.drawable.ic_mdi_radiobox_blank,
                 R.drawable.ic_mdi_leaf,
@@ -156,11 +146,10 @@ public class DriveModeTabBuilder {
             LinearLayout modeCard = new LinearLayout(context);
             modeCard.setOrientation(LinearLayout.VERTICAL);
             modeCard.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-            int keyPadH = Math.round(6f * density);
-            modeCard.setPadding(keyPadH, Math.round(10f * density), keyPadH, Math.round(6f * density));
+            int keyPadH = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
+            modeCard.setPadding(keyPadH, 10, keyPadH, 8);
             modeCard.setClickable(true);
             modeCard.setFocusable(true);
-            modeCard.setMinimumWidth(minCardWidth);
 
             boolean isSelected = (savedMode == modeValue);
             if (isSelected) {
@@ -170,8 +159,8 @@ public class DriveModeTabBuilder {
             }
 
             RadioGroup.LayoutParams cardParams = new RadioGroup.LayoutParams(
-                    minCardWidth, pianoKeyH, 1f);
-            cardParams.setMargins(2, 0, 2, 0);
+                    0, pianoKeyH, 1f);
+            cardParams.setMargins(1, 0, 1, 0);
 
             LinearLayout titleBand = new LinearLayout(context);
             titleBand.setOrientation(LinearLayout.VERTICAL);
@@ -201,8 +190,9 @@ public class DriveModeTabBuilder {
             modeTitle.setTextSize(12);
             modeTitle.setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             modeTitle.setGravity(android.view.Gravity.CENTER);
-            modeTitle.setMaxLines(1);
+            modeTitle.setMaxLines(2);
             modeTitle.setEllipsize(TextUtils.TruncateAt.END);
+            modeTitle.setLineSpacing(2, 1.0f);
             LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -231,15 +221,22 @@ public class DriveModeTabBuilder {
         }
 
         driveModeTrack.addView(driveModeRadioGroup);
-        driveModeScroll.addView(driveModeTrack, driveModeTrackParams);
-        tabContent.addView(driveModeScroll, driveModeScrollParams);
+        tabContent.addView(driveModeTrack, driveModeTrackParams);
 
+        if (savedMode == -1) {
+            driveModeRadioGroup.check(9);
+        } else {
+            int initialId = mapModeToRadioId(savedMode);
+            if (initialId != -1) {
+                driveModeRadioGroup.check(initialId);
+            }
+        }
 
         driveModeRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
             int selectedMode = -1;
             int selectedIndex = -1;
 
-            if (checkedId == R.id.local_drive_none) {
+            if (checkedId == 9) {
                 selectedMode = -1;
                 selectedIndex = 0;
             } else {
@@ -253,14 +250,6 @@ public class DriveModeTabBuilder {
             }
 
             if (selectedIndex >= 0) {
-                final int finalIndex = selectedIndex;
-                driveModeScroll.post(() -> {
-                    if (modeCards[finalIndex] != null) {
-                        int targetX = modeCards[finalIndex].getLeft() - (driveModeScroll.getWidth() - modeCards[finalIndex].getWidth()) / 2;
-                        driveModeScroll.smoothScrollTo(Math.max(0, targetX), 0);
-                    }
-                });
-
                 prefs.edit().putInt("driveModeSetting", selectedMode).apply();
                 callback.onModeSelected(selectedMode);
 
@@ -294,29 +283,20 @@ public class DriveModeTabBuilder {
                 }
             }
         });
- 
-         if (savedMode == -1) {
-             driveModeRadioGroup.check(R.id.local_drive_none);
-         } else {
-             int initialId = mapModeToRadioId(savedMode);
-             if (initialId != -1) {
-                 driveModeRadioGroup.check(initialId);
-             }
-         }
 
-         return scrollView;
+        return scrollView;
     }
 
     private int mapModeToRadioId(int mode) {
         switch (mode) {
-            case -1: return R.id.local_drive_none;
-            case 0: return R.id.local_drive_eco;
-            case 1: return R.id.local_drive_normal;
-            case 2: return R.id.local_drive_sport;
-            case 3: return R.id.local_drive_snow;
-            case 4: return R.id.local_drive_mud;
-            case 5: return R.id.local_drive_offroad;
-            case 7: return R.id.local_drive_sand;
+            case -1: return 9;
+            case 0: return 10;
+            case 1: return 11;
+            case 2: return 12;
+            case 3: return 13;
+            case 4: return 14;
+            case 5: return 15;
+            case 7: return 17;
             default: return -1;
         }
     }
