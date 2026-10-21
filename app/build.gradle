@@ -2,9 +2,26 @@ plugins {
     id 'com.android.application'
 }
 
+def signingProperties = new Properties()
+def signingPropertiesFile = rootProject.file('local.properties')
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def releaseStore = signingProperties.getProperty('RELEASE_STORE_FILE')
+def releaseStorePassword = signingProperties.getProperty('RELEASE_STORE_PASSWORD')
+def releaseKeyPassword = signingProperties.getProperty('RELEASE_KEY_PASSWORD')
+def hasReleaseSigning = releaseStore && releaseStorePassword && releaseKeyPassword
+def readSetting = { String name ->
+    providers.gradleProperty(name).orNull ?: System.getenv(name) ?: signingProperties.getProperty(name, '')
+}
+
 android {
     namespace 'com.mapcontrol'
     compileSdk 34
+
+    buildFeatures {
+        buildConfig true
+    }
 
     lintOptions {
         checkReleaseBuilds false
@@ -18,20 +35,23 @@ android {
         targetSdk 28
         versionCode 2
         versionName "1.2.4"
+        buildConfigField 'String', 'GLITCHTIP_DSN', groovy.json.JsonOutput.toJson(readSetting('GLITCHTIP_DSN') ?: '')
     }
 
     signingConfigs {
         release {
-            storeFile file("mapcontrol-release.keystore")
-            storePassword releaseKeyPassword
-            keyAlias "mapcontrol"
-            keyPassword releaseKeyPassword
+            if (hasReleaseSigning) {
+                storeFile rootProject.file(releaseStore)
+                storePassword releaseStorePassword
+                keyAlias signingProperties.getProperty('RELEASE_KEY_ALIAS', 'mapcontrol')
+                keyPassword releaseKeyPassword
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (hasReleaseSigning) signingConfig signingConfigs.release
             debuggable false
             minifyEnabled false
             shrinkResources false
@@ -56,6 +76,8 @@ android {
 }
 
 dependencies {
+    implementation 'io.sentry:sentry-android:8.24.0'
+    testImplementation 'junit:junit:4.13.2'
     def filamentVersion = '1.53.4'
     implementation "com.google.android.filament:filament-android:${filamentVersion}"
     implementation "com.google.android.filament:gltfio-android:${filamentVersion}"

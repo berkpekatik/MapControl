@@ -40,6 +40,8 @@ public class SideRailBuilder {
     private static final int TAB_WELCOME_SOUND = 8;
     private static final int TAB_VEHICLE_INFO = 9;
     private static final int TAB_EQUALIZER = 11;
+    private static final int TAB_CLIMATE_AUTOMATION = 12;
+    private static final int TAB_FACE_RECOGNITION = 13;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -54,6 +56,8 @@ public class SideRailBuilder {
     private LinearLayout menuTest;
     private LinearLayout menuWelcomeSound;
     private LinearLayout menuEqualizer;
+    private LinearLayout menuClimateAutomation;
+    private LinearLayout menuFaceRecognition;
     private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
     private LinearLayout sideRail;
@@ -147,6 +151,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
+        menuContainer.addView(menuClimateAutomation);
+        menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
         menuContainer.addView(menuProjection);
@@ -205,6 +211,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
+        menuContainer.addView(menuClimateAutomation);
+        menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
         menuContainer.addView(menuProjection);
@@ -272,6 +280,16 @@ public class SideRailBuilder {
         menuEqualizer.setOnClickListener(v -> {
             callback.onTabSelected(TAB_EQUALIZER, t(R.string.side_rail_equalizer));
             updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
+
+        menuClimateAutomation.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_CLIMATE_AUTOMATION, t(R.string.side_rail_climate_automation));
+            updateMenuSelection(menuClimateAutomation);
+        });
+
+        menuFaceRecognition.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_FACE_RECOGNITION, t(R.string.dms_recognition_title));
+            updateMenuSelection(menuFaceRecognition);
         });
     }
 
@@ -343,6 +361,12 @@ public class SideRailBuilder {
                 break;
             case 11:
                 updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                break;
+            case TAB_CLIMATE_AUTOMATION:
+                updateMenuSelection(menuClimateAutomation);
+                break;
+            case TAB_FACE_RECOGNITION:
+                updateMenuSelection(menuFaceRecognition);
                 break;
             default:
                 break;
@@ -475,7 +499,7 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition
         };
     }
 

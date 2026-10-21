@@ -84,6 +84,14 @@
     <color name="assistCardIdle">#1C2630</color>
     <color name="assistStrokeIdle">#2E3848</color>
 
+    <color name="automationPanel">#17191E</color>
+    <color name="automationCardSurface">#24272D</color>
+    <color name="automationIconSurface">#090B0F</color>
+    <color name="automationCardStroke">#464B55</color>
+    <color name="automationIconGlyph">#F4F5F7</color>
+    <color name="automationText">#F4F5F7</color>
+    <color name="automationTextMuted">#B7BBC3</color>
+
     <color name="outline">#2E3848</color>
     <color name="outlineMuted">#404040</color>
     <color name="dividerColor">#2A3140</color>

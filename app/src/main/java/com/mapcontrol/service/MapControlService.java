@@ -49,6 +49,8 @@ import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.R;
+import com.mapcontrol.vehicle.ClimateAutomationEngine;
+import android.content.pm.PackageManager;
 
 public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
@@ -109,6 +111,16 @@ public class MapControlService extends Service {
 
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
+        ClimateAutomationEngine.getInstance(this).start();
+        if (DmsFaceRecognitionService.isEnabled(this)
+                && checkSelfPermission(android.Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            try {
+                DmsFaceRecognitionService.start(this);
+            } catch (RuntimeException e) {
+                log("Yuz tanima arka planda yeniden baslatilamadi: " + e.getMessage());
+            }
+        }
         MapControlVDBusKeyBridge.acquire(this);
         scheduler.scheduleAtFixedRate(
                 () -> MapControlVDBusKeyBridge.refreshSubscription(false, false),
@@ -272,6 +284,8 @@ public class MapControlService extends Service {
             carSystemGestureController = null;
         }
         AudioEqualizerController.release();
+        ClimateAutomationEngine.getInstance(this).stop();
+        DmsFaceRecognitionService.stop(this);
         super.onDestroy();
         if (scheduler != null) {
             scheduler.shutdown();

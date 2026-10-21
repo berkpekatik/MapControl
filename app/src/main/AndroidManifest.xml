@@ -19,6 +19,7 @@
     
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
     
     <!-- Location permissions -->
@@ -145,6 +146,11 @@
         </activity-alias>
         
         <activity
+            android:name=".ui.activity.DmsFaceProfileActivity"
+            android:label="@string/dms_face_title"
+            android:screenOrientation="landscape" />
+
+        <activity
             android:name=".ui.activity.CameraActivity"
             android:label="Kamera Test"
             android:screenOrientation="landscape" />
@@ -195,6 +201,11 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <service
+            android:name=".service.DmsFaceRecognitionService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
         
         <!-- Global Back Service - AccessibilityService -->
         <service

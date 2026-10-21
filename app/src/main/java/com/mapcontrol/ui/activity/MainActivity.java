@@ -75,6 +75,10 @@ import com.mapcontrol.service.ServiceInitializer;
 import com.mapcontrol.ui.builder.AppsTabBuilder;
 import com.mapcontrol.ui.builder.AssistTabBuilder;
 import com.mapcontrol.ui.builder.DriveModeTabBuilder;
+
+import com.mapcontrol.service.DmsFaceRecognitionService;
+import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
+import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
 import com.mapcontrol.ui.builder.LauncherTabBuilder;
@@ -107,6 +111,21 @@ public class MainActivity extends AppCompatActivity {
     /** Araç Launcher Modu "Ana Ekran" karşılama sekmesinin {@code switchTab} indeksi. */
     private static final int TAB_LAUNCHER = 10;
     private static final int TAB_EQUALIZER = 11;
+    public static final int TAB_CLIMATE_AUTOMATION = 12;
+    public static final int TAB_FACE_RECOGNITION = 13;
+    private ScrollView climateAutomationScrollView;
+    private ScrollView faceRecognitionScrollView;
+    private ClimateAutomationTabBuilder climateAutomationTabBuilder;
+    private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
+    private boolean faceRecognitionStatusBroadcastRegistered;
+    private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (dmsFaceRecognitionTabBuilder != null) {
+                dmsFaceRecognitionTabBuilder.refresh();
+            }
+        }
+    };
     private TextView tvLogs;
     private ScrollView scrollView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -730,6 +749,19 @@ public class MainActivity extends AppCompatActivity {
         welcomeSoundTabBuilder = new WelcomeSoundTabBuilder(this, prefs, welcomeAudioPicker);
         equalizerTabBuilder = new EqualizerTabBuilder(this);
 
+        climateAutomationTabBuilder = new ClimateAutomationTabBuilder(this, prefs,
+                msg -> MainActivity.this.log(msg));
+        rebuildClimateAutomationTab();
+
+        dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
+                msg -> MainActivity.this.log(msg));
+        faceRecognitionScrollView = new ScrollView(this);
+        faceRecognitionScrollView.setFillViewport(true);
+        faceRecognitionScrollView.addView(dmsFaceRecognitionTabBuilder.build(),
+                new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT));
+
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
 
         vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
@@ -1113,6 +1145,16 @@ public class MainActivity extends AppCompatActivity {
             addTabChild(parent, vehicleInfoScrollView, matchParent);
         } else if (tabIndex == TAB_EQUALIZER) {
             addTabChild(parent, equalizerTabBuilder.getScrollView(), matchParent);
+        } else if (tabIndex == TAB_CLIMATE_AUTOMATION) {
+            if (climateAutomationScrollView == null) {
+                rebuildClimateAutomationTab();
+            }
+            addTabChild(parent, climateAutomationScrollView, matchParent);
+        } else if (tabIndex == TAB_FACE_RECOGNITION) {
+            addTabChild(parent, faceRecognitionScrollView, matchParent);
+            if (dmsFaceRecognitionTabBuilder != null) {
+                dmsFaceRecognitionTabBuilder.refresh();
+            }
         } else if (tabIndex == TAB_LAUNCHER) {
             if (launcherScrollView != null) {
                 addTabChild(parent, launcherScrollView, matchParent);
@@ -1457,6 +1499,18 @@ public class MainActivity extends AppCompatActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
+        if (DmsFaceRecognitionService.isEnabled(this)
+                && ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            try {
+                DmsFaceRecognitionService.start(this);
+            } catch (RuntimeException e) {
+                log(getString(R.string.dms_recognition_error, e.getMessage()));
+            }
+        }
+        if (dmsFaceRecognitionTabBuilder != null) {
+            dmsFaceRecognitionTabBuilder.refresh();
+        }
         }
     }
 
@@ -1712,8 +1766,9 @@ public class MainActivity extends AppCompatActivity {
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.rebuild();
         }
-        if (equalizerTabBuilder != null) {
-            equalizerTabBuilder.rebuild();
+        
+        if (climateAutomationTabBuilder != null) {
+            rebuildClimateAutomationTab();
         }
         if (vehicleInfoTabBuilder != null) {
             boolean listening = currentTab == 9;
@@ -1728,11 +1783,62 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+        private void rebuildClimateAutomationTab() {
+        if (climateAutomationTabBuilder == null) {
+            return;
+        }
+        if (climateAutomationScrollView == null) {
+            climateAutomationScrollView = new ScrollView(this);
+            climateAutomationScrollView.setFillViewport(true);
+        } else {
+            climateAutomationScrollView.removeAllViews();
+        }
+        climateAutomationScrollView.addView(climateAutomationTabBuilder.build(),
+                new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT));
+    }
+
     @Override
-    protected void onResume() {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == DmsFaceRecognitionTabBuilder.CAMERA_PERMISSION_REQUEST
+                && dmsFaceRecognitionTabBuilder != null) {
+            boolean granted = grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            dmsFaceRecognitionTabBuilder.onCameraPermissionResult(granted);
+        }
+    }
+
+    private void registerFaceRecognitionStatusReceiver() {
+        if (faceRecognitionStatusBroadcastRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter(DmsFaceRecognitionService.ACTION_STATUS);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(faceRecognitionStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(faceRecognitionStatusReceiver, filter);
+        }
+        faceRecognitionStatusBroadcastRegistered = true;
+    }
+
+     {
         super.onResume();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
+        if (DmsFaceRecognitionService.isEnabled(this)
+                && ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            try {
+                DmsFaceRecognitionService.start(this);
+            } catch (RuntimeException e) {
+                log(getString(R.string.dms_recognition_error, e.getMessage()));
+            }
+        }
+        if (dmsFaceRecognitionTabBuilder != null) {
+            dmsFaceRecognitionTabBuilder.refresh();
+        }
         sBenchHost = this;
         // Arka plandayken Floating Back / overlay hedef seçimi prefs'e yazılır; yayın onPause'da
         // alıcı kapatıldığı için kaçırılabilir — her öne gelişte disk ile bellek senkronu.
@@ -1742,6 +1848,7 @@ public class MainActivity extends AppCompatActivity {
         registerTargetPackageBroadcastReceiver();
         registerNavigationClusterBroadcastReceiver();
         registerGoogleMapsNavBroadcastReceiver();
+        registerFaceRecognitionStatusReceiver();
         isNavigationOpen = ClusterNavigationState.getLastKnownOpen();
         if (projectionTabBuilder != null) {
             projectionTabBuilder.refreshProjectionStatusUi();
@@ -1755,6 +1862,10 @@ public class MainActivity extends AppCompatActivity {
         unregisterTargetPackageBroadcastReceiver();
         unregisterNavigationClusterBroadcastReceiver();
         unregisterGoogleMapsNavBroadcastReceiver();
+        if (faceRecognitionStatusBroadcastRegistered) {
+            unregisterReceiver(faceRecognitionStatusReceiver);
+            faceRecognitionStatusBroadcastRegistered = false;
+        }
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.onHostPause();
         }

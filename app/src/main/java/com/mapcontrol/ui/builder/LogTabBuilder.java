@@ -22,6 +22,7 @@ import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.activity.CameraActivity;
+import com.mapcontrol.ui.activity.DmsFaceProfileActivity;
 import com.mapcontrol.ui.activity.ClusterVDBusTestActivity;
 
 public class LogTabBuilder {
@@ -110,6 +111,20 @@ public class LogTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         cameraTestParams.setMargins(0, 0, 8, 0);
         logControlPanel.addView(btnCameraTest, cameraTestParams);
+
+        Button btnDmsFaces = new Button(context);
+        btnDmsFaces.setText(R.string.log_dms_face_profiles);
+        btnDmsFaces.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        btnDmsFaces.setTextSize(14);
+        UiStyles.styleOemButton(btnDmsFaces, UiStyles.color(context, R.color.buttonSecondaryMuted));
+        btnDmsFaces.setPadding(16, 8, 16, 8);
+        btnDmsFaces.setOnClickListener(v ->
+                context.startActivity(new Intent(context, DmsFaceProfileActivity.class)));
+        LinearLayout.LayoutParams dmsFacesParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        dmsFacesParams.setMargins(0, 0, 8, 0);
+        logControlPanel.addView(btnDmsFaces, dmsFacesParams);
 
         Button btnWelcome = new Button(context);
         btnWelcome.setText(R.string.log_welcome);
