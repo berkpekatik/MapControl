@@ -23,7 +23,6 @@ import android.media.FaceDetector;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.speech.tts.TextToSpeech;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.Surface;
@@ -47,7 +46,6 @@ import androidx.core.content.ContextCompat;
 import com.mapcontrol.R;
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.theme.UiStyles;
-import com.mapcontrol.util.IflyOemTtsHelper;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
@@ -96,9 +94,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private String recognitionCandidate;
     private String reportedRecognitionName;
     private int recognitionCandidateHits;
-    private TextToSpeech textToSpeech;
-    private boolean ttsReady;
-    private String pendingTtsPhrase;
     private final List<byte[]> enrollmentTemplates = new ArrayList<>();
     private final List<FaceProfileStore.Profile> profiles = new ArrayList<>();
 
@@ -147,7 +142,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             DmsFaceRecognitionManager.stop(this);
         }
         CarSeatMemoryManager.getInstance(this).ensureInitialized();
-        initTts();
         try {
             profiles.addAll(FaceProfileStore.load(this));
         } catch (IllegalStateException e) {
@@ -775,7 +769,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                             .apply();
                     sendBroadcast(new Intent(DmsFaceRecognitionManager.ACTION_STATUS));
                     CarSeatMemoryManager.getInstance(this).applySeatMemory(best.seatMemory);
-                    speakWelcomePhrase(best.name);
                 }
             } else {
                 guideOverlay.setState(FaceGuideView.STATE_SCANNING);
@@ -788,17 +781,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             guideOverlay.setState(FaceGuideView.STATE_WARN);
             status.setText(R.string.dms_face_unknown);
         }
-    }
-
-    private void initTts() {
-        // Sistem TTS, MainActivity ile aynı SystemTtsManager üzerinden yönetilir.
-    }
-
-    private void speakWelcomePhrase(String phrase) {
-        if (phrase == null || phrase.trim().isEmpty()) {
-            return;
-        }
-        com.mapcontrol.util.SystemTtsManager.speakDelayed(getApplicationContext(), phrase.trim(), 450L);
     }
 
     private void updateProfileStatus() {
@@ -1011,15 +993,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         }
         if (faceDetector != null) {
             faceDetector = null;
-        }
-        if (textToSpeech != null) {
-            try {
-                textToSpeech.stop();
-                textToSpeech.shutdown();
-            } catch (Throwable ignored) {
-            }
-            textToSpeech = null;
-            ttsReady = false;
         }
         // Resume background service after camera is fully closed
         if (DmsFaceRecognitionManager.isEnabled(this) && !profiles.isEmpty()) {

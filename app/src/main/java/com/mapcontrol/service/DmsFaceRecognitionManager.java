@@ -33,7 +33,6 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.R;
-import com.mapcontrol.util.SystemTtsManager;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
@@ -80,7 +79,6 @@ public final class DmsFaceRecognitionManager {
     private volatile List<FaceProfileStore.Profile> profiles;
     private boolean profileReceiverRegistered;
     private boolean recognitionStarted;
-    private volatile boolean greetingPending = true;
     private volatile boolean sessionRecognized;
     private volatile int lastPowerMode = Integer.MIN_VALUE;
     private volatile long powerMode2EnteredAtMs;
@@ -188,7 +186,6 @@ public final class DmsFaceRecognitionManager {
                 candidateHits = 0;
                 lastPublishedName = "";
                 sessionRecognized = false;
-                greetingPending = true;
                 publishStatus(context.getString(R.string.dms_recognition_profiles_updated));
             } catch (IllegalStateException e) {
                 publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
@@ -449,8 +446,6 @@ public final class DmsFaceRecognitionManager {
                             match.profile.name, match.profile.seatMemory);
                     publishStatus(matchedMsg);
                     requestSeatMemoryWithRetry(match.profile.seatMemory, 5);
-                    greetingPending = false;
-                    speakWelcome(match.profile.name);
                     // Sürücü tespit edilip hafıza tetiklendiğinde kamerayı hemen serbest bırak
                     closeDmsCamera();
                 }
@@ -585,7 +580,6 @@ public final class DmsFaceRecognitionManager {
         } else if (mode <= 0) {
             powerMode2EnteredAtMs = 0L;
             closeDmsCamera();
-            greetingPending = false;
             sessionRecognized = false;
             lastPublishedName = "";
             candidateName = null;
@@ -596,7 +590,6 @@ public final class DmsFaceRecognitionManager {
     }
 
     private void beginWelcomeSession(int powerMode) {
-        greetingPending = true;
         sessionRecognized = false;
         lastPublishedName = "";
         candidateName = null;
@@ -612,13 +605,6 @@ public final class DmsFaceRecognitionManager {
                 .apply();
     }
 
-    private void speakWelcome(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return;
-        }
-        String spokenText = name.trim();
-        SystemTtsManager.speakDelayed(context, spokenText, 450L);
-    }
 
     private void logOnly(String message) {
         Log.i(TAG, message);
