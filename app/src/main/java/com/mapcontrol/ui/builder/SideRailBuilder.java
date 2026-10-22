@@ -138,6 +138,10 @@ public class SideRailBuilder {
                 t(R.string.side_rail_welcome_sound));
         menuEqualizer = createRailMenuItemView(R.drawable.ic_mdi_equalizer,
                 t(R.string.side_rail_equalizer));
+        menuClimateAutomation = createRailMenuItemView(R.drawable.ic_mdi_thermometer,
+                t(R.string.side_rail_climate_automation));
+        menuFaceRecognition = createRailMenuItemView(R.drawable.ic_mdi_account,
+                t(R.string.side_rail_face_recognition));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
         menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
@@ -199,6 +203,10 @@ public class SideRailBuilder {
                 t(R.string.side_rail_welcome_sound));
         menuEqualizer = createPortraitRailItem(R.drawable.ic_mdi_equalizer,
                 t(R.string.side_rail_equalizer));
+        menuClimateAutomation = createPortraitRailItem(R.drawable.ic_mdi_thermometer,
+                t(R.string.side_rail_climate_automation));
+        menuFaceRecognition = createPortraitRailItem(R.drawable.ic_mdi_account,
+                t(R.string.side_rail_face_recognition));
         menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
         menuProjection = createPortraitRailItem(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createPortraitRailItem(R.drawable.ic_mdi_speedometer,

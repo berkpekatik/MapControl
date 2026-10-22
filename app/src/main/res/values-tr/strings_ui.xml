@@ -500,331 +500,331 @@
     <string name="settings_perm_on">aÃ§Ä±k</string>
     <string name="settings_perm_off">kapalÄ±</string>
 
-    <string name="settings_uninstall_button">MapControl uygulamas¦-n¦- kald¦-r</string>
+    <string name="settings_uninstall_button">MapControl uygulamasÄ±nÄ± kaldÄ±r</string>
 
-    <string name="settings_uninstall_title">MapControl kald¦-r¦-ls¦-n m¦-?</string>
+    <string name="settings_uninstall_title">MapControl kaldÄ±rÄ±lsÄ±n mÄ±?</string>
 
-    <string name="settings_uninstall_message">Yaln¦-zca MapControl uygulamas¦- kald¦-r¦-lacak. AndroidÔÇÖin sistem onay¦- da a+ğ¦-lacak.</string>
+    <string name="settings_uninstall_message">YalnÄ±zca MapControl uygulamasÄ± kaldÄ±rÄ±lacak. Androidâ€™in sistem onayÄ± da aÃ§Ä±lacak.</string>
 
-    <string name="settings_uninstall_failed">Uygulama kald¦-rma ekran¦- a+ğ¦-lamad¦-.</string>
+    <string name="settings_uninstall_failed">Uygulama kaldÄ±rma ekranÄ± aÃ§Ä±lamadÄ±.</string>
 
-    <string name="wifi_global_stabilize_eyebrow">WI-FI Y+ûNET¦-M¦-</string>
+    <string name="wifi_global_stabilize_eyebrow">WI-FI YÃ–NETÄ°MÄ°</string>
 
-    <string name="wifi_global_stabilize_title">Wi-Fi ba¦şlant¦-s¦- haz¦-rlan¦-yorÔÇĞ</string>
+    <string name="wifi_global_stabilize_title">Wi-Fi baÄŸlantÄ±sÄ± hazÄ±rlanÄ±yorâ€¦</string>
 
-    <string name="wifi_global_toast_eyebrow_ok">BA¦ŞLANTI HAZIR</string>
+    <string name="wifi_global_toast_eyebrow_ok">BAÄLANTI HAZIR</string>
 
-    <string name="wifi_global_status_internet_ok">¦-nternet ba¦şlant¦-s¦- haz¦-r</string>
+    <string name="wifi_global_status_internet_ok">Ä°nternet baÄŸlantÄ±sÄ± hazÄ±r</string>
 
-    <string name="wifi_global_toast_eyebrow_fail">BA¦ŞLANTI KURULAMADI</string>
+    <string name="wifi_global_toast_eyebrow_fail">BAÄLANTI KURULAMADI</string>
 
-    <string name="wifi_global_status_wifi_failed">Wi-Fi ba¦şlant¦-s¦- ba+şar¦-s¦-z</string>
+    <string name="wifi_global_status_wifi_failed">Wi-Fi baÄŸlantÄ±sÄ± baÅŸarÄ±sÄ±z</string>
 
-    <string name="cluster_test_temperature_button">D¦-+ş s¦-cakl¦-k ham VDBus verisini oku (10 +Ârnek)</string>
+    <string name="cluster_test_temperature_button">DÄ±ÅŸ sÄ±caklÄ±k ham VDBus verisini oku (10 Ã¶rnek)</string>
 
-    <string name="cluster_test_temperature_running">S¦-cakl¦-k verileri okunuyorÔÇĞ</string>
+    <string name="cluster_test_temperature_running">SÄ±caklÄ±k verileri okunuyorâ€¦</string>
 
-    <string name="cluster_test_temperature_header">D¦-+ş s¦-cakl¦-k te+şhisi ba+şlad¦-: HVAC mod+-l+-=%1$d, Celsius ID=%2$d, Fahrenheit ID=%3$d. Kadrandaki de¦şeri +Ârnekler al¦-n¦-rken not edin.</string>
+    <string name="cluster_test_temperature_header">DÄ±ÅŸ sÄ±caklÄ±k teÅŸhisi baÅŸladÄ±: HVAC modÃ¼lÃ¼=%1$d, Celsius ID=%2$d, Fahrenheit ID=%3$d. Kadrandaki deÄŸeri Ã¶rnekler alÄ±nÄ±rken not edin.</string>
 
-    <string name="cluster_test_temperature_connecting">Ara+ğ VDBus ba¦şlant¦-s¦- yok; ba¦şlant¦- ba+şlat¦-l¦-yor ve bekleniyorÔÇĞ</string>
+    <string name="cluster_test_temperature_connecting">AraÃ§ VDBus baÄŸlantÄ±sÄ± yok; baÄŸlantÄ± baÅŸlatÄ±lÄ±yor ve bekleniyorâ€¦</string>
 
-    <string name="cluster_test_temperature_sample">+ûrnek %1$d TÀ %2$s TÀ ba¦şl¦-=%3$b\nCelsius: %4$s\nFahrenheit: %5$s</string>
+    <string name="cluster_test_temperature_sample">Ã–rnek %1$d Â· %2$s Â· baÄŸlÄ±=%3$b\nCelsius: %4$s\nFahrenheit: %5$s</string>
 
-    <string name="cluster_test_temperature_error">+ûrnek %1$d okunamad¦- (%2$s): %3$s</string>
+    <string name="cluster_test_temperature_error">Ã–rnek %1$d okunamadÄ± (%2$s): %3$s</string>
 
-    <string name="cluster_test_temperature_no_value">yan¦-t yok</string>
+    <string name="cluster_test_temperature_no_value">yanÄ±t yok</string>
 
-    <string name="cluster_test_temperature_done">D¦-+ş s¦-cakl¦-k testi tamamland¦-. Ana loga da kopyaland¦-; ham de¦şerleri ara+ğ kadran¦-ndaki e+şzamanl¦- dereceyle payla+ş¦-n. API yan¦-t yokken [0] d+Ând+-rebildi¦şinden raw=0 tek ba+ş¦-na ger+ğek 0T-C anlam¦-na gelmeyebilir.</string>
+    <string name="cluster_test_temperature_done">DÄ±ÅŸ sÄ±caklÄ±k testi tamamlandÄ±. Ana loga da kopyalandÄ±; ham deÄŸerleri araÃ§ kadranÄ±ndaki eÅŸzamanlÄ± dereceyle paylaÅŸÄ±n. API yanÄ±t yokken [0] dÃ¶ndÃ¼rebildiÄŸinden raw=0 tek baÅŸÄ±na gerÃ§ek 0Â°C anlamÄ±na gelmeyebilir.</string>
 
-    <string name="cluster_test_automation_button">Otomasyon ON/OFF ve komut te+şhisi (salt okunur)</string>
+    <string name="cluster_test_automation_button">Otomasyon ON/OFF ve komut teÅŸhisi (salt okunur)</string>
 
-    <string name="cluster_test_automation_running">Otomasyon verileri okunuyorÔÇĞ</string>
+    <string name="cluster_test_automation_running">Otomasyon verileri okunuyorâ€¦</string>
 
-    <string name="cluster_test_automation_connecting">Ara+ğ VDBus ba¦şlant¦-s¦- ba+şlat¦-l¦-yorÔÇĞ</string>
+    <string name="cluster_test_automation_connecting">AraÃ§ VDBus baÄŸlantÄ±sÄ± baÅŸlatÄ±lÄ±yorâ€¦</string>
 
-    <string name="cluster_test_automation_interrupted">Otomasyon te+şhisi kesildi.</string>
+    <string name="cluster_test_automation_interrupted">Otomasyon teÅŸhisi kesildi.</string>
 
-    <string name="cluster_test_automation_header">Otomasyon te+şhisi TÀ %1$s TÀ ba¦şl¦-=%2$b TÀ HVAC mod+-l=%3$d TÀ ayar mod+-l=%4$d TÀ salt-okunur mod+-l=%5$d. Komut g+Ânderilmez.</string>
+    <string name="cluster_test_automation_header">Otomasyon teÅŸhisi Â· %1$s Â· baÄŸlÄ±=%2$b Â· HVAC modÃ¼l=%3$d Â· ayar modÃ¼l=%4$d Â· salt-okunur modÃ¼l=%5$d. Komut gÃ¶nderilmez.</string>
 
-    <string name="cluster_test_automation_no_connection">Ara+ğ VDBus ba¦şlant¦-s¦- kurulamad¦-; veriler al¦-namad¦-.</string>
+    <string name="cluster_test_automation_no_connection">AraÃ§ VDBus baÄŸlantÄ±sÄ± kurulamadÄ±; veriler alÄ±namadÄ±.</string>
 
-    <string name="cluster_test_automation_vehicle">SENS+ûRLER: d¦-+ş Celsius raw=[%1$s], Fahrenheit raw=[%2$s], sistem g+-+ğ modu (ID 14)=%3$s, ara+ğ g+-+ğ modu (ID 13)=%4$s, h¦-z raw=%5$s. Ham 0, API yan¦-t¦- yok anlam¦-na da gelebilir.</string>
+    <string name="cluster_test_automation_vehicle">SENSÃ–RLER: dÄ±ÅŸ Celsius raw=[%1$s], Fahrenheit raw=[%2$s], sistem gÃ¼Ã§ modu (ID 14)=%3$s, araÃ§ gÃ¼Ã§ modu (ID 13)=%4$s, hÄ±z raw=%5$s. Ham 0, API yanÄ±tÄ± yok anlamÄ±na da gelebilir.</string>
 
-    <string name="cluster_test_automation_master">Ana otomasyon a+ğ¦-k=%1$b</string>
+    <string name="cluster_test_automation_master">Ana otomasyon aÃ§Ä±k=%1$b</string>
 
-    <string name="cluster_test_automation_decoded">Uygulaman¦-n mevcut kalibrasyon/d+Ân+-+ş+-m+-ne g+Âre d¦-+ş s¦-cakl¦-k=%1$sT-C</string>
+    <string name="cluster_test_automation_decoded">UygulamanÄ±n mevcut kalibrasyon/dÃ¶nÃ¼ÅŸÃ¼mÃ¼ne gÃ¶re dÄ±ÅŸ sÄ±caklÄ±k=%1$sÂ°C</string>
 
-    <string name="cluster_test_automation_rule">KURAL %1$s: a+ğ¦-k=%2$b, ko+şul d¦-+ş s¦-cakl¦-k %3$s %4$dT-C, ko+şul e+şle+şiyor=%5$b, gecikme=%6$d dk, kademe=%7$d, beklenen=%8$s</string>
+    <string name="cluster_test_automation_rule">KURAL %1$s: aÃ§Ä±k=%2$b, koÅŸul dÄ±ÅŸ sÄ±caklÄ±k %3$s %4$dÂ°C, koÅŸul eÅŸleÅŸiyor=%5$b, gecikme=%6$d dk, kademe=%7$d, beklenen=%8$s</string>
 
-    <string name="cluster_test_automation_feedback">GER¦- OKUMA %1$s: sinyal=%2$s mod+-l=%3$d ID=%4$d raw=[%5$s]</string>
+    <string name="cluster_test_automation_feedback">GERÄ° OKUMA %1$s: sinyal=%2$s modÃ¼l=%3$d ID=%4$d raw=[%5$s]</string>
 
-    <string name="cluster_test_automation_feedback_error">GER¦- OKUMA HATASI %1$s: sinyal=%2$s mod+-l=%3$d ID=%4$d (%5$s): %6$s</string>
+    <string name="cluster_test_automation_feedback_error">GERÄ° OKUMA HATASI %1$s: sinyal=%2$s modÃ¼l=%3$d ID=%4$d (%5$s): %6$s</string>
 
-    <string name="cluster_test_automation_error">Otomasyon te+şhisi ba+şar¦-s¦-z (%1$s): %2$s</string>
+    <string name="cluster_test_automation_error">Otomasyon teÅŸhisi baÅŸarÄ±sÄ±z (%1$s): %2$s</string>
 
-    <string name="cluster_test_automation_done">Otomasyon te+şhisi tamamland¦-. +ç¦-kt¦-y¦- kadran/ayar davran¦-+ş¦- ve ilgili loglarla birlikte payla+ş¦-n.</string>
+    <string name="cluster_test_automation_done">Otomasyon teÅŸhisi tamamlandÄ±. Ã‡Ä±ktÄ±yÄ± kadran/ayar davranÄ±ÅŸÄ± ve ilgili loglarla birlikte paylaÅŸÄ±n.</string>
 
-    <string name="cluster_test_live_button">Kontak, s¦-cakl¦-k ve otomasyon canl¦- kayd¦- (2 dk)</string>
+    <string name="cluster_test_live_button">Kontak, sÄ±caklÄ±k ve otomasyon canlÄ± kaydÄ± (2 dk)</string>
 
-    <string name="cluster_test_live_stop">Canl¦- kayd¦- durdur</string>
+    <string name="cluster_test_live_stop">CanlÄ± kaydÄ± durdur</string>
 
-    <string name="cluster_test_live_stopping">Kay¦-t durduruluyorÔÇĞ</string>
+    <string name="cluster_test_live_stopping">KayÄ±t durduruluyorâ€¦</string>
 
-    <string name="cluster_test_live_header">CANLI KAYIT ba+şlang¦-+ğ %1$s TÀ saniyede 1 +Ârnek, en fazla 120 sn TÀ HVAC mod+-l=%2$d, ayar mod+-l=%3$d, readonly mod+-l=%4$d TÀ sistem g+-+ğ ID=%5$d, ara+ğ g+-+ğ ID=%6$d, h¦-z ID=%7$d, Celsius ID=%8$d, Fahrenheit ID=%9$d. Kay¦-t s¦-ras¦-nda otomasyon ON/OFF d+-¦şmesini de¦şi+ştirin veya konta¦ş¦- a+ğ¦-n; yaln¦-zca geri okuma yap¦-l¦-r, komut g+Ânderilmez.</string>
+    <string name="cluster_test_live_header">CANLI KAYIT baÅŸlangÄ±Ã§ %1$s Â· saniyede 1 Ã¶rnek, en fazla 120 sn Â· HVAC modÃ¼l=%2$d, ayar modÃ¼l=%3$d, readonly modÃ¼l=%4$d Â· sistem gÃ¼Ã§ ID=%5$d, araÃ§ gÃ¼Ã§ ID=%6$d, hÄ±z ID=%7$d, Celsius ID=%8$d, Fahrenheit ID=%9$d. KayÄ±t sÄ±rasÄ±nda otomasyon ON/OFF dÃ¼ÄŸmesini deÄŸiÅŸtirin veya kontaÄŸÄ± aÃ§Ä±n; yalnÄ±zca geri okuma yapÄ±lÄ±r, komut gÃ¶nderilmez.</string>
 
-    <string name="cluster_test_live_sample">CANLI #%1$d %2$s: sistemPower(ID14)=%3$s ara+ğPower(ID13)=%4$s h¦-z(ID0)=%5$s s¦-cakl¦-kC raw=[%6$s] s¦-cakl¦-kF raw=[%7$s] uygulamaC=%8$sT-C</string>
+    <string name="cluster_test_live_sample">CANLI #%1$d %2$s: sistemPower(ID14)=%3$s araÃ§Power(ID13)=%4$s hÄ±z(ID0)=%5$s sÄ±caklÄ±kC raw=[%6$s] sÄ±caklÄ±kF raw=[%7$s] uygulamaC=%8$sÂ°C</string>
 
-    <string name="cluster_test_live_master">%1$s otomasyonAnahtar¦-A+ğ¦-k=%2$b</string>
+    <string name="cluster_test_live_master">%1$s otomasyonAnahtarÄ±AÃ§Ä±k=%2$b</string>
 
-    <string name="cluster_test_live_rule">KURAL AYARI %1$s a+ğ¦-k=%2$b ko+şul=%3$s%4$dT-C gecikme=%5$d dk kademe=%6$d</string>
+    <string name="cluster_test_live_rule">KURAL AYARI %1$s aÃ§Ä±k=%2$b koÅŸul=%3$s%4$dÂ°C gecikme=%5$d dk kademe=%6$d</string>
 
-    <string name="cluster_test_live_disconnected">CANLI #%1$d %2$s: VDBus ba¦şlant¦-s¦- kesildi</string>
+    <string name="cluster_test_live_disconnected">CANLI #%1$d %2$s: VDBus baÄŸlantÄ±sÄ± kesildi</string>
 
-    <string name="cluster_test_live_done">Canl¦- kay¦-t tamamland¦-/durduruldu.</string>
+    <string name="cluster_test_live_done">CanlÄ± kayÄ±t tamamlandÄ±/durduruldu.</string>
 
-    <string name="cluster_test_seat_memory_button">Koltuk haf¦-za modlar¦- VDBus de¦şi+şim testi</string>
+    <string name="cluster_test_seat_memory_button">Koltuk hafÄ±za modlarÄ± VDBus deÄŸiÅŸim testi</string>
 
-    <string name="cluster_test_seat_memory_running">Koltuk haf¦-za sinyalleri dinleniyorÔÇĞ Durdurmak i+ğin dokunun</string>
+    <string name="cluster_test_seat_memory_running">Koltuk hafÄ±za sinyalleri dinleniyorâ€¦ Durdurmak iÃ§in dokunun</string>
 
-    <string name="cluster_test_seat_memory_connecting">Ara+ğ VDBus ba¦şlant¦-s¦- ba+şlat¦-l¦-yorÔÇĞ</string>
+    <string name="cluster_test_seat_memory_connecting">AraÃ§ VDBus baÄŸlantÄ±sÄ± baÅŸlatÄ±lÄ±yorâ€¦</string>
 
-    <string name="cluster_test_seat_memory_no_connection">Ara+ğ VDBus ba¦şlant¦-s¦- kurulamad¦-; koltuk haf¦-za testi ba+şlat¦-lmad¦-.</string>
+    <string name="cluster_test_seat_memory_no_connection">AraÃ§ VDBus baÄŸlantÄ±sÄ± kurulamadÄ±; koltuk hafÄ±za testi baÅŸlatÄ±lmadÄ±.</string>
 
-    <string name="cluster_test_seat_memory_no_signals">Koltuk/haf¦-za ile ili+şkili VDBus sinyali bulunamad¦-.</string>
+    <string name="cluster_test_seat_memory_no_signals">Koltuk/hafÄ±za ile iliÅŸkili VDBus sinyali bulunamadÄ±.</string>
 
-    <string name="cluster_test_seat_memory_header">Koltuk haf¦-za canl¦- testi ba+şlad¦- TÀ %1$s TÀ ayar mod+-l+-=%2$d. Ara+ğ ekran¦-ndan haf¦-za modlar¦-n¦- de¦şi+ştirin; de¦şi+şen sinyaller a+şa¦ş¦-ya yaz¦-l¦-r. Komut g+Ânderilmez. Dinlenen sinyaller: %3$s</string>
+    <string name="cluster_test_seat_memory_header">Koltuk hafÄ±za canlÄ± testi baÅŸladÄ± Â· %1$s Â· ayar modÃ¼lÃ¼=%2$d. AraÃ§ ekranÄ±ndan hafÄ±za modlarÄ±nÄ± deÄŸiÅŸtirin; deÄŸiÅŸen sinyaller aÅŸaÄŸÄ±ya yazÄ±lÄ±r. Komut gÃ¶nderilmez. Dinlenen sinyaller: %3$s</string>
 
-    <string name="cluster_test_seat_memory_initial">Ba+şlang¦-+ğ %1$s (ID %2$d): raw=[%3$s]</string>
+    <string name="cluster_test_seat_memory_initial">BaÅŸlangÄ±Ã§ %1$s (ID %2$d): raw=[%3$s]</string>
 
-    <string name="cluster_test_seat_memory_event">DE¦Ş¦-+Ş¦-M %1$s TÀ %2$s (ID %3$d): raw=[%4$s]</string>
+    <string name="cluster_test_seat_memory_event">DEÄÄ°ÅÄ°M %1$s Â· %2$s (ID %3$d): raw=[%4$s]</string>
 
-    <string name="cluster_test_seat_memory_read_error">Ba+şlang¦-+ğ de¦şeri okunamad¦- %1$s (ID %2$d), %3$s: %4$s</string>
+    <string name="cluster_test_seat_memory_read_error">BaÅŸlangÄ±Ã§ deÄŸeri okunamadÄ± %1$s (ID %2$d), %3$s: %4$s</string>
 
-    <string name="cluster_test_seat_memory_field_error">VDBus sinyali alan¦- okunamad¦- %1$s: %2$s</string>
+    <string name="cluster_test_seat_memory_field_error">VDBus sinyali alanÄ± okunamadÄ± %1$s: %2$s</string>
 
-    <string name="cluster_test_seat_memory_error">Koltuk haf¦-za testi ba+şar¦-s¦-z (%1$s): %2$s</string>
+    <string name="cluster_test_seat_memory_error">Koltuk hafÄ±za testi baÅŸarÄ±sÄ±z (%1$s): %2$s</string>
 
-    <string name="cluster_test_seat_memory_done">Koltuk haf¦-za VDBus testi durduruldu.</string>
+    <string name="cluster_test_seat_memory_done">Koltuk hafÄ±za VDBus testi durduruldu.</string>
 
-    <string name="cluster_test_vdbus_button">T+-m ara+ğ VDBus sinyallerini tara ve dinle (salt okunur)</string>
+    <string name="cluster_test_vdbus_button">TÃ¼m araÃ§ VDBus sinyallerini tara ve dinle (salt okunur)</string>
 
-    <string name="cluster_test_vdbus_running">T+-m mod+-l/ID taramas¦- ve canl¦- dinleme s+-r+-yorÔÇĞ Durdurmak i+ğin dokunun</string>
+    <string name="cluster_test_vdbus_running">TÃ¼m modÃ¼l/ID taramasÄ± ve canlÄ± dinleme sÃ¼rÃ¼yorâ€¦ Durdurmak iÃ§in dokunun</string>
 
-    <string name="cluster_test_vdbus_connecting">Ara+ğ VDBus ba¦şlant¦-s¦- ba+şlat¦-l¦-yorÔÇĞ</string>
+    <string name="cluster_test_vdbus_connecting">AraÃ§ VDBus baÄŸlantÄ±sÄ± baÅŸlatÄ±lÄ±yorâ€¦</string>
 
-    <string name="cluster_test_vdbus_no_connection">Ara+ğ VDBus ba¦şlant¦-s¦- kurulamad¦-; genel tarama ba+şlat¦-lmad¦-.</string>
+    <string name="cluster_test_vdbus_no_connection">AraÃ§ VDBus baÄŸlantÄ±sÄ± kurulamadÄ±; genel tarama baÅŸlatÄ±lmadÄ±.</string>
 
-    <string name="cluster_test_vdbus_no_modules">VDBus mod+-l+- bulunamad¦-.</string>
+    <string name="cluster_test_vdbus_no_modules">VDBus modÃ¼lÃ¼ bulunamadÄ±.</string>
 
-    <string name="cluster_test_vdbus_header">GENEL ARA+ç VDBUS TARAMASI TÀ %1$s TÀ %2$d mod+-l TÀ her mod+-lde ID %3$dÔÇô%4$d. Salt okunur; araca komut g+Ândermez. Tarama s+-rebilir; bitince canl¦- de¦şi+şiklikleri dinler.</string>
+    <string name="cluster_test_vdbus_header">GENEL ARAÃ‡ VDBUS TARAMASI Â· %1$s Â· %2$d modÃ¼l Â· her modÃ¼lde ID %3$dâ€“%4$d. Salt okunur; araca komut gÃ¶ndermez. Tarama sÃ¼rebilir; bitince canlÄ± deÄŸiÅŸiklikleri dinler.</string>
 
-    <string name="cluster_test_vdbus_module">Mod+-l: %1$s (%2$d)</string>
+    <string name="cluster_test_vdbus_module">ModÃ¼l: %1$s (%2$d)</string>
 
-    <string name="cluster_test_vdbus_value">YANIT: %1$s (%2$d) TÀ %3$s (%4$d) = raw %5$s</string>
+    <string name="cluster_test_vdbus_value">YANIT: %1$s (%2$d) Â· %3$s (%4$d) = raw %5$s</string>
 
-    <string name="cluster_test_vdbus_read_error">OKUMA HATASI: %1$s (%2$d) TÀ %3$s (%4$d) TÀ %5$s: %6$s</string>
+    <string name="cluster_test_vdbus_read_error">OKUMA HATASI: %1$s (%2$d) Â· %3$s (%4$d) Â· %5$s: %6$s</string>
 
-    <string name="cluster_test_vdbus_module_done">Mod+-l tamamland¦-: %1$s TÀ yan¦-t=%2$d, yan¦-t yok=%3$d</string>
+    <string name="cluster_test_vdbus_module_done">ModÃ¼l tamamlandÄ±: %1$s Â· yanÄ±t=%2$d, yanÄ±t yok=%3$d</string>
 
-    <string name="cluster_test_vdbus_listening">¦-lk tarama bitti; t+-m mod+-l/IDÔÇÖlerden canl¦- VDBus de¦şi+şimleri dinleniyor. Ara+ğ ekran¦-nda incelemek istedi¦şiniz +Âzellikleri de¦şi+ştirin.</string>
+    <string name="cluster_test_vdbus_listening">Ä°lk tarama bitti; tÃ¼m modÃ¼l/IDâ€™lerden canlÄ± VDBus deÄŸiÅŸimleri dinleniyor. AraÃ§ ekranÄ±nda incelemek istediÄŸiniz Ã¶zellikleri deÄŸiÅŸtirin.</string>
 
-    <string name="cluster_test_vdbus_change">DE¦Ş¦-+Ş¦-M %1$s TÀ %2$s (%3$d) TÀ %4$s (%5$d): +Ânce=%6$s sonra=%7$s</string>
+    <string name="cluster_test_vdbus_change">DEÄÄ°ÅÄ°M %1$s Â· %2$s (%3$d) Â· %4$s (%5$d): Ã¶nce=%6$s sonra=%7$s</string>
 
-    <string name="cluster_test_vdbus_field_error">VDBus tablo alan¦- okunamad¦- %1$s: %2$s</string>
+    <string name="cluster_test_vdbus_field_error">VDBus tablo alanÄ± okunamadÄ± %1$s: %2$s</string>
 
-    <string name="cluster_test_vdbus_error">Genel VDBus taramas¦- ba+şar¦-s¦-z (%1$s): %2$s</string>
+    <string name="cluster_test_vdbus_error">Genel VDBus taramasÄ± baÅŸarÄ±sÄ±z (%1$s): %2$s</string>
 
-    <string name="cluster_test_vdbus_done">Genel ara+ğ VDBus taramas¦-/dinlemesi durduruldu.</string>
+    <string name="cluster_test_vdbus_done">Genel araÃ§ VDBus taramasÄ±/dinlemesi durduruldu.</string>
 
     <string name="side_rail_climate_automation">Otomasyon</string>
 
-    <string name="side_rail_face_recognition">Y+-z Tan¦-ma</string>
+    <string name="side_rail_face_recognition">YÃ¼z TanÄ±ma</string>
 
     <string name="climate_auto_title">Konfor otomasyonu</string>
 
-    <string name="climate_auto_subtitle">Ara+ğ termometresindeki d¦-+ş ortam s¦-cakl¦-¦ş¦- se+ğti¦şiniz e+şi¦şe ula+ş¦-nca koltuk ¦-s¦-tma, koltuk so¦şutma ve direksiyon ¦-s¦-tma otomatik a+ğ¦-l¦-r.</string>
+    <string name="climate_auto_subtitle">AraÃ§ termometresindeki dÄ±ÅŸ ortam sÄ±caklÄ±ÄŸÄ± seÃ§tiÄŸiniz eÅŸiÄŸe ulaÅŸÄ±nca koltuk Ä±sÄ±tma, koltuk soÄŸutma ve direksiyon Ä±sÄ±tma otomatik aÃ§Ä±lÄ±r.</string>
 
-    <string name="climate_auto_master">Otomasyonu +ğal¦-+şt¦-r</string>
+    <string name="climate_auto_master">Otomasyonu Ã§alÄ±ÅŸtÄ±r</string>
 
-    <string name="climate_auto_master_off">Kapal¦-</string>
+    <string name="climate_auto_master_off">KapalÄ±</string>
 
-    <string name="climate_auto_master_on">A+ğ¦-k</string>
+    <string name="climate_auto_master_on">AÃ§Ä±k</string>
 
-    <string name="climate_auto_status_disconnected">Ara+ğ termometresi ba¦şl¦- de¦şil</string>
+    <string name="climate_auto_status_disconnected">AraÃ§ termometresi baÄŸlÄ± deÄŸil</string>
 
-    <string name="climate_auto_status_no_temp">D¦-+ş ortam s¦-cakl¦-¦ş¦- hen+-z okunamad¦-</string>
+    <string name="climate_auto_status_no_temp">DÄ±ÅŸ ortam sÄ±caklÄ±ÄŸÄ± henÃ¼z okunamadÄ±</string>
 
-    <string name="climate_auto_status_temp">D¦-+ş ortam: %1$.1fT-C</string>
+    <string name="climate_auto_status_temp">DÄ±ÅŸ ortam: %1$.1fÂ°C</string>
 
-    <string name="climate_auto_sensor_label">ARA+ç TERMOMETRES¦- TÀ CANLI VER¦-</string>
+    <string name="climate_auto_sensor_label">ARAÃ‡ TERMOMETRESÄ° Â· CANLI VERÄ°</string>
 
-    <string name="climate_auto_rules_heading">Otomasyon kurallar¦-</string>
+    <string name="climate_auto_rules_heading">Otomasyon kurallarÄ±</string>
 
-    <string name="climate_auto_compare_hint">S¦-cakl¦-k kar+ş¦-la+şt¦-rma ko+şulunu de¦şi+ştir</string>
+    <string name="climate_auto_compare_hint">SÄ±caklÄ±k karÅŸÄ±laÅŸtÄ±rma koÅŸulunu deÄŸiÅŸtir</string>
 
-    <string name="climate_auto_driver_heat">S+-r+-c+- koltuk ¦-s¦-tma</string>
+    <string name="climate_auto_driver_heat">SÃ¼rÃ¼cÃ¼ koltuk Ä±sÄ±tma</string>
 
-    <string name="climate_auto_passenger_heat">Yolcu koltuk ¦-s¦-tma</string>
+    <string name="climate_auto_passenger_heat">Yolcu koltuk Ä±sÄ±tma</string>
 
-    <string name="climate_auto_driver_vent">S+-r+-c+- koltuk havaland¦-rma</string>
+    <string name="climate_auto_driver_vent">SÃ¼rÃ¼cÃ¼ koltuk havalandÄ±rma</string>
 
-    <string name="climate_auto_passenger_vent">Yolcu koltuk havaland¦-rma</string>
+    <string name="climate_auto_passenger_vent">Yolcu koltuk havalandÄ±rma</string>
 
-    <string name="climate_auto_steer_heat">Direksiyon ¦-s¦-tma</string>
+    <string name="climate_auto_steer_heat">Direksiyon Ä±sÄ±tma</string>
 
-    <string name="climate_auto_windshield">+ûn cam ¦-s¦-tma</string>
+    <string name="climate_auto_windshield">Ã–n cam Ä±sÄ±tma</string>
 
-    <string name="climate_auto_rear_defrost">Arka cam ve ayna ¦-s¦-tma</string>
+    <string name="climate_auto_rear_defrost">Arka cam ve ayna Ä±sÄ±tma</string>
 
     <string name="climate_auto_climate">Klima (AUTO)</string>
 
-    <string name="climate_auto_delay_off">Otomatik kapat¦-lmaz (s+-rekli a+ğ¦-k)</string>
+    <string name="climate_auto_delay_off">Otomatik kapatÄ±lmaz (sÃ¼rekli aÃ§Ä±k)</string>
 
-    <string name="climate_auto_delay">Kontaktan %1$d dakika sonra kapat¦-l¦-r</string>
+    <string name="climate_auto_delay">Kontaktan %1$d dakika sonra kapatÄ±lÄ±r</string>
 
-    <string name="climate_auto_temp">E+şik: %1$dT-C</string>
+    <string name="climate_auto_temp">EÅŸik: %1$dÂ°C</string>
 
     <string name="climate_auto_level">Seviye: %1$d</string>
 
-    <string name="climate_auto_log_on">Konfor otomasyonu a+ğ¦-ld¦-</string>
+    <string name="climate_auto_log_on">Konfor otomasyonu aÃ§Ä±ldÄ±</string>
 
-    <string name="climate_auto_log_off">Konfor otomasyonu kapat¦-ld¦-</string>
+    <string name="climate_auto_log_off">Konfor otomasyonu kapatÄ±ldÄ±</string>
 
-    <string name="log_dms_face_profiles">Y+-z Tan¦-ma Profilleri</string>
+    <string name="log_dms_face_profiles">YÃ¼z TanÄ±ma Profilleri</string>
 
-    <string name="dms_face_title">Y+-z Tan¦-ma ve Profil Y+Ânetimi</string>
+    <string name="dms_face_title">YÃ¼z TanÄ±ma ve Profil YÃ¶netimi</string>
 
-    <string name="dms_recognition_title">Y+-z Tan¦-ma</string>
+    <string name="dms_recognition_title">YÃ¼z TanÄ±ma</string>
 
-    <string name="dms_recognition_description">Kontak a+ğ¦-ld¦-¦ş¦-nda DMS kameras¦- ile s+-r+-c+-y+- tespit eder, kay¦-tl¦- koltuk haf¦-zas¦-n¦- (1ÔÇô3) otomatik uygular ve sesli olarak bildirim yapar. En fazla 3 ki+şi tan¦-mlanabilir.</string>
+    <string name="dms_recognition_description">Kontak aÃ§Ä±ldÄ±ÄŸÄ±nda DMS kamerasÄ± ile sÃ¼rÃ¼cÃ¼yÃ¼ tespit eder, kayÄ±tlÄ± koltuk hafÄ±zasÄ±nÄ± (1â€“3) otomatik uygular ve sesli olarak bildirim yapar. En fazla 3 kiÅŸi tanÄ±mlanabilir.</string>
 
-    <string name="dms_recognition_enable">Otomatik y+-z tan¦-ma ve koltuk haf¦-zas¦-</string>
+    <string name="dms_recognition_enable">Otomatik yÃ¼z tanÄ±ma ve koltuk hafÄ±zasÄ±</string>
 
-    <string name="dms_recognition_manage_profiles">Y+-z Tara / Profilleri Y+Ânet</string>
+    <string name="dms_recognition_manage_profiles">YÃ¼z Tara / Profilleri YÃ¶net</string>
 
-    <string name="dms_recognition_status">%1$d / %2$d ki+şi kay¦-tl¦- TÀ Otomatik tan¦-ma: %3$s\n%4$s\nDurum: %5$s</string>
+    <string name="dms_recognition_status">%1$d / %2$d kiÅŸi kayÄ±tlÄ± Â· Otomatik tanÄ±ma: %3$s\n%4$s\nDurum: %5$s</string>
 
-    <string name="dms_recognition_no_match_yet">Son oturumda hen+-z tespit yap¦-lmad¦-.</string>
+    <string name="dms_recognition_no_match_yet">Son oturumda henÃ¼z tespit yapÄ±lmadÄ±.</string>
 
-    <string name="dms_recognition_last_match">Son tespit: %1$s TÀ Koltuk Haf¦-zas¦- %2$d</string>
+    <string name="dms_recognition_last_match">Son tespit: %1$s Â· Koltuk HafÄ±zasÄ± %2$d</string>
 
-    <string name="dms_recognition_notification">DMS kamera y+-z tan¦-mas¦- etkin</string>
+    <string name="dms_recognition_notification">DMS kamera yÃ¼z tanÄ±masÄ± etkin</string>
 
-    <string name="dms_recognition_idle">Y+-z tan¦-ma kapal¦-.</string>
+    <string name="dms_recognition_idle">YÃ¼z tanÄ±ma kapalÄ±.</string>
 
-    <string name="dms_recognition_starting">DMS kameras¦- ba+şlat¦-l¦-yorÔÇĞ</string>
+    <string name="dms_recognition_starting">DMS kamerasÄ± baÅŸlatÄ±lÄ±yorâ€¦</string>
 
-    <string name="dms_recognition_started">Arka plan y+-z tan¦-ma a+ğ¦-ld¦-.</string>
+    <string name="dms_recognition_started">Arka plan yÃ¼z tanÄ±ma aÃ§Ä±ldÄ±.</string>
 
-    <string name="dms_recognition_stopped">Arka plan y+-z tan¦-ma durduruldu.</string>
+    <string name="dms_recognition_stopped">Arka plan yÃ¼z tanÄ±ma durduruldu.</string>
 
-    <string name="dms_recognition_running">DMS kameras¦- aktif; s+-r+-c+- y+-z+- taran¦-yorÔÇĞ</string>
+    <string name="dms_recognition_running">DMS kamerasÄ± aktif; sÃ¼rÃ¼cÃ¼ yÃ¼zÃ¼ taranÄ±yorâ€¦</string>
 
-    <string name="dms_recognition_match">Kullan¦-c¦- tespit edildi: %1$s (Koltuk Haf¦-zas¦- %2$d)</string>
+    <string name="dms_recognition_match">KullanÄ±cÄ± tespit edildi: %1$s (Koltuk HafÄ±zasÄ± %2$d)</string>
 
-    <string name="dms_recognition_memory_requested">Koltuk haf¦-zas¦- %1$d otomatik olarak uyguland¦-.</string>
+    <string name="dms_recognition_memory_requested">Koltuk hafÄ±zasÄ± %1$d otomatik olarak uygulandÄ±.</string>
 
-    <string name="dms_recognition_memory_not_requested">Koltuk haf¦-zas¦- g+Ânderilemedi: %1$s</string>
+    <string name="dms_recognition_memory_not_requested">Koltuk hafÄ±zasÄ± gÃ¶nderilemedi: %1$s</string>
 
-    <string name="dms_recognition_memory_unsafe_state">Kontak a+ğ¦-k de¦şil.</string>
+    <string name="dms_recognition_memory_unsafe_state">Kontak aÃ§Ä±k deÄŸil.</string>
 
-    <string name="dms_recognition_memory_invalid">Haf¦-za numaras¦- 1-3 aral¦-¦ş¦-nda de¦şil.</string>
+    <string name="dms_recognition_memory_invalid">HafÄ±za numarasÄ± 1-3 aralÄ±ÄŸÄ±nda deÄŸil.</string>
 
-    <string name="dms_recognition_memory_disconnected">Ara+ğ VDBus ba¦şlant¦-s¦- bekleniyor.</string>
+    <string name="dms_recognition_memory_disconnected">AraÃ§ VDBus baÄŸlantÄ±sÄ± bekleniyor.</string>
 
-    <string name="dms_recognition_memory_error">VDBus hatas¦-: %1$s</string>
+    <string name="dms_recognition_memory_error">VDBus hatasÄ±: %1$s</string>
 
-    <string name="dms_recognition_waiting_for_driver">Kontak a+ğ¦-k (PowerMode %1$d); s+-r+-c+- y+-z+- taran¦-yorÔÇĞ</string>
+    <string name="dms_recognition_waiting_for_driver">Kontak aÃ§Ä±k (PowerMode %1$d); sÃ¼rÃ¼cÃ¼ yÃ¼zÃ¼ taranÄ±yorâ€¦</string>
 
-    <string name="dms_recognition_waiting_for_power">Y+-z tan¦-ma haz¦-r; kontak a+ğ¦-lmas¦- bekleniyor.</string>
+    <string name="dms_recognition_waiting_for_power">YÃ¼z tanÄ±ma hazÄ±r; kontak aÃ§Ä±lmasÄ± bekleniyor.</string>
 
-    <string name="dms_recognition_camera_released">S+-r+-c+- taramas¦- tamamland¦-; DMS kameras¦- serbest b¦-rak¦-ld¦-.</string>
+    <string name="dms_recognition_camera_released">SÃ¼rÃ¼cÃ¼ taramasÄ± tamamlandÄ±; DMS kamerasÄ± serbest bÄ±rakÄ±ldÄ±.</string>
 
-    <string name="dms_recognition_ignition_off">Kontak kapal¦-; sonraki +ğal¦-+şt¦-rma bekleniyor.</string>
+    <string name="dms_recognition_ignition_off">Kontak kapalÄ±; sonraki Ã§alÄ±ÅŸtÄ±rma bekleniyor.</string>
 
     <string name="dms_recognition_welcome_phrase">%1$s</string>
 
-    <string name="dms_recognition_tts_error">Ses motoru haz¦-r olmad¦-¦ş¦- i+ğin sesli anons yap¦-lamad¦-.</string>
+    <string name="dms_recognition_tts_error">Ses motoru hazÄ±r olmadÄ±ÄŸÄ± iÃ§in sesli anons yapÄ±lamadÄ±.</string>
 
-    <string name="dms_recognition_no_profiles">+ûnce en az bir y+-z profili ekleyin.</string>
+    <string name="dms_recognition_no_profiles">Ã–nce en az bir yÃ¼z profili ekleyin.</string>
 
-    <string name="dms_recognition_profiles_updated">Y+-z profilleri g+-ncellendi.</string>
+    <string name="dms_recognition_profiles_updated">YÃ¼z profilleri gÃ¼ncellendi.</string>
 
-    <string name="dms_recognition_camera_permission">Y+-z tan¦-ma i+ğin kamera izni gerekiyor.</string>
+    <string name="dms_recognition_camera_permission">YÃ¼z tanÄ±ma iÃ§in kamera izni gerekiyor.</string>
 
-    <string name="dms_recognition_camera_missing">Kullan¦-labilir DMS/+Ân kamera bulunamad¦-.</string>
+    <string name="dms_recognition_camera_missing">KullanÄ±labilir DMS/Ã¶n kamera bulunamadÄ±.</string>
 
-    <string name="dms_recognition_camera_disconnected">DMS kameras¦- kullan¦-lam¦-yor veya ba¦şlant¦-s¦- kesildi.</string>
+    <string name="dms_recognition_camera_disconnected">DMS kamerasÄ± kullanÄ±lamÄ±yor veya baÄŸlantÄ±sÄ± kesildi.</string>
 
-    <string name="dms_recognition_error">Y+-z tan¦-ma hatas¦-: %1$s</string>
+    <string name="dms_recognition_error">YÃ¼z tanÄ±ma hatasÄ±: %1$s</string>
 
-    <string name="dms_face_back">ÔåÉ Geri</string>
+    <string name="dms_face_back">â† Geri</string>
 
-    <string name="dms_face_enroll">Y+-z Taramay¦- Ba+şlat</string>
+    <string name="dms_face_enroll">YÃ¼z TaramayÄ± BaÅŸlat</string>
 
-    <string name="dms_face_cancel_enroll">Taramay¦- ¦-ptal Et</string>
+    <string name="dms_face_cancel_enroll">TaramayÄ± Ä°ptal Et</string>
 
-    <string name="dms_face_clear">T+-m+-n+- Sil</string>
+    <string name="dms_face_clear">TÃ¼mÃ¼nÃ¼ Sil</string>
 
     <string name="dms_face_delete_single">Sil</string>
 
-    <string name="dms_face_max_profiles">En fazla 3 ki+şi kaydedilebilir. Yeni kay¦-t i+ğin mevcut bir profili silin.</string>
+    <string name="dms_face_max_profiles">En fazla 3 kiÅŸi kaydedilebilir. Yeni kayÄ±t iÃ§in mevcut bir profili silin.</string>
 
-    <string name="dms_face_name_hint">Ki+şinin ad¦-n¦- girin (+ûrn: Hakan)</string>
+    <string name="dms_face_name_hint">KiÅŸinin adÄ±nÄ± girin (Ã–rn: Hakan)</string>
 
-    <string name="dms_face_local_notice">Kameraya d+-z bak¦-n, isminizi girin ve koltuk haf¦-zas¦-n¦- se+ğip taramay¦- ba+şlat¦-n. Kontak a+ğ¦-ld¦-¦ş¦-nda sistem sizi tan¦-y¦-p koltuk haf¦-zas¦-n¦- ayarlayacak ve sesli bildirim yapacakt¦-r.</string>
+    <string name="dms_face_local_notice">Kameraya dÃ¼z bakÄ±n, isminizi girin ve koltuk hafÄ±zasÄ±nÄ± seÃ§ip taramayÄ± baÅŸlatÄ±n. Kontak aÃ§Ä±ldÄ±ÄŸÄ±nda sistem sizi tanÄ±yÄ±p koltuk hafÄ±zasÄ±nÄ± ayarlayacak ve sesli bildirim yapacaktÄ±r.</string>
 
-    <string name="dms_face_start">Ba+şlat</string>
+    <string name="dms_face_start">BaÅŸlat</string>
 
-    <string name="dms_face_name_required">L+-tfen ki+şinin ad¦-n¦- girin.</string>
+    <string name="dms_face_name_required">LÃ¼tfen kiÅŸinin adÄ±nÄ± girin.</string>
 
-    <string name="dms_face_name_exists">Bu isimle bir profil zaten kay¦-tl¦-.</string>
+    <string name="dms_face_name_exists">Bu isimle bir profil zaten kayÄ±tlÄ±.</string>
 
-    <string name="dms_face_enroll_prompt">Y+-z+-n+-z+- +ğer+ğeveye ortalay¦-n TÀ Taran¦-yor: %1$d / %2$d</string>
+    <string name="dms_face_enroll_prompt">YÃ¼zÃ¼nÃ¼zÃ¼ Ã§erÃ§eveye ortalayÄ±n Â· TaranÄ±yor: %1$d / %2$d</string>
 
-    <string name="dms_face_center_prompt">L+-tfen y+-z+-n+-z+- +ğer+ğeveye ortalay¦-n ve kameraya bak¦-n.</string>
+    <string name="dms_face_center_prompt">LÃ¼tfen yÃ¼zÃ¼nÃ¼zÃ¼ Ã§erÃ§eveye ortalayÄ±n ve kameraya bakÄ±n.</string>
 
-    <string name="dms_face_adjust_prompt">Kameraya biraz daha yakla+ş¦-n ve y+-z+-n+-z+-n net g+Âr+-nd+-¦ş+-nden emin olun.</string>
+    <string name="dms_face_adjust_prompt">Kameraya biraz daha yaklaÅŸÄ±n ve yÃ¼zÃ¼nÃ¼zÃ¼n net gÃ¶rÃ¼ndÃ¼ÄŸÃ¼nden emin olun.</string>
 
-    <string name="dms_face_no_face">Y+-z alg¦-lanmad¦- ÔÇö Kameraya bak¦-n</string>
+    <string name="dms_face_no_face">YÃ¼z algÄ±lanmadÄ± â€” Kameraya bakÄ±n</string>
 
-    <string name="dms_face_saved">Ô£ô %1$s kaydedildi (Koltuk Haf¦-zas¦- %2$d)</string>
+    <string name="dms_face_saved">âœ“ %1$s kaydedildi (Koltuk HafÄ±zasÄ± %2$d)</string>
 
     <string name="dms_face_save_error">Profil kaydedilemedi: %1$s</string>
 
-    <string name="dms_face_load_error">Kay¦-tl¦- profiller okunamad¦-: %1$s</string>
+    <string name="dms_face_load_error">KayÄ±tlÄ± profiller okunamadÄ±: %1$s</string>
 
-    <string name="dms_face_checking">Y+-z do¦şrulan¦-yorÔÇĞ</string>
+    <string name="dms_face_checking">YÃ¼z doÄŸrulanÄ±yorâ€¦</string>
 
-    <string name="dms_face_match">Ô£ô Tespit Edildi: %1$s TÀ Koltuk Haf¦-zas¦- %2$d</string>
+    <string name="dms_face_match">âœ“ Tespit Edildi: %1$s Â· Koltuk HafÄ±zasÄ± %2$d</string>
 
-    <string name="dms_face_unknown">Kay¦-tl¦- ki+şilerle e+şle+şmedi</string>
+    <string name="dms_face_unknown">KayÄ±tlÄ± kiÅŸilerle eÅŸleÅŸmedi</string>
 
-    <string name="dms_face_profile_count">%1$d / %2$d ki+şi kay¦-tl¦- ÔÇö Canl¦- test aktif</string>
+    <string name="dms_face_profile_count">%1$d / %2$d kiÅŸi kayÄ±tlÄ± â€” CanlÄ± test aktif</string>
 
-    <string name="dms_face_no_profiles">Hen+-z kay¦-tl¦- ki+şi yok. Sa¦şdaki alandan isim ve koltuk haf¦-zas¦- se+ğip y+-z+-n+-z+- tarat¦-n.</string>
+    <string name="dms_face_no_profiles">HenÃ¼z kayÄ±tlÄ± kiÅŸi yok. SaÄŸdaki alandan isim ve koltuk hafÄ±zasÄ± seÃ§ip yÃ¼zÃ¼nÃ¼zÃ¼ taratÄ±n.</string>
 
-    <string name="dms_face_clear_confirm">Kay¦-tl¦- t+-m y+-z profilleri silinsin mi?</string>
+    <string name="dms_face_clear_confirm">KayÄ±tlÄ± tÃ¼m yÃ¼z profilleri silinsin mi?</string>
 
-    <string name="dms_face_camera_missing">Kamera bulunamad¦-.</string>
+    <string name="dms_face_camera_missing">Kamera bulunamadÄ±.</string>
 
-    <string name="dms_face_camera_disconnected">Kamera ba¦şlant¦-s¦- bekleniyorÔÇĞ</string>
+    <string name="dms_face_camera_disconnected">Kamera baÄŸlantÄ±sÄ± bekleniyorâ€¦</string>
 
-    <string name="dms_face_camera_error">Kamera hatas¦-: %1$s</string>
+    <string name="dms_face_camera_error">Kamera hatasÄ±: %1$s</string>
 
-    <string name="dms_face_camera_permission">Y+-z tarama i+ğin kamera izni gerekiyor.</string>
+    <string name="dms_face_camera_permission">YÃ¼z tarama iÃ§in kamera izni gerekiyor.</string>
 
-    <string name="climate_auto_driver_section">S+-r+-c+- Taraf¦-</string>
+    <string name="climate_auto_driver_section">SÃ¼rÃ¼cÃ¼ TarafÄ±</string>
 
-    <string name="climate_auto_passenger_section">Yolcu Taraf¦-</string>
+    <string name="climate_auto_passenger_section">Yolcu TarafÄ±</string>
 
     <string name="climate_auto_other_section">Cam &amp; Direksiyon</string>
 
-    <string name="climate_auto_conflict_rejected">+çak¦-+şma +ûnleme: Is¦-tma ve havaland¦-rma s¦-cakl¦-k aral¦-klar¦- +ğak¦-+ş¦-yor! Birbirinden farkl¦- e+şikler belirleyin.</string>
+    <string name="climate_auto_conflict_rejected">Ã‡akÄ±ÅŸma Ã–nleme: IsÄ±tma ve havalandÄ±rma sÄ±caklÄ±k aralÄ±klarÄ± Ã§akÄ±ÅŸÄ±yor! Birbirinden farklÄ± eÅŸikler belirleyin.</string>
 
     <string-array name="dms_face_memory_options">
-        <item>Koltuk Haf¦-zas¦- 1</item>
-        <item>Koltuk Haf¦-zas¦- 2</item>
-        <item>Koltuk Haf¦-zas¦- 3</item>
+        <item>Koltuk HafÄ±zasÄ± 1</item>
+        <item>Koltuk HafÄ±zasÄ± 2</item>
+        <item>Koltuk HafÄ±zasÄ± 3</item>
     </string-array>
 </resources>

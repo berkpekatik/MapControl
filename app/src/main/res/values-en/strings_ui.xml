@@ -491,7 +491,7 @@
 
     <string name="wifi_global_stabilize_eyebrow">WI-FI MANAGEMENT</string>
 
-    <string name="wifi_global_stabilize_title">Preparing Wi-Fi connection‘«–</string>
+    <string name="wifi_global_stabilize_title">Preparing Wi-Fi connection‚Ä¶</string>
 
     <string name="wifi_global_toast_eyebrow_ok">CONNECTION READY</string>
 
@@ -503,29 +503,29 @@
 
     <string name="cluster_test_temperature_button">Read raw outside temperature VDBus data (10 samples)</string>
 
-    <string name="cluster_test_temperature_running">Reading temperature data‘«–</string>
+    <string name="cluster_test_temperature_running">Reading temperature data‚Ä¶</string>
 
     <string name="cluster_test_temperature_header">Outside-temperature diagnostic started: HVAC module=%1$d, Celsius ID=%2$d, Fahrenheit ID=%3$d. Note the cluster reading during sampling.</string>
 
-    <string name="cluster_test_temperature_connecting">Vehicle VDBus is disconnected; connecting and waiting‘«–</string>
+    <string name="cluster_test_temperature_connecting">Vehicle VDBus is disconnected; connecting and waiting‚Ä¶</string>
 
-    <string name="cluster_test_temperature_sample">Sample %1$d T¿ %2$s T¿ connected=%3$b\nCelsius: %4$s\nFahrenheit: %5$s</string>
+    <string name="cluster_test_temperature_sample">Sample %1$d ¬∑ %2$s ¬∑ connected=%3$b\nCelsius: %4$s\nFahrenheit: %5$s</string>
 
     <string name="cluster_test_temperature_error">Could not read sample %1$d (%2$s): %3$s</string>
 
     <string name="cluster_test_temperature_no_value">no response</string>
 
-    <string name="cluster_test_temperature_done">Temperature test complete. Results were also copied to the main log. Share raw values with the simultaneous cluster reading. The API may return [0] when there is no response, so raw=0 alone may not mean a real 0T-C.</string>
+    <string name="cluster_test_temperature_done">Temperature test complete. Results were also copied to the main log. Share raw values with the simultaneous cluster reading. The API may return [0] when there is no response, so raw=0 alone may not mean a real 0¬∞C.</string>
 
     <string name="cluster_test_automation_button">Automation ON/OFF and command diagnostics (read only)</string>
 
-    <string name="cluster_test_automation_running">Reading automation data‘«–</string>
+    <string name="cluster_test_automation_running">Reading automation data‚Ä¶</string>
 
-    <string name="cluster_test_automation_connecting">Connecting to vehicle VDBus‘«–</string>
+    <string name="cluster_test_automation_connecting">Connecting to vehicle VDBus‚Ä¶</string>
 
     <string name="cluster_test_automation_interrupted">Automation diagnostics interrupted.</string>
 
-    <string name="cluster_test_automation_header">Automation diagnostics T¿ %1$s T¿ connected=%2$b T¿ HVAC module=%3$d T¿ setting module=%4$d T¿ read-only module=%5$d. No commands are sent.</string>
+    <string name="cluster_test_automation_header">Automation diagnostics ¬∑ %1$s ¬∑ connected=%2$b ¬∑ HVAC module=%3$d ¬∑ setting module=%4$d ¬∑ read-only module=%5$d. No commands are sent.</string>
 
     <string name="cluster_test_automation_no_connection">Could not connect to vehicle VDBus; no data was read.</string>
 
@@ -533,9 +533,9 @@
 
     <string name="cluster_test_automation_master">Master automation enabled=%1$b</string>
 
-    <string name="cluster_test_automation_decoded">Outside temperature using app\'s current calibration/conversion=%1$sT-C</string>
+    <string name="cluster_test_automation_decoded">Outside temperature using app\'s current calibration/conversion=%1$s¬∞C</string>
 
-    <string name="cluster_test_automation_rule">RULE %1$s: enabled=%2$b, condition outside %3$s %4$dT-C, condition matches=%5$b, delay=%6$d min, level=%7$d, expected=%8$s</string>
+    <string name="cluster_test_automation_rule">RULE %1$s: enabled=%2$b, condition outside %3$s %4$d¬∞C, condition matches=%5$b, delay=%6$d min, level=%7$d, expected=%8$s</string>
 
     <string name="cluster_test_automation_feedback">READBACK %1$s: signal=%2$s module=%3$d ID=%4$d raw=[%5$s]</string>
 
@@ -549,15 +549,15 @@
 
     <string name="cluster_test_live_stop">Stop live capture</string>
 
-    <string name="cluster_test_live_stopping">Stopping capture‘«–</string>
+    <string name="cluster_test_live_stopping">Stopping capture‚Ä¶</string>
 
-    <string name="cluster_test_live_header">LIVE CAPTURE started %1$s T¿ 1 sample/sec, max 120 sec T¿ HVAC module=%2$d, setting module=%3$d, readonly module=%4$d T¿ system power ID=%5$d, car power ID=%6$d, speed ID=%7$d, Celsius ID=%8$d, Fahrenheit ID=%9$d. Change automation ON/OFF or wait for ignition during capture; only readbacks are collected, no commands sent.</string>
+    <string name="cluster_test_live_header">LIVE CAPTURE started %1$s ¬∑ 1 sample/sec, max 120 sec ¬∑ HVAC module=%2$d, setting module=%3$d, readonly module=%4$d ¬∑ system power ID=%5$d, car power ID=%6$d, speed ID=%7$d, Celsius ID=%8$d, Fahrenheit ID=%9$d. Change automation ON/OFF or wait for ignition during capture; only readbacks are collected, no commands sent.</string>
 
-    <string name="cluster_test_live_sample">LIVE #%1$d %2$s: systemPower(ID14)=%3$s carPower(ID13)=%4$s speed(ID0)=%5$s tempC raw=[%6$s] tempF raw=[%7$s] appC=%8$sT-C</string>
+    <string name="cluster_test_live_sample">LIVE #%1$d %2$s: systemPower(ID14)=%3$s carPower(ID13)=%4$s speed(ID0)=%5$s tempC raw=[%6$s] tempF raw=[%7$s] appC=%8$s¬∞C</string>
 
     <string name="cluster_test_live_master">%1$s automationMaster=%2$b</string>
 
-    <string name="cluster_test_live_rule">RULE CONFIG %1$s enabled=%2$b condition=%3$s%4$dT-C delay=%5$d min level=%6$d</string>
+    <string name="cluster_test_live_rule">RULE CONFIG %1$s enabled=%2$b condition=%3$s%4$d¬∞C delay=%5$d min level=%6$d</string>
 
     <string name="cluster_test_live_disconnected">LIVE #%1$d %2$s: VDBus disconnected</string>
 
@@ -565,19 +565,19 @@
 
     <string name="cluster_test_seat_memory_button">Seat memory VDBus change test</string>
 
-    <string name="cluster_test_seat_memory_running">Listening for seat memory signals‘«– Tap to stop</string>
+    <string name="cluster_test_seat_memory_running">Listening for seat memory signals‚Ä¶ Tap to stop</string>
 
-    <string name="cluster_test_seat_memory_connecting">Connecting to vehicle VDBus‘«–</string>
+    <string name="cluster_test_seat_memory_connecting">Connecting to vehicle VDBus‚Ä¶</string>
 
     <string name="cluster_test_seat_memory_no_connection">Could not connect to vehicle VDBus; seat memory test did not start.</string>
 
     <string name="cluster_test_seat_memory_no_signals">No seat/memory-related VDBus signals were found.</string>
 
-    <string name="cluster_test_seat_memory_header">Seat memory live test started T¿ %1$s T¿ settings module=%2$d. Change memory modes on the vehicle screen; changed signals will be listed below. No commands are sent. Monitoring: %3$s</string>
+    <string name="cluster_test_seat_memory_header">Seat memory live test started ¬∑ %1$s ¬∑ settings module=%2$d. Change memory modes on the vehicle screen; changed signals will be listed below. No commands are sent. Monitoring: %3$s</string>
 
     <string name="cluster_test_seat_memory_initial">Initial %1$s (ID %2$d): raw=[%3$s]</string>
 
-    <string name="cluster_test_seat_memory_event">CHANGE %1$s T¿ %2$s (ID %3$d): raw=[%4$s]</string>
+    <string name="cluster_test_seat_memory_event">CHANGE %1$s ¬∑ %2$s (ID %3$d): raw=[%4$s]</string>
 
     <string name="cluster_test_seat_memory_read_error">Could not read initial %1$s (ID %2$d), %3$s: %4$s</string>
 
@@ -589,27 +589,27 @@
 
     <string name="cluster_test_vdbus_button">Scan and listen to all vehicle VDBus signals (read only)</string>
 
-    <string name="cluster_test_vdbus_running">Scanning modules/IDs and listening live‘«– Tap to stop</string>
+    <string name="cluster_test_vdbus_running">Scanning modules/IDs and listening live‚Ä¶ Tap to stop</string>
 
-    <string name="cluster_test_vdbus_connecting">Connecting to vehicle VDBus‘«–</string>
+    <string name="cluster_test_vdbus_connecting">Connecting to vehicle VDBus‚Ä¶</string>
 
     <string name="cluster_test_vdbus_no_connection">Could not connect to vehicle VDBus; general scan did not start.</string>
 
     <string name="cluster_test_vdbus_no_modules">No VDBus modules were found.</string>
 
-    <string name="cluster_test_vdbus_header">GENERAL VEHICLE VDBUS SCAN T¿ %1$s T¿ %2$d modules T¿ IDs %3$d‘«Ù%4$d per module. Read only; sends no commands to the vehicle. Scan may take some time; live change monitoring starts afterward.</string>
+    <string name="cluster_test_vdbus_header">GENERAL VEHICLE VDBUS SCAN ¬∑ %1$s ¬∑ %2$d modules ¬∑ IDs %3$d‚Äì%4$d per module. Read only; sends no commands to the vehicle. Scan may take some time; live change monitoring starts afterward.</string>
 
     <string name="cluster_test_vdbus_module">Module: %1$s (%2$d)</string>
 
-    <string name="cluster_test_vdbus_value">RESPONSE: %1$s (%2$d) T¿ %3$s (%4$d) = raw %5$s</string>
+    <string name="cluster_test_vdbus_value">RESPONSE: %1$s (%2$d) ¬∑ %3$s (%4$d) = raw %5$s</string>
 
-    <string name="cluster_test_vdbus_read_error">READ ERROR: %1$s (%2$d) T¿ %3$s (%4$d) T¿ %5$s: %6$s</string>
+    <string name="cluster_test_vdbus_read_error">READ ERROR: %1$s (%2$d) ¬∑ %3$s (%4$d) ¬∑ %5$s: %6$s</string>
 
-    <string name="cluster_test_vdbus_module_done">Module complete: %1$s T¿ responses=%2$d, no response=%3$d</string>
+    <string name="cluster_test_vdbus_module_done">Module complete: %1$s ¬∑ responses=%2$d, no response=%3$d</string>
 
     <string name="cluster_test_vdbus_listening">Initial scan complete; listening for live VDBus changes from all modules/IDs. Change the vehicle settings/features you want to inspect.</string>
 
-    <string name="cluster_test_vdbus_change">CHANGE %1$s T¿ %2$s (%3$d) T¿ %4$s (%5$d): before=%6$s after=%7$s</string>
+    <string name="cluster_test_vdbus_change">CHANGE %1$s ¬∑ %2$s (%3$d) ¬∑ %4$s (%5$d): before=%6$s after=%7$s</string>
 
     <string name="cluster_test_vdbus_field_error">Could not read VDBus table field %1$s: %2$s</string>
 
@@ -635,9 +635,9 @@
 
     <string name="climate_auto_status_no_temp">Outside temperature is not available yet</string>
 
-    <string name="climate_auto_status_temp">Outside: %1$.1fT-C</string>
+    <string name="climate_auto_status_temp">Outside: %1$.1f¬∞C</string>
 
-    <string name="climate_auto_sensor_label">VEHICLE THERMOMETER T¿ LIVE DATA</string>
+    <string name="climate_auto_sensor_label">VEHICLE THERMOMETER ¬∑ LIVE DATA</string>
 
     <string name="climate_auto_rules_heading">Automation rules</string>
 
@@ -663,7 +663,7 @@
 
     <string name="climate_auto_delay">Auto shut off %1$d min after ignition</string>
 
-    <string name="climate_auto_temp">Threshold: %1$dT-C</string>
+    <string name="climate_auto_temp">Threshold: %1$d¬∞C</string>
 
     <string name="climate_auto_level">Level: %1$d</string>
 
@@ -677,29 +677,29 @@
 
     <string name="dms_recognition_title">Face Recognition</string>
 
-    <string name="dms_recognition_description">When ignition is on, detects the driver via the DMS camera, applies the assigned seat memory (1‘«Ù3), and announces the detected user by voice. Up to 3 people can be enrolled.</string>
+    <string name="dms_recognition_description">When ignition is on, detects the driver via the DMS camera, applies the assigned seat memory (1‚Äì3), and announces the detected user by voice. Up to 3 people can be enrolled.</string>
 
     <string name="dms_recognition_enable">Automatic face recognition &amp; seat memory</string>
 
     <string name="dms_recognition_manage_profiles">Scan Face / Manage Profiles</string>
 
-    <string name="dms_recognition_status">%1$d / %2$d profiles T¿ Auto recognition: %3$s\n%4$s\nStatus: %5$s</string>
+    <string name="dms_recognition_status">%1$d / %2$d profiles ¬∑ Auto recognition: %3$s\n%4$s\nStatus: %5$s</string>
 
     <string name="dms_recognition_no_match_yet">No user detected in the current session yet.</string>
 
-    <string name="dms_recognition_last_match">Last detected: %1$s T¿ Seat Memory %2$d</string>
+    <string name="dms_recognition_last_match">Last detected: %1$s ¬∑ Seat Memory %2$d</string>
 
     <string name="dms_recognition_notification">DMS camera recognition is active</string>
 
     <string name="dms_recognition_idle">Recognition is off.</string>
 
-    <string name="dms_recognition_starting">Starting DMS camera‘«–</string>
+    <string name="dms_recognition_starting">Starting DMS camera‚Ä¶</string>
 
     <string name="dms_recognition_started">Background face recognition enabled.</string>
 
     <string name="dms_recognition_stopped">Background face recognition stopped.</string>
 
-    <string name="dms_recognition_running">DMS camera is running; scanning driver face‘«–</string>
+    <string name="dms_recognition_running">DMS camera is running; scanning driver face‚Ä¶</string>
 
     <string name="dms_recognition_match">User detected: %1$s (Seat Memory %2$d)</string>
 
@@ -715,7 +715,7 @@
 
     <string name="dms_recognition_memory_error">VDBus error: %1$s</string>
 
-    <string name="dms_recognition_waiting_for_driver">Ignition on (PowerMode %1$d); scanning driver face‘«–</string>
+    <string name="dms_recognition_waiting_for_driver">Ignition on (PowerMode %1$d); scanning driver face‚Ä¶</string>
 
     <string name="dms_recognition_waiting_for_power">Face recognition is ready; waiting for ignition.</string>
 
@@ -739,7 +739,7 @@
 
     <string name="dms_recognition_error">Face recognition error: %1$s</string>
 
-    <string name="dms_face_back">‘Â… Back</string>
+    <string name="dms_face_back">‚Üê Back</string>
 
     <string name="dms_face_enroll">Start Face Scan</string>
 
@@ -761,27 +761,27 @@
 
     <string name="dms_face_name_exists">A profile with this name already exists.</string>
 
-    <string name="dms_face_enroll_prompt">Center your face in the frame T¿ Scanning: %1$d / %2$d</string>
+    <string name="dms_face_enroll_prompt">Center your face in the frame ¬∑ Scanning: %1$d / %2$d</string>
 
     <string name="dms_face_center_prompt">Please center your face in the frame and look at the camera.</string>
 
     <string name="dms_face_adjust_prompt">Move slightly closer and ensure good lighting.</string>
 
-    <string name="dms_face_no_face">No face detected ‘«ˆ Look at the camera</string>
+    <string name="dms_face_no_face">No face detected ‚Äî Look at the camera</string>
 
-    <string name="dms_face_saved">‘£Ù %1$s saved (Seat Memory %2$d)</string>
+    <string name="dms_face_saved">‚úì %1$s saved (Seat Memory %2$d)</string>
 
     <string name="dms_face_save_error">Could not save profile: %1$s</string>
 
     <string name="dms_face_load_error">Could not read saved profiles: %1$s</string>
 
-    <string name="dms_face_checking">Verifying face‘«–</string>
+    <string name="dms_face_checking">Verifying face‚Ä¶</string>
 
-    <string name="dms_face_match">‘£Ù Detected: %1$s T¿ Seat Memory %2$d</string>
+    <string name="dms_face_match">‚úì Detected: %1$s ¬∑ Seat Memory %2$d</string>
 
     <string name="dms_face_unknown">No match among saved profiles</string>
 
-    <string name="dms_face_profile_count">%1$d / %2$d profiles saved ‘«ˆ Live test active</string>
+    <string name="dms_face_profile_count">%1$d / %2$d profiles saved ‚Äî Live test active</string>
 
     <string name="dms_face_no_profiles">No profiles saved yet. Enter a name and select seat memory on the right to scan.</string>
 
@@ -789,7 +789,7 @@
 
     <string name="dms_face_camera_missing">Camera not found.</string>
 
-    <string name="dms_face_camera_disconnected">Waiting for camera‘«–</string>
+    <string name="dms_face_camera_disconnected">Waiting for camera‚Ä¶</string>
 
     <string name="dms_face_camera_error">Camera error: %1$s</string>
 

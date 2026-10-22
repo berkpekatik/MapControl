@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -218,9 +219,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         topBar.addView(clearButton, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)));
 
-        // Main Two-Column Content
+        boolean portrait = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
+
+        // Camera and enrollment sit side by side in landscape, stacked in portrait.
         LinearLayout contentRow = new LinearLayout(this);
-        contentRow.setOrientation(LinearLayout.HORIZONTAL);
+        contentRow.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         root.addView(contentRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -229,9 +233,16 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         leftCard.setOrientation(LinearLayout.VERTICAL);
         leftCard.setPadding(dp(14), dp(14), dp(14), dp(14));
         UiStyles.setGlassCardBackground(leftCard);
-        LinearLayout.LayoutParams leftLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.MATCH_PARENT, 1.15f);
-        leftLp.rightMargin = dp(14);
+        LinearLayout.LayoutParams leftLp = portrait
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.15f)
+                : new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.MATCH_PARENT, 1.15f);
+        if (portrait) {
+            leftLp.bottomMargin = dp(14);
+        } else {
+            leftLp.rightMargin = dp(14);
+        }
         contentRow.addView(leftCard, leftLp);
 
         FrameLayout cameraFrame = new FrameLayout(this);
@@ -272,8 +283,11 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         // Right Column: Scrollable Enrollment Form + Profiles List
         ScrollView rightScroll = new ScrollView(this);
         rightScroll.setFillViewport(true);
-        LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.MATCH_PARENT, 1.0f);
+        LinearLayout.LayoutParams rightLp = portrait
+                ? new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                : new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
         contentRow.addView(rightScroll, rightLp);
 
         LinearLayout rightColumn = new LinearLayout(this);
