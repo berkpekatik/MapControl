@@ -13,9 +13,6 @@ public final class GoogleMapsNavSnapshot {
 
     private static final Pattern ARRIVAL_TIME = Pattern.compile(
             "\\b([01]?\\d|2[0-3]):[0-5]\\d\\b");
-    private static final Pattern SEGMENT_DISTANCE = Pattern.compile(
-            "^\\s*(\\d+(?:[.,]\\d+)?)\\s*(m|km)\\b",
-            Pattern.CASE_INSENSITIVE);
 
     public final boolean active;
     @Nullable public final String maneuverHint;
@@ -94,26 +91,6 @@ public final class GoogleMapsNavSnapshot {
     @Nullable
     public String formatManeuverDistanceLine() {
         return splitTitleDistancePart(distanceTitle);
-    }
-
-    public int segmentRemainMeters() {
-        String distance = formatManeuverDistanceLine();
-        if (distance == null) {
-            return 0;
-        }
-        Matcher matcher = SEGMENT_DISTANCE.matcher(distance);
-        if (!matcher.find()) {
-            return 0;
-        }
-        try {
-            double value = Double.parseDouble(matcher.group(1).replace(',', '.'));
-            if ("km".equalsIgnoreCase(matcher.group(2))) {
-                value *= 1000d;
-            }
-            return value >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     /** Manevra yönü: başlıktaki talimat veya hedef satırı. */

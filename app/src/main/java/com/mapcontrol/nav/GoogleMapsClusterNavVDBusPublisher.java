@@ -12,6 +12,9 @@ import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviRoadInfo;
 import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviTotalInfo2;
 import com.mapcontrol.util.TargetPackageStore;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Google Maps bildirim özetini CarLan VDBus navigasyon alanlarına yansıtır.
  */
@@ -45,7 +48,7 @@ public final class GoogleMapsClusterNavVDBusPublisher {
         }
         try {
             VDNaviRoadInfo road = new VDNaviRoadInfo();
-            road.setSegRemainDis(snapshot.segmentRemainMeters());
+            road.setSegRemainDis(parseSegmentRemainMeters(snapshot));
             road.setNextNaviActiion(GoogleMapsClusterNavManeuverMapper.mapFromNotificationText(
                     snapshot.distanceTitle, snapshot.maneuverHint));
             road.setNextRoadName(firstNonEmpty(
@@ -84,6 +87,33 @@ public final class GoogleMapsClusterNavVDBusPublisher {
             VDBus.getDefault().set(roadEvent);
         } catch (Exception e) {
             Log.w(TAG, "VDBus clear failed", e);
+        }
+    }
+
+    private static final Pattern SEGMENT_DISTANCE = Pattern.compile(
+            "^\\s*(\\d+(?:[.,]\\d+)?)\\s*(m|km)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static int parseSegmentRemainMeters(@Nullable GoogleMapsNavSnapshot snapshot) {
+        if (snapshot == null) {
+            return 0;
+        }
+        String distance = snapshot.formatManeuverDistanceLine();
+        if (distance == null) {
+            return 0;
+        }
+        Matcher matcher = SEGMENT_DISTANCE.matcher(distance);
+        if (!matcher.find()) {
+            return 0;
+        }
+        try {
+            double value = Double.parseDouble(matcher.group(1).replace(',', '.'));
+            if ("km".equalsIgnoreCase(matcher.group(2))) {
+                value *= 1000d;
+            }
+            return value >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 
