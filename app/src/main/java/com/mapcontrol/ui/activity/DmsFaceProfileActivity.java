@@ -45,7 +45,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
-import com.mapcontrol.service.DmsFaceRecognitionService;
+import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.IflyOemTtsHelper;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
@@ -143,8 +143,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Stop background service first if it is holding the DMS camera
-        if (DmsFaceRecognitionService.isEnabled(this)) {
-            DmsFaceRecognitionService.stop(this);
+        if (DmsFaceRecognitionManager.isEnabled(this)) {
+            DmsFaceRecognitionManager.stop(this);
         }
         CarSeatMemoryManager.getInstance(this).ensureInitialized();
         initTts();
@@ -729,13 +729,13 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
             SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
             prefs.edit()
-                    .putBoolean(DmsFaceRecognitionService.PREF_ENABLED, true)
-                    .putString(DmsFaceRecognitionService.PREF_STATUS,
+                    .putBoolean(DmsFaceRecognitionManager.PREF_ENABLED, true)
+                    .putString(DmsFaceRecognitionManager.PREF_STATUS,
                             getString(R.string.dms_recognition_waiting_for_power))
                     .apply();
 
             sendBroadcast(new Intent("com.mapcontrol.DMS_FACE_PROFILES_CHANGED"));
-            sendBroadcast(new Intent(DmsFaceRecognitionService.ACTION_STATUS));
+            sendBroadcast(new Intent(DmsFaceRecognitionManager.ACTION_STATUS));
 
             nameInput.setText("");
             selectedMemory = pickNextAvailableMemory();
@@ -767,13 +767,13 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 if (!best.name.equals(reportedRecognitionName)) {
                     reportedRecognitionName = best.name;
                     getSharedPreferences("MapControlPrefs", MODE_PRIVATE).edit()
-                            .putString(DmsFaceRecognitionService.PREF_LAST_NAME, best.name)
-                            .putInt(DmsFaceRecognitionService.PREF_LAST_MEMORY, best.seatMemory)
-                            .putString(DmsFaceRecognitionService.PREF_STATUS,
+                            .putString(DmsFaceRecognitionManager.PREF_LAST_NAME, best.name)
+                            .putInt(DmsFaceRecognitionManager.PREF_LAST_MEMORY, best.seatMemory)
+                            .putString(DmsFaceRecognitionManager.PREF_STATUS,
                                     getString(R.string.dms_recognition_match,
                                             best.name, best.seatMemory))
                             .apply();
-                    sendBroadcast(new Intent(DmsFaceRecognitionService.ACTION_STATUS));
+                    sendBroadcast(new Intent(DmsFaceRecognitionManager.ACTION_STATUS));
                     CarSeatMemoryManager.getInstance(this).applySeatMemory(best.seatMemory);
                     speakWelcomePhrase(best.name);
                 }
@@ -1022,9 +1022,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             ttsReady = false;
         }
         // Resume background service after camera is fully closed
-        if (DmsFaceRecognitionService.isEnabled(this) && !profiles.isEmpty()) {
+        if (DmsFaceRecognitionManager.isEnabled(this) && !profiles.isEmpty()) {
             try {
-                DmsFaceRecognitionService.start(this);
+                DmsFaceRecognitionManager.start(this);
             } catch (RuntimeException ignored) {
             }
         }

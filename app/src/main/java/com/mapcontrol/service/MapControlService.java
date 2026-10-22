@@ -112,11 +112,11 @@ public class MapControlService extends Service {
         // Power mode kontrolünü başlat
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
-        if (DmsFaceRecognitionService.isEnabled(this)
+        if (DmsFaceRecognitionManager.isEnabled(this)
                 && checkSelfPermission(android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             try {
-                DmsFaceRecognitionService.start(this);
+                DmsFaceRecognitionManager.start(this);
             } catch (RuntimeException e) {
                 log("Yuz tanima arka planda yeniden baslatilamadi: " + e.getMessage());
             }
@@ -285,7 +285,7 @@ public class MapControlService extends Service {
         }
         AudioEqualizerController.release();
         ClimateAutomationEngine.getInstance(this).stop();
-        DmsFaceRecognitionService.stop(this);
+        DmsFaceRecognitionManager.stop(this);
         super.onDestroy();
         if (scheduler != null) {
             scheduler.shutdown();

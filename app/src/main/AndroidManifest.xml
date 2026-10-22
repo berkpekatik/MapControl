@@ -19,7 +19,6 @@
     
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
     
     <!-- Location permissions -->
@@ -201,11 +200,6 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-        <service
-            android:name=".service.DmsFaceRecognitionService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="camera" />
         
         <!-- Global Back Service - AccessibilityService -->
         <service

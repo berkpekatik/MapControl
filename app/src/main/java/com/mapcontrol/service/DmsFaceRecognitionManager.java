@@ -1,41 +1,31 @@
 package com.mapcontrol.service;
 
 import android.Manifest;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
-import android.media.AudioAttributes;
-import android.media.AudioManager;
 import android.media.FaceDetector;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.IBinder;
 import android.os.Looper;
-import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
@@ -43,7 +33,7 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.R;
-import com.mapcontrol.util.IflyOemTtsHelper;
+import com.mapcontrol.util.SystemTtsManager;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
@@ -51,24 +41,33 @@ import com.mapcontrol.vehicle.FaceProfileStore;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-public final class DmsFaceRecognitionService extends Service {
+/**
+ * DMS (Driver Monitoring System) Kamera ile Sürücü Yüz Tanıma Yöneticisi.
+ * Bağımsız bir Android Service yerine MapControlService bünyesinde bir Manager olarak
+ * çalışır. Bu sayede uygulama içi güncellemelerde ek servis ve FOREGROUND_SERVICE_CAMERA
+ * izin gereksinimleri oluşmaz; kullanıcılar doğrudan güncelleme yapabilir.
+ */
+public final class DmsFaceRecognitionManager {
+    private static final String TAG = "DmsFaceRecognition";
     public static final String PREF_ENABLED = "dmsFaceRecognitionEnabled";
     public static final String PREF_LAST_NAME = "dmsFaceRecognitionLastName";
     public static final String PREF_LAST_MEMORY = "dmsFaceRecognitionLastMemory";
     public static final String PREF_STATUS = "dmsFaceRecognitionStatus";
     public static final String ACTION_STATUS = "com.mapcontrol.DMS_FACE_RECOGNITION_STATUS";
+
     private static final String PREFS = "MapControlPrefs";
-    private static final String CHANNEL_ID = "DmsFaceRecognition";
-    private static final int NOTIFICATION_ID = 412;
     private static final int FRAME_WIDTH = DmsFaceMatcher.FRAME_WIDTH;
     private static final int FRAME_HEIGHT = DmsFaceMatcher.FRAME_HEIGHT;
     private static final long ANALYSIS_INTERVAL_MS = 600;
     private static final long POWER_MODE_2_SCAN_WINDOW_MS = 20_000L;
 
+    private static volatile DmsFaceRecognitionManager sInstance;
+
+    private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
     private HandlerThread cameraThread;
     private Handler cameraHandler;
     private CameraDevice cameraDevice;
@@ -77,8 +76,7 @@ public final class DmsFaceRecognitionService extends Service {
     private boolean cameraOpening;
     private long nextCameraRetryAtMs;
     private FaceDetector faceDetector;
-    private TextToSpeech textToSpeech;
-    private boolean ttsInitialized;
+
     private volatile List<FaceProfileStore.Profile> profiles;
     private boolean profileReceiverRegistered;
     private boolean recognitionStarted;
@@ -86,19 +84,34 @@ public final class DmsFaceRecognitionService extends Service {
     private volatile boolean sessionRecognized;
     private volatile int lastPowerMode = Integer.MIN_VALUE;
     private volatile long powerMode2EnteredAtMs;
-    private volatile String pendingGreeting;
+
     private long lastAnalysisAt;
     private String candidateName;
     private int candidateHits;
     private String lastPublishedName = "";
 
+    public static DmsFaceRecognitionManager getInstance(Context context) {
+        if (sInstance == null) {
+            synchronized (DmsFaceRecognitionManager.class) {
+                if (sInstance == null) {
+                    sInstance = new DmsFaceRecognitionManager(context.getApplicationContext());
+                }
+            }
+        }
+        return sInstance;
+    }
+
+    private DmsFaceRecognitionManager(Context context) {
+        this.context = context;
+        CarSeatMemoryManager.getInstance(context).ensureInitialized();
+    }
+
     public static void start(Context context) {
-        Intent intent = new Intent(context, DmsFaceRecognitionService.class);
-        ContextCompat.startForegroundService(context, intent);
+        getInstance(context).startRecognition();
     }
 
     public static void stop(Context context) {
-        context.stopService(new Intent(context, DmsFaceRecognitionService.class));
+        getInstance(context).stopRecognition();
     }
 
     public static boolean isEnabled(Context context) {
@@ -106,80 +119,92 @@ public final class DmsFaceRecognitionService extends Service {
                 .getBoolean(PREF_ENABLED, false);
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        createNotificationChannel();
-        CarSeatMemoryManager.getInstance(this).ensureInitialized();
-    }
-
-    private void startRecognition() {
+    public synchronized void startRecognition() {
         if (recognitionStarted) {
             return;
         }
-        recognitionStarted = true;
-        Notification notification = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.dms_recognition_title))
-                .setContentText(getString(R.string.dms_recognition_notification))
-                .setSmallIcon(android.R.drawable.ic_menu_camera)
-                .setOngoing(true)
-                .build();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
-            publishStatus(getString(R.string.dms_recognition_camera_permission));
-            stopSelf();
+            publishStatus(context.getString(R.string.dms_recognition_camera_permission));
             return;
         }
         try {
-            profiles = FaceProfileStore.load(this);
+            profiles = FaceProfileStore.load(context);
             if (profiles.isEmpty()) {
-                publishStatus(getString(R.string.dms_recognition_no_profiles));
-                stopSelf();
+                publishStatus(context.getString(R.string.dms_recognition_no_profiles));
                 return;
             }
+
+            recognitionStarted = true;
+
             IntentFilter filter = new IntentFilter("com.mapcontrol.DMS_FACE_PROFILES_CHANGED");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(profileChanges, filter, Context.RECEIVER_NOT_EXPORTED);
+                context.registerReceiver(profileChanges, filter, Context.RECEIVER_NOT_EXPORTED);
             } else {
-                registerReceiver(profileChanges, filter);
+                context.registerReceiver(profileChanges, filter);
             }
             profileReceiverRegistered = true;
             startPowerModeMonitoring();
         } catch (IllegalStateException e) {
-            publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
-            stopSelf();
+            publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
+            stopRecognition();
         }
+    }
+
+    public synchronized void stopRecognition() {
+        if (!recognitionStarted) {
+            return;
+        }
+        recognitionStarted = false;
+        if (cameraHandler != null) {
+            cameraHandler.removeCallbacks(powerModePoll);
+        }
+        if (profileReceiverRegistered) {
+            try {
+                context.unregisterReceiver(profileChanges);
+            } catch (Exception ignored) {
+            }
+            profileReceiverRegistered = false;
+        }
+        closeDmsCamera();
+        if (cameraThread != null) {
+            cameraThread.quitSafely();
+            cameraThread = null;
+            cameraHandler = null;
+        }
+        faceDetector = null;
+        candidateName = null;
+        candidateHits = 0;
+        lastPublishedName = "";
+        sessionRecognized = false;
     }
 
     private final android.content.BroadcastReceiver profileChanges = new android.content.BroadcastReceiver() {
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context ctx, Intent intent) {
             try {
-                profiles = FaceProfileStore.load(context);
+                profiles = FaceProfileStore.load(ctx);
                 candidateName = null;
                 candidateHits = 0;
                 lastPublishedName = "";
                 sessionRecognized = false;
                 greetingPending = true;
-                publishStatus(getString(R.string.dms_recognition_profiles_updated));
+                publishStatus(context.getString(R.string.dms_recognition_profiles_updated));
             } catch (IllegalStateException e) {
-                publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
+                publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
             }
         }
     };
 
     private void startPowerModeMonitoring() {
-        cameraThread = new HandlerThread("DmsFaceRecognition");
-        cameraThread.start();
-        cameraHandler = new Handler(cameraThread.getLooper());
+        if (cameraThread == null) {
+            cameraThread = new HandlerThread("DmsFaceRecognition");
+            cameraThread.start();
+            cameraHandler = new Handler(cameraThread.getLooper());
+        }
+        cameraHandler.removeCallbacks(powerModePoll);
         cameraHandler.post(powerModePoll);
-        publishStatus(getString(R.string.dms_recognition_waiting_for_power));
+        publishStatus(context.getString(R.string.dms_recognition_waiting_for_power));
     }
 
     private boolean isScanAllowedNow() {
@@ -201,7 +226,11 @@ public final class DmsFaceRecognitionService extends Service {
             return;
         }
         cameraOpening = true;
-        CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
+        CameraManager manager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+        if (manager == null) {
+            cameraOpening = false;
+            return;
+        }
         try {
             String selectedId = null;
             Size selectedSize = null;
@@ -223,7 +252,7 @@ public final class DmsFaceRecognitionService extends Service {
             if (selectedId == null || selectedSize == null) {
                 cameraOpening = false;
                 nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-                publishStatus(getString(R.string.dms_recognition_camera_missing));
+                publishStatus(context.getString(R.string.dms_recognition_camera_missing));
                 return;
             }
             imageReader = ImageReader.newInstance(selectedSize.getWidth(),
@@ -243,7 +272,7 @@ public final class DmsFaceRecognitionService extends Service {
                         analyze(image);
                     }
                 } catch (RuntimeException e) {
-                    publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
+                    publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
                 } finally {
                     image.close();
                 }
@@ -271,7 +300,7 @@ public final class DmsFaceRecognitionService extends Service {
                     closeImageReader();
                     nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
                     if (isScanAllowedNow()) {
-                        publishStatus(getString(R.string.dms_recognition_camera_disconnected));
+                        publishStatus(context.getString(R.string.dms_recognition_camera_disconnected));
                     }
                 }
 
@@ -285,15 +314,15 @@ public final class DmsFaceRecognitionService extends Service {
                     closeImageReader();
                     nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
                     if (isScanAllowedNow()) {
-                        publishStatus(getString(R.string.dms_recognition_error,
-                                getString(R.string.dms_face_camera_error, String.valueOf(error))));
+                        publishStatus(context.getString(R.string.dms_recognition_error,
+                                context.getString(R.string.dms_face_camera_error, String.valueOf(error))));
                     }
                 }
             }, cameraHandler);
         } catch (CameraAccessException | SecurityException e) {
             cameraOpening = false;
             nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-            publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
+            publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
         }
     }
 
@@ -319,9 +348,9 @@ public final class DmsFaceRecognitionService extends Service {
                                 request.set(CaptureRequest.CONTROL_MODE,
                                         CaptureRequest.CONTROL_MODE_AUTO);
                                 session.setRepeatingRequest(request.build(), null, cameraHandler);
-                                publishStatus(getString(R.string.dms_recognition_running));
+                                publishStatus(context.getString(R.string.dms_recognition_running));
                             } catch (CameraAccessException e) {
-                                publishStatus(getString(R.string.dms_recognition_error,
+                                publishStatus(context.getString(R.string.dms_recognition_error,
                                         e.getMessage()));
                                 closeDmsCamera();
                             }
@@ -329,12 +358,12 @@ public final class DmsFaceRecognitionService extends Service {
 
                         @Override
                         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                            publishStatus(getString(R.string.dms_recognition_camera_disconnected));
+                            publishStatus(context.getString(R.string.dms_recognition_camera_disconnected));
                             closeDmsCamera();
                         }
                     }, cameraHandler);
         } catch (CameraAccessException e) {
-            publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
+            publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
             closeDmsCamera();
         }
     }
@@ -367,20 +396,6 @@ public final class DmsFaceRecognitionService extends Service {
             imageReader.close();
             imageReader = null;
         }
-    }
-
-    private Size chooseSize(Size[] sizes) {
-        Size best = sizes[0];
-        long bestDifference = Long.MAX_VALUE;
-        for (Size size : sizes) {
-            long difference = Math.abs((long) size.getWidth() - FRAME_WIDTH)
-                    + Math.abs((long) size.getHeight() - FRAME_HEIGHT);
-            if (difference < bestDifference) {
-                best = size;
-                bestDifference = difference;
-            }
-        }
-        return best;
     }
 
     private void analyze(Image image) {
@@ -425,18 +440,18 @@ public final class DmsFaceRecognitionService extends Service {
                         && !match.profile.name.equals(lastPublishedName)) {
                     lastPublishedName = match.profile.name;
                     sessionRecognized = true;
-                    SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+                    SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
                     prefs.edit()
                             .putString(PREF_LAST_NAME, match.profile.name)
                             .putInt(PREF_LAST_MEMORY, match.profile.seatMemory)
                             .apply();
-                    String matchedMsg = getString(R.string.dms_recognition_match,
+                    String matchedMsg = context.getString(R.string.dms_recognition_match,
                             match.profile.name, match.profile.seatMemory);
                     publishStatus(matchedMsg);
                     requestSeatMemoryWithRetry(match.profile.seatMemory, 5);
                     greetingPending = false;
                     speakWelcome(match.profile.name);
-                    // Release DMS camera once driver is identified and seat memory is triggered
+                    // Sürücü tespit edilip hafıza tetiklendiğinde kamerayı hemen serbest bırak
                     closeDmsCamera();
                 }
             } finally {
@@ -449,41 +464,41 @@ public final class DmsFaceRecognitionService extends Service {
 
     private void requestSeatMemoryWithRetry(int seatMemory, int retriesLeft) {
         if (seatMemory < 1 || seatMemory > FaceProfileStore.MAX_PROFILES) {
-            logOnly(getString(R.string.dms_recognition_memory_not_requested,
-                    getString(R.string.dms_recognition_memory_invalid)));
+            logOnly(context.getString(R.string.dms_recognition_memory_not_requested,
+                    context.getString(R.string.dms_recognition_memory_invalid)));
             return;
         }
         if (lastPowerMode != 1 && lastPowerMode != 2) {
-            logOnly(getString(R.string.dms_recognition_memory_not_requested,
-                    getString(R.string.dms_recognition_memory_unsafe_state)));
+            logOnly(context.getString(R.string.dms_recognition_memory_not_requested,
+                    context.getString(R.string.dms_recognition_memory_unsafe_state)));
             return;
         }
         CarInfoProxy proxy = CarInfoProxy.getInstance();
         if (!proxy.isServiceConnnected()) {
-            proxy.init(getApplicationContext());
+            proxy.init(context);
             if (retriesLeft > 0 && cameraHandler != null) {
                 cameraHandler.postDelayed(
                         () -> requestSeatMemoryWithRetry(seatMemory, retriesLeft - 1), 1000L);
             } else {
-                logOnly(getString(R.string.dms_recognition_memory_not_requested,
-                        getString(R.string.dms_recognition_memory_disconnected)));
+                logOnly(context.getString(R.string.dms_recognition_memory_not_requested,
+                        context.getString(R.string.dms_recognition_memory_disconnected)));
             }
             return;
         }
         try {
-            boolean applied = CarSeatMemoryManager.getInstance(getApplicationContext())
+            boolean applied = CarSeatMemoryManager.getInstance(context)
                     .applySeatMemory(seatMemory);
             if (applied) {
-                logOnly(getString(R.string.dms_recognition_memory_requested, seatMemory));
+                logOnly(context.getString(R.string.dms_recognition_memory_requested, seatMemory));
             } else {
                 proxy.sendItemValues(VDEventCarInfo.MODULE_CAR_SETTING,
                         CarSettingID.ID_CAR_SELECT_SEAT_MIRROR_POSI,
                         new int[]{seatMemory, seatMemory});
-                logOnly(getString(R.string.dms_recognition_memory_requested, seatMemory));
+                logOnly(context.getString(R.string.dms_recognition_memory_requested, seatMemory));
             }
         } catch (RuntimeException e) {
-            logOnly(getString(R.string.dms_recognition_memory_not_requested,
-                    getString(R.string.dms_recognition_memory_error, e.getMessage())));
+            logOnly(context.getString(R.string.dms_recognition_memory_not_requested,
+                    context.getString(R.string.dms_recognition_memory_error, e.getMessage())));
         }
     }
 
@@ -522,11 +537,11 @@ public final class DmsFaceRecognitionService extends Service {
             CarInfoProxy proxy = CarInfoProxy.getInstance();
             if (!proxy.isServiceConnnected()) {
                 try {
-                    proxy.init(getApplicationContext());
+                    proxy.init(context);
                 } catch (RuntimeException ignored) {
                 }
             } else {
-                CarSeatMemoryManager.getInstance(getApplicationContext()).ensureInitialized();
+                CarSeatMemoryManager.getInstance(context).ensureInitialized();
                 int[] values = proxy.getItemValues(VDEventCarInfo.MODULE_READONLY_INFO,
                         ReadOnlyID.ID_SYSTEM_POWER_MODE);
                 if (values != null && values.length > 0) {
@@ -538,14 +553,14 @@ public final class DmsFaceRecognitionService extends Service {
             } else if (cameraDevice != null) {
                 closeDmsCamera();
                 if (!sessionRecognized && lastPowerMode >= 2) {
-                    publishStatus(getString(R.string.dms_recognition_camera_released));
+                    publishStatus(context.getString(R.string.dms_recognition_camera_released));
                 }
             }
             cameraHandler.postDelayed(this, TimeUnit.SECONDS.toMillis(1));
         }
     };
 
-    private void onPowerModeChanged(int mode) {
+    public void onPowerModeChanged(int mode) {
         int previous = lastPowerMode;
         if (mode == previous) {
             return;
@@ -576,7 +591,7 @@ public final class DmsFaceRecognitionService extends Service {
             candidateName = null;
             candidateHits = 0;
             clearLastRecognition();
-            publishStatus(getString(R.string.dms_recognition_ignition_off));
+            publishStatus(context.getString(R.string.dms_recognition_ignition_off));
         }
     }
 
@@ -587,11 +602,11 @@ public final class DmsFaceRecognitionService extends Service {
         candidateName = null;
         candidateHits = 0;
         clearLastRecognition();
-        publishStatus(getString(R.string.dms_recognition_waiting_for_driver, powerMode));
+        publishStatus(context.getString(R.string.dms_recognition_waiting_for_driver, powerMode));
     }
 
     private void clearLastRecognition() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString(PREF_LAST_NAME, "")
                 .putInt(PREF_LAST_MEMORY, 0)
                 .apply();
@@ -602,80 +617,24 @@ public final class DmsFaceRecognitionService extends Service {
             return;
         }
         String spokenText = name.trim();
-        com.mapcontrol.util.SystemTtsManager.speakDelayed(getApplicationContext(), spokenText, 450L);
+        SystemTtsManager.speakDelayed(context, spokenText, 450L);
     }
 
     private void logOnly(String message) {
-        android.util.Log.i("DmsFaceRecognition", message);
+        Log.i(TAG, message);
         Intent intent = new Intent("com.mapcontrol.LOG_MESSAGE");
         intent.putExtra("log_message", "Yüz tanıma: " + message);
-        sendBroadcast(intent);
+        context.sendBroadcast(intent);
     }
 
     private void publishStatus(String message) {
-        android.util.Log.i("DmsFaceRecognition", message);
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_STATUS, message).apply();
+        Log.i(TAG, message);
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString(PREF_STATUS, message).apply();
         Intent statusIntent = new Intent(ACTION_STATUS);
-        sendBroadcast(statusIntent);
+        context.sendBroadcast(statusIntent);
         Intent intent = new Intent("com.mapcontrol.LOG_MESSAGE");
         intent.putExtra("log_message", "Yüz tanıma: " + message);
-        sendBroadcast(intent);
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    getString(R.string.dms_recognition_title),
-                    NotificationManager.IMPORTANCE_LOW);
-            getSystemService(NotificationManager.class).createNotificationChannel(channel);
-        }
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!isEnabled(this)) {
-            stopSelf(startId);
-            return START_NOT_STICKY;
-        }
-        try {
-            startRecognition();
-        } catch (RuntimeException e) {
-            publishStatus(getString(R.string.dms_recognition_error, e.getMessage()));
-            stopSelf(startId);
-            return START_NOT_STICKY;
-        }
-        return START_STICKY;
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
-    @Override
-    public void onDestroy() {
-        if (cameraHandler != null) {
-            cameraHandler.removeCallbacks(powerModePoll);
-        }
-        if (profileReceiverRegistered) {
-            unregisterReceiver(profileChanges);
-            profileReceiverRegistered = false;
-        }
-        closeDmsCamera();
-        if (cameraThread != null) {
-            cameraThread.quitSafely();
-            cameraThread = null;
-        }
-        if (faceDetector != null) {
-            faceDetector = null;
-        }
-        if (textToSpeech != null) {
-            textToSpeech.stop();
-            textToSpeech.shutdown();
-            textToSpeech = null;
-            ttsInitialized = false;
-        }
-        super.onDestroy();
+        context.sendBroadcast(intent);
     }
 }

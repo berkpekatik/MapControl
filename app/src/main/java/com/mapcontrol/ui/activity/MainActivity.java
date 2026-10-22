@@ -76,7 +76,7 @@ import com.mapcontrol.ui.builder.AppsTabBuilder;
 import com.mapcontrol.ui.builder.AssistTabBuilder;
 import com.mapcontrol.ui.builder.DriveModeTabBuilder;
 
-import com.mapcontrol.service.DmsFaceRecognitionService;
+import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
@@ -1499,11 +1499,11 @@ public class MainActivity extends AppCompatActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
-        if (DmsFaceRecognitionService.isEnabled(this)
+        if (DmsFaceRecognitionManager.isEnabled(this)
                 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             try {
-                DmsFaceRecognitionService.start(this);
+                DmsFaceRecognitionManager.start(this);
             } catch (RuntimeException e) {
                 log(getString(R.string.dms_recognition_error, e.getMessage()));
             }
@@ -1814,7 +1814,7 @@ public class MainActivity extends AppCompatActivity {
         if (faceRecognitionStatusBroadcastRegistered) {
             return;
         }
-        IntentFilter filter = new IntentFilter(DmsFaceRecognitionService.ACTION_STATUS);
+        IntentFilter filter = new IntentFilter(DmsFaceRecognitionManager.ACTION_STATUS);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(faceRecognitionStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -1827,11 +1827,11 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
-        if (DmsFaceRecognitionService.isEnabled(this)
+        if (DmsFaceRecognitionManager.isEnabled(this)
                 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             try {
-                DmsFaceRecognitionService.start(this);
+                DmsFaceRecognitionManager.start(this);
             } catch (RuntimeException e) {
                 log(getString(R.string.dms_recognition_error, e.getMessage()));
             }

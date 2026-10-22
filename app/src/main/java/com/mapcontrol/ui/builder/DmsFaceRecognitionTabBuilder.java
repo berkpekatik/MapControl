@@ -17,7 +17,7 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
-import com.mapcontrol.service.DmsFaceRecognitionService;
+import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.activity.DmsFaceProfileActivity;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.vehicle.FaceProfileStore;
@@ -95,7 +95,7 @@ public final class DmsFaceRecognitionTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         enabledSwitch = new SwitchCompat(activity);
-        enabledSwitch.setChecked(DmsFaceRecognitionService.isEnabled(activity));
+        enabledSwitch.setChecked(DmsFaceRecognitionManager.isEnabled(activity));
         toggleRow.addView(enabledSwitch);
         enabledSwitch.setOnCheckedChangeListener((button, enabled) -> {
             if (suppressSwitchCallback) {
@@ -106,11 +106,11 @@ public final class DmsFaceRecognitionTabBuilder {
             } else {
                 pendingEnable = false;
                 prefs.edit()
-                        .putBoolean(DmsFaceRecognitionService.PREF_ENABLED, false)
-                        .putString(DmsFaceRecognitionService.PREF_STATUS,
+                        .putBoolean(DmsFaceRecognitionManager.PREF_ENABLED, false)
+                        .putString(DmsFaceRecognitionManager.PREF_STATUS,
                                 activity.getString(R.string.dms_recognition_stopped))
                         .apply();
-                DmsFaceRecognitionService.stop(activity);
+                DmsFaceRecognitionManager.stop(activity);
                 logger.log(activity.getString(R.string.dms_recognition_stopped));
                 refresh();
             }
@@ -186,13 +186,13 @@ public final class DmsFaceRecognitionTabBuilder {
         try {
             List<FaceProfileStore.Profile> profiles = FaceProfileStore.load(activity);
             profileCount = profiles.size();
-            String lastName = prefs.getString(DmsFaceRecognitionService.PREF_LAST_NAME, "");
-            int memory = prefs.getInt(DmsFaceRecognitionService.PREF_LAST_MEMORY, 0);
+            String lastName = prefs.getString(DmsFaceRecognitionManager.PREF_LAST_NAME, "");
+            int memory = prefs.getInt(DmsFaceRecognitionManager.PREF_LAST_MEMORY, 0);
             String last = lastName.isEmpty() ? activity.getString(R.string.dms_recognition_no_match_yet)
                     : activity.getString(R.string.dms_recognition_last_match, lastName, memory);
-            String serviceStatus = prefs.getString(DmsFaceRecognitionService.PREF_STATUS,
+            String serviceStatus = prefs.getString(DmsFaceRecognitionManager.PREF_STATUS,
                     activity.getString(R.string.dms_recognition_idle));
-            boolean enabled = DmsFaceRecognitionService.isEnabled(activity);
+            boolean enabled = DmsFaceRecognitionManager.isEnabled(activity);
             String enabledText = enabled ? activity.getString(R.string.climate_auto_master_on)
                     : activity.getString(R.string.climate_auto_master_off);
             status.setText(activity.getString(R.string.dms_recognition_status,
@@ -203,7 +203,7 @@ public final class DmsFaceRecognitionTabBuilder {
             status.setText(activity.getString(R.string.dms_face_load_error, e.getMessage()));
         }
         if (enabledSwitch != null) {
-            boolean isServiceEnabled = DmsFaceRecognitionService.isEnabled(activity);
+            boolean isServiceEnabled = DmsFaceRecognitionManager.isEnabled(activity);
             enabledSwitch.setEnabled(profileCount > 0 || isServiceEnabled);
             if (enabledSwitch.isChecked() != isServiceEnabled && !pendingEnable) {
                 suppressSwitchCallback = true;
@@ -272,17 +272,17 @@ public final class DmsFaceRecognitionTabBuilder {
         }
         try {
             prefs.edit()
-                    .putBoolean(DmsFaceRecognitionService.PREF_ENABLED, true)
-                    .putString(DmsFaceRecognitionService.PREF_STATUS,
+                    .putBoolean(DmsFaceRecognitionManager.PREF_ENABLED, true)
+                    .putString(DmsFaceRecognitionManager.PREF_STATUS,
                             activity.getString(R.string.dms_recognition_starting))
                     .apply();
-            DmsFaceRecognitionService.start(activity);
+            DmsFaceRecognitionManager.start(activity);
             logger.log(activity.getString(R.string.dms_recognition_started));
             refresh();
         } catch (RuntimeException e) {
             prefs.edit()
-                    .putBoolean(DmsFaceRecognitionService.PREF_ENABLED, false)
-                    .putString(DmsFaceRecognitionService.PREF_STATUS,
+                    .putBoolean(DmsFaceRecognitionManager.PREF_ENABLED, false)
+                    .putString(DmsFaceRecognitionManager.PREF_STATUS,
                             activity.getString(R.string.dms_recognition_stopped))
                     .apply();
             suppressSwitchCallback = true;
