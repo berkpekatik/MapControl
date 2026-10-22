@@ -108,13 +108,13 @@ public final class VehicleMetricsRepository {
                 if (module == MODULE_NEW_ENERGY && itemId == NewEnergyID.ID_DRIVE_MODE) {
                     int currentDriveMode = cache.getCombined(module, itemId);
                     String previousLabel = previousDriveMode == VehicleMetricsCache.INVALID
-                            ? "bilinmiyor" : describeDriveMode(previousDriveMode);
+                            ? "unknown" : describeDriveMode(previousDriveMode);
                     String currentLabel = describeDriveMode(currentDriveMode);
-                    String message = "Araç sürüş modu sinyali: MODULE_NEW_ENERGY("
+                    String message = "Drive mode signal: MODULE_NEW_ENERGY("
                             + MODULE_NEW_ENERGY + "), ID_DRIVE_MODE("
-                            + NewEnergyID.ID_DRIVE_MODE + "), önceki="
-                            + previousLabel + " (" + previousDriveMode + "), yeni="
-                            + currentLabel + " (" + currentDriveMode + "), ham="
+                            + NewEnergyID.ID_DRIVE_MODE + "), previous="
+                            + previousLabel + " (" + previousDriveMode + "), new="
+                            + currentLabel + " (" + currentDriveMode + "), raw="
                             + Arrays.toString(values);
                     mainHandler.post(() -> eventLogger.accept(message));
                 }
@@ -253,7 +253,7 @@ public final class VehicleMetricsRepository {
 
     private String describeDriveMode(int mode) {
         String label = DriveModeStyle.shortLabel(mode);
-        return label != null ? label : "bilinmeyen";
+        return label != null ? label : "unknown";
     }
 
     private void registerCallbacksIfNeeded() {
