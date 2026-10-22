@@ -1766,7 +1766,9 @@ public class MainActivity extends AppCompatActivity {
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.rebuild();
         }
-        
+        if (equalizerTabBuilder != null) {
+            equalizerTabBuilder.rebuild();
+        }
         if (climateAutomationTabBuilder != null) {
             rebuildClimateAutomationTab();
         }
@@ -1823,7 +1825,8 @@ public class MainActivity extends AppCompatActivity {
         faceRecognitionStatusBroadcastRegistered = true;
     }
 
-     {
+    @Override
+    protected void onResume() {
         super.onResume();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
