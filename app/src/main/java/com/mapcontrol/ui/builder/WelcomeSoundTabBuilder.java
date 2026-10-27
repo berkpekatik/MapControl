@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -48,6 +49,8 @@ public class WelcomeSoundTabBuilder {
     private ScrollView scrollView;
     private TextView usbStatus;
     private LinearLayout usbList;
+    private TextView downloadsStatus;
+    private LinearLayout downloadsList;
     private TextView tvFilePath;
     private LinearLayout playbackRow;
     private TextView playbackLabel;
@@ -57,6 +60,8 @@ public class WelcomeSoundTabBuilder {
     private boolean copying;
     private boolean mediaRegistered;
     private int usbScanGen;
+    private AlertDialog mp3Dialog;
+    private LinearLayout mp3DialogList;
 
     public WelcomeSoundTabBuilder(AppCompatActivity activity, SharedPreferences prefs,
             ActivityResultLauncher<Intent> audioPicker) {
@@ -80,11 +85,14 @@ public class WelcomeSoundTabBuilder {
         this.scrollView = screen.scrollView;
         this.usbStatus = screen.usbStatus;
         this.usbList = screen.usbList;
+        this.downloadsStatus = screen.downloadsStatus;
+        this.downloadsList = screen.downloadsList;
         this.tvFilePath = screen.tvFilePath;
+        screen.onShowSound = this::refreshSoundSources;
         this.playbackRow = screen.playbackRow;
         this.playbackLabel = screen.playbackLabel;
 
-        screen.rowSelect.setOnClickListener(v -> selectAudioFile());
+        screen.rowSelect.setOnClickListener(v -> showMp3Dialog());
         playbackRow.setOnClickListener(v -> {
             if (playing) {
                 stopAudio();
@@ -95,7 +103,7 @@ public class WelcomeSoundTabBuilder {
         screen.btnPreview.setOnClickListener(v -> WelcomeScreenPresenter.showSaved(activity));
 
         loadSavedSettings();
-        refreshUsb();
+        refreshSoundSources();
     }
 
     public ScrollView getScrollView() {
@@ -104,7 +112,7 @@ public class WelcomeSoundTabBuilder {
 
     /** Sekme açılınca USB listesini yeniler. */
     public void onTabVisible() {
-        refreshUsb();
+        refreshSoundSources();
     }
 
     /** Sistem ses seçicisinin sonucu. */
@@ -162,6 +170,180 @@ public class WelcomeSoundTabBuilder {
         mediaRegistered = true;
     }
 
+    private void refreshSoundSources() {
+        refreshDownloads();
+        refreshUsb();
+    }
+
+    private void refreshDownloads() {
+        if (downloadsList == null) {
+            return;
+        }
+        new Thread(() -> {
+            List<File> files = new java.util.ArrayList<>();
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            addMp3(new File(activity.getFilesDir(), "welcome-audio"), files, seen);
+            files.sort((a, b) -> b.getName().compareToIgnoreCase(a.getName()));
+            handler.post(() -> renderDownloads(files));
+        }, "welcome-downloads").start();
+    }
+
+    private void renderDownloads(List<File> files) {
+        if (mp3Dialog != null && mp3Dialog.isShowing()) {
+            fillMp3List(mp3DialogList, files);
+        }
+    }
+
+    private void showMp3Dialog() {
+        if (downloadsList == null) {
+            return;
+        }
+        new Thread(() -> {
+            List<File> files = new java.util.ArrayList<>();
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            addMp3(new File(activity.getFilesDir(), "welcome-audio"), files, seen);
+            files.sort((a, b) -> b.getName().compareToIgnoreCase(a.getName()));
+            handler.post(() -> presentMp3Dialog(files));
+        }, "welcome-mp3-dialog").start();
+    }
+
+    private void presentMp3Dialog(List<File> files) {
+        if (mp3Dialog != null && mp3Dialog.isShowing() && mp3DialogList != null) {
+            fillMp3List(mp3DialogList, files);
+            return;
+        }
+        ScrollView scroll = new ScrollView(activity);
+        LinearLayout list = new LinearLayout(activity);
+        list.setOrientation(LinearLayout.VERTICAL);
+        int pad = Math.round(16 * activity.getResources().getDisplayMetrics().density);
+        list.setPadding(pad, pad, pad, pad);
+        fillMp3List(list, files);
+        scroll.addView(list);
+        mp3DialogList = list;
+        mp3Dialog = new AlertDialog.Builder(activity)
+                .setTitle(R.string.welcome_downloads_title)
+                .setView(scroll)
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        mp3Dialog.setOnDismissListener(dialog -> mp3DialogList = null);
+        mp3Dialog.show();
+    }
+
+    private void fillMp3List(LinearLayout list, List<File> files) {
+        if (list == null) {
+            return;
+        }
+        list.removeAllViews();
+        if (files == null || files.isEmpty()) {
+            TextView empty = new TextView(activity);
+            empty.setText(R.string.welcome_downloads_empty);
+            empty.setTextSize(15);
+            list.addView(empty);
+            return;
+        }
+        String selected = prefs.getString("welcomeAudioFilePath", "");
+        for (File file : files) {
+            list.addView(mp3Row(file, selected != null && selected.equals(file.getAbsolutePath())));
+        }
+    }
+
+    private LinearLayout mp3Row(File file, boolean selected) {
+        float density = activity.getResources().getDisplayMetrics().density;
+        int gap = Math.round(8 * density);
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setPadding(0, gap, 0, gap);
+
+        TextView mark = new TextView(activity);
+        mark.setText(selected ? "✓" : "");
+        mark.setTextSize(18);
+        mark.setMinWidth(Math.round(28 * density));
+        row.addView(mark);
+
+        TextView name = new TextView(activity);
+        name.setText(file.getName());
+        name.setTextSize(15);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        row.addView(name, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        row.addView(mp3Button(R.string.welcome_mp3_select, v -> {
+            applySelected(file);
+            showMp3Dialog();
+        }));
+        row.addView(mp3Button(R.string.welcome_mp3_play, v -> playFile(file)));
+        row.addView(mp3Button(R.string.welcome_mp3_delete, v -> deleteMp3(file)));
+        return row;
+    }
+
+    private Button mp3Button(int textRes, android.view.View.OnClickListener click) {
+        Button button = new Button(activity);
+        button.setText(textRes);
+        button.setAllCaps(false);
+        button.setTextSize(13);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setOnClickListener(click);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMarginStart(Math.round(6 * activity.getResources().getDisplayMetrics().density));
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void deleteMp3(File file) {
+        String selected = prefs.getString("welcomeAudioFilePath", "");
+        if (selected != null && selected.equals(file.getAbsolutePath())) {
+            prefs.edit().remove("welcomeAudioFilePath").apply();
+            selectedFilePath = null;
+            setPlaying(false);
+            releasePlayer();
+        }
+        if (!file.delete() && file.exists()) {
+            Toast.makeText(activity, R.string.welcome_sound_copy_error, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        showMp3Dialog();
+    }
+
+    private void playFile(File file) {
+        if (file == null || !file.exists()) {
+            Toast.makeText(activity, R.string.welcome_sound_file_open_error, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        selectedFilePath = Uri.fromFile(file).toString();
+        releasePlayer();
+        setPlaying(false);
+        playAudio();
+    }
+
+    private static void addMp3(File dir, List<File> files, java.util.Set<String> seen) {
+        File[] children = dir == null ? null : dir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File file : children) {
+            addMp3File(file, files, seen);
+        }
+    }
+
+    private static void addMp3File(File file, List<File> files, java.util.Set<String> seen) {
+        if (file == null || !file.isFile()) {
+            return;
+        }
+        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        if (!name.endsWith(".mp3")) {
+            return;
+        }
+        String key = file.getAbsolutePath();
+        if (seen.add(key)) {
+            files.add(file);
+        }
+    }
+
     private void refreshUsb() {
         final int gen = ++usbScanGen;
         new Thread(() -> {
@@ -176,20 +358,43 @@ public class WelcomeSoundTabBuilder {
     }
 
     private void renderUsb(WelcomeAudioFiles.UsbScan scan) {
-        usbList.removeAllViews();
-        if (scan.files.isEmpty()) {
-            usbList.setVisibility(android.view.View.GONE);
-            usbStatus.setVisibility(android.view.View.VISIBLE);
-            usbStatus.setText(scan.present
-                    ? R.string.welcome_sound_usb_empty
-                    : R.string.welcome_sound_usb_absent);
+        if (usbList == null) {
             return;
         }
-        usbStatus.setVisibility(android.view.View.GONE);
+        android.view.View block = (android.view.View) usbList.getParent();
+        usbList.removeAllViews();
+        java.util.List<File> mp3s = scan.present
+                ? scan.files
+                : java.util.Collections.emptyList();
+        block.setVisibility(android.view.View.VISIBLE);
+        if (!scan.present || mp3s.isEmpty()) {
+            if (usbStatus != null) {
+                usbStatus.setText(!scan.present
+                        ? R.string.welcome_sound_usb_absent
+                        : R.string.welcome_sound_usb_empty);
+                usbStatus.setVisibility(android.view.View.VISIBLE);
+            }
+            usbList.setVisibility(android.view.View.GONE);
+            return;
+        }
+        if (usbStatus != null) {
+            usbStatus.setVisibility(android.view.View.GONE);
+        }
         usbList.setVisibility(android.view.View.VISIBLE);
-        for (File file : scan.files) {
-            LinearLayout row = WelcomeSoundScreenBuilder.actionRow(activity, file.getName());
-            row.setOnClickListener(v -> importFile(file));
+        for (File file : mp3s) {
+            LinearLayout row = new LinearLayout(activity);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            int gap = Math.round(8 * activity.getResources().getDisplayMetrics().density);
+            row.setPadding(0, gap, 0, gap);
+            TextView name = new TextView(activity);
+            name.setText(file.getName());
+            name.setTextSize(15);
+            name.setSingleLine(true);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            row.addView(name, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(mp3Button(R.string.welcome_mp3_select, v -> importFile(file)));
             usbList.addView(row);
         }
     }
@@ -282,6 +487,7 @@ public class WelcomeSoundTabBuilder {
         saveSelectedFilePath(dest.getAbsolutePath());
         setPlaying(false);
         Toast.makeText(activity, R.string.welcome_sound_saved, Toast.LENGTH_SHORT).show();
+        refreshDownloads();
     }
 
     private void playAudio() {
@@ -348,7 +554,13 @@ public class WelcomeSoundTabBuilder {
         if (playbackLabel == null || playbackRow == null) {
             return;
         }
-        playbackLabel.setText(active ? R.string.welcome_sound_stop : R.string.welcome_sound_play);
+        if (active) {
+            playbackLabel.setText(R.string.welcome_sound_stop);
+        } else if (selectedFilePath != null && !selectedFilePath.isEmpty()) {
+            playbackLabel.setText(R.string.welcome_sound_selected_label);
+        } else {
+            playbackLabel.setText(R.string.welcome_sound_no_file_yet);
+        }
         boolean ready = selectedFilePath != null && !selectedFilePath.isEmpty();
         playbackRow.setAlpha(ready ? 1f : 0.45f);
     }

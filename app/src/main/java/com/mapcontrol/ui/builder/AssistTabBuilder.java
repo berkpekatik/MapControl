@@ -255,7 +255,7 @@ public class AssistTabBuilder {
         cpdDisclaimer.setText(R.string.assist_cpd_disclaimer);
         cpdDisclaimer.setTextSize(12);
         cpdDisclaimer.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-        cpdDisclaimer.setPadding(16, 0, 16, 16);
+        cpdDisclaimer.setPadding(16, 0, 16, 8);
         container.addView(cpdDisclaimer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));

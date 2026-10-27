@@ -24,6 +24,7 @@ public final class WelcomeDesignCatalog {
     public static final String ID_SIGNATURE = "signature";
     public static final String ID_WINTER = "winter";
     public static final String ID_HIKE = "hike";
+    public static final String ID_PRESTIGE = "prestige";
 
     private static final WelcomeDesign OFF = new WelcomeDesign() {
         @Override
@@ -50,9 +51,22 @@ public final class WelcomeDesignCatalog {
 
     private static final List<WelcomeDesign> DESIGNS = Collections.unmodifiableList(Arrays.asList(
             OFF,
-            new SignatureWelcomeDesign(),
-            new WinterTouchWelcomeDesign(),
-            new MountainHikeWelcomeDesign()
+            new HtmlWelcomeDesign(ID_SIGNATURE,
+                    R.string.welcome_design_signature, R.string.welcome_design_signature_help,
+                    WelcomeHtmlSource.fromAsset("welcome/signature.html"),
+                    new SignatureWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_WINTER,
+                    R.string.welcome_design_winter, R.string.welcome_design_winter_help,
+                    WelcomeHtmlSource.fromAsset("welcome/winter.html"),
+                    new WinterTouchWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_HIKE,
+                    R.string.welcome_design_hike, R.string.welcome_design_hike_help,
+                    WelcomeHtmlSource.fromAsset("welcome/hike.html"),
+                    new MountainHikeWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_PRESTIGE,
+                    R.string.welcome_design_prestige, R.string.welcome_design_prestige_help,
+                    WelcomeHtmlSource.fromAsset("welcome/prestige.html"),
+                    new SignatureWelcomeDesign())
     ));
 
     private WelcomeDesignCatalog() {
