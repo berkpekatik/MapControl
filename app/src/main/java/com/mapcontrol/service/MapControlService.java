@@ -34,7 +34,6 @@ import java.io.IOException;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import com.mapcontrol.api.ProfileApiService;
-import com.mapcontrol.vehicle.InternalDmsSwitch;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
@@ -425,9 +424,6 @@ public class MapControlService extends Service {
                                                         applySpdLimitIfNeeded();
                                                         handler.postDelayed(() -> {
                                                             applyCpdIfNeeded();
-                                                            handler.postDelayed(() -> {
-                                                                applyDmsIfNeeded();
-                                                            }, 100);
                                                         }, 100);
                                                     }, 100);
                                                 }, 100);
@@ -996,50 +992,6 @@ public class MapControlService extends Service {
 
         } catch (Exception e) {
             log("❌ applyCpdInternal hatası: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Powermode 2 olunca kayıtlı DMS alarmını otomatik uygula.
-     * Kabin LAN MsgID 8001, DmsCamState 1 = kapalı. Tercih değeri CPD ile aynı: 2 = kapatma seçili.
-     */
-    private void applyDmsIfNeeded() {
-        try {
-            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-            int dmsSetting = prefs.getInt("dmsSetting", -1);
-
-            if (dmsSetting != 2) {
-                log("ℹ️ DMS için geçerli bir kapatma modu seçilmemiş (değer=" + dmsSetting + "), otomatik ayarlama yapılmıyor");
-                return;
-            }
-
-            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
-                log("🔌 CarInfoProxy bağlı değil, DMS ayarlanamıyor");
-                return;
-            }
-
-            log("🔄 DMS uygulanıyor: Kapalı (DmsCamState=1)");
-            applyDmsInternal(InternalDmsSwitch.CAM_OFF);
-
-        } catch (Exception e) {
-            log("❌ applyDmsIfNeeded hatası: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private void applyDmsInternal(int camState) {
-        try {
-            boolean connected = InternalDmsSwitch.send(this, camState);
-            log("   Kabin LAN bağlı: " + connected);
-
-            log("✅ DMS gönderildi!");
-            log("   Kanal: CABIN_LAN_MSG_COMMON");
-            log("   MsgID: 8001");
-            log("   DmsCamState: " + camState + " (" + (camState == InternalDmsSwitch.CAM_ON ? "Açık" : "Kapalı") + ")");
-
-        } catch (Exception e) {
-            log("❌ applyDmsInternal hatası: " + e.getMessage());
             e.printStackTrace();
         }
     }
