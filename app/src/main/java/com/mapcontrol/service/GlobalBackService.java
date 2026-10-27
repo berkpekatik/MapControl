@@ -229,12 +229,13 @@ public class GlobalBackService extends AccessibilityService {
     public static GlobalBackService getInstance() {
         return instance;
     }
+
     /**
-     * EriÅŸilebilirlik servisi Ã¼zerinden tek parmak dokunuÅŸunu altÄ±ndaki uygulamaya iletir.
+     * Erişilebilirlik servisi üzerinden tek parmak dokunuşunu altındaki uygulamaya iletir.
      */
     public static boolean dispatchTap(float x, float y) {
         GlobalBackService inst = getInstance();
-        if (inst != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (inst != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             try {
                 android.accessibilityservice.GestureDescription.Builder builder = new android.accessibilityservice.GestureDescription.Builder();
                 android.graphics.Path path = new android.graphics.Path();
@@ -249,11 +250,11 @@ public class GlobalBackService extends AccessibilityService {
     }
 
     /**
-     * EriÅŸilebilirlik servisi Ã¼zerinden tek parmak kaydÄ±rmayÄ± altÄ±ndaki uygulamaya iletir.
+     * Erişilebilirlik servisi üzerinden tek parmak kaydırmayı altındaki uygulamaya iletir.
      */
     public static boolean dispatchStroke(float startX, float startY, float endX, float endY, long durationMs) {
         GlobalBackService inst = getInstance();
-        if (inst != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (inst != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             try {
                 android.accessibilityservice.GestureDescription.Builder builder = new android.accessibilityservice.GestureDescription.Builder();
                 android.graphics.Path path = new android.graphics.Path();
