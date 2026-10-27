@@ -89,6 +89,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private final Button[] memoryButtons = new Button[FaceProfileStore.MAX_PROFILES];
     private TextView memoryLabel;
     private LinearLayout memoryRow;
+    private Button modeButton;
+    private LinearLayout doorSlotsCard;
+    private LinearLayout doorSlotsContainer;
     private boolean seatMemoryAvailable;
     private int selectedMemory = 1;
     private Button enrollButton;
@@ -180,6 +183,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         refreshProfilesListUi();
         updateMemoryButtonsUi();
 
+        if (!CarSeatMemoryManager.getInstance(this).hasExplicitModePreference()) {
+            uiHandler.postDelayed(this::showModeSelectionDialog, 400L);
+        }
+
         preview.setSurfaceTextureListener(this);
         cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -229,6 +236,19 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleLp.leftMargin = dp(16);
         topBar.addView(titleView, titleLp);
+
+        modeButton = new Button(this);
+        updateModeButtonText();
+        modeButton.setTextColor(0xFFFFFFFF);
+        modeButton.setTextSize(12);
+        modeButton.setAllCaps(false);
+        modeButton.setPadding(dp(12), dp(6), dp(12), dp(6));
+        UiStyles.applySolidRoundedBackgroundDp(modeButton, 0xFF1E3A8A, 10f);
+        modeButton.setOnClickListener(v -> showModeSelectionDialog());
+        LinearLayout.LayoutParams modeLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, dp(40));
+        modeLp.rightMargin = dp(10);
+        topBar.addView(modeButton, modeLp);
 
         clearButton = new Button(this);
         clearButton.setText(R.string.dms_face_clear);
@@ -437,6 +457,38 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         listContainerLp.topMargin = dp(8);
         listCard.addView(profilesListContainer, listContainerLp);
 
+        doorSlotsCard = new LinearLayout(this);
+        doorSlotsCard.setOrientation(LinearLayout.VERTICAL);
+        doorSlotsCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        UiStyles.setGlassCardBackground(doorSlotsCard);
+        LinearLayout.LayoutParams doorCardLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        doorCardLp.topMargin = dp(12);
+        doorCardLp.bottomMargin = dp(14);
+        rightColumn.addView(doorSlotsCard, doorCardLp);
+
+        TextView doorCardHeader = new TextView(this);
+        doorCardHeader.setText("Araç Kapısı Üzerinde Hafıza Konumları");
+        doorCardHeader.setTextColor(textPrimary);
+        doorCardHeader.setTextSize(15);
+        doorCardHeader.setTypeface(null, Typeface.BOLD);
+        doorSlotsCard.addView(doorCardHeader);
+
+        TextView doorCardSub = new TextView(this);
+        doorCardSub.setText("Kapıdaki 1, 2 veya 3 tuşuna basarak istediğiniz yuvanın konumunu MapControl'e aktarabilir ve güncelleyebilirsiniz.");
+        doorCardSub.setTextColor(textSecondary);
+        doorCardSub.setTextSize(12);
+        LinearLayout.LayoutParams doorSubLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        doorSubLp.topMargin = dp(2);
+        doorSubLp.bottomMargin = dp(8);
+        doorSlotsCard.addView(doorCardSub, doorSubLp);
+
+        doorSlotsContainer = new LinearLayout(this);
+        doorSlotsContainer.setOrientation(LinearLayout.VERTICAL);
+        doorSlotsCard.addView(doorSlotsContainer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
         setContentView(root);
     }
 
@@ -475,6 +527,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         if (profilesListContainer == null) {
             return;
         }
+        updateModeButtonText();
         int textSecondary = UiStyles.color(this, R.color.textSecondaryCool);
         profilesListContainer.removeAllViews();
         if (clearButton != null) {
@@ -487,8 +540,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             empty.setTextSize(14);
             empty.setPadding(0, dp(6), 0, dp(4));
             profilesListContainer.addView(empty);
+            updateDoorSlotsCard();
             return;
         }
+        boolean isDoorMode = CarSeatMemoryManager.getInstance(this).isDoorMode();
         for (int i = 0; i < profiles.size(); i++) {
             final int index = i;
             final FaceProfileStore.Profile p = profiles.get(i);
@@ -514,14 +569,35 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
             if (seatMemoryAvailable) {
                 TextView subTv = new TextView(this);
-                subTv.setText("Koltuk Hafızası " + p.seatMemory);
+                if (isDoorMode) {
+                    String summary = CarSeatMemoryManager.getInstance(this).getCachedSlotSummary(p.seatMemory);
+                    subTv.setText("Koltuk Hafızası " + p.seatMemory + " · " + summary);
+                } else {
+                    subTv.setText("Koltuk Hafızası " + p.seatMemory);
+                }
                 subTv.setTextColor(0xFF60A5FA);
-                subTv.setTextSize(13);
+                subTv.setTextSize(12);
                 infoCol.addView(subTv);
             }
 
             row.addView(infoCol, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            if (seatMemoryAvailable && isDoorMode) {
+                Button updateBtn = new Button(this);
+                updateBtn.setText("Hafıza " + p.seatMemory + " Güncelle");
+                updateBtn.setAllCaps(false);
+                updateBtn.setTextColor(0xFFFFFFFF);
+                updateBtn.setTextSize(11);
+                updateBtn.setPadding(dp(8), dp(4), dp(8), dp(4));
+                UiStyles.applySolidRoundedBackgroundDp(updateBtn, 0xFF0284C7, 8f);
+                final int slotToUpdate = p.seatMemory;
+                updateBtn.setOnClickListener(v -> showSeatCalibrationDialog(slotToUpdate, this::refreshProfilesListUi));
+                LinearLayout.LayoutParams updateLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, dp(34));
+                updateLp.rightMargin = dp(6);
+                row.addView(updateBtn, updateLp);
+            }
 
             if (seatMemoryAvailable) {
             for (int m = 1; m <= FaceProfileStore.MAX_PROFILES; m++) {
@@ -556,6 +632,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
             profilesListContainer.addView(row, rowLp);
         }
+        updateDoorSlotsCard();
     }
 
     private void updateProfileSeatMemory(int index, int newSeatMemory) {
@@ -603,6 +680,204 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             Toast.makeText(this, getString(R.string.dms_face_save_error, e.getMessage()),
                     Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void updateModeButtonText() {
+        if (modeButton == null) return;
+        boolean door = CarSeatMemoryManager.getInstance(this).isDoorMode();
+        modeButton.setText(door ? "Araç Kapısı Üzerinde" : "Multimedya Ekranı Üzerinde");
+        UiStyles.applySolidRoundedBackgroundDp(modeButton, door ? 0xFF0D9488 : 0xFF2563EB, 10f);
+    }
+
+    private void showModeSelectionDialog() {
+        String[] options = new String[]{
+                "Multimedya Ekranı Üzerinde",
+                "Araç Kapısı Üzerinde"
+        };
+        int current = CarSeatMemoryManager.getInstance(this).getMemoryMode();
+        new AlertDialog.Builder(this)
+                .setTitle("Koltuk Hafıza Tipi")
+                .setSingleChoiceItems(options, current, (dialog, which) -> {
+                    CarSeatMemoryManager.getInstance(this).setMemoryMode(which);
+                    updateModeButtonText();
+                    refreshProfilesListUi();
+                    dialog.dismiss();
+                    Toast.makeText(this, which == CarSeatMemoryManager.MODE_DOOR
+                            ? "Araç Kapısı Üzerinde modu seçildi."
+                            : "Multimedya Ekranı Üzerinde modu seçildi.", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Kapat", null)
+                .show();
+    }
+
+    private void updateDoorSlotsCard() {
+        if (doorSlotsCard == null || doorSlotsContainer == null) return;
+        boolean isDoor = CarSeatMemoryManager.getInstance(this).isDoorMode();
+        doorSlotsCard.setVisibility(isDoor ? View.VISIBLE : View.GONE);
+        if (!isDoor) return;
+
+        doorSlotsContainer.removeAllViews();
+        CarSeatMemoryManager mgr = CarSeatMemoryManager.getInstance(this);
+        for (int m = 1; m <= FaceProfileStore.MAX_PROFILES; m++) {
+            final int slot = m;
+            LinearLayout slotRow = new LinearLayout(this);
+            slotRow.setOrientation(LinearLayout.HORIZONTAL);
+            slotRow.setGravity(Gravity.CENTER_VERTICAL);
+            slotRow.setPadding(dp(10), dp(8), dp(10), dp(8));
+            UiStyles.applySolidRoundedBackgroundDp(slotRow, 0xFF1E293B, 8f);
+            LinearLayout.LayoutParams slotRowLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (m > 1) slotRowLp.topMargin = dp(6);
+
+            LinearLayout textCol = new LinearLayout(this);
+            textCol.setOrientation(LinearLayout.VERTICAL);
+
+            TextView slotNameTv = new TextView(this);
+            slotNameTv.setText("Hafıza " + slot);
+            slotNameTv.setTextColor(0xFFFFFFFF);
+            slotNameTv.setTextSize(14);
+            slotNameTv.setTypeface(null, Typeface.BOLD);
+            textCol.addView(slotNameTv);
+
+            TextView slotSummaryTv = new TextView(this);
+            slotSummaryTv.setText(mgr.getCachedSlotSummary(slot));
+            slotSummaryTv.setTextColor(mgr.isSlotCalibrated(slot) ? 0xFF34D399 : 0xFF94A3B8);
+            slotSummaryTv.setTextSize(12);
+            textCol.addView(slotSummaryTv);
+
+            slotRow.addView(textCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            Button calBtn = new Button(this);
+            calBtn.setText("Kapıdan Güncelle");
+            calBtn.setAllCaps(false);
+            calBtn.setTextColor(0xFFFFFFFF);
+            calBtn.setTextSize(12);
+            calBtn.setPadding(dp(10), dp(4), dp(10), dp(4));
+            UiStyles.applySolidRoundedBackgroundDp(calBtn, 0xFF0284C7, 8f);
+            calBtn.setOnClickListener(v -> showSeatCalibrationDialog(slot, this::refreshProfilesListUi));
+            slotRow.addView(calBtn, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(34)));
+
+            doorSlotsContainer.addView(slotRow, slotRowLp);
+        }
+    }
+
+    private void showSeatCalibrationDialog(int targetSlot, @Nullable Runnable onComplete) {
+        CarSeatMemoryManager memoryMgr = CarSeatMemoryManager.getInstance(this);
+        memoryMgr.ensureInitialized();
+
+        LinearLayout dialogView = new LinearLayout(this);
+        dialogView.setOrientation(LinearLayout.VERTICAL);
+        dialogView.setPadding(dp(20), dp(16), dp(20), dp(16));
+
+        TextView promptTv = new TextView(this);
+        promptTv.setText("Lütfen aracınızın kapısındaki (veya koltuğundaki) " + targetSlot
+                + " numaralı hafıza tuşuna basın.\n\nKoltuk durduğunda milimetrik koordinatlar otomatik kaydedilecektir.");
+        promptTv.setTextColor(0xFFE2E8F0);
+        promptTv.setTextSize(14);
+        promptTv.setLineSpacing(dp(2), 1f);
+        dialogView.addView(promptTv);
+
+        TextView statusTv = new TextView(this);
+        statusTv.setText("⏳ Durum: Kapıdaki tuşa basılması bekleniyor...");
+        statusTv.setTextColor(0xFF38BDF8);
+        statusTv.setTextSize(13);
+        statusTv.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        statusLp.topMargin = dp(14);
+        dialogView.addView(statusTv, statusLp);
+
+        TextView coordsTv = new TextView(this);
+        coordsTv.setText(memoryMgr.getCachedSlotSummary(targetSlot));
+        coordsTv.setTextColor(0xFF94A3B8);
+        coordsTv.setTextSize(12);
+        LinearLayout.LayoutParams coordsLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        coordsLp.topMargin = dp(6);
+        dialogView.addView(coordsTv, coordsLp);
+
+        ProgressBar spinner = new ProgressBar(this);
+        spinner.setIndeterminate(true);
+        LinearLayout.LayoutParams spinnerLp = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
+        spinnerLp.gravity = Gravity.CENTER_HORIZONTAL;
+        spinnerLp.topMargin = dp(14);
+        dialogView.addView(spinner, spinnerLp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("🚪 Kapı Hafıza " + targetSlot + " Eşitleme")
+                .setView(dialogView)
+                .setPositiveButton("⚡ Şu Anki Konumu Kaydet", null)
+                .setNegativeButton("İptal", (d, w) -> {
+                    memoryMgr.stopDoorCalibration();
+                })
+                .setCancelable(false)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            Button saveNowBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (saveNowBtn != null) {
+                saveNowBtn.setOnClickListener(v -> {
+                    memoryMgr.saveCurrentPositionToSlot(targetSlot);
+                });
+            }
+        });
+
+        memoryMgr.startDoorCalibration(targetSlot, new CarSeatMemoryManager.SeatCalibrationListener() {
+            @Override
+            public void onSeatPositionUpdate(int slot, int frPosi, int height, int backRest, boolean isMoving) {
+                runOnUiThread(() -> {
+                    if (isMoving) {
+                        statusTv.setText("🔄 Koltuk hareket ediyor... Konum okunuyor...");
+                        statusTv.setTextColor(0xFFFBBF24);
+                    }
+                    coordsTv.setText("Canlı Konum -> Ön/Arka: " + frPosi + ", Yükseklik: " + height + ", Sırtlık: " + backRest);
+                });
+            }
+
+            @Override
+            public void onCalibrationComplete(int slot, int frPosi, int height, int backRest) {
+                runOnUiThread(() -> {
+                    spinner.setVisibility(View.GONE);
+                    statusTv.setText("✅ Konum başarıyla kaydedildi!");
+                    statusTv.setTextColor(0xFF34D399);
+                    coordsTv.setText("Kaydedilen -> Ön/Arka: " + frPosi + ", Yükseklik: " + height + ", Sırtlık: " + backRest);
+                    uiHandler.postDelayed(() -> {
+                        try {
+                            if (dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    }, 1000L);
+                });
+            }
+
+            @Override
+            public void onCalibrationFailed(String reason) {
+                runOnUiThread(() -> {
+                    spinner.setVisibility(View.GONE);
+                    statusTv.setText("⚠️ " + reason);
+                    statusTv.setTextColor(0xFFF87171);
+                    uiHandler.postDelayed(() -> {
+                        try {
+                            if (dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    }, 2200L);
+                });
+            }
+        });
+
+        dialog.show();
     }
 
     private void onEnrollButtonClicked() {
@@ -797,6 +1072,13 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                     : getString(R.string.dms_face_saved_name, savedName);
             showFaceStatus(msg);
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+
+            if (seatMemoryAvailable && CarSeatMemoryManager.getInstance(this).isDoorMode()) {
+                showSeatCalibrationDialog(savedMemory, () -> {
+                    refreshProfilesListUi();
+                    Toast.makeText(this, "Yüz profili ve Kapı Hafıza " + savedMemory + " başarıyla eşitlendi!", Toast.LENGTH_LONG).show();
+                });
+            }
         } catch (IllegalStateException e) {
             status.setText(getString(R.string.dms_face_save_error, e.getMessage()));
         }
@@ -1266,8 +1548,15 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
     @Override
     protected void onPause() {
+        CarSeatMemoryManager.getInstance(this).stopDoorCalibration();
         clusterPreview.hide();
         super.onPause();
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        recreate();
     }
 
     @Override

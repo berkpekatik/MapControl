@@ -229,6 +229,45 @@ public class GlobalBackService extends AccessibilityService {
     public static GlobalBackService getInstance() {
         return instance;
     }
+    /**
+     * EriÅŸilebilirlik servisi Ã¼zerinden tek parmak dokunuÅŸunu altÄ±ndaki uygulamaya iletir.
+     */
+    public static boolean dispatchTap(float x, float y) {
+        GlobalBackService inst = getInstance();
+        if (inst != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                android.accessibilityservice.GestureDescription.Builder builder = new android.accessibilityservice.GestureDescription.Builder();
+                android.graphics.Path path = new android.graphics.Path();
+                path.moveTo(x, y);
+                builder.addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 50));
+                return inst.dispatchGesture(builder.build(), null, null);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * EriÅŸilebilirlik servisi Ã¼zerinden tek parmak kaydÄ±rmayÄ± altÄ±ndaki uygulamaya iletir.
+     */
+    public static boolean dispatchStroke(float startX, float startY, float endX, float endY, long durationMs) {
+        GlobalBackService inst = getInstance();
+        if (inst != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                android.accessibilityservice.GestureDescription.Builder builder = new android.accessibilityservice.GestureDescription.Builder();
+                android.graphics.Path path = new android.graphics.Path();
+                path.moveTo(startX, startY);
+                path.lineTo(endX, endY);
+                long dur = Math.max(50, Math.min(durationMs, 500));
+                builder.addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, dur));
+                return inst.dispatchGesture(builder.build(), null, null);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+        return false;
+    }
     
     /**
      * Sistem o anda servise bağlandı mı (performGlobalAction için gerekli)

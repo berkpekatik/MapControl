@@ -661,4 +661,34 @@
     <string name="climate_auto_passenger_section">Passenger Side</string>
     <string name="climate_auto_other_section">Glass &amp; Steering</string>
     <string name="climate_auto_conflict_rejected">Conflict Prevention: Heating and ventilation cannot be active at the same time! Change reverted.</string>
+
+    <!-- Sunroof Lux Automation -->
+    <string name="side_rail_sunroof_automation">Sunroof Auto</string>
+    <string name="sunroof_auto_title">Sunroof Lux Automation</string>
+    <string name="sunroof_auto_subtitle">Intelligent sunroof and shade management based on vehicle ambient light (lux), rain detection, and driving speed.</string>
+    <string name="sunroof_auto_status_card_title">Live Sensor &amp; Vehicle Status</string>
+    <string name="sunroof_auto_live_lux_label">MEASURED AMBIENT LIGHT (LUX)</string>
+    <string name="sunroof_auto_badge_sunroof">Sunroof State</string>
+    <string name="sunroof_auto_badge_rain">Rain Sensor</string>
+    <string name="sunroof_auto_badge_speed">Vehicle Speed</string>
+    <string name="sunroof_auto_controls_card_title">Manual Controls &amp; Simulator</string>
+    <string name="sunroof_auto_sim_title">Lux Simulation Test Mode</string>
+    <string name="sunroof_auto_master_switch_title">Enable Automatic Sunroof</string>
+    <string name="sunroof_auto_master_switch_desc">Automatically opens or closes sunroof based on ambient light.</string>
+    <string name="sunroof_auto_mode_title">Operation Logic (Mode Selection)</string>
+    <string name="sunroof_auto_mode_open_air">Open Air Mode (Open in Daylight / Close at Night &amp; Tunnels)</string>
+    <string name="sunroof_auto_mode_sun_protect">Sun Guard Mode (Close in Scorching Sun / Open in Shade)</string>
+    <string name="sunroof_auto_open_lux_title">Open Light Threshold</string>
+    <string name="sunroof_auto_close_lux_title">Close Light Threshold</string>
+    <string name="sunroof_auto_debounce_title">Debounce / Stability Time</string>
+    <string name="sunroof_auto_cooldown_title">Motor Protection Cooldown</string>
+    <string name="sunroof_auto_safety_card_title">Safety Guards &amp; Integration</string>
+    <string name="sunroof_auto_rain_guard_title">Rain Safety Guard</string>
+    <string name="sunroof_auto_rain_guard_desc">Immediately closes sunroof when rain is detected and prevents opening.</string>
+    <string name="sunroof_auto_speed_guard_title">High Speed Safety Limit</string>
+    <string name="sunroof_auto_speed_guard_desc">Prevents opening above configured speed to avoid wind noise and damage.</string>
+    <string name="sunroof_auto_close_on_off_title">Auto-Close on Ignition Off</string>
+    <string name="sunroof_auto_close_on_off_desc">Automatically closes open sunroof when the vehicle ignition is turned off.</string>
+    <string name="sunroof_auto_control_shade_title">Sunshade / Curtain Control</string>
+    <string name="sunroof_auto_control_shade_desc">Synchronizes the sunroof curtain/shade with the glass roof motion.</string>
 </resources>

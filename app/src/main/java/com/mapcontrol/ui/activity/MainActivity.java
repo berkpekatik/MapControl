@@ -63,6 +63,7 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
+import android.view.MotionEvent;
 import com.mapcontrol.R;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
@@ -78,6 +79,7 @@ import com.mapcontrol.ui.builder.DriveModeTabBuilder;
 
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
+import com.mapcontrol.ui.builder.SunroofAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
@@ -102,6 +104,7 @@ import com.mapcontrol.util.LauncherSwipeStore;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class MainActivity extends AppCompatActivity {
@@ -113,10 +116,13 @@ public class MainActivity extends AppCompatActivity {
     private static final int TAB_EQUALIZER = 11;
     public static final int TAB_CLIMATE_AUTOMATION = 12;
     public static final int TAB_FACE_RECOGNITION = 13;
+    public static final int TAB_SUNROOF_AUTOMATION = 14;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
+    private ScrollView sunroofAutomationScrollView;
     private ClimateAutomationTabBuilder climateAutomationTabBuilder;
     private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
+    private SunroofAutomationTabBuilder sunroofAutomationTabBuilder;
     private boolean faceRecognitionStatusBroadcastRegistered;
     private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -273,12 +279,12 @@ public class MainActivity extends AppCompatActivity {
         }
         ApkSessionInstaller.handleSessionResultIntent(this, getIntent());
 
+        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
+
         // Cold start: önce splash boyansın — initializeApp uzun sürer, siyah frame olmasın
         launchSplashRoot = DisplayHelper.createAppLaunchSplashView(this);
         setContentView(launchSplashRoot);
-
-        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
 
         if (!disclaimerAccepted) {
             handler.post(this::showLegalDisclaimer);
@@ -753,6 +759,10 @@ public class MainActivity extends AppCompatActivity {
                 msg -> MainActivity.this.log(msg));
         rebuildClimateAutomationTab();
 
+        sunroofAutomationTabBuilder = new SunroofAutomationTabBuilder(this,
+                msg -> MainActivity.this.log(msg));
+        rebuildSunroofAutomationTab();
+
         dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         faceRecognitionScrollView = new ScrollView(this);
@@ -1148,6 +1158,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_CLIMATE_AUTOMATION) {
             rebuildClimateAutomationTab();
             addTabChild(parent, climateAutomationScrollView, matchParent);
+        } else if (tabIndex == TAB_SUNROOF_AUTOMATION) {
+            rebuildSunroofAutomationTab();
+            addTabChild(parent, sunroofAutomationScrollView, matchParent);
         } else if (tabIndex == TAB_FACE_RECOGNITION) {
             addTabChild(parent, faceRecognitionScrollView, matchParent);
             if (dmsFaceRecognitionTabBuilder != null) {
@@ -1770,6 +1783,9 @@ public class MainActivity extends AppCompatActivity {
         if (climateAutomationTabBuilder != null) {
             rebuildClimateAutomationTab();
         }
+        if (sunroofAutomationTabBuilder != null) {
+            rebuildSunroofAutomationTab();
+        }
         if (vehicleInfoTabBuilder != null) {
             boolean listening = currentTab == 9;
             if (listening) {
@@ -1794,6 +1810,22 @@ public class MainActivity extends AppCompatActivity {
             climateAutomationScrollView.removeAllViews();
         }
         climateAutomationScrollView.addView(climateAutomationTabBuilder.build(),
+                new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT));
+    }
+
+    private void rebuildSunroofAutomationTab() {
+        if (sunroofAutomationTabBuilder == null) {
+            return;
+        }
+        if (sunroofAutomationScrollView == null) {
+            sunroofAutomationScrollView = new ScrollView(this);
+            sunroofAutomationScrollView.setFillViewport(true);
+        } else {
+            sunroofAutomationScrollView.removeAllViews();
+        }
+        sunroofAutomationScrollView.addView(sunroofAutomationTabBuilder.build(),
                 new ScrollView.LayoutParams(
                         ScrollView.LayoutParams.MATCH_PARENT,
                         ScrollView.LayoutParams.WRAP_CONTENT));
@@ -1826,6 +1858,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        SunroofGestureOverlayManager.getInstance(this).onActivityResumed();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
         if (DmsFaceRecognitionManager.isEnabled(this)
@@ -1860,6 +1893,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        SunroofGestureOverlayManager.getInstance(this).onActivityPaused();
         unregisterTargetPackageBroadcastReceiver();
         unregisterNavigationClusterBroadcastReceiver();
         unregisterGoogleMapsNavBroadcastReceiver();
@@ -1871,6 +1905,107 @@ public class MainActivity extends AppCompatActivity {
             welcomeSoundTabBuilder.onHostPause();
         }
         super.onPause();
+    }
+
+    private float touchDownX0 = 0f;
+    private float touchDownY0 = 0f;
+    private float touchDownX1 = 0f;
+    private float touchDownY1 = 0f;
+    private float touchMidDownX = 0f;
+    private float touchMidDownY = 0f;
+    private int touchMaxPointers = 0;
+    private boolean twoFingerGestureHandled = false;
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        int pointerCount = event.getPointerCount();
+
+        if (pointerCount > touchMaxPointers) {
+            touchMaxPointers = pointerCount;
+        }
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                touchDownX0 = event.getX(0);
+                touchDownY0 = event.getY(0);
+                touchMidDownX = touchDownX0;
+                touchMidDownY = touchDownY0;
+                touchMaxPointers = 1;
+                twoFingerGestureHandled = false;
+                break;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                if (pointerCount >= 2) {
+                    touchDownX0 = event.getX(0);
+                    touchDownY0 = event.getY(0);
+                    touchDownX1 = event.getX(1);
+                    touchDownY1 = event.getY(1);
+                    touchMidDownX = (touchDownX0 + touchDownX1) / 2f;
+                    touchMidDownY = (touchDownY0 + touchDownY1) / 2f;
+                }
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (touchMaxPointers >= 2 && !twoFingerGestureHandled) {
+                    float curMidX;
+                    float curMidY;
+                    if (pointerCount >= 2) {
+                        curMidX = (event.getX(0) + event.getX(1)) / 2f;
+                        curMidY = (event.getY(0) + event.getY(1)) / 2f;
+                    } else {
+                        curMidX = event.getX(0);
+                        curMidY = event.getY(0);
+                    }
+
+                    float dx = curMidX - touchMidDownX;
+                    float dy = curMidY - touchMidDownY;
+                    float absDx = Math.abs(dx);
+                    float absDy = Math.abs(dy);
+                    float density = getResources().getDisplayMetrics().density;
+                    float thresholdX = 35 * density;
+                    float thresholdY = 22 * density;
+
+                    if (absDx > thresholdX || absDy > thresholdY) {
+                        twoFingerGestureHandled = true;
+                        if (touchMaxPointers >= 2) {
+                            // İKİ PARMAK JESTİ: CAM TAVAN VE PERDE KONTROLLERİ
+                            SunroofGestureOverlayManager mgr = SunroofGestureOverlayManager.getInstance(this);
+                            if (absDx >= absDy) {
+                                if (dx > 0) {
+                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_RIGHT, "Ekran");
+                                } else {
+                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_LEFT, "Ekran");
+                                }
+                            } else {
+                                if (dy < 0) {
+                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_UP, "Ekran");
+                                } else {
+                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_DOWN, "Ekran");
+                                }
+                            }
+                        }
+                        MotionEvent cancelEvent = MotionEvent.obtain(event);
+                        cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+                        super.dispatchTouchEvent(cancelEvent);
+                        cancelEvent.recycle();
+                        return true;
+                    }
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (twoFingerGestureHandled) {
+                    twoFingerGestureHandled = false;
+                    touchMaxPointers = 0;
+                    return true;
+                }
+                touchMaxPointers = 0;
+                break;
+        }
+
+        return super.dispatchTouchEvent(event);
     }
 
     private void registerTargetPackageBroadcastReceiver() {
