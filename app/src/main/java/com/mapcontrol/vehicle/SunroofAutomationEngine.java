@@ -670,16 +670,35 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
      * - Kapatma yapıldıysa: Otomatik açılmayı bu sürüş boyunca kilitler.
      * - Açma yapıldıysa: Sürüş kilidini kaldırır.
      */
-    public void notifyManualOverride(String actionName) {
+    /**
+     * Sürücü hızlı jest veya butonla manuel müdahale ettiğinde çağrılır.
+     * SADECE cam tavanın kendisi (SPF) açılıp kapandığında sürüş kilidi güncellenir.
+     * Perde / güneşlik hareketleri tavan kilidini ASLA etkilemez.
+     */
+    public void notifyManualOverride(String actionName, boolean isSunroof, boolean isClose) {
         lastActionDescription = actionName;
         lastActionTimestamp = System.currentTimeMillis();
-        if (actionName != null && actionName.toLowerCase(Locale.ROOT).contains("kapat")) {
-            manualClosedByDriver = true;
-            logEvent("Hızlı Kumanda: " + actionName + " — Otomatik açılma bu sürüş boyunca kilitlendi.");
-        } else if (actionName != null && actionName.toLowerCase(Locale.ROOT).contains("aç")) {
-            manualClosedByDriver = false;
-            logEvent("Hızlı Kumanda: " + actionName + " — Sürüş kilidi kaldırıldı.");
+        if (isSunroof) {
+            if (isClose) {
+                manualClosedByDriver = true;
+                logEvent("Hızlı Kumanda: " + actionName + " — Otomatik açılma bu sürüş boyunca kilitlendi.");
+            } else {
+                manualClosedByDriver = false;
+                logEvent("Hızlı Kumanda: " + actionName + " — Sürüş kilidi kaldırıldı.");
+            }
+        } else {
+            logEvent("Hızlı Kumanda: " + actionName);
         }
         notifyStatusChanged();
+    }
+
+    public void notifyManualOverride(String actionName) {
+        if (actionName == null) {
+            return;
+        }
+        boolean isSunshade = actionName.contains("Perde") || actionName.contains("Güneşlik");
+        boolean isSunroof = !isSunshade && (actionName.contains("Tavan") || actionName.contains("Cam"));
+        boolean isClose = actionName.toLowerCase(Locale.ROOT).contains("kapat");
+        notifyManualOverride(actionName, isSunroof, isClose);
     }
 }

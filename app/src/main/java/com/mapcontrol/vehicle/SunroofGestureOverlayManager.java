@@ -194,30 +194,30 @@ public final class SunroofGestureOverlayManager {
                         return true;
 
                     case MotionEvent.ACTION_POINTER_DOWN:
-                        if (currentPointers >= 2) {
+                        if (currentPointers == 2) {
                             downX0 = event.getX(0);
                             downY0 = event.getY(0);
                             downX1 = event.getX(1);
                             downY1 = event.getY(1);
                             midDownX = (downX0 + downX1) / 2f;
                             midDownY = (downY0 + downY1) / 2f;
+                            gestureTriggered = false;
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_POINTER_UP:
+                        if (currentPointers <= 2) {
+                            gestureTriggered = false;
                         }
                         return true;
 
                     case MotionEvent.ACTION_MOVE:
-                        if (gestureTriggered || maxPointerCount < 2) {
+                        if (gestureTriggered || currentPointers != 2) {
                             return true;
                         }
 
-                        float curMidX;
-                        float curMidY;
-                        if (currentPointers >= 2) {
-                            curMidX = (event.getX(0) + event.getX(1)) / 2f;
-                            curMidY = (event.getY(0) + event.getY(1)) / 2f;
-                        } else {
-                            curMidX = event.getX(0);
-                            curMidY = event.getY(0);
-                        }
+                        float curMidX = (event.getX(0) + event.getX(1)) / 2f;
+                        float curMidY = (event.getY(0) + event.getY(1)) / 2f;
 
                         float dx = curMidX - midDownX;
                         float dy = curMidY - midDownY;
@@ -250,7 +250,6 @@ public final class SunroofGestureOverlayManager {
 
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
-                    case MotionEvent.ACTION_POINTER_UP:
                         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                             if (!gestureTriggered && maxPointerCount == 1 && action == MotionEvent.ACTION_UP) {
                                 float upX = event.getX(0);
@@ -324,7 +323,7 @@ public final class SunroofGestureOverlayManager {
                     desc = "➡️ İki parmakla sağa kaydırıldı (" + source + ")";
                 }
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Tavan Açıldı");
+                engine.notifyManualOverride("Hızlı Jest: Tavan Açıldı", true, false);
                 break;
 
             case SWIPE_LEFT:
@@ -333,7 +332,7 @@ public final class SunroofGestureOverlayManager {
                 title = "Cam Tavan Kapatılıyor";
                 desc = "⬅️ İki parmakla sola kaydırıldı (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Tavan Kapatıldı");
+                engine.notifyManualOverride("Hızlı Jest: Tavan Kapatıldı", true, true);
                 break;
 
             case SWIPE_UP:
@@ -342,7 +341,7 @@ public final class SunroofGestureOverlayManager {
                 title = "Tavan Perdesi Kapatılıyor";
                 desc = "⬆️ İki parmakla yukarı kaydırıldı (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Perde Kapatıldı");
+                engine.notifyManualOverride("Hızlı Jest: Perde Kapatıldı", false, true);
                 break;
 
             case SWIPE_DOWN:
@@ -351,7 +350,7 @@ public final class SunroofGestureOverlayManager {
                 title = "Tavan Perdesi Açılıyor";
                 desc = "⬇️ İki parmakla aşağı kaydırıldı (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Perde Açıldı");
+                engine.notifyManualOverride("Hızlı Jest: Perde Açıldı", false, false);
                 break;
 
             default:

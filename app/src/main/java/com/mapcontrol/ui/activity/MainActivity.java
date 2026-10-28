@@ -2031,7 +2031,6 @@ public class MainActivity extends AppCompatActivity {
     private float touchDownY1 = 0f;
     private float touchMidDownX = 0f;
     private float touchMidDownY = 0f;
-    private int touchMaxPointers = 0;
     private boolean twoFingerGestureHandled = false;
 
     @Override
@@ -2039,42 +2038,39 @@ public class MainActivity extends AppCompatActivity {
         int action = event.getActionMasked();
         int pointerCount = event.getPointerCount();
 
-        if (pointerCount > touchMaxPointers) {
-            touchMaxPointers = pointerCount;
-        }
-
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 touchDownX0 = event.getX(0);
                 touchDownY0 = event.getY(0);
                 touchMidDownX = touchDownX0;
                 touchMidDownY = touchDownY0;
-                touchMaxPointers = 1;
                 twoFingerGestureHandled = false;
                 break;
 
             case MotionEvent.ACTION_POINTER_DOWN:
-                if (pointerCount >= 2) {
+                if (pointerCount == 2) {
                     touchDownX0 = event.getX(0);
                     touchDownY0 = event.getY(0);
                     touchDownX1 = event.getX(1);
                     touchDownY1 = event.getY(1);
                     touchMidDownX = (touchDownX0 + touchDownX1) / 2f;
                     touchMidDownY = (touchDownY0 + touchDownY1) / 2f;
+                    twoFingerGestureHandled = false;
+                }
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                // Ekranda kalan parmak sayısı 2 değilse jesti iptal et (tek parmak kaydırmayı engelle)
+                if (pointerCount <= 2) {
+                    twoFingerGestureHandled = false;
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                if (touchMaxPointers >= 2 && !twoFingerGestureHandled) {
-                    float curMidX;
-                    float curMidY;
-                    if (pointerCount >= 2) {
-                        curMidX = (event.getX(0) + event.getX(1)) / 2f;
-                        curMidY = (event.getY(0) + event.getY(1)) / 2f;
-                    } else {
-                        curMidX = event.getX(0);
-                        curMidY = event.getY(0);
-                    }
+                // YALNIZCA ekranda aktif tam 2 parmak varken değerlendir
+                if (pointerCount == 2 && !twoFingerGestureHandled) {
+                    float curMidX = (event.getX(0) + event.getX(1)) / 2f;
+                    float curMidY = (event.getY(0) + event.getY(1)) / 2f;
 
                     float dx = curMidX - touchMidDownX;
                     float dy = curMidY - touchMidDownY;
@@ -2086,21 +2082,19 @@ public class MainActivity extends AppCompatActivity {
 
                     if (absDx > thresholdX || absDy > thresholdY) {
                         twoFingerGestureHandled = true;
-                        if (touchMaxPointers >= 2) {
-                            // İKİ PARMAK JESTİ: CAM TAVAN VE PERDE KONTROLLERİ
-                            SunroofGestureOverlayManager mgr = SunroofGestureOverlayManager.getInstance(this);
-                            if (absDx >= absDy) {
-                                if (dx > 0) {
-                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_RIGHT, "Ekran");
-                                } else {
-                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_LEFT, "Ekran");
-                                }
+                        // İKİ PARMAK JESTİ: CAM TAVAN VE PERDE KONTROLLERİ
+                        SunroofGestureOverlayManager mgr = SunroofGestureOverlayManager.getInstance(this);
+                        if (absDx >= absDy) {
+                            if (dx > 0) {
+                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_RIGHT, "Ekran");
                             } else {
-                                if (dy < 0) {
-                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_UP, "Ekran");
-                                } else {
-                                    mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_DOWN, "Ekran");
-                                }
+                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_LEFT, "Ekran");
+                            }
+                        } else {
+                            if (dy < 0) {
+                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_UP, "Ekran");
+                            } else {
+                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_DOWN, "Ekran");
                             }
                         }
                         MotionEvent cancelEvent = MotionEvent.obtain(event);
@@ -2116,10 +2110,9 @@ public class MainActivity extends AppCompatActivity {
             case MotionEvent.ACTION_CANCEL:
                 if (twoFingerGestureHandled) {
                     twoFingerGestureHandled = false;
-                    touchMaxPointers = 0;
                     return true;
                 }
-                touchMaxPointers = 0;
+                twoFingerGestureHandled = false;
                 break;
         }
 
