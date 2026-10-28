@@ -267,5 +267,14 @@
     <string name="launcher_quick_control_trunk">Bagaj</string>
     <string name="launcher_quick_control_trunk_hint">Bagajı aç/kapatmak için araca dokunun</string>
     <string name="launcher_quick_control_back">Geri</string>
+    <string name="speech_wake_hold_already_ready">Ses tanıma zaten hazır. Uyandırma kelimesine dokunulmadı.</string>
+    <string name="speech_wake_hold_already_off">Uyandırma kelimesi zaten kapalı.</string>
+    <string name="speech_wake_hold_write_failed">Sesli uyandırma duraklatılamadı.</string>
+    <string name="speech_wake_hold_started">Ses tanıma açılışı bitene kadar uyandırma kelimesi duraklatıldı.</string>
+    <string name="speech_wake_hold_network">Ağ bağlantısı var. Ses tanımanın açılışı bekleniyor.</string>
+    <string name="speech_wake_hold_left_off">Ses tanıma açılışı bitmedi. Uyandırma kelimesi kapalı kaldı.</string>
+    <string name="speech_wake_hold_restored">Uyandırma kelimesi eski haline alındı.</string>
+    <string name="speech_wake_hold_log_unavailable">Ses tanıma durumu okunamadı. Uyandırma kelimesine dokunulmadı.</string>
+    <string name="speech_wake_hold_log_lost">Ses tanıma durumu okunamadı. Uyandırma kelimesi duraklatılmış kaldı.</string>
 </resources>
 
