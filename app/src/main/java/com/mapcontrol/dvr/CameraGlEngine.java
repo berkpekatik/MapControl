@@ -48,6 +48,10 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private static final long OVERLAY_REFRESH_MS = 250;
     private static final long REQUEST_TIMEOUT_MS = 3000;
     private static final int EGL_RECORDABLE_ANDROID = 0x3142;
+    private static final int MAX_FAIL_RESTARTS = 3;
+    /** Art arda bu kadar cizim hatasindan sonra motor durur. */
+    private static final int MAX_DRAW_ERRORS = 5;
+    private static final long SURFACE_RETRY_MS = 500;
 
     private static final String VERT =
             "attribute vec4 aPos;\n" +
@@ -173,6 +177,10 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private Request stopRequest;
     private boolean frameDirty;
     private boolean layoutDirty;
+    /** Onizleme EGL yuzeyi sifirdan kurulsun (buyuk/izgara gecisinde bayat kare kalmasin). */
+    private boolean previewRecreate;
+    /** Olu motor thread'i en fazla bu kadar kez onizleme acikken yeniden baslatilir. */
+    private int failRestarts;
 
     private volatile int bigCam = -1;
     private volatile float dewarp = 0f;
@@ -184,6 +192,10 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private Surface previewEglOwner;
     private int viewW = 1;
     private int viewH = 1;
+    /** Onizlemede en son cizilen buyuk kamera (-1 = izgara, -2 = henuz cizilmedi). */
+    private int drawnBig = -2;
+    /** Kaybolan onizleme yuzeyi icin sonraki yeniden deneme zamani (uptimeMillis). */
+    private long surfaceRetryAtMs;
     private RecordConfig record;
     private EGLSurface[] recordEgl;
     private long recordStartNs;
@@ -242,9 +254,15 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     }
 
     public void setBigCam(int cam) {
+        int old = bigCam;
         bigCam = cam;
+        if (old != cam) {
+            Log.i(TAG, "onizleme gorunumu: " + old + " -> " + cam);
+        }
         synchronized (lock) {
             layoutDirty = true;
+            // Buyuk <-> izgara gecisinde yuzeyi yeniden kurup ilk kareyi kesin cizdir.
+            previewRecreate = true;
             lock.notifyAll();
         }
     }
@@ -262,6 +280,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         synchronized (lock) {
             previewEnabled = enabled;
             layoutDirty = true;
+            if (enabled) failRestarts = 0;
             if (enabled) ensureThreadLocked();
             lock.notifyAll();
         }
@@ -370,7 +389,14 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                     previewReleased.countDown();
                     previewReleased = null;
                 }
-                if (!failed && (previewEnabled || startRequest != null)) {
+                boolean retryAfterFailure = failed && previewEnabled && failRestarts < MAX_FAIL_RESTARTS;
+                if (retryAfterFailure) {
+                    // Motor dusunce onizleme son kareyle donuyordu; sinirli sayida yeniden baslat.
+                    failRestarts++;
+                    Log.w(TAG, "GL motoru yeniden baslatiliyor (" + failRestarts + "/"
+                            + MAX_FAIL_RESTARTS + ")");
+                }
+                if ((!failed && (previewEnabled || startRequest != null)) || retryAfterFailure) {
                     ensureThreadLocked();
                 } else {
                     if (startRequest != null) {
@@ -388,8 +414,11 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
     private void loop() throws InterruptedException {
         fpsWindowStart = SystemClock.uptimeMillis();
+        int drawErrors = 0;
         while (true) {
             boolean surfaceChange;
+            boolean recreate;
+            boolean surfaceRetry;
             Surface surf;
             int pw;
             int ph;
@@ -403,15 +432,26 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                     if (previewSurfaceChanged || startRequest != null || stopRequest != null) break;
                     if (!previewEnabled && record == null) return;
                     long now = System.nanoTime();
+                    long nowMs = SystemClock.uptimeMillis();
                     boolean recDue = record != null && now >= nextRecordNs;
-                    boolean prevDue = previewEnabled && previewEgl != EGL14.EGL_NO_SURFACE
-                            && (frameDirty || layoutDirty);
+                    boolean surfaceUp = previewEgl != EGL14.EGL_NO_SURFACE;
+                    // Yuzey kaybolduysa (swap/makeCurrent hatasi) kalici donmasin: yeniden dene.
+                    boolean lost = previewEnabled && !surfaceUp && previewSurface != null
+                            && previewSurface.isValid();
+                    if (lost && nowMs >= surfaceRetryAtMs) break;
+                    if (previewEnabled && previewRecreate && previewSurface != null) break;
+                    // Buyuk kamera degistiyse bayraklar yarisa girse bile yeniden ciz.
+                    boolean prevDue = previewEnabled && surfaceUp
+                            && (frameDirty || layoutDirty || bigCam != drawnBig);
                     if (recDue || prevDue) break;
                     long waitMs = record != null ? Math.max(1, (nextRecordNs - now) / 1_000_000L) : 500;
+                    if (lost) waitMs = Math.min(waitMs, Math.max(1, surfaceRetryAtMs - nowMs));
                     lock.wait(waitMs);
                 }
                 surfaceChange = previewSurfaceChanged;
                 previewSurfaceChanged = false;
+                recreate = previewRecreate;
+                previewRecreate = false;
                 surf = previewSurface;
                 pw = previewW;
                 ph = previewH;
@@ -426,7 +466,21 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                 frameDirty = false;
                 previewOn = previewEnabled;
             }
-            if (surfaceChange) applyPreviewSurface(surf, pw, ph);
+            surfaceRetry = previewOn && previewEgl == EGL14.EGL_NO_SURFACE && surf != null
+                    && surf.isValid() && !surfaceChange
+                    && SystemClock.uptimeMillis() >= surfaceRetryAtMs;
+            if (recreate && previewEgl != EGL14.EGL_NO_SURFACE) {
+                egl.destroySurface(previewEgl);
+                previewEgl = EGL14.EGL_NO_SURFACE;
+                previewEglOwner = null;
+            }
+            if (surfaceChange || recreate || surfaceRetry) {
+                applyPreviewSurface(surf, pw, ph);
+                if (previewOn && surf != null && previewEgl == EGL14.EGL_NO_SURFACE) {
+                    surfaceRetryAtMs = SystemClock.uptimeMillis() + SURFACE_RETRY_MS;
+                }
+                layout = true;
+            }
             if (released != null) released.countDown();
             if (stopReq != null) {
                 destroyRecordSurfaces();
@@ -439,11 +493,26 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                 startReq.done.countDown();
             }
 
-            updateDemand(previewOn);
-            boolean fresh = updateTextures();
             boolean drew = false;
-            if (previewOn && previewEgl != EGL14.EGL_NO_SURFACE && (fresh || layout || surfaceChange)) {
-                drew = drawPreview();
+            try {
+                updateDemand(previewOn);
+                boolean fresh = updateTextures();
+                if (previewOn && previewEgl != EGL14.EGL_NO_SURFACE
+                        && (fresh || layout || surfaceChange || bigCam != drawnBig)) {
+                    drew = drawPreview();
+                }
+                drawErrors = 0;
+            } catch (RuntimeException e) {
+                // Tek bir bozuk kare/yukleme motoru oldurmesin (onizleme son karede donuyordu).
+                if (++drawErrors >= MAX_DRAW_ERRORS) {
+                    throw e;
+                }
+                Log.w(TAG, "onizleme cizim hatasi (" + drawErrors + "/" + MAX_DRAW_ERRORS + ")", e);
+                drawnBig = -2;
+                synchronized (lock) {
+                    layoutDirty = true;
+                }
+                Thread.sleep(40);
             }
             if (record != null && System.nanoTime() >= nextRecordNs) {
                 drawRecord();
@@ -476,6 +545,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         }
         previewEgl = EGL14.EGL_NO_SURFACE;
         previewEglOwner = null;
+        drawnBig = -2;
         record = null;
         zeroCopy = false;
         cam2d = null;
@@ -709,6 +779,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         float dw = dewarp;
         int big = bigCam;
+        drawnBig = big;
         if (big >= 0 && big < CAM_COUNT) {
             drawCam(big, -1f, -1f, 1f, 1f, (float) viewW / viewH, dw);
         } else {
@@ -737,6 +808,9 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         egl.destroySurface(previewEgl);
         previewEgl = EGL14.EGL_NO_SURFACE;
         previewEglOwner = null;
+        // Yuzey gecerliyse dongu bir sure sonra yeniden kurar; ilk kare kesin cizilir.
+        drawnBig = -2;
+        surfaceRetryAtMs = SystemClock.uptimeMillis() + 100;
     }
 
     private void drawRecord() {
