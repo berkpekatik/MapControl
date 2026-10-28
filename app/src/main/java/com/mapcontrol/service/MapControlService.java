@@ -53,6 +53,8 @@ import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.R;
 import com.mapcontrol.vehicle.ClimateAutomationEngine;
+import com.mapcontrol.vehicle.SunroofAutomationEngine;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import android.content.pm.PackageManager;
 
 public class MapControlService extends Service {
@@ -121,6 +123,8 @@ public class MapControlService extends Service {
         com.mapcontrol.dvr.DvrController.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
+        SunroofAutomationEngine.getInstance(this).start();
+        SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
         if (DmsFaceRecognitionManager.isEnabled(this)
                 && checkSelfPermission(android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -310,6 +314,8 @@ public class MapControlService extends Service {
         }
         AudioEqualizerController.release();
         ClimateAutomationEngine.getInstance(this).stop();
+        SunroofAutomationEngine.getInstance(this).stop();
+        SunroofGestureOverlayManager.getInstance(this).stop();
         DmsFaceRecognitionManager.stop(this);
         super.onDestroy();
         if (scheduler != null) {

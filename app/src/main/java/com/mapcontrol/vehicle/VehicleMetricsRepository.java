@@ -36,6 +36,19 @@ public final class VehicleMetricsRepository {
     private static final int MODULE_SETTING = VDEventCarInfo.MODULE_CAR_SETTING;
     private static final int MODULE_NEW_ENERGY = VDEventCarInfo.MODULE_NEW_ENERGY;
 
+    private static volatile VehicleMetricsRepository sInstance;
+
+    public static VehicleMetricsRepository getInstance(Context context) {
+        if (sInstance == null) {
+            synchronized (VehicleMetricsRepository.class) {
+                if (sInstance == null) {
+                    sInstance = new VehicleMetricsRepository(context.getApplicationContext());
+                }
+            }
+        }
+        return sInstance;
+    }
+
     static final int[] SUBSCRIBED_READONLY_IDS = {
             ReadOnlyID.ID_GRAND_TOTAL_KM,
             ReadOnlyID.ID_TRIP,
@@ -62,12 +75,23 @@ public final class VehicleMetricsRepository {
             ReadOnlyID.ID_LFFT_BEHIND_DOOR_STATE,
             ReadOnlyID.ID_RIGHT_BEHIND_DOOR_STATE,
             ReadOnlyID.ID_TRUNK_STATE,
+            // Araç Far & Işık Sensörü (RLS)
+            ReadOnlyID.ID_LIGHT_DETECTED_IHU,
+            ReadOnlyID.ID_PARKING_LAMP_STATE,
+            ReadOnlyID.ID_HIGH_BEAM_STS,
+            ReadOnlyID.ID_RAINFALL,
+            ReadOnlyID.ID_RAIN_DETECTED,
+            ReadOnlyID.ID_RAIN_FALL,
     };
 
-    /** Cam tavan — MODULE_CAR_SETTING (SPF = sunroof). */
+    /** Cam tavan, perde & aydınlatma — MODULE_CAR_SETTING. */
     static final int[] SUBSCRIBED_SETTING_IDS = {
             CarSettingID.ID_CAR_SPF_OPERATE,
             CarSettingID.ID_CAR_SPF_POSI,
+            CarSettingID.ID_CAR_SUNSHADE,
+            CarSettingID.ID_CAR_HEAD_LAMP,
+            CarSettingID.ID_CAR_AIPM_BRIGHTNESS,
+            CarSettingID.ID_CAR_METER_BACKLIGHT_LEVEL,
     };
 
     /** Sürüş modu — MODULE_NEW_ENERGY. */
@@ -104,6 +128,15 @@ public final class VehicleMetricsRepository {
                 return;
             }
             int previousDriveMode = cache.getCombined(MODULE_NEW_ENERGY, NewEnergyID.ID_DRIVE_MODE);
+            if (module == MODULE_READONLY && itemId == ReadOnlyID.ID_LIGHT_DETECTED_IHU && values.length > 0) {
+                VehicleLightSensorManager.getInstance(appContext).onVdbusLightSignal(values[0]);
+            }
+            if (module == MODULE_READONLY && itemId == ReadOnlyID.ID_PARKING_LAMP_STATE && values.length > 0) {
+                VehicleLightSensorManager.getInstance(appContext).onParkingLampSignal(values[0]);
+            }
+            if (module == MODULE_SETTING && itemId == CarSettingID.ID_CAR_HEAD_LAMP && values.length > 0) {
+                VehicleLightSensorManager.getInstance(appContext).onHeadLampSignal(values[0]);
+            }
             if (cache.update(module, itemId, values)) {
                 if (module == MODULE_NEW_ENERGY && itemId == NewEnergyID.ID_DRIVE_MODE) {
                     int currentDriveMode = cache.getCombined(module, itemId);
@@ -186,6 +219,10 @@ public final class VehicleMetricsRepository {
 
     public VehicleMetricsSnapshot currentSnapshot() {
         return VehicleMetricsSnapshot.from(cache, isCarInfoConnected());
+    }
+
+    public VehicleMetricsSnapshot getSnapshot() {
+        return currentSnapshot();
     }
 
     public int getCombined(int readOnlyId) {
@@ -291,12 +328,21 @@ public final class VehicleMetricsRepository {
             int[] values = proxy.getItemValues(MODULE_READONLY, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_READONLY, id, values);
+                if (id == ReadOnlyID.ID_LIGHT_DETECTED_IHU) {
+                    VehicleLightSensorManager.getInstance(appContext).onVdbusLightSignal(values[0]);
+                }
+                if (id == ReadOnlyID.ID_PARKING_LAMP_STATE) {
+                    VehicleLightSensorManager.getInstance(appContext).onParkingLampSignal(values[0]);
+                }
             }
         }
         for (int id : SUBSCRIBED_SETTING_IDS) {
             int[] values = proxy.getItemValues(MODULE_SETTING, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_SETTING, id, values);
+                if (id == CarSettingID.ID_CAR_HEAD_LAMP) {
+                    VehicleLightSensorManager.getInstance(appContext).onHeadLampSignal(values[0]);
+                }
             }
         }
         for (int id : SUBSCRIBED_NEW_ENERGY_IDS) {

@@ -65,6 +65,7 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
+import android.view.MotionEvent;
 import com.mapcontrol.R;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
@@ -81,6 +82,7 @@ import com.mapcontrol.ui.builder.DriveModeTabBuilder;
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.builder.Camera360TabBuilder;
 import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
+import com.mapcontrol.ui.builder.SunroofAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
@@ -103,9 +105,13 @@ import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.util.LauncherSwipeStore;
+import com.mapcontrol.util.GestureConflicts;
+import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
+import com.mapcontrol.vehicle.SunroofGestureStore;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class MainActivity extends AppCompatActivity {
@@ -119,10 +125,13 @@ public class MainActivity extends AppCompatActivity {
     public static final int TAB_FACE_RECOGNITION = 13;
     public static final int TAB_CAMERA_360 = 14;
     public static final int TAB_SPLIT_SCREEN = 15;
+    public static final int TAB_SUNROOF_AUTOMATION = 16;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
+    private ScrollView sunroofAutomationScrollView;
     private ClimateAutomationTabBuilder climateAutomationTabBuilder;
     private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
+    private SunroofAutomationTabBuilder sunroofAutomationTabBuilder;
     private boolean faceRecognitionStatusBroadcastRegistered;
     private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -283,12 +292,12 @@ public class MainActivity extends AppCompatActivity {
         }
         ApkSessionInstaller.handleSessionResultIntent(this, getIntent());
 
+        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
+
         // Cold start: önce splash boyansın — initializeApp uzun sürer, siyah frame olmasın
         launchSplashRoot = DisplayHelper.createAppLaunchSplashView(this);
         setContentView(launchSplashRoot);
-
-        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
 
         if (!disclaimerAccepted) {
             handler.post(this::showLegalDisclaimer);
@@ -799,6 +808,10 @@ public class MainActivity extends AppCompatActivity {
                 msg -> MainActivity.this.log(msg));
         rebuildClimateAutomationTab();
 
+        sunroofAutomationTabBuilder = new SunroofAutomationTabBuilder(this,
+                msg -> MainActivity.this.log(msg));
+        rebuildSunroofAutomationTab();
+
         dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         faceRecognitionScrollView = new ScrollView(this);
@@ -1217,6 +1230,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_CLIMATE_AUTOMATION) {
             rebuildClimateAutomationTab();
             addTabChild(parent, climateAutomationScrollView, matchParent);
+        } else if (tabIndex == TAB_SUNROOF_AUTOMATION) {
+            rebuildSunroofAutomationTab();
+            addTabChild(parent, sunroofAutomationScrollView, matchParent);
         } else if (tabIndex == TAB_FACE_RECOGNITION) {
             addTabChild(parent, faceRecognitionScrollView, matchParent);
             if (dmsFaceRecognitionTabBuilder != null) {
@@ -1863,6 +1879,9 @@ public class MainActivity extends AppCompatActivity {
         if (climateAutomationTabBuilder != null) {
             rebuildClimateAutomationTab();
         }
+        if (sunroofAutomationTabBuilder != null) {
+            rebuildSunroofAutomationTab();
+        }
         if (vehicleInfoTabBuilder != null) {
             boolean listening = currentTab == 9;
             if (listening) {
@@ -1910,6 +1929,22 @@ public class MainActivity extends AppCompatActivity {
                         ScrollView.LayoutParams.WRAP_CONTENT));
     }
 
+    private void rebuildSunroofAutomationTab() {
+        if (sunroofAutomationTabBuilder == null) {
+            return;
+        }
+        if (sunroofAutomationScrollView == null) {
+            sunroofAutomationScrollView = new ScrollView(this);
+            sunroofAutomationScrollView.setFillViewport(true);
+        } else {
+            sunroofAutomationScrollView.removeAllViews();
+        }
+        sunroofAutomationScrollView.addView(sunroofAutomationTabBuilder.build(),
+                new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT));
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -1937,6 +1972,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        SunroofGestureOverlayManager.getInstance(this).onActivityResumed();
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabVisible();
         }
@@ -1974,6 +2010,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        SunroofGestureOverlayManager.getInstance(this).onActivityPaused();
         unregisterTargetPackageBroadcastReceiver();
         unregisterNavigationClusterBroadcastReceiver();
         unregisterGoogleMapsNavBroadcastReceiver();
@@ -1989,6 +2026,133 @@ public class MainActivity extends AppCompatActivity {
             camera360TabBuilder.onTabHidden();
         }
         super.onPause();
+    }
+
+    /** Hareketin başladığı andaki parmak ortası. */
+    private float touchMidDownX = 0f;
+    private float touchMidDownY = 0f;
+    /** Ekrandaki geçerli parmak sayısı (2-4). Parmak kalkınca 0: yeni parmak gelene dek değerlendirme yok. */
+    private int touchActiveFingers = 0;
+    /** Bu parmak seti için eşik aşıldı ve hareket yönü değerlendirildi. */
+    private boolean touchSwipeEvaluated = false;
+    /** Cam tavan hareketi tanındı; parmaklar kalkana dek olaylar uygulamaya iletilmez. */
+    private boolean touchSwipeConsumed = false;
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        int pointerCount = event.getPointerCount();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
+                break;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (pointerCount >= 2 && pointerCount <= 4) {
+                    touchActiveFingers = pointerCount;
+                    touchSwipeEvaluated = false;
+                    updateTouchMid(event);
+                } else {
+                    touchActiveFingers = 0;
+                }
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                // Kalan parmaklar eski ortaya göre ölçülmez; yeni parmak gelene dek hareket yok.
+                touchActiveFingers = 0;
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (touchActiveFingers >= 2 && pointerCount == touchActiveFingers
+                        && !touchSwipeEvaluated && handleSunroofSwipe(event, pointerCount)) {
+                    MotionEvent cancelEvent = MotionEvent.obtain(event);
+                    cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancelEvent);
+                    cancelEvent.recycle();
+                    return true;
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                boolean consumed = touchSwipeConsumed;
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
+                if (consumed) {
+                    return true;
+                }
+                break;
+        }
+
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void updateTouchMid(MotionEvent event) {
+        float sumX = 0f;
+        float sumY = 0f;
+        int count = event.getPointerCount();
+        for (int i = 0; i < count; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        touchMidDownX = sumX / count;
+        touchMidDownY = sumY / count;
+    }
+
+    /**
+     * Çok parmaklı kaydırma eşiği aşıldıysa yönü bulur ve o harekete bağlı cam tavan / perde
+     * işlemini çalıştırır. Hareket seçilmemişse veya başka bir özellik (bölünmüş ekran, harita
+     * kaydırma) aynı hareketi kullanıyorsa dokunuşa karışmaz.
+     *
+     * @return işlem çalıştıysa true (dokunuş iptal edilmeli)
+     */
+    private boolean handleSunroofSwipe(MotionEvent event, int fingers) {
+        float sumX = 0f;
+        float sumY = 0f;
+        for (int i = 0; i < fingers; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        float dx = sumX / fingers - touchMidDownX;
+        float dy = sumY / fingers - touchMidDownY;
+        float absDx = Math.abs(dx);
+        float absDy = Math.abs(dy);
+        float density = getResources().getDisplayMetrics().density;
+        if (absDx <= 35 * density && absDy <= 22 * density) {
+            return false;
+        }
+        touchSwipeEvaluated = true;
+
+        int direction;
+        if (absDx >= absDy) {
+            direction = dx > 0 ? SplitScreenGesture.RIGHT : SplitScreenGesture.LEFT;
+        } else {
+            direction = dy < 0 ? SplitScreenGesture.UP : SplitScreenGesture.DOWN;
+        }
+        int code = SplitScreenGesture.code(fingers, direction);
+        SunroofGestureOverlayManager.GestureAction gesture = SunroofGestureStore.actionFor(this, code);
+        if (gesture == null) {
+            return false;
+        }
+        if (GestureConflicts.findOwnerLabel(this, code, GestureConflicts.slotOf(gesture)) != 0) {
+            return false;
+        }
+        touchSwipeConsumed = true;
+        SunroofGestureOverlayManager.getInstance(this).handleGestureAction(gesture, "Ekran");
+        return true;
     }
 
     private void registerTargetPackageBroadcastReceiver() {
