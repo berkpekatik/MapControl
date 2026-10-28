@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
@@ -25,11 +26,18 @@ import androidx.appcompat.widget.AppCompatImageView;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.DialogHelper;
+import com.mapcontrol.util.GestureConflicts;
+import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.vehicle.SunroofAutomationEngine;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager.GestureAction;
+import com.mapcontrol.vehicle.SunroofGestureStore;
 import com.mapcontrol.vehicle.VehicleLightSensorManager;
 import com.mapcontrol.vehicle.VehicleSunroofController;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -76,6 +84,9 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     private Button btnSensBalanced;
     private Button btnSensBroad;
 
+    // Hızlı kaydırma kumandası: işlem başına seçilen hareket
+    private LinearLayout gestureGrid;
+
     public SunroofAutomationTabBuilder(Context context, Callback callback) {
         this.context = context;
         this.callback = callback;
@@ -113,7 +124,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             colLeft.addView(buildLiveConditionCard(density));
             colLeft.addView(buildAutomationModeCard(density));
 
-            // Sağ Sütun: Çift Parmak Hızlı Kumanda (Üst) + Emniyet ve Entegrasyon (Alt)
+            // Sağ Sütun: Hızlı Kaydırma Kumandası (Üst) + Emniyet ve Entegrasyon (Alt)
             LinearLayout colRight = new LinearLayout(context);
             colRight.setOrientation(LinearLayout.VERTICAL);
             colRight.addView(buildQuickControlsCard(density));
@@ -394,27 +405,29 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     }
 
     /**
-     * Hızlı Çift Parmak Kumandası Kartı (Seçenek A - Ferah Dokunmatik Test Alanı + 2x2 Grid).
+     * Hızlı Kaydırma Kumandası Kartı: her işlem için kullanıcı bir kaydırma hareketi seçer.
+     * Aynı hareket bölünmüş ekran, harita kaydırma veya başka bir işlemde kullanılıyorsa uyarılır.
      */
     private View buildQuickControlsCard(float density) {
         LinearLayout card = createPanelCard(density);
 
-        TextView title = createSectionTitle("Çift Parmak Hızlı Kumanda", density);
+        TextView title = createSectionTitle("Hızlı Kaydırma Kumandası", density);
         card.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Ekranın herhangi bir yerinde 2 parmağınızı kaydırarak tavan ve perdeyi yönetin.");
+        subtitle.setText("Her işlem için bir kaydırma hareketi seçin. Seçtiğiniz hareketi MapControl ekranında yaptığınızda tavan ve perde çalışır. Kutuya dokunarak işlemi deneyebilirsiniz.");
         subtitle.setTextSize(11);
         subtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         subtitle.setPadding(0, 0, 0, dp(6, density));
         card.addView(subtitle);
 
-        // Seçenek A: Şık Dokunmatik Test Pedi + 2x2 Ferah Buton Matrisi
-        card.addView(createInteractiveGestureTouchpad(density));
+        gestureGrid = new LinearLayout(context);
+        gestureGrid.setOrientation(LinearLayout.VERTICAL);
+        card.addView(gestureGrid);
+        populateGestureGrid(density);
 
-        // Alt Bilgilendirme Notu
         TextView tvInfo = new TextView(context);
-        tvInfo.setText("🌐 Yandex Haritalar, Spotify vb. açıkken de ekranda 2 parmak kaydırarak kontrol edebilirsiniz.");
+        tvInfo.setText("⚠️ Bir kaydırma yalnızca tek özelliğe atanabilir. Bölünmüş ekran veya harita kaydırmada kullanılan bir hareketi seçerseniz uyarı alırsınız.");
         tvInfo.setTextSize(10);
         tvInfo.setTextColor(0xFF38BDF8);
         tvInfo.setPadding(dp(2, density), dp(6, density), 0, 0);
@@ -423,46 +436,179 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         return card;
     }
 
-    private LinearLayout createInteractiveGestureTouchpad(float density) {
-        LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
+    private void populateGestureGrid(float density) {
+        if (gestureGrid == null) {
+            return;
+        }
+        gestureGrid.removeAllViews();
+        gestureGrid.addView(buildGestureRow(density,
+                GestureAction.SWIPE_LEFT, GestureAction.SWIPE_RIGHT, dp(6, density)));
+        gestureGrid.addView(buildGestureRow(density,
+                GestureAction.SWIPE_UP, GestureAction.SWIPE_DOWN, 0));
+    }
 
-        // 2x2 Ferah Buton Matrisi (Seçenek A)
-        LinearLayout row1 = new LinearLayout(context);
-        row1.setOrientation(LinearLayout.HORIZONTAL);
-        row1.setBaselineAligned(false);
-        LinearLayout.LayoutParams r1Lp = new LinearLayout.LayoutParams(
+    private LinearLayout buildGestureRow(float density, GestureAction first, GestureAction second, int bottomMargin) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBaselineAligned(false);
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        r1Lp.bottomMargin = dp(6, density);
-        row1.setLayoutParams(r1Lp);
+        rowLp.bottomMargin = bottomMargin;
+        row.setLayoutParams(rowLp);
 
-        View pillLeft = createOptionAPill("⬅️", "Sola Kaydır", "Tavanı Kapat", 0xFFEF4444, density,
-                () -> gestureManager.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_LEFT, "Hızlı Buton"));
-        View pillRight = createOptionAPill("➡️", "Sağa Kaydır", "Tavanı Aç", 0xFF22C55E, density,
-                () -> gestureManager.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_RIGHT, "Hızlı Buton"));
-        LinearLayout.LayoutParams pLeftLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        pLeftLp.rightMargin = dp(6, density);
-        row1.addView(pillLeft, pLeftLp);
-        row1.addView(pillRight, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        container.addView(row1);
+        LinearLayout.LayoutParams firstLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        firstLp.rightMargin = dp(6, density);
+        row.addView(buildGestureCell(first, density), firstLp);
+        row.addView(buildGestureCell(second, density), new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return row;
+    }
 
-        LinearLayout row2 = new LinearLayout(context);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.setBaselineAligned(false);
-        row2.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    private View buildGestureCell(GestureAction action, float density) {
+        LinearLayout cell = new LinearLayout(context);
+        cell.setOrientation(LinearLayout.VERTICAL);
 
-        View pillUp = createOptionAPill("⬆️", "Yukarı Kaydır", "Perdeyi Kapat", 0xFF8B5CF6, density,
-                () -> gestureManager.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_UP, "Hızlı Buton"));
-        View pillDown = createOptionAPill("⬇️", "Aşağı Kaydır", "Perdeyi Aç", 0xFFEAB308, density,
-                () -> gestureManager.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_DOWN, "Hızlı Buton"));
-        LinearLayout.LayoutParams pUpLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        pUpLp.rightMargin = dp(6, density);
-        row2.addView(pillUp, pUpLp);
-        row2.addView(pillDown, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        container.addView(row2);
+        int code = SunroofGestureStore.getCode(context, action);
+        boolean conflicted = code != SunroofGestureStore.GESTURE_OFF
+                && GestureConflicts.findOwnerLabel(context, code, GestureConflicts.slotOf(action)) != 0;
+        View pill = createOptionAPill(gestureArrow(code),
+                conflicted ? gestureLabel(code) + " ⚠" : gestureLabel(code),
+                actionTitle(action), actionColor(action), density,
+                () -> gestureManager.handleGestureAction(action, "Hızlı Buton"));
+        cell.addView(pill);
 
-        return container;
+        TextView change = new TextView(context);
+        change.setText("✎ " + context.getString(R.string.sunroof_gesture_change));
+        change.setTextSize(11);
+        change.setTextColor(0xFF38BDF8);
+        change.setClickable(true);
+        change.setFocusable(true);
+        change.setPadding(dp(4, density), dp(6, density), dp(4, density), dp(2, density));
+        change.setOnClickListener(v -> showGesturePicker(action, density));
+        cell.addView(change);
+        return cell;
+    }
+
+    private void showGesturePicker(GestureAction action, float density) {
+        final List<Integer> codes = new ArrayList<>();
+        codes.add(SunroofGestureStore.GESTURE_OFF);
+        for (int fingers : SplitScreenGesture.FINGER_COUNTS) {
+            for (int direction : SplitScreenGesture.DIRECTIONS) {
+                codes.add(SplitScreenGesture.code(fingers, direction));
+            }
+        }
+
+        GestureConflicts.Slot slot = GestureConflicts.slotOf(action);
+        int current = SunroofGestureStore.getCode(context, action);
+        CharSequence[] labels = new CharSequence[codes.size()];
+        for (int i = 0; i < codes.size(); i++) {
+            int code = codes.get(i);
+            StringBuilder label = new StringBuilder();
+            if (code == current) {
+                label.append("✓ ");
+            }
+            label.append(code == SunroofGestureStore.GESTURE_OFF
+                    ? context.getString(R.string.split_gesture_off)
+                    : gestureLabel(code));
+            if (code != SunroofGestureStore.GESTURE_OFF) {
+                int owner = GestureConflicts.findOwnerLabel(context, code, slot);
+                if (owner != 0) {
+                    label.append("  ⚠ ").append(context.getString(
+                            R.string.gesture_in_use_by, context.getString(owner)));
+                }
+            }
+            labels[i] = label.toString();
+        }
+
+        new AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.sunroof_gesture_pick_title, actionTitle(action)))
+                .setItems(labels, (dialog, which) -> applyGesture(action, codes.get(which), density))
+                .setNegativeButton(R.string.wifi_cancel, null)
+                .show();
+    }
+
+    private void applyGesture(GestureAction action, int code, float density) {
+        if (code != SunroofGestureStore.GESTURE_OFF) {
+            int owner = GestureConflicts.findOwnerLabel(context, code, GestureConflicts.slotOf(action));
+            if (owner != 0) {
+                DialogHelper.showGestureConflict(context, owner);
+                return;
+            }
+        }
+        SunroofGestureStore.setCode(context, action, code);
+        callback.log(code == SunroofGestureStore.GESTURE_OFF
+                ? actionTitle(action) + " hareketi kapatıldı"
+                : actionTitle(action) + " hareketi: " + gestureLabel(code));
+        populateGestureGrid(density);
+    }
+
+    private String gestureLabel(int code) {
+        if (!SplitScreenGesture.isValid(code)) {
+            return "Hareket kapalı";
+        }
+        return context.getString(R.string.split_gesture_name,
+                SplitScreenGesture.fingersOf(code),
+                directionLabel(SplitScreenGesture.directionOf(code)));
+    }
+
+    private String directionLabel(int direction) {
+        switch (direction) {
+            case SplitScreenGesture.LEFT:
+                return context.getString(R.string.split_dir_left);
+            case SplitScreenGesture.RIGHT:
+                return context.getString(R.string.split_dir_right);
+            case SplitScreenGesture.DOWN:
+                return context.getString(R.string.split_dir_down);
+            case SplitScreenGesture.UP:
+            default:
+                return context.getString(R.string.split_dir_up);
+        }
+    }
+
+    private static String gestureArrow(int code) {
+        if (!SplitScreenGesture.isValid(code)) {
+            return "🚫";
+        }
+        switch (SplitScreenGesture.directionOf(code)) {
+            case SplitScreenGesture.LEFT:
+                return "⬅️";
+            case SplitScreenGesture.RIGHT:
+                return "➡️";
+            case SplitScreenGesture.DOWN:
+                return "⬇️";
+            case SplitScreenGesture.UP:
+            default:
+                return "⬆️";
+        }
+    }
+
+    private static String actionTitle(GestureAction action) {
+        switch (action) {
+            case SWIPE_LEFT:
+                return "Tavanı Kapat";
+            case SWIPE_RIGHT:
+                return "Tavanı Aç";
+            case SWIPE_UP:
+                return "Perdeyi Kapat";
+            case SWIPE_DOWN:
+            default:
+                return "Perdeyi Aç";
+        }
+    }
+
+    private static int actionColor(GestureAction action) {
+        switch (action) {
+            case SWIPE_LEFT:
+                return 0xFFEF4444;
+            case SWIPE_RIGHT:
+                return 0xFF22C55E;
+            case SWIPE_UP:
+                return 0xFF8B5CF6;
+            case SWIPE_DOWN:
+            default:
+                return 0xFFEAB308;
+        }
     }
 
     private View createOptionAPill(String arrow, String subtext, String actionTitle, int color, float density, Runnable action) {

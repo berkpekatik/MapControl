@@ -16,12 +16,12 @@ import android.widget.Toast;
 import androidx.core.graphics.ColorUtils;
 
 import com.mapcontrol.R;
-import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.SplitRatioView;
 import com.mapcontrol.ui.widget.SwipeGestureIconView;
 import com.mapcontrol.util.AppIconHelper;
 import com.mapcontrol.util.DialogHelper;
+import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.SplitScreenLauncher;
@@ -472,11 +472,14 @@ public class SplitScreenTabBuilder {
     }
 
     private void onGestureCellClicked(int code) {
-        if (isBlockedByMapSwipe(code)) {
-            Toast.makeText(context, R.string.split_gesture_map_busy, Toast.LENGTH_LONG).show();
-            return;
-        }
         int current = SplitScreenStore.getGestureCode(context);
+        if (current != code) {
+            int owner = ownerOf(code);
+            if (owner != 0) {
+                DialogHelper.showGestureConflict(context, owner);
+                return;
+            }
+        }
         int next = current == code ? SplitScreenStore.GESTURE_OFF : code;
         SplitScreenStore.setGestureCode(context, next);
         callback.log(next == SplitScreenStore.GESTURE_OFF
@@ -488,9 +491,9 @@ public class SplitScreenTabBuilder {
         refreshGestureUi();
     }
 
-    private boolean isBlockedByMapSwipe(int code) {
-        return SplitScreenGesture.isReservedByMapSwipe(code)
-                && CarSystemGestureController.isEnabled(context);
+    /** Bu hareketi bölünmüş ekran dışında kullanan özelliğin ad kaynağı; yoksa 0. */
+    private int ownerOf(int code) {
+        return GestureConflicts.findOwnerLabel(context, code, GestureConflicts.Slot.SPLIT_SCREEN);
     }
 
     private void refreshGestureUi() {
@@ -504,7 +507,7 @@ public class SplitScreenTabBuilder {
 
         for (GestureCell cell : gestureCells) {
             boolean isSelected = cell.code == selected;
-            boolean blocked = isBlockedByMapSwipe(cell.code);
+            boolean blocked = !isSelected && ownerOf(cell.code) != 0;
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(UiStyles.dimenPx(context, R.dimen.oem_button_radius));
             bg.setColor(UiStyles.color(context, R.color.surfaceCardInner));
@@ -590,14 +593,19 @@ public class SplitScreenTabBuilder {
         if (!SplitScreenStore.hasPair(context)) {
             addInfoWarning(R.string.split_gesture_need_pair);
         }
-        if (isBlockedByMapSwipe(selected)) {
-            addInfoWarning(R.string.split_gesture_map_conflict);
+        int owner = ownerOf(selected);
+        if (owner != 0) {
+            addInfoWarning(context.getString(R.string.split_gesture_conflict, context.getString(owner)));
         }
     }
 
     private void addInfoWarning(int textRes) {
+        addInfoWarning(context.getString(textRes));
+    }
+
+    private void addInfoWarning(String text) {
         TextView warn = new TextView(context);
-        warn.setText(textRes);
+        warn.setText(text);
         warn.setTextSize(13);
         warn.setTypeface(null, Typeface.BOLD);
         warn.setTextColor(UiStyles.color(context, R.color.textLoading));

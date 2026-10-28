@@ -105,10 +105,13 @@ import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.util.LauncherSwipeStore;
+import com.mapcontrol.util.GestureConflicts;
+import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
+import com.mapcontrol.vehicle.SunroofGestureStore;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class MainActivity extends AppCompatActivity {
@@ -2025,13 +2028,15 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
     }
 
-    private float touchDownX0 = 0f;
-    private float touchDownY0 = 0f;
-    private float touchDownX1 = 0f;
-    private float touchDownY1 = 0f;
+    /** Hareketin başladığı andaki parmak ortası. */
     private float touchMidDownX = 0f;
     private float touchMidDownY = 0f;
-    private boolean twoFingerGestureHandled = false;
+    /** Ekrandaki geçerli parmak sayısı (2-4). Parmak kalkınca 0: yeni parmak gelene dek değerlendirme yok. */
+    private int touchActiveFingers = 0;
+    /** Bu parmak seti için eşik aşıldı ve hareket yönü değerlendirildi. */
+    private boolean touchSwipeEvaluated = false;
+    /** Cam tavan hareketi tanındı; parmaklar kalkana dek olaylar uygulamaya iletilmez. */
+    private boolean touchSwipeConsumed = false;
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
@@ -2040,83 +2045,114 @@ public class MainActivity extends AppCompatActivity {
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-                touchDownX0 = event.getX(0);
-                touchDownY0 = event.getY(0);
-                touchMidDownX = touchDownX0;
-                touchMidDownY = touchDownY0;
-                twoFingerGestureHandled = false;
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
                 break;
 
             case MotionEvent.ACTION_POINTER_DOWN:
-                if (pointerCount == 2) {
-                    touchDownX0 = event.getX(0);
-                    touchDownY0 = event.getY(0);
-                    touchDownX1 = event.getX(1);
-                    touchDownY1 = event.getY(1);
-                    touchMidDownX = (touchDownX0 + touchDownX1) / 2f;
-                    touchMidDownY = (touchDownY0 + touchDownY1) / 2f;
-                    twoFingerGestureHandled = false;
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (pointerCount >= 2 && pointerCount <= 4) {
+                    touchActiveFingers = pointerCount;
+                    touchSwipeEvaluated = false;
+                    updateTouchMid(event);
+                } else {
+                    touchActiveFingers = 0;
                 }
                 break;
 
             case MotionEvent.ACTION_POINTER_UP:
-                // Ekranda kalan parmak sayısı 2 değilse jesti iptal et (tek parmak kaydırmayı engelle)
-                if (pointerCount <= 2) {
-                    twoFingerGestureHandled = false;
+                if (touchSwipeConsumed) {
+                    return true;
                 }
+                // Kalan parmaklar eski ortaya göre ölçülmez; yeni parmak gelene dek hareket yok.
+                touchActiveFingers = 0;
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                // YALNIZCA ekranda aktif tam 2 parmak varken değerlendir
-                if (pointerCount == 2 && !twoFingerGestureHandled) {
-                    float curMidX = (event.getX(0) + event.getX(1)) / 2f;
-                    float curMidY = (event.getY(0) + event.getY(1)) / 2f;
-
-                    float dx = curMidX - touchMidDownX;
-                    float dy = curMidY - touchMidDownY;
-                    float absDx = Math.abs(dx);
-                    float absDy = Math.abs(dy);
-                    float density = getResources().getDisplayMetrics().density;
-                    float thresholdX = 35 * density;
-                    float thresholdY = 22 * density;
-
-                    if (absDx > thresholdX || absDy > thresholdY) {
-                        twoFingerGestureHandled = true;
-                        // İKİ PARMAK JESTİ: CAM TAVAN VE PERDE KONTROLLERİ
-                        SunroofGestureOverlayManager mgr = SunroofGestureOverlayManager.getInstance(this);
-                        if (absDx >= absDy) {
-                            if (dx > 0) {
-                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_RIGHT, "Ekran");
-                            } else {
-                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_LEFT, "Ekran");
-                            }
-                        } else {
-                            if (dy < 0) {
-                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_UP, "Ekran");
-                            } else {
-                                mgr.handleGestureAction(SunroofGestureOverlayManager.GestureAction.SWIPE_DOWN, "Ekran");
-                            }
-                        }
-                        MotionEvent cancelEvent = MotionEvent.obtain(event);
-                        cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
-                        super.dispatchTouchEvent(cancelEvent);
-                        cancelEvent.recycle();
-                        return true;
-                    }
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (touchActiveFingers >= 2 && pointerCount == touchActiveFingers
+                        && !touchSwipeEvaluated && handleSunroofSwipe(event, pointerCount)) {
+                    MotionEvent cancelEvent = MotionEvent.obtain(event);
+                    cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancelEvent);
+                    cancelEvent.recycle();
+                    return true;
                 }
                 break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                if (twoFingerGestureHandled) {
-                    twoFingerGestureHandled = false;
+                boolean consumed = touchSwipeConsumed;
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
+                if (consumed) {
                     return true;
                 }
-                twoFingerGestureHandled = false;
                 break;
         }
 
         return super.dispatchTouchEvent(event);
+    }
+
+    private void updateTouchMid(MotionEvent event) {
+        float sumX = 0f;
+        float sumY = 0f;
+        int count = event.getPointerCount();
+        for (int i = 0; i < count; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        touchMidDownX = sumX / count;
+        touchMidDownY = sumY / count;
+    }
+
+    /**
+     * Çok parmaklı kaydırma eşiği aşıldıysa yönü bulur ve o harekete bağlı cam tavan / perde
+     * işlemini çalıştırır. Hareket seçilmemişse veya başka bir özellik (bölünmüş ekran, harita
+     * kaydırma) aynı hareketi kullanıyorsa dokunuşa karışmaz.
+     *
+     * @return işlem çalıştıysa true (dokunuş iptal edilmeli)
+     */
+    private boolean handleSunroofSwipe(MotionEvent event, int fingers) {
+        float sumX = 0f;
+        float sumY = 0f;
+        for (int i = 0; i < fingers; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        float dx = sumX / fingers - touchMidDownX;
+        float dy = sumY / fingers - touchMidDownY;
+        float absDx = Math.abs(dx);
+        float absDy = Math.abs(dy);
+        float density = getResources().getDisplayMetrics().density;
+        if (absDx <= 35 * density && absDy <= 22 * density) {
+            return false;
+        }
+        touchSwipeEvaluated = true;
+
+        int direction;
+        if (absDx >= absDy) {
+            direction = dx > 0 ? SplitScreenGesture.RIGHT : SplitScreenGesture.LEFT;
+        } else {
+            direction = dy < 0 ? SplitScreenGesture.UP : SplitScreenGesture.DOWN;
+        }
+        int code = SplitScreenGesture.code(fingers, direction);
+        SunroofGestureOverlayManager.GestureAction gesture = SunroofGestureStore.actionFor(this, code);
+        if (gesture == null) {
+            return false;
+        }
+        if (GestureConflicts.findOwnerLabel(this, code, GestureConflicts.slotOf(gesture)) != 0) {
+            return false;
+        }
+        touchSwipeConsumed = true;
+        SunroofGestureOverlayManager.getInstance(this).handleGestureAction(gesture, "Ekran");
+        return true;
     }
 
     private void registerTargetPackageBroadcastReceiver() {
