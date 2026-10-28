@@ -424,6 +424,7 @@ public class ProfileTabBuilder {
                 data.put("fcwSetting", prefs.getInt("fcwSetting", -1));
                 data.put("aebSetting", prefs.getInt("aebSetting", -1));
                 data.put("cpdSetting", prefs.getInt("cpdSetting", -1));
+                data.put("dmsSetting", prefs.getInt("dmsSetting", -1));
 
                 String targetPackage = prefs.getString("targetPackage", null);
                 if (targetPackage != null) {
@@ -541,6 +542,7 @@ public class ProfileTabBuilder {
                                 if (data.has("fcwSetting")) editor.putInt("fcwSetting", data.getInt("fcwSetting"));
                                 if (data.has("aebSetting")) editor.putInt("aebSetting", data.getInt("aebSetting"));
                                 if (data.has("cpdSetting")) editor.putInt("cpdSetting", data.getInt("cpdSetting"));
+                                if (data.has("dmsSetting")) editor.putInt("dmsSetting", data.getInt("dmsSetting"));
                                 if (data.has("targetPackage")) {
                                     String targetPackage = data.getString("targetPackage");
                                     if (targetPackage != null && !targetPackage.isEmpty()) {

@@ -1,5 +1,7 @@
 # Map Control
 
+> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. UI tasarım sistemi ve fiziksel IVI kabul hedefleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
+
  ⚠️ **Bilinen sorunlar / Known issues**
 
  | | |
@@ -120,6 +122,25 @@ Cluster / navigasyon panelini kapatır. Özet akış:
 MainActivity’de manuel aç/kapa butonları ve MapControlService’de araç güç moduna göre otomatik açma/kapama bu metodları kullanır.
 
 ---
+
+## Yerel debug build
+
+JDK 17, Android SDK Platform 34 ve Android SDK Build-Tools 34.0.0 gereklidir. SDK konumunu `ANDROID_HOME` ile veya `local.properties` içindeki `sdk.dir` alanıyla belirtin.
+
+Windows PowerShell üzerinde APK ve birim testleri:
+
+```powershell
+java -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain :app:assembleDebug :app:testDebugUnitTest
+```
+
+Android Studio üzerinden bir emülatör açtıktan sonra kurulum ve çalıştırma:
+
+```powershell
+adb -e install -r app/build/outputs/apk/debug/app-debug.apk
+adb -e shell am start -n com.mapcontrol/.ui.activity.MainActivity
+```
+
+Debug derlemesi release imzalama anahtarı gerektirmez. Standart Android emülatöründe arayüz açılır; DesaySV araç servisleri ve fiziksel gösterge ekranı bulunmadığı için araç kontrolleri çalışmaz.
 
 ## Release imzalı build
 

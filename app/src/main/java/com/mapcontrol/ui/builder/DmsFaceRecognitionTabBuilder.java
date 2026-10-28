@@ -132,7 +132,8 @@ public final class DmsFaceRecognitionTabBuilder {
         profilesButton.setTextSize(15);
         profilesButton.setTypeface(null, Typeface.BOLD);
         profilesButton.setTextColor(0xFFFFFFFF);
-        UiStyles.applySolidRoundedBackgroundDp(profilesButton, 0xFF2563EB, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(profilesButton,
+                UiStyles.color(activity, R.color.buttonPrimary), 12f);
         profilesButton.setOnClickListener(v ->
                 activity.startActivity(new Intent(activity, DmsFaceProfileActivity.class)));
         LinearLayout.LayoutParams profilesLp = new LinearLayout.LayoutParams(
@@ -275,7 +276,7 @@ public final class DmsFaceRecognitionTabBuilder {
                 badge.setText("Koltuk Hafızası " + p.seatMemory);
                 badge.setTextSize(13);
                 badge.setTypeface(null, Typeface.BOLD);
-                badge.setTextColor(0xFF60A5FA);
+                badge.setTextColor(UiStyles.color(activity, R.color.textAccent));
                 row.addView(badge);
             }
 

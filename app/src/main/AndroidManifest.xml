@@ -152,6 +152,7 @@
             android:name=".ui.activity.CameraActivity"
             android:label="Kamera Test"
             android:screenOrientation="landscape" />
+
         
         <activity
             android:name=".ui.activity.ClusterVDBusTestActivity"
@@ -193,6 +194,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".service.RecordingService"
+            android:enabled="true"
+            android:exported="false" />
 
         <service
             android:name=".service.MapControlService"

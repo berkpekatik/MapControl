@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.ui.theme.FeatureGridLayout;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.service.BootReceiver;
 import com.mapcontrol.util.AppLocaleManager;
@@ -40,6 +41,8 @@ public class SettingsTabBuilder {
         void onLauncherModeChanged(boolean enabled);
 
         void onLocaleChanged();
+        void onNightModeChanged(int mode);
+        default void onHeaderPositionChanged(boolean isBottom) {}
     }
 
     private final Context context;
@@ -76,7 +79,6 @@ public class SettingsTabBuilder {
         settingsTabContent.setOrientation(LinearLayout.VERTICAL);
         int inner = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
         settingsTabContent.setPadding(inner, inner, inner, inner);
-        UiStyles.setGlassCardBackground(settingsTabContent);
 
         outer.addView(settingsTabContent, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -86,39 +88,58 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        createLanguageSection(settingsTabContent);
-        createAppInfoSection(settingsTabContent);
-        createBootAutostartSection(settingsTabContent);
-        createPermissionsSection(settingsTabContent);
-        createFloatingBackButtonSection(settingsTabContent);
-        createLauncherModeSection(settingsTabContent);
-        createVehicleModelSection(settingsTabContent);
+        FeatureGridLayout grid = new FeatureGridLayout(context);
+        settingsTabContent.addView(grid);
+        createLauncherModeSection(grid);
+        createFloatingBackButtonSection(grid);
+        createDarkModeSection(grid);
+        createBootServiceSection(grid);
+        createBootUiSection(grid);
+        createLanguageSection(grid);
+        createVehicleModelSection(createSettingsCard(grid));
+
+        Button advancedToggle = new Button(context);
+        advancedToggle.setText(R.string.ui_advanced_show);
+        UiStyles.styleOemButton(advancedToggle, UiStyles.color(context, R.color.buttonSecondaryMuted));
+        settingsTabContent.addView(advancedToggle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout advanced = new LinearLayout(context);
+        advanced.setOrientation(LinearLayout.VERTICAL);
+        advanced.setVisibility(View.GONE);
+        settingsTabContent.addView(advanced);
+        advancedToggle.setOnClickListener(v -> {
+            boolean show = advanced.getVisibility() != View.VISIBLE;
+            advanced.setVisibility(show ? View.VISIBLE : View.GONE);
+            advancedToggle.setText(show ? R.string.ui_advanced_hide : R.string.ui_advanced_show);
+            if (show && advanced.getChildCount() == 0) {
+                createPermissionsSection(createSettingsCard(advanced));
+                createAppInfoSection(createSettingsCard(advanced));
+            }
+        });
         return scrollView;
     }
 
-    private void createLanguageSection(LinearLayout parentContainer) {
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.settings_language_section_title);
-        sectionTitle.setTextSize(18);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
-        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+    private LinearLayout createSettingsCard(android.view.ViewGroup parent) {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int padding = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
+        card.setPadding(padding, padding, padding, padding);
+        UiStyles.setGlassCardBackground(card);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        if (parent instanceof FeatureGridLayout) {
+            ((FeatureGridLayout) parent).addCard(card);
+        } else {
+            parent.addView(card, lp);
+        }
+        return card;
+    }
 
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.settings_language_section_desc);
-        sectionDesc.setTextSize(13);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setPadding(16, 0, 16, 12);
-        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
+    private void createLanguageSection(android.view.ViewGroup parentContainer) {
         boolean english = AppLocaleManager.isEnglish(context);
         languageSegmentHandle = UiStyles.addBinarySegmentedControl(context, parentContainer,
-                null,
+                context.getString(R.string.settings_language_section_title),
                 context.getString(R.string.settings_language_tr),
                 context.getString(R.string.settings_language_en),
                 context.getString(R.string.settings_language_tr),
@@ -137,67 +158,62 @@ public class SettingsTabBuilder {
                 });
     }
 
-    private void createBootAutostartSection(LinearLayout parentContainer) {
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.settings_boot_section_title);
-        sectionTitle.setTextSize(18);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
-        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+    private void createDarkModeSection(FeatureGridLayout grid) {
+        int nightModeSetting = prefs.getInt("nightModeSetting", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        boolean isDark = (nightModeSetting == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
+        UiStyles.addBinarySegmentedControl(context, grid,
+                context.getString(R.string.settings_dark_mode_title),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.settings_dark_mode_help_on),
+                context.getString(R.string.settings_dark_mode_help_off),
+                isDark,
+                enabled -> {
+                    int mode = enabled ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO;
+                    prefs.edit().putInt("nightModeSetting", mode).apply();
+                    androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(mode);
+                    callback.log("Karanlık Mod: " + (enabled ? "Açık" : "Kapalı"));
+                    callback.onNightModeChanged(mode);
+                });
+    }
 
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.settings_boot_section_desc);
-        sectionDesc.setTextSize(13);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setPadding(16, 0, 16, 12);
-        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        boolean serviceOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, true);
-        UiStyles.addBinarySegmentedControl(context, parentContainer,
+    private void createBootServiceSection(android.view.ViewGroup parent) {
+        UiStyles.addBinarySegmentedControl(context, parent,
                 context.getString(R.string.settings_boot_service_title),
                 context.getString(R.string.common_on), context.getString(R.string.common_off),
                 context.getString(R.string.settings_boot_service_help_on),
                 context.getString(R.string.settings_boot_service_help_off),
-                serviceOn,
-                on -> {
-                    prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_START, on).apply();
-                    callback.log("Açılışta servis: " + (on ? "Açık" : "Kapalı"));
-                });
+                prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_START, true),
+                on -> prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_START, on).apply());
+    }
 
-        boolean uiOn = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
-        UiStyles.addBinarySegmentedControl(context, parentContainer,
+    private void createBootUiSection(android.view.ViewGroup parent) {
+        UiStyles.addBinarySegmentedControl(context, parent,
                 context.getString(R.string.settings_boot_ui_title),
                 context.getString(R.string.common_on), context.getString(R.string.common_off),
                 context.getString(R.string.settings_boot_ui_help_on),
                 context.getString(R.string.settings_boot_ui_help_off),
-                uiOn,
-                on -> {
-                    prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, on).apply();
-                    callback.log("Açılışta ekran: " + (on ? "Açık" : "Kapalı"));
-                });
+                prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true),
+                on -> prefs.edit().putBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, on).apply());
     }
 
     private void createPermissionsSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(R.string.settings_permissions_title);
-        sectionTitle.setTextSize(18);
+        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
+        sectionTitle.setPadding(0, 0, 0, 8);
         parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView sectionDesc = new TextView(context);
         sectionDesc.setText(R.string.settings_permissions_desc);
-        sectionDesc.setTextSize(13);
+        UiStyles.setTextSize(sectionDesc, R.dimen.text_size_small);
         sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setPadding(16, 0, 16, 12);
+        sectionDesc.setPadding(0, 0, 0, 8);
         parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -218,46 +234,7 @@ public class SettingsTabBuilder {
         parentContainer.addView(toggle, toggleLp);
     }
 
-    private void createFloatingBackButtonSection(LinearLayout parentContainer) {
-        TextView floatingBackButtonTitle = new TextView(context);
-        floatingBackButtonTitle.setText(R.string.settings_floating_back_title);
-        floatingBackButtonTitle.setTextSize(18);
-        floatingBackButtonTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        floatingBackButtonTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        floatingBackButtonTitle.setPadding(16, 24, 16, 8);
-        parentContainer.addView(floatingBackButtonTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView floatingBackButtonDesc = new TextView(context);
-        floatingBackButtonDesc.setText(R.string.settings_floating_back_desc);
-        floatingBackButtonDesc.setTextSize(13);
-        floatingBackButtonDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        floatingBackButtonDesc.setPadding(16, 0, 16, 12);
-        parentContainer.addView(floatingBackButtonDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView iconLegendTitle = new TextView(context);
-        iconLegendTitle.setText(R.string.floating_hub_icon_legend_title);
-        iconLegendTitle.setTextSize(15);
-        iconLegendTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        iconLegendTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        iconLegendTitle.setPadding(16, 8, 16, 4);
-        parentContainer.addView(iconLegendTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView iconLegendBody = new TextView(context);
-        iconLegendBody.setText(R.string.floating_hub_icon_legend_body);
-        iconLegendBody.setTextSize(13);
-        iconLegendBody.setTextColor(UiStyles.color(context, R.color.textHint));
-        iconLegendBody.setPadding(16, 0, 16, 12);
-        iconLegendBody.setLineSpacing(3, 1.05f);
-        parentContainer.addView(iconLegendBody, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
+    private void createFloatingBackButtonSection(android.view.ViewGroup parentContainer) {
         floatingBackButtonManager = FloatingBackButtonManager.getInstance(context);
         floatingBackButtonManager.setLogCallback(callback::log);
 
@@ -265,9 +242,9 @@ public class SettingsTabBuilder {
 
         final UiStyles.BinarySegmentHandle[] floatingHandleRef = new UiStyles.BinarySegmentHandle[1];
         floatingHandleRef[0] = UiStyles.addBinarySegmentedControl(context, parentContainer,
-                null,
+                context.getString(R.string.settings_floating_back_title),
                 context.getString(R.string.common_on), context.getString(R.string.common_off),
-                context.getString(R.string.settings_floating_back_help_on),
+                context.getString(R.string.settings_floating_back_desc),
                 context.getString(R.string.settings_floating_back_help_off),
                 savedEnabled,
                 isEnabled -> {
@@ -327,7 +304,7 @@ public class SettingsTabBuilder {
     private void createAppInfoSection(LinearLayout parentContainer) {
         TextView appInfoTitle = new TextView(context);
         appInfoTitle.setText(R.string.settings_app_about_title);
-        appInfoTitle.setTextSize(18);
+        UiStyles.setTextSize(appInfoTitle, R.dimen.text_size_medium);
         appInfoTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         appInfoTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         appInfoTitle.setPadding(16, 24, 16, 8);
@@ -337,7 +314,7 @@ public class SettingsTabBuilder {
 
         TextView versionTitle = new TextView(context);
         versionTitle.setText(R.string.settings_version_title);
-        versionTitle.setTextSize(16);
+        UiStyles.setTextSize(versionTitle, R.dimen.text_size_normal);
         versionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         versionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         versionTitle.setPadding(16, 16, 16, 8);
@@ -352,7 +329,7 @@ public class SettingsTabBuilder {
         } catch (PackageManager.NameNotFoundException e) {
             versionText.setText(R.string.settings_version_current_unknown);
         }
-        versionText.setTextSize(14);
+        UiStyles.setTextSize(versionText, R.dimen.text_size_small);
         versionText.setTextColor(UiStyles.color(context, R.color.textHint));
         versionText.setPadding(16, 0, 16, 16);
         parentContainer.addView(versionText, new LinearLayout.LayoutParams(
@@ -362,7 +339,7 @@ public class SettingsTabBuilder {
         TextView latestVersionText = new TextView(context);
         latestVersionText.setId(View.generateViewId());
         latestVersionText.setText(R.string.settings_version_latest_loading);
-        latestVersionText.setTextSize(14);
+        UiStyles.setTextSize(latestVersionText, R.dimen.text_size_small);
         latestVersionText.setTextColor(UiStyles.color(context, R.color.textHint));
         latestVersionText.setPadding(16, 0, 16, 16);
         parentContainer.addView(latestVersionText, new LinearLayout.LayoutParams(
@@ -371,7 +348,7 @@ public class SettingsTabBuilder {
 
         TextView freeInstallTitle = new TextView(context);
         freeInstallTitle.setText(R.string.settings_install_title);
-        freeInstallTitle.setTextSize(16);
+        UiStyles.setTextSize(freeInstallTitle, R.dimen.text_size_normal);
         freeInstallTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         freeInstallTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         freeInstallTitle.setPadding(16, 16, 16, 8);
@@ -381,7 +358,7 @@ public class SettingsTabBuilder {
 
         TextView freeInstallText = new TextView(context);
         freeInstallText.setText(R.string.settings_install_body);
-        freeInstallText.setTextSize(14);
+        UiStyles.setTextSize(freeInstallText, R.dimen.text_size_small);
         freeInstallText.setTextColor(UiStyles.color(context, R.color.textHint));
         freeInstallText.setPadding(16, 0, 16, 16);
         parentContainer.addView(freeInstallText, new LinearLayout.LayoutParams(
@@ -390,7 +367,7 @@ public class SettingsTabBuilder {
 
         TextView changelogTitle = new TextView(context);
         changelogTitle.setText(R.string.settings_changelog_title);
-        changelogTitle.setTextSize(16);
+        UiStyles.setTextSize(changelogTitle, R.dimen.text_size_normal);
         changelogTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         changelogTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         changelogTitle.setPadding(16, 16, 16, 8);
@@ -401,7 +378,7 @@ public class SettingsTabBuilder {
         TextView changelogText = new TextView(context);
         changelogText.setId(View.generateViewId());
         changelogText.setText(R.string.common_loading);
-        changelogText.setTextSize(14);
+        UiStyles.setTextSize(changelogText, R.dimen.text_size_small);
         changelogText.setTextColor(UiStyles.color(context, R.color.textHint));
         changelogText.setPadding(16, 0, 16, 16);
         changelogText.setLineSpacing(4, 1.0f);
@@ -542,32 +519,16 @@ public class SettingsTabBuilder {
      * Ara\u00e7 Launcher Modu: tam ekran ara\u00e7 paneli deneyimi ({@link LauncherModeManager}).
      * A\u00e7\u0131kken HOME activity-alias da etkinle\u015fir; bu iste\u011fe ba\u011fl\u0131 ikincil bir ad\u0131md\u0131r.
      */
-    private void createLauncherModeSection(LinearLayout parentContainer) {
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.settings_launcher_mode_title);
-        sectionTitle.setTextSize(18);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
-        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.settings_launcher_mode_desc);
-        sectionDesc.setTextSize(13);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setLineSpacing(3, 1.05f);
-        sectionDesc.setPadding(16, 0, 16, 12);
-        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
+    private void createLauncherModeSection(FeatureGridLayout grid) {
         boolean launcherModeOn = LauncherModeManager.isEnabled(context);
-        launcherModeSegmentHandle = UiStyles.addBinarySegmentedControl(context, parentContainer,
-                null,
+        LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        grid.addCard(container);
+
+        launcherModeSegmentHandle = UiStyles.addBinarySegmentedControl(context, container,
+                context.getString(R.string.settings_launcher_mode_title),
                 context.getString(R.string.common_yes), context.getString(R.string.common_no),
-                context.getString(R.string.settings_launcher_mode_help_on),
+                context.getString(R.string.settings_launcher_mode_desc),
                 context.getString(R.string.settings_launcher_mode_help_off),
                 launcherModeOn,
                 enabled -> {
@@ -578,14 +539,14 @@ public class SettingsTabBuilder {
 
         launcherHomeSettingsLink = new TextView(context);
         launcherHomeSettingsLink.setText(R.string.settings_launcher_home_link);
-        launcherHomeSettingsLink.setTextSize(13);
+        UiStyles.setTextSize(launcherHomeSettingsLink, R.dimen.text_size_small);
         launcherHomeSettingsLink.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         launcherHomeSettingsLink.setPadding(16, 4, 16, 16);
         launcherHomeSettingsLink.setOnClickListener(v -> {
             LauncherModeManager.logHomeResolutionState(context, callback::log);
             LauncherModeManager.openHomeChooser(context);
         });
-        parentContainer.addView(launcherHomeSettingsLink, new LinearLayout.LayoutParams(
+        container.addView(launcherHomeSettingsLink, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         updateLauncherHomeSettingsLinkVisibility(launcherModeOn);
@@ -594,26 +555,26 @@ public class SettingsTabBuilder {
     private void createVehicleModelSection(LinearLayout parentContainer) {
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(R.string.settings_vehicle_image_title);
-        sectionTitle.setTextSize(18);
+        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(16, 24, 16, 8);
+        sectionTitle.setPadding(0, 0, 0, 8);
         parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView sectionDesc = new TextView(context);
         sectionDesc.setText(R.string.settings_vehicle_image_desc);
-        sectionDesc.setTextSize(13);
+        UiStyles.setTextSize(sectionDesc, R.dimen.text_size_small);
         sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         sectionDesc.setLineSpacing(3, 1.05f);
-        sectionDesc.setPadding(16, 0, 16, 12);
+        sectionDesc.setPadding(0, 0, 0, 8);
         parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView currentLabel = new TextView(context);
-        currentLabel.setTextSize(14);
+        UiStyles.setTextSize(currentLabel, R.dimen.text_size_small);
         currentLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
         currentLabel.setPadding(16, 0, 16, 8);
         refreshVehicleModelStatusLabel(currentLabel);

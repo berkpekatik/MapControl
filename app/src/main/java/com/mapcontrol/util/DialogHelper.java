@@ -46,15 +46,37 @@ public class DialogHelper {
     }
 
     public static void showAppManagementDisclaimer(Context context, Runnable onAccept, Runnable onDecline) {
+        showResponsibilityDialog(
+                context,
+                context.getString(R.string.dialog_app_mgmt_title),
+                context.getString(R.string.dialog_app_mgmt_disclaimer),
+                onAccept,
+                onDecline);
+    }
+
+    /** Kamera 360, Otomasyon ve Yüz Tanıma için tek seferlik erken erişim onayı. */
+    public static void showEarlyAccessDisclaimer(Context context, String title, Runnable onAccept, Runnable onDecline) {
+        showResponsibilityDialog(
+                context,
+                title,
+                context.getString(R.string.dialog_early_access_disclaimer),
+                onAccept,
+                onDecline);
+    }
+
+    private static void showResponsibilityDialog(
+            Context context,
+            String title,
+            String disclaimerText,
+            Runnable onAccept,
+            Runnable onDecline) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LinearLayout mainContainer = createBaseContainer(context);
-        LinearLayout titleContainer = createTitleContainer(context,
-                context.getString(R.string.dialog_app_mgmt_title),
+        LinearLayout titleContainer = createTitleContainer(context, title,
                 context.getString(R.string.dialog_legal_subtitle));
         mainContainer.addView(titleContainer);
 
         LinearLayout contentContainer = createContentContainer(context);
-        String disclaimerText = context.getString(R.string.dialog_app_mgmt_disclaimer);
         TextView messageView = createMessage(context, disclaimerText);
         ScrollView scrollView = new ScrollView(context);
         scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));

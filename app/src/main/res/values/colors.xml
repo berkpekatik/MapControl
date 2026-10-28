@@ -50,9 +50,9 @@
     <color name="textSecondary">#5C6470</color>
     <color name="textSecondaryCool">#55606C</color>
     <color name="textAccent">#3568A0</color>
-    <color name="textMuted">#7A8494</color>
+    <color name="textMuted">#526172</color>
     <color name="textMessage">#2D3340</color>
-    <color name="textHint">#99000000</color>
+    <color name="textHint">#526172</color>
     <color name="textPrimary87">#DE000000</color>
     <color name="textPrimary85">#D9000000</color>
     <color name="textPrimary70">#B3000000</color>
@@ -177,4 +177,8 @@
     <color name="boot_splash_pin_shadow">#55000000</color>
 
     <color name="modal_overlay_scrim">#99000000</color>
+    <color name="drive_mode_snow">#67C4E5</color>
+    <color name="drive_mode_mud">#8C6545</color>
+    <color name="drive_mode_offroad">#6D7D40</color>
+    <color name="drive_mode_sand">#C69D54</color>
 </resources>

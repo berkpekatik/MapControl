@@ -6,7 +6,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
-import android.util.TypedValue;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -53,24 +52,23 @@ public final class WelcomeSoundScreenBuilder {
         }
     }
 
-    /** Tasarım kartlarıyla aynı yüzey: yuvarlak köşe, ince çerçeve, tek satır yazı. */
+    /** Shared touch surface for file selection, playback and USB files. */
     public static LinearLayout actionRow(Context context, CharSequence label) {
-        int primary = UiStyles.color(context, R.color.textPrimary);
         LinearLayout row = new LinearLayout(context);
-        row.setOrientation(LinearLayout.VERTICAL);
+        row.setGravity(android.view.Gravity.CENTER);
         row.setClickable(true);
         row.setFocusable(true);
-        row.setPadding(16, 14, 16, 14);
-        TextView title = new TextView(context);
-        title.setText(label);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        title.setTextColor(primary);
-        row.addView(title);
-        paintCard(context, row);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 0, 0, 8);
+        row.setMinimumHeight(dp(context, 56));
+        row.setPadding(dp(context, 12), dp(context, 8), dp(context, 12), dp(context, 8));
+        TextView title = text(context, label, R.dimen.text_size_normal, false);
+        title.setGravity(android.view.Gravity.CENTER);
+        row.addView(title, new LinearLayout.LayoutParams(-1, -2));
+        paintCard(context, row, false);
+        row.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(androidx.core.graphics.ColorUtils.setAlphaComponent(
+                        UiStyles.color(context, R.color.oemAccent), 55)), row.getBackground(), null));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.bottomMargin = dp(context, 8);
         row.setLayoutParams(params);
         return row;
     }
@@ -79,280 +77,243 @@ public final class WelcomeSoundScreenBuilder {
             Consumer<Boolean> onAutoPlayCommitted, String selectedDesignId,
             Consumer<String> onDesignCommitted, String customLine,
             Consumer<String> onLineCommitted) {
-        int primary = UiStyles.color(context, R.color.textPrimary);
-        int secondary = UiStyles.color(context, R.color.textSecondary);
-
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);
-        scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
-
-        LinearLayout mainContainer = new LinearLayout(context);
-        mainContainer.setOrientation(LinearLayout.VERTICAL);
+        scrollView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        com.mapcontrol.ui.theme.FeatureGridLayout sections = new com.mapcontrol.ui.theme.FeatureGridLayout(context);
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
-        mainContainer.setPadding(margin, margin, margin, margin);
-        mainContainer.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
+        sections.setPadding(margin / 2, margin / 2, margin / 2, margin / 2);
+        LinearLayout audio = section(context, R.string.welcome_sound_section_title);
+        audio.setTag("welcome_audio_section");
+        LinearLayout design = section(context, R.string.welcome_design_section_title);
+        design.setTag("welcome_design_section");
+        sections.addCard(audio);
+        sections.addCard(design);
 
-        TextView titleText = new TextView(context);
-        titleText.setText(R.string.welcome_sound_title);
-        titleText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
-        titleText.setTextColor(primary);
-        titleText.setTypeface(null, android.graphics.Typeface.BOLD);
-        titleText.setPadding(0, 0, 0, 12);
-        mainContainer.addView(titleText);
+        addLabel(context, audio, R.string.welcome_sound_selected_label);
+        TextView tvFilePath = text(context, context.getString(R.string.welcome_sound_no_file_yet),
+                R.dimen.text_size_normal, false);
+        tvFilePath.setTag("welcome_selected_file");
+        tvFilePath.setMaxLines(2);
+        tvFilePath.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        tvFilePath.setMinHeight(dp(context, 48));
+        tvFilePath.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        tvFilePath.setPadding(dp(context, 12), dp(context, 6), dp(context, 12), dp(context, 6));
+        paintCard(context, tvFilePath, false);
+        addSpaced(context, audio, tvFilePath, 0, 12);
 
-        TextView steps = new TextView(context);
-        steps.setText(R.string.welcome_sound_steps);
-        steps.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        steps.setTextColor(UiStyles.color(context, R.color.textHint));
-        steps.setLineSpacing(0f, 1.25f);
-        steps.setPadding(0, 0, 0, 16);
-        mainContainer.addView(steps);
+        LinearLayout controls = new LinearLayout(context);
+        LinearLayout rowSelect = actionRow(context, context.getString(R.string.welcome_sound_choose_file));
+        rowSelect.setTag("welcome_choose_sound");
+        LinearLayout playbackRow = actionRow(context, context.getString(R.string.welcome_sound_play));
+        playbackRow.setTag("welcome_play_sound");
+        playbackRow.setAlpha(.45f);
+        TextView playbackLabel = (TextView) playbackRow.getChildAt(0);
+        LinearLayout.LayoutParams chooseParams = new LinearLayout.LayoutParams(0, -2, 1);
+        chooseParams.setMarginEnd(dp(context, 8));
+        controls.addView(rowSelect, chooseParams);
+        controls.addView(playbackRow, new LinearLayout.LayoutParams(0, -2, 1));
+        addSpaced(context, audio, controls, 0, 12);
 
-        TextView usbTitle = new TextView(context);
-        usbTitle.setText(R.string.welcome_sound_usb_title);
-        usbTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        usbTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
-        usbTitle.setPadding(0, 0, 0, 8);
-        mainContainer.addView(usbTitle);
+        UiStyles.addBinarySegmentedControl(context, audio,
+                context.getString(R.string.welcome_sound_autoplay_title),
+                context.getString(R.string.common_yes),
+                context.getString(R.string.common_no),
+                context.getString(R.string.welcome_sound_autoplay_desc),
+                context.getString(R.string.welcome_sound_autoplay_desc),
+                autoPlayInitial,
+                onAutoPlayCommitted);
 
-        TextView usbStatus = new TextView(context);
-        usbStatus.setText(R.string.welcome_sound_usb_absent);
-        usbStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        usbStatus.setTextColor(UiStyles.color(context, R.color.textHint));
-        usbStatus.setPadding(0, 0, 0, 12);
-        mainContainer.addView(usbStatus);
-
+        addLabel(context, audio, R.string.welcome_sound_usb_title);
+        TextView usbStatus = text(context, context.getString(R.string.welcome_sound_usb_absent),
+                R.dimen.text_size_small, true);
+        usbStatus.setTag("welcome_usb_status");
+        addSpaced(context, audio, usbStatus, 0, 8);
         LinearLayout usbList = new LinearLayout(context);
         usbList.setOrientation(LinearLayout.VERTICAL);
         usbList.setVisibility(android.view.View.GONE);
-        mainContainer.addView(usbList, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        audio.addView(usbList, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView filePathLabel = new TextView(context);
-        filePathLabel.setText(R.string.welcome_sound_selected_label);
-        filePathLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        filePathLabel.setTextColor(secondary);
-        filePathLabel.setPadding(0, 0, 0, 8);
-        mainContainer.addView(filePathLabel);
+        Button help = new Button(context);
+        help.setText(R.string.welcome_sound_import_help);
+        help.setTag("welcome_import_help");
+        UiStyles.styleOemButton(help, UiStyles.color(context, R.color.surfaceCardInner));
+        help.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        help.setMinHeight(dp(context, 56));
+        addSpaced(context, audio, help, 4, 0);
+        help.setOnClickListener(v -> {
+            androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(context)
+                    .setTitle(R.string.welcome_sound_import_help)
+                    .setMessage(R.string.welcome_sound_steps)
+                    .setPositiveButton(android.R.string.ok, null).show();
+            TextView title = dialog.findViewById(androidx.appcompat.R.id.alertTitle);
+            if (title != null) UiStyles.setTextSize(title, R.dimen.text_size_medium);
+            TextView message = dialog.findViewById(android.R.id.message);
+            if (message != null) UiStyles.setTextSize(message, R.dimen.text_size_small);
+            UiStyles.setTextSize(dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE), R.dimen.text_size_normal);
+        });
 
-        TextView tvFilePath = new TextView(context);
-        tvFilePath.setText(R.string.welcome_sound_no_file_yet);
-        tvFilePath.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        tvFilePath.setTextColor(primary);
-        tvFilePath.setPadding(16, 12, 16, 12);
-        android.graphics.drawable.GradientDrawable filePathBg = new android.graphics.drawable.GradientDrawable();
-        filePathBg.setColor(UiStyles.color(context, R.color.surfaceCard));
-        filePathBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        filePathBg.setStroke(1, UiStyles.color(context, R.color.outline));
-        tvFilePath.setBackground(filePathBg);
-        LinearLayout.LayoutParams filePathParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        filePathParams.setMargins(0, 0, 0, 24);
-        mainContainer.addView(tvFilePath, filePathParams);
-
-        LinearLayout rowSelect = actionRow(context, context.getString(R.string.welcome_sound_choose_file));
-        mainContainer.addView(rowSelect);
-
-        LinearLayout playbackRow = actionRow(context, context.getString(R.string.welcome_sound_play));
-        playbackRow.setAlpha(0.45f);
-        TextView playbackLabel = (TextView) playbackRow.getChildAt(0);
-        mainContainer.addView(playbackRow);
-
-        TextView autoPlayTitle = new TextView(context);
-        autoPlayTitle.setText(R.string.welcome_sound_autoplay_title);
-        autoPlayTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        autoPlayTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
-        autoPlayTitle.setPadding(0, 24, 0, 8);
-        mainContainer.addView(autoPlayTitle);
-
-        TextView autoPlayDesc = new TextView(context);
-        autoPlayDesc.setText(R.string.welcome_sound_autoplay_desc);
-        autoPlayDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        autoPlayDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        autoPlayDesc.setPadding(0, 0, 0, 12);
-        mainContainer.addView(autoPlayDesc);
-
-        LinearLayout autoPlayBlock = new LinearLayout(context);
-        autoPlayBlock.setOrientation(LinearLayout.VERTICAL);
-        UiStyles.addBinarySegmentedControl(context, autoPlayBlock,
-                null,
-                context.getString(R.string.welcome_sound_autoplay_on),
-                context.getString(R.string.welcome_sound_autoplay_off),
-                context.getString(R.string.welcome_sound_autoplay_on_help),
-                context.getString(R.string.welcome_sound_autoplay_off_help),
-                autoPlayInitial,
-                onAutoPlayCommitted);
-        mainContainer.addView(autoPlayBlock);
-
-        Button btnPreview = addDesignPicker(context, mainContainer, selectedDesignId,
+        Button btnPreview = addDesignPicker(context, design, selectedDesignId,
                 onDesignCommitted, customLine, onLineCommitted);
-
-        scrollView.addView(mainContainer, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
+        scrollView.addView(sections, new ScrollView.LayoutParams(-1, -2));
         return new Screen(scrollView, usbStatus, usbList, tvFilePath, rowSelect, playbackRow,
                 playbackLabel, btnPreview);
-    }
-
-    private static void paintCard(Context context, LinearLayout row) {
-        float radius = context.getResources().getDimension(R.dimen.oem_button_radius);
-        float density = context.getResources().getDisplayMetrics().density;
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(UiStyles.color(context, R.color.surfaceCard));
-        bg.setCornerRadius(radius);
-        bg.setStroke(Math.max(1, Math.round(density)),
-                UiStyles.color(context, R.color.outline));
-        row.setBackground(bg);
     }
 
     private static Button addDesignPicker(Context context, LinearLayout parent,
             String selectedDesignId, Consumer<String> onDesignCommitted,
             String customLine, Consumer<String> onLineCommitted) {
-        int primary = UiStyles.color(context, R.color.textPrimary);
-        int secondary = UiStyles.color(context, R.color.textSecondary);
-
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.welcome_design_section_title);
-        sectionTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary87));
-        sectionTitle.setPadding(0, 32, 0, 8);
-        parent.addView(sectionTitle);
-
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.welcome_design_section_desc);
-        sectionDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setPadding(0, 0, 0, 12);
-        parent.addView(sectionDesc);
-
         List<WelcomeDesign> designs = WelcomeDesignCatalog.designs();
-        LinearLayout[] rows = new LinearLayout[designs.size()];
-        final String[] selected = {selectedDesignId};
-
+        com.mapcontrol.ui.theme.FeatureGridLayout choices = new com.mapcontrol.ui.theme.FeatureGridLayout(context, 520);
+        LinearLayout[] designCards = new LinearLayout[designs.size()];
+        TextView[] designTitles = new TextView[designs.size()];
+        androidx.appcompat.widget.AppCompatRadioButton[] buttons = new androidx.appcompat.widget.AppCompatRadioButton[designs.size()];
+        String[] selected = {WelcomeDesignCatalog.find(selectedDesignId) == null
+                ? WelcomeDesignCatalog.ID_OFF : selectedDesignId};
+        TextView description = text(context, "", R.dimen.text_size_small, true);
+        description.setTag("welcome_design_description");
+        Button btnPreview = new Button(context);
+        btnPreview.setTag("welcome_preview");
+        btnPreview.setText(R.string.welcome_design_preview);
+        UiStyles.styleOemButton(btnPreview, UiStyles.color(context, R.color.buttonPrimary));
+        btnPreview.setMinHeight(dp(context, 56));
+        Runnable refresh = () -> {
+            for (int i = 0; i < buttons.length; i++) {
+                boolean checked = designs.get(i).id().equals(selected[0]);
+                buttons[i].setChecked(checked);
+                paintCard(context, designCards[i], checked);
+                designTitles[i].setTypeface(null, checked ? Typeface.BOLD : Typeface.NORMAL);
+                designTitles[i].setTextColor(UiStyles.color(context,
+                        checked ? R.color.textPrimary : R.color.textSecondary));
+            }
+            description.setText(WelcomeDesignCatalog.find(selected[0]).helpRes());
+            boolean enabled = !WelcomeDesignCatalog.ID_OFF.equals(selected[0]);
+            btnPreview.setEnabled(enabled);
+            btnPreview.setAlpha(enabled ? 1f : .45f);
+        };
         for (int i = 0; i < designs.size(); i++) {
-            WelcomeDesign design = designs.get(i);
-            LinearLayout row = new LinearLayout(context);
-            row.setOrientation(LinearLayout.VERTICAL);
-            row.setClickable(true);
-            row.setFocusable(true);
-            row.setPadding(16, 14, 16, 14);
+            WelcomeDesign item = designs.get(i);
+            LinearLayout card = new LinearLayout(context);
+            card.setTag("welcome_design_" + item.id());
+            card.setOrientation(LinearLayout.HORIZONTAL);
+            card.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            card.setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14));
+            card.setMinimumHeight(dp(context, 64));
+            card.setClickable(true);
+            card.setFocusable(true);
 
-            TextView title = new TextView(context);
-            title.setText(design.titleRes());
-            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-            title.setTextColor(primary);
-            row.addView(title);
+            TextView title = text(context, context.getString(item.titleRes()), R.dimen.text_size_normal, false);
+            title.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            card.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
 
-            TextView help = new TextView(context);
-            help.setText(design.helpRes());
-            help.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            help.setTextColor(secondary);
-            help.setPadding(0, 4, 0, 0);
-            row.addView(help);
+            androidx.appcompat.widget.AppCompatRadioButton choice = new androidx.appcompat.widget.AppCompatRadioButton(context);
+            choice.setButtonDrawable(R.drawable.bg_choice_control);
+            choice.setButtonTintList(choiceTint(context));
+            choice.setClickable(false);
+            choice.setFocusable(false);
+            card.addView(choice);
 
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.setMargins(0, 0, 0, 8);
-            parent.addView(row, rowParams);
-            rows[i] = row;
-
-            row.setOnClickListener(v -> {
-                if (design.id().equals(selected[0])) {
-                    return;
-                }
-                selected[0] = design.id();
-                applyDesignSelection(context, designs, rows, selected[0]);
-                onDesignCommitted.accept(design.id());
+            final int fi = i;
+            card.setOnClickListener(v -> {
+                if (item.id().equals(selected[0])) return;
+                selected[0] = item.id();
+                refresh.run();
+                onDesignCommitted.accept(item.id());
             });
+            designCards[i] = card;
+            designTitles[i] = title;
+            buttons[i] = choice;
+            choices.addCard(card);
         }
-        applyDesignSelection(context, designs, rows, selected[0]);
+        parent.addView(choices, new LinearLayout.LayoutParams(-1, -2));
+        refresh.run();
+        addSpaced(context, parent, description, 8, 16);
+        addLabel(context, parent, R.string.welcome_custom_text_optional_label);
 
-        TextView lineLabel = new TextView(context);
-        lineLabel.setText(R.string.welcome_custom_text_label);
-        lineLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        lineLabel.setTextColor(secondary);
-        lineLabel.setPadding(0, 16, 0, 8);
-        parent.addView(lineLabel);
-
+        LinearLayout lineRow = new LinearLayout(context);
+        lineRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
         EditText lineInput = new EditText(context);
+        lineInput.setTag("welcome_custom_line");
         lineInput.setHint(R.string.welcome_custom_text_hint);
-        lineInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(lineInput, R.dimen.text_size_normal);
         lineInput.setSingleLine(true);
         lineInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS
                 | InputType.TYPE_TEXT_VARIATION_PERSON_NAME);
-        lineInput.setPadding(16, 16, 16, 16);
-        lineInput.setTextColor(primary);
+        lineInput.setPadding(dp(context, 12), dp(context, 8), dp(context, 12), dp(context, 8));
+        lineInput.setMinHeight(dp(context, 56));
+        lineInput.setTextColor(UiStyles.color(context, R.color.textPrimary));
         lineInput.setHintTextColor(UiStyles.color(context, R.color.textHint));
-        GradientDrawable inputBg = new GradientDrawable();
-        inputBg.setColor(UiStyles.color(context, R.color.surfaceColor));
-        inputBg.setCornerRadius(context.getResources().getDimension(R.dimen.oem_button_radius));
-        inputBg.setStroke(1, UiStyles.color(context, R.color.outlineMuted));
-        lineInput.setBackground(inputBg);
+        paintCard(context, lineInput, false);
         if (customLine != null && !customLine.isEmpty()) {
             lineInput.setText(customLine);
             lineInput.setSelection(customLine.length());
         }
         lineInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) {
                 onLineCommitted.accept(s == null ? "" : s.toString());
             }
         });
-        LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        lineParams.setMargins(0, 0, 0, 8);
-        parent.addView(lineInput, lineParams);
-
-        TextView lineHelp = new TextView(context);
-        lineHelp.setText(R.string.welcome_custom_text_help);
-        lineHelp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        lineHelp.setTextColor(UiStyles.color(context, R.color.textHint));
-        lineHelp.setPadding(0, 0, 0, 8);
-        parent.addView(lineHelp);
-
-        Button btnPreview = new Button(context);
-        btnPreview.setText(R.string.welcome_design_preview);
-        btnPreview.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        btnPreview.setTextColor(primary);
-        UiStyles.styleOemButton(btnPreview, UiStyles.color(context, R.color.buttonPrimary));
-        btnPreview.setPadding(24, 16, 24, 16);
-        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        previewParams.setMargins(0, 8, 0, 0);
-        parent.addView(btnPreview, previewParams);
+        lineRow.addView(lineInput, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(-2, -2);
+        previewParams.setMarginStart(dp(context, 8));
+        lineRow.addView(btnPreview, previewParams);
+        parent.addView(lineRow, new LinearLayout.LayoutParams(-1, -2));
         return btnPreview;
     }
 
-    private static void applyDesignSelection(Context context, List<WelcomeDesign> designs,
-            LinearLayout[] rows, String selectedId) {
-        float radius = context.getResources().getDimension(R.dimen.oem_button_radius);
+    private static LinearLayout section(Context context, int titleRes) {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int inset = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
+        card.setPadding(inset, inset, inset, inset);
+        UiStyles.setGlassCardBackground(card);
+        TextView title = text(context, context.getString(titleRes), R.dimen.text_size_large, false);
+        title.setTypeface(null, Typeface.BOLD);
+        addSpaced(context, card, title, 0, 16);
+        return card;
+    }
+
+    private static void addLabel(Context context, LinearLayout parent, int resId) {
+        addSpaced(context, parent, text(context, context.getString(resId), R.dimen.text_size_small, true), 0, 8);
+    }
+
+    private static TextView text(Context context, CharSequence label, int sizeRes, boolean secondary) {
+        TextView text = new TextView(context);
+        text.setText(label);
+        UiStyles.setTextSize(text, sizeRes);
+        text.setTextColor(UiStyles.color(context, secondary ? R.color.textSecondary : R.color.textPrimary));
+        return text;
+    }
+
+    private static void addSpaced(Context context, LinearLayout parent, android.view.View child,
+            int topDp, int bottomDp) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(context, topDp), 0, dp(context, bottomDp));
+        parent.addView(child, params);
+    }
+
+    private static android.content.res.ColorStateList choiceTint(Context context) {
+        return new android.content.res.ColorStateList(new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+                new int[]{UiStyles.color(context, R.color.oemAccent), UiStyles.color(context, R.color.textSecondary)});
+    }
+
+    private static void paintCard(Context context, android.view.View view, boolean selected) {
         float density = context.getResources().getDisplayMetrics().density;
-        for (int i = 0; i < designs.size(); i++) {
-            boolean selected = designs.get(i).id().equals(selectedId);
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(UiStyles.color(context, R.color.surfaceCard));
-            bg.setCornerRadius(radius);
-            bg.setStroke(Math.max(1, Math.round((selected ? 2f : 1f) * density)),
-                    UiStyles.color(context, selected ? R.color.oemAccent : R.color.outline));
-            rows[i].setBackground(bg);
-            TextView title = (TextView) rows[i].getChildAt(0);
-            title.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
-            title.setTextColor(UiStyles.color(context,
-                    selected ? R.color.textPrimary : R.color.textSecondary));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(16 * density);
+        if (selected) {
+            bg.setColor(UiStyles.color(context, R.color.assistCardActive));
+            bg.setStroke(Math.round(2 * density), UiStyles.color(context, R.color.assistStrokeActive));
+        } else {
+            bg.setColor(UiStyles.color(context, R.color.assistCardIdle));
+            bg.setStroke(Math.round(1 * density), UiStyles.color(context, R.color.outline));
         }
+        view.setBackground(bg);
+    }
+
+    private static int dp(Context context, float value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 }

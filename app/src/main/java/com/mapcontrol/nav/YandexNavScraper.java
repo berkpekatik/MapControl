@@ -5,7 +5,6 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import androidx.annotation.Nullable;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,25 +13,6 @@ import java.util.Map;
 public final class YandexNavScraper {
 
     public static final String PACKAGE_YANDEX_MAPS = "ru.yandex.yandexmaps";
-
-    private static final String ID_MANEUVER_DISTANCE =
-            PACKAGE_YANDEX_MAPS + ":id/text_maneuverballoon_distance";
-    private static final String ID_MANEUVER_UNIT =
-            PACKAGE_YANDEX_MAPS + ":id/text_maneuverballoon_metrics";
-    private static final String ID_NEXT_STREET =
-            PACKAGE_YANDEX_MAPS + ":id/text_nextstreet";
-    private static final String ID_ETA_DISTANCE =
-            PACKAGE_YANDEX_MAPS + ":id/textview_eta_distance";
-    private static final String ID_ETA_ARRIVAL =
-            PACKAGE_YANDEX_MAPS + ":id/textview_eta_arrival";
-    private static final String ID_ETA_TIME =
-            PACKAGE_YANDEX_MAPS + ":id/textview_eta_time";
-    private static final String ID_SPEED =
-            PACKAGE_YANDEX_MAPS + ":id/text_speed_value";
-    private static final String ID_SPEED_LIMIT =
-            PACKAGE_YANDEX_MAPS + ":id/text_speedlimit";
-    private static final String ID_STATUS_PANEL =
-            PACKAGE_YANDEX_MAPS + ":id/status_panel_text";
 
     private static final String SUFFIX_MANEUVER_DISTANCE = "text_maneuverballoon_distance";
     private static final String SUFFIX_MANEUVER_UNIT = "text_maneuverballoon_metrics";
@@ -51,28 +31,23 @@ public final class YandexNavScraper {
         if (root == null) {
             return YandexNavSnapshot.inactive();
         }
+        try {
+            root.refresh();
+        } catch (Exception ignored) {
+        }
 
         Map<String, String> tree = new HashMap<>();
         collectBySuffix(root, tree);
 
-        String maneuverDistance = firstNonEmpty(
-                textByViewId(root, ID_MANEUVER_DISTANCE), tree.get(SUFFIX_MANEUVER_DISTANCE));
-        String maneuverUnit = firstNonEmpty(
-                textByViewId(root, ID_MANEUVER_UNIT), tree.get(SUFFIX_MANEUVER_UNIT));
-        String nextStreet = firstNonEmpty(
-                textByViewId(root, ID_NEXT_STREET), tree.get(SUFFIX_NEXT_STREET));
-        String etaDistance = firstNonEmpty(
-                textByViewId(root, ID_ETA_DISTANCE), tree.get(SUFFIX_ETA_DISTANCE));
-        String etaArrival = firstNonEmpty(
-                textByViewId(root, ID_ETA_ARRIVAL), tree.get(SUFFIX_ETA_ARRIVAL));
-        String etaTime = firstNonEmpty(
-                textByViewId(root, ID_ETA_TIME), tree.get(SUFFIX_ETA_TIME));
-        String speed = firstNonEmpty(
-                textByViewId(root, ID_SPEED), tree.get(SUFFIX_SPEED));
-        String speedLimit = firstNonEmpty(
-                textByViewId(root, ID_SPEED_LIMIT), tree.get(SUFFIX_SPEED_LIMIT));
-        String statusPanel = firstNonEmpty(
-                textByViewId(root, ID_STATUS_PANEL), tree.get(SUFFIX_STATUS));
+        String maneuverDistance = tree.get(SUFFIX_MANEUVER_DISTANCE);
+        String maneuverUnit = tree.get(SUFFIX_MANEUVER_UNIT);
+        String nextStreet = tree.get(SUFFIX_NEXT_STREET);
+        String etaDistance = tree.get(SUFFIX_ETA_DISTANCE);
+        String etaArrival = tree.get(SUFFIX_ETA_ARRIVAL);
+        String etaTime = tree.get(SUFFIX_ETA_TIME);
+        String speed = tree.get(SUFFIX_SPEED);
+        String speedLimit = tree.get(SUFFIX_SPEED_LIMIT);
+        String statusPanel = tree.get(SUFFIX_STATUS);
 
         boolean active = nonEmpty(maneuverDistance)
                 || nonEmpty(etaDistance)
@@ -109,14 +84,20 @@ public final class YandexNavScraper {
             }
             int count = node.getChildCount();
             for (int i = 0; i < count; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child == null) {
-                    continue;
-                }
+                AccessibilityNodeInfo child = null;
                 try {
-                    collectBySuffix(child, out);
+                    child = node.getChild(i);
+                    if (child != null) {
+                        collectBySuffix(child, out);
+                    }
+                } catch (Exception ignored) {
                 } finally {
-                    child.recycle();
+                    if (child != null) {
+                        try {
+                            child.recycle();
+                        } catch (Exception ignored) {
+                        }
+                    }
                 }
             }
         } catch (Exception ignored) {
@@ -173,44 +154,6 @@ public final class YandexNavScraper {
         }
         String s = text.toString().trim();
         return s.isEmpty() ? null : s;
-    }
-
-    @Nullable
-    private static String textByViewId(AccessibilityNodeInfo root, String viewId) {
-        List<AccessibilityNodeInfo> nodes = null;
-        try {
-            nodes = root.findAccessibilityNodeInfosByViewId(viewId);
-            if (nodes == null || nodes.isEmpty()) {
-                return null;
-            }
-            for (AccessibilityNodeInfo node : nodes) {
-                if (node == null) {
-                    continue;
-                }
-                try {
-                    String t = nodeText(node);
-                    if (nonEmpty(t)) {
-                        return t;
-                    }
-                } finally {
-                    try {
-                        node.recycle();
-                    } catch (Exception ignored) {
-                    }
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    @Nullable
-    private static String firstNonEmpty(@Nullable String a, @Nullable String b) {
-        if (nonEmpty(a)) {
-            return a;
-        }
-        return nonEmpty(b) ? b : null;
     }
 
     private static boolean nonEmpty(@Nullable String s) {

@@ -5,8 +5,12 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.SparseArray;
+
 import java.util.List;
 
 import android.view.accessibility.AccessibilityEvent;
@@ -17,6 +21,7 @@ import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.util.InstallerConfirmClicker;
 import com.mapcontrol.nav.YandexNavScraper;
 import com.mapcontrol.nav.YandexNavSnapshot;
+import com.mapcontrol.nav.YandexNavStability;
 
 /**
  * Global Back Service
@@ -32,12 +37,42 @@ public class GlobalBackService extends AccessibilityService {
     public static final String ACCESSIBILITY_FLAT_COMPONENT =
             "com.mapcontrol/com.mapcontrol.service.GlobalBackService";
 
-    /** Navigasyon aktifken güncelleme aralığı. */
-    private static final long YANDEX_SCRAPE_THROTTLE_ACTIVE_MS = 750L;
-    /** Nav başlamadan önce pencere değişiminde kontrol aralığı. */
-    private static final long YANDEX_SCRAPE_THROTTLE_IDLE_MS = 2000L;
+    /** Rehberlik varken iki okuma arası en kısa süre. */
+    private static final long YANDEX_SCRAPE_GAP_ACTIVE_MS = 200L;
+    /** Rehberlik yokken olayla tetiklenen okuma aralığı. */
+    private static final long YANDEX_SCRAPE_GAP_IDLE_MS = 700L;
+    /** Rehberlik varken, olay gelmese de arka plan penceresini yoklama. */
+    private static final long YANDEX_POLL_ACTIVE_MS = 250L;
+    /** Nav başlamadan önce yoklama. Yalnızca pencere olayına bağlı kalmaz. */
+    private static final long YANDEX_POLL_IDLE_MS = 1000L;
+    // Pencere kokleri (getWindows/getRootInActiveWindow) senkron binder beklemesi
+    // yapar; main thread'de ANR uretiyordu. Tarama arka thread'de, overlay UI'i
+    // zaten kendi mainHandler'i ile main'e donuyor.
+    private static final java.util.concurrent.ExecutorService SCRAPE_EXEC =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "yandex-scrape");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final java.util.concurrent.atomic.AtomicBoolean SCRAPE_IN_FLIGHT =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean scrapePending =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final Handler yandexHandler = new Handler(Looper.getMainLooper());
+    private final YandexNavStability yandexStability = new YandexNavStability();
+    private final Object yandexLock = new Object();
+    private final Runnable delayedScrapeRunnable = this::requestScrape;
+    private boolean pollQueued;
+    private final Runnable pollRunnable = () -> {
+        pollQueued = false;
+        if (!YandexClusterNavOverlay.isEnabled(this)) {
+            return;
+        }
+        requestScrape();
+        ensureYandexPoll();
+    };
     private long lastYandexScrapeMs = 0L;
-    private boolean lastGuidanceActive = false;
+    private volatile boolean lastGuidanceActive = false;
     
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -55,13 +90,16 @@ public class GlobalBackService extends AccessibilityService {
         super.onServiceConnected();
         instance = this;
         if (YandexClusterNavOverlay.isEnabled(this)) {
-            performYandexNavSync();
+            ensureYandexPoll();
+            requestScrape();
         }
     }
     
     @Override
     public void onDestroy() {
         InstallerConfirmClicker.disarm();
+        stopYandexPoll();
+        yandexStability.clear();
         try {
             YandexClusterNavOverlay.getInstance(this).hide();
         } catch (Exception ignored) {
@@ -73,30 +111,76 @@ public class GlobalBackService extends AccessibilityService {
 
     /**
      * Yandex Maps navigasyon kartlarını okuyup cluster overlay'e yansıtır.
-     * Nav aktif değilken yalnızca pencere değişimlerinde seyrek kontrol eder;
-     * nav aktifken içerik değişimlerini throttle ile izler.
+     * Olaylar hızlandırır; arka planda olay kesilse de yoklama sürer.
      */
     private void maybeScrapeYandexNav(AccessibilityEvent event) {
         if (!YandexClusterNavOverlay.isEnabled(this)) {
+            stopYandexPoll();
             return;
         }
+        ensureYandexPoll();
         if (event != null && isYandexOverlayZOrderEvent(event)) {
             YandexClusterNavOverlay.getInstance(this).raiseToTopIfShowing();
         }
         if (event != null && !shouldHandleYandexEvent(event)) {
             return;
         }
+        requestScrape();
+    }
 
-        long now = SystemClock.uptimeMillis();
-        long throttleMs = lastGuidanceActive
-                ? YANDEX_SCRAPE_THROTTLE_ACTIVE_MS
-                : YANDEX_SCRAPE_THROTTLE_IDLE_MS;
-        if (now - lastYandexScrapeMs < throttleMs) {
+    private void ensureYandexPoll() {
+        if (pollQueued || !YandexClusterNavOverlay.isEnabled(this)) {
             return;
         }
-        lastYandexScrapeMs = now;
+        pollQueued = true;
+        long delay = lastGuidanceActive ? YANDEX_POLL_ACTIVE_MS : YANDEX_POLL_IDLE_MS;
+        yandexHandler.postDelayed(pollRunnable, delay);
+    }
 
-        performYandexNavSync();
+    private void stopYandexPoll() {
+        pollQueued = false;
+        yandexHandler.removeCallbacks(pollRunnable);
+        yandexHandler.removeCallbacks(delayedScrapeRunnable);
+    }
+
+    private void kickPollRate() {
+        yandexHandler.removeCallbacks(pollRunnable);
+        pollQueued = false;
+        ensureYandexPoll();
+    }
+
+    private void requestScrape() {
+        scrapePending.set(true);
+        if (!SCRAPE_IN_FLIGHT.compareAndSet(false, true)) {
+            return;
+        }
+        SCRAPE_EXEC.execute(this::drainScrapes);
+    }
+
+    private void drainScrapes() {
+        boolean handedOff = false;
+        try {
+            while (scrapePending.get()) {
+                long now = SystemClock.uptimeMillis();
+                long gap = lastGuidanceActive
+                        ? YANDEX_SCRAPE_GAP_ACTIVE_MS
+                        : YANDEX_SCRAPE_GAP_IDLE_MS;
+                long wait = gap - (now - lastYandexScrapeMs);
+                if (wait > 0) {
+                    handedOff = true;
+                    yandexHandler.postDelayed(delayedScrapeRunnable, wait);
+                    return;
+                }
+                scrapePending.set(false);
+                lastYandexScrapeMs = SystemClock.uptimeMillis();
+                performYandexNavSync();
+            }
+        } finally {
+            SCRAPE_IN_FLIGHT.set(false);
+            if (!handedOff && scrapePending.get()) {
+                requestScrape();
+            }
+        }
     }
 
     public enum YandexSyncResult {
@@ -118,36 +202,34 @@ public class GlobalBackService extends AccessibilityService {
         if (inst == null) {
             return YandexSyncResult.SERVICE_NOT_CONNECTED;
         }
+        inst.ensureYandexPoll();
         return inst.performYandexNavSync();
     }
 
     private YandexSyncResult performYandexNavSync() {
-        AccessibilityNodeInfo root = findYandexRoot();
-        try {
-            if (root == null) {
-                if (lastGuidanceActive) {
-                    lastGuidanceActive = false;
-                    YandexClusterNavOverlay.getInstance(this).hide();
-                }
-                return YandexSyncResult.YANDEX_NOT_OPEN;
-            }
-            YandexNavSnapshot snap = YandexNavScraper.scrape(root);
-            lastGuidanceActive = snap.guidanceActive;
-            if (!snap.guidanceActive) {
+        synchronized (yandexLock) {
+            if (!YandexClusterNavOverlay.isEnabled(this)) {
+                yandexStability.clear();
+                lastGuidanceActive = false;
                 YandexClusterNavOverlay.getInstance(this).hide();
-                return YandexSyncResult.NAV_INACTIVE;
+                return YandexSyncResult.DISABLED;
             }
-            YandexClusterNavOverlay.getInstance(this).apply(snap);
+            YandexRead read = readYandexSnapshot();
+            long now = SystemClock.uptimeMillis();
+            YandexNavSnapshot stable = yandexStability.accept(read.snapshot, now);
+            boolean wasActive = lastGuidanceActive;
+            lastGuidanceActive = stable.guidanceActive;
+            if (wasActive != stable.guidanceActive) {
+                yandexHandler.post(this::kickPollRate);
+            }
+            if (!stable.guidanceActive) {
+                YandexClusterNavOverlay.getInstance(this).hide();
+                return read.windowFound
+                        ? YandexSyncResult.NAV_INACTIVE
+                        : YandexSyncResult.YANDEX_NOT_OPEN;
+            }
+            YandexClusterNavOverlay.getInstance(this).apply(stable);
             return YandexSyncResult.OK;
-        } catch (Exception ignored) {
-            return YandexSyncResult.YANDEX_NOT_OPEN;
-        } finally {
-            if (root != null) {
-                try {
-                    root.recycle();
-                } catch (Exception ignored) {
-                }
-            }
         }
     }
 
@@ -158,69 +240,138 @@ public class GlobalBackService extends AccessibilityService {
     }
 
     private boolean shouldHandleYandexEvent(AccessibilityEvent event) {
-        CharSequence pkg = event.getPackageName();
         int type = event.getEventType();
-        boolean yandexPkg = pkg != null
-                && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(pkg);
-        boolean windowChange = type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
-        if (windowChange) {
+        if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             return true;
         }
-        if (!yandexPkg) {
+        CharSequence pkg = event.getPackageName();
+        if (pkg == null || !YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(pkg)) {
             return false;
         }
-        if (lastGuidanceActive && type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            return true;
-        }
-        return type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
+        return type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                || type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
+                || type == AccessibilityEvent.TYPE_VIEW_SCROLLED;
     }
 
     /**
-     * Önce aktif pencere, yoksa tüm pencerelerde Yandex Maps kök düğümü.
+     * Yandex pencerelerinin alanlarını birleştirir. ETA paneli tek başına yeterli sayılmaz;
+     * manevra balonu başka penceredeyse "30 m" kartı düşmesin.
      */
-    private AccessibilityNodeInfo findYandexRoot() {
-        AccessibilityNodeInfo active = getRootInActiveWindow();
+    private YandexRead readYandexSnapshot() {
+        YandexRead best = new YandexRead(false, null);
+        AccessibilityNodeInfo active = null;
+        try {
+            active = getRootInActiveWindow();
+        } catch (Exception ignored) {
+        }
         if (active != null) {
-            CharSequence p = active.getPackageName();
-            if (p != null && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(p)) {
-                return active;
-            }
             try {
-                active.recycle();
+                if (isYandexNode(active)) {
+                    best = best.offer(true, scrapeFresh(active));
+                    if (best.hasManeuverAndEta()) {
+                        return best;
+                    }
+                }
+            } finally {
+                recycleNode(active);
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                SparseArray<List<AccessibilityWindowInfo>> all = getWindowsOnAllDisplays();
+                if (all != null) {
+                    for (int i = 0; i < all.size(); i++) {
+                        best = scanWindows(all.valueAt(i), best);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                best = scanWindows(getWindows(), best);
             } catch (Exception ignored) {
             }
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            return null;
+        return best;
+    }
+
+    private YandexRead scanWindows(@androidx.annotation.Nullable List<AccessibilityWindowInfo> wins,
+            YandexRead best) {
+        if (wins == null) {
+            return best;
         }
-        try {
-            List<AccessibilityWindowInfo> wins = getWindows();
-            if (wins == null) {
-                return null;
+        for (int i = 0; i < wins.size(); i++) {
+            AccessibilityWindowInfo w = wins.get(i);
+            if (w == null) {
+                continue;
             }
-            for (int i = 0; i < wins.size(); i++) {
-                AccessibilityWindowInfo w = wins.get(i);
-                if (w == null) {
+            try {
+                AccessibilityNodeInfo root = w.getRoot();
+                if (root == null) {
                     continue;
                 }
                 try {
-                    AccessibilityNodeInfo r = w.getRoot();
-                    if (r == null) {
-                        continue;
+                    if (isYandexNode(root)) {
+                        best = best.offer(true, scrapeFresh(root));
                     }
-                    CharSequence p = r.getPackageName();
-                    if (p != null && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(p)) {
-                        return r;
-                    }
-                    r.recycle();
                 } finally {
+                    recycleNode(root);
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try {
                     w.recycle();
+                } catch (Exception ignored) {
                 }
             }
+        }
+        return best;
+    }
+
+    private static boolean isYandexNode(AccessibilityNodeInfo node) {
+        CharSequence pkg = node.getPackageName();
+        return pkg != null && YandexNavScraper.PACKAGE_YANDEX_MAPS.contentEquals(pkg);
+    }
+
+    private static YandexNavSnapshot scrapeFresh(AccessibilityNodeInfo node) {
+        return YandexNavScraper.scrape(node);
+    }
+
+    private static void recycleNode(AccessibilityNodeInfo node) {
+        try {
+            node.recycle();
         } catch (Exception ignored) {
         }
-        return null;
+    }
+
+    private static final class YandexRead {
+        final boolean windowFound;
+        @androidx.annotation.Nullable final YandexNavSnapshot snapshot;
+        final int score;
+
+        YandexRead(boolean windowFound, @androidx.annotation.Nullable YandexNavSnapshot snapshot) {
+            this.windowFound = windowFound;
+            this.snapshot = snapshot;
+            this.score = snapshot == null ? -1 : snapshot.populatedFieldCount();
+        }
+
+        boolean hasManeuverAndEta() {
+            return snapshot != null && snapshot.hasManeuverDistance() && snapshot.hasEta();
+        }
+
+        YandexRead offer(boolean found, YandexNavSnapshot snap) {
+            if (!found) {
+                return this;
+            }
+            if (snap == null) {
+                return windowFound ? this : new YandexRead(true, null);
+            }
+            if (!windowFound || snapshot == null) {
+                return new YandexRead(true, snap);
+            }
+            return new YandexRead(true, snapshot.withFilledGaps(snap));
+        }
     }
     
     /**

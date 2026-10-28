@@ -146,7 +146,6 @@ public final class YandexClusterNavOverlay {
             return;
         }
         lastApplied = snapshot;
-        raiseToTopOnMain(false);
     }
 
     /**
@@ -166,11 +165,24 @@ public final class YandexClusterNavOverlay {
         if (throttle && now - lastZOrderRaiseUptimeMs < Z_ORDER_RAISE_MIN_INTERVAL_MS) {
             return;
         }
-        lastZOrderRaiseUptimeMs = now;
+        View root = overlayRoot;
+        WindowManager wm = windowManager;
+        WindowManager.LayoutParams params = overlayLayoutParams;
         try {
-            windowManager.removeView(overlayRoot);
-            windowManager.addView(overlayRoot, overlayLayoutParams);
+            wm.removeView(root);
         } catch (Exception ignored) {
+        }
+        try {
+            wm.addView(root, params);
+            lastZOrderRaiseUptimeMs = now;
+        } catch (Exception ignored) {
+            overlayRoot = null;
+            windowManager = null;
+            displayContext = null;
+            overlayLayoutParams = null;
+            clearViewRefs();
+            appliedLayoutVersion = -1;
+            lastApplied = null;
         }
     }
 

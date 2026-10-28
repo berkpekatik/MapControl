@@ -211,11 +211,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
         Button backBtn = new Button(this);
         backBtn.setText(R.string.dms_face_back);
-        backBtn.setTextColor(0xFFFFFFFF);
+        backBtn.setTextColor(textPrimary);
         backBtn.setTextSize(14);
         backBtn.setAllCaps(false);
         backBtn.setPadding(dp(18), dp(8), dp(18), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(backBtn, 0xFF263244, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(backBtn,
+                UiStyles.color(this, R.color.buttonSecondaryMuted), 12f);
         backBtn.setOnClickListener(v -> finish());
         topBar.addView(backBtn, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, dp(42)));
@@ -236,7 +237,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         clearButton.setTextSize(13);
         clearButton.setAllCaps(false);
         clearButton.setPadding(dp(16), dp(8), dp(16), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(clearButton, 0xFFB91C1C, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(clearButton,
+                UiStyles.color(this, R.color.buttonDanger), 12f);
         clearButton.setOnClickListener(v -> confirmClearProfiles());
         topBar.addView(clearButton, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)));
@@ -353,11 +355,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         nameInput = new EditText(this);
         nameInput.setSingleLine(true);
         nameInput.setHint(R.string.dms_face_name_hint);
-        nameInput.setHintTextColor(0xFF94A3B8);
-        nameInput.setTextColor(0xFFFFFFFF);
+        nameInput.setHintTextColor(UiStyles.color(this, R.color.textMuted));
+        nameInput.setTextColor(textPrimary);
         nameInput.setTextSize(15);
         nameInput.setPadding(dp(14), dp(8), dp(14), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(nameInput, 0xFF1E293B, 10f);
+        UiStyles.applySolidRoundedBackgroundDp(nameInput,
+                UiStyles.color(this, R.color.surfaceCardInner), 10f);
         enrollCard.addView(nameInput, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(44)));
 
@@ -408,7 +411,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollButton.setTypeface(null, Typeface.BOLD);
         enrollButton.setAllCaps(false);
         enrollButton.setEnabled(false);
-        UiStyles.applySolidRoundedBackgroundDp(enrollButton, 0xFF2563EB, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(enrollButton,
+                UiStyles.color(this, R.color.buttonPrimary), 12f);
         enrollButton.setOnClickListener(v -> onEnrollButtonClicked());
         LinearLayout.LayoutParams enrollBtnLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
@@ -448,10 +452,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             }
             int memNum = i + 1;
             boolean isSelected = (selectedMemory == memNum);
-            btn.setTextColor(0xFFFFFFFF);
+            btn.setTextColor(isSelected ? 0xFFFFFFFF : UiStyles.color(this, R.color.textPrimary));
             btn.setTypeface(null, isSelected ? Typeface.BOLD : Typeface.NORMAL);
-            UiStyles.applySolidRoundedBackgroundDp(
-                    btn, isSelected ? 0xFF2563EB : 0xFF334155, 10f);
+            UiStyles.applySolidRoundedBackgroundDp(btn, UiStyles.color(this,
+                    isSelected ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 10f);
         }
     }
 
@@ -496,7 +500,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(12), dp(10), dp(12), dp(10));
-            UiStyles.applySolidRoundedBackgroundDp(row, 0xFF1E293B, 10f);
+            UiStyles.applySolidRoundedBackgroundDp(row,
+                    UiStyles.color(this, R.color.surfaceCardInner), 10f);
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             if (i > 0) {
@@ -507,7 +512,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             infoCol.setOrientation(LinearLayout.VERTICAL);
             TextView nameTv = new TextView(this);
             nameTv.setText((i + 1) + ". " + p.name);
-            nameTv.setTextColor(0xFFFFFFFF);
+            nameTv.setTextColor(UiStyles.color(this, R.color.textPrimary));
             nameTv.setTextSize(15);
             nameTv.setTypeface(null, Typeface.BOLD);
             infoCol.addView(nameTv);
@@ -515,7 +520,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             if (seatMemoryAvailable) {
                 TextView subTv = new TextView(this);
                 subTv.setText("Koltuk Hafızası " + p.seatMemory);
-                subTv.setTextColor(0xFF60A5FA);
+                subTv.setTextColor(UiStyles.color(this, R.color.textAccent));
                 subTv.setTextSize(13);
                 infoCol.addView(subTv);
             }
@@ -529,13 +534,15 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 Button memBtn = new Button(this);
                 memBtn.setText(String.valueOf(m));
                 memBtn.setAllCaps(false);
-                memBtn.setTextColor(0xFFFFFFFF);
                 memBtn.setTextSize(12);
                 memBtn.setPadding(0, 0, 0, 0);
                 boolean active = (p.seatMemory == m);
+                memBtn.setTextColor(active
+                        ? 0xFFFFFFFF
+                        : UiStyles.color(this, R.color.textPrimary));
                 memBtn.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
-                UiStyles.applySolidRoundedBackgroundDp(
-                        memBtn, active ? 0xFF2563EB : 0xFF334155, 8f);
+                UiStyles.applySolidRoundedBackgroundDp(memBtn, UiStyles.color(this,
+                        active ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 8f);
                 memBtn.setOnClickListener(v -> updateProfileSeatMemory(index, targetMem));
                 LinearLayout.LayoutParams memLp = new LinearLayout.LayoutParams(dp(34), dp(34));
                 memLp.rightMargin = dp(6);
@@ -549,7 +556,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             delBtn.setTextColor(0xFFFFFFFF);
             delBtn.setTextSize(12);
             delBtn.setPadding(dp(12), dp(4), dp(12), dp(4));
-            UiStyles.applySolidRoundedBackgroundDp(delBtn, 0xFFB91C1C, 8f);
+            UiStyles.applySolidRoundedBackgroundDp(delBtn,
+                    UiStyles.color(this, R.color.buttonDanger), 8f);
             delBtn.setOnClickListener(v -> deleteSingleProfile(index));
             row.addView(delBtn, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, dp(34)));
