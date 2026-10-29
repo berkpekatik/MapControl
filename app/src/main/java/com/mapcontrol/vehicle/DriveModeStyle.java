@@ -13,7 +13,8 @@ import com.mapcontrol.ui.theme.UiStyles;
  * OEM {@link com.desaysv.ivi.extra.project.carinfo.NewEnergyID#ID_DRIVE_MODE} değerleri
  * ve dashboard tema renkleri.
  * <p>
- * Eco=0, Normal=1, Sport=2 (DriveModeTabBuilder ile aynı).
+ * Eco=0, Normal=1, Sport=2, Snow=3, Mud=4, Sand=5, Off-road=6 (araçta ölçüldü).
+ * DriveModeTabBuilder ile Eco/Normal/Sport değerleri aynı.
  */
 public final class DriveModeStyle {
 
@@ -42,9 +43,9 @@ public final class DriveModeStyle {
             case 4:
                 return "MUD";
             case 5:
-                return "OFFROAD";
-            case 7:
                 return "SAND";
+            case 6:
+                return "OFFROAD";
             default:
                 return null;
         }

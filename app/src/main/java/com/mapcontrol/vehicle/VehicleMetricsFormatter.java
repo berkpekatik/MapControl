@@ -35,14 +35,12 @@ public final class VehicleMetricsFormatter {
 
     public String formatDashboardFuel(VehicleMetricsSnapshot snapshot) {
         int fuel = snapshot.fuelPercent;
-        if (!VehicleMetricsSnapshot.isValid(fuel) || fuel < 0) {
+        int tenths = VehicleMetricsSnapshot.fuelTenths(fuel);
+        if (tenths < 0) {
             return dash();
         }
-        // OEM: 0–100 tam yüzde; >100 ise onda bir (348 → 34.8)
-        if (fuel <= 100) {
-            return String.format(Locale.getDefault(), "%% %d", fuel);
-        }
-        return String.format(Locale.getDefault(), "%% %.1f", fuel / 10.0);
+        // Yakıt her zaman onda bir (694 → 69.4)
+        return String.format(Locale.getDefault(), "%% %.1f", tenths / 10.0);
     }
 
     public String formatDashboardRange(VehicleMetricsSnapshot snapshot) {
@@ -104,7 +102,7 @@ public final class VehicleMetricsFormatter {
         if (!VehicleMetricsSnapshot.isValid(combined) || combined <= 0) {
             return dash();
         }
-        int rpm = combined * 10;
+        int rpm = VehicleMetricsSnapshot.rpmFromCombined(combined);
         return String.format(Locale.getDefault(), "%,d", rpm);
     }
 
@@ -146,12 +144,8 @@ public final class VehicleMetricsFormatter {
     }
 
     public int fuelPercentOrZero(VehicleMetricsSnapshot snapshot) {
-        int fuel = snapshot.fuelPercent;
-        if (!VehicleMetricsSnapshot.isValid(fuel) || fuel < 0) {
-            return 0;
-        }
-        int percent = fuel <= 100 ? fuel : Math.round(fuel / 10f);
-        return Math.max(0, Math.min(percent, 100));
+        int percent = VehicleMetricsSnapshot.fuelPercentRounded(snapshot.fuelPercent);
+        return Math.max(0, percent);
     }
 
     public String formatMediaDuration(long millis) {
@@ -218,7 +212,7 @@ public final class VehicleMetricsFormatter {
         if (!VehicleMetricsSnapshot.isValid(combined) || combined <= 0) {
             return context.getString(R.string.vehicle_info_engine_off);
         }
-        int rpm = combined * 10;
+        int rpm = VehicleMetricsSnapshot.rpmFromCombined(combined);
         return String.format(Locale.getDefault(), "%,d devir/dakika", rpm);
     }
 
