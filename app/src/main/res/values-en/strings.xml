@@ -266,13 +266,4 @@ Monitor — Foreground apps on display 2</string>
     <string name="launcher_quick_control_trunk">Trunk</string>
     <string name="launcher_quick_control_trunk_hint">Tap the vehicle to open/close trunk</string>
     <string name="launcher_quick_control_back">Back</string>
-    <string name="speech_wake_hold_already_ready">Speech recognition is already ready. Wake word was left unchanged.</string>
-    <string name="speech_wake_hold_already_off">Wake word is already off.</string>
-    <string name="speech_wake_hold_write_failed">Could not pause the voice wake word.</string>
-    <string name="speech_wake_hold_started">Voice wake word paused until speech recognition finishes starting.</string>
-    <string name="speech_wake_hold_network">Network is up. Waiting for speech recognition to finish starting.</string>
-    <string name="speech_wake_hold_left_off">Speech recognition did not finish starting. Wake word stays off.</string>
-    <string name="speech_wake_hold_restored">Voice wake word restored.</string>
-    <string name="speech_wake_hold_log_unavailable">Could not read speech recognition status. Wake word was left unchanged.</string>
-    <string name="speech_wake_hold_log_lost">Could not read speech recognition status. Wake word stays paused.</string>
 </resources>

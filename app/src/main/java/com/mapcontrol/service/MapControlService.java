@@ -53,7 +53,6 @@ import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.R;
 import com.mapcontrol.vehicle.ClimateAutomationEngine;
-import com.mapcontrol.vehicle.SpeechWakeHold;
 import com.mapcontrol.vehicle.SunroofAutomationEngine;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import android.content.pm.PackageManager;
@@ -115,7 +114,6 @@ public class MapControlService extends Service {
         super.onCreate();
         createNotificationChannel();
         BootSession.noteServiceStart(this);
-        SpeechWakeHold.onServiceStart(this, this::log);
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduleClusterBootSplash();
