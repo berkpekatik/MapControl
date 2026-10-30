@@ -79,6 +79,10 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     private LinearLayout cardModeSmart;
     private LinearLayout cardModeShadeOnly;
     private LinearLayout cardModeOpenAir;
+    private LinearLayout cardModeAlwaysOpen;
+    private TextView btnScopeShadeOnly;
+    private TextView btnScopeSunroofAndShade;
+    private LinearLayout sensSectionContainer;
 
     private Button btnSensSensitive;
     private Button btnSensBalanced;
@@ -351,6 +355,12 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         masterRow.addView(switchMaster);
         card.addView(masterRow);
 
+        // 1.5. Otomasyon Kapsamı (Yalnızca Perde / Tavan + Perde)
+        TextView scopeTitle = createSectionTitle("Ne Yönetilsin? (Otomasyon Kapsamı)", density);
+        scopeTitle.setPadding(0, dp(14, density), 0, dp(6, density));
+        card.addView(scopeTitle);
+        card.addView(buildScopeSelector(density));
+
         // 2. Çalışma Mantığı Seçimi (Seçilebilir Modern Kartlar)
         TextView modeTitle = createSectionTitle("Nasıl Çalışsın?", density);
         card.addView(modeTitle);
@@ -381,11 +391,20 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         card.addView(cardModeSmart);
         card.addView(cardModeShadeOnly);
         card.addView(cardModeOpenAir);
+        cardModeAlwaysOpen = createModeSelectableCard(
+                "\u267E\uFE0F Her Sürüşte Daima Aç (Işıktan Bağımsız)",
+                "Işık seviyesine bakılmaksızın; araç her çalıştığında otomatik açar ve açık tutar.",
+                SunroofAutomationEngine.MODE_ALWAYS_OPEN,
+                currentMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN,
+                density);
+        card.addView(cardModeAlwaysOpen);
 
         // 3. Güneş Hassasiyeti Butonları
+        sensSectionContainer = new LinearLayout(context);
+        sensSectionContainer.setOrientation(LinearLayout.VERTICAL);
         TextView sensTitle = createSectionTitle("Güneş Hassasiyeti", density);
         sensTitle.setPadding(0, dp(14, density), 0, dp(6, density));
-        card.addView(sensTitle);
+        sensSectionContainer.addView(sensTitle);
 
         int currentSens = prefs.getInt(SunroofAutomationEngine.KEY_SENSITIVITY, SunroofAutomationEngine.SENSITIVITY_BALANCED);
 
@@ -399,7 +418,9 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         sensRow.addView(btnSensSensitive, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         sensRow.addView(btnSensBalanced, createMarginLayoutParams(dp(6, density), 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         sensRow.addView(btnSensBroad, createMarginLayoutParams(dp(6, density), 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        card.addView(sensRow);
+        sensSectionContainer.addView(sensRow);
+        sensSectionContainer.setVisibility(currentMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN ? View.GONE : View.VISIBLE);
+        card.addView(sensSectionContainer);
 
         return card;
     }
@@ -436,7 +457,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         return card;
     }
 
-    private void populateGestureGrid(float density) {
+private void populateGestureGrid(float density) {
         if (gestureGrid == null) {
             return;
         }
@@ -445,6 +466,65 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
                 GestureAction.SWIPE_LEFT, GestureAction.SWIPE_RIGHT, dp(6, density)));
         gestureGrid.addView(buildGestureRow(density,
                 GestureAction.SWIPE_UP, GestureAction.SWIPE_DOWN, 0));
+    }
+
+    private View buildScopeSelector(float density) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBackgroundResource(R.drawable.bg_segment_track);
+        int pad = dp(4, density);
+        row.setPadding(pad, pad, pad, pad);
+
+        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SHADE_ONLY);
+
+        btnScopeShadeOnly = new TextView(context);
+        btnScopeShadeOnly.setText("\uD83E\uDE9F Yaln\u0131zca Perde");
+        btnScopeShadeOnly.setTextSize(12);
+        btnScopeShadeOnly.setGravity(Gravity.CENTER);
+        btnScopeShadeOnly.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
+
+        btnScopeSunroofAndShade = new TextView(context);
+        btnScopeSunroofAndShade.setText("\u2728 Tavan + Perde");
+        btnScopeSunroofAndShade.setTextSize(12);
+        btnScopeSunroofAndShade.setGravity(Gravity.CENTER);
+        btnScopeSunroofAndShade.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
+
+        updateScopeButtonStyles(currentScope, density);
+
+        btnScopeShadeOnly.setOnClickListener(v -> {
+            prefs.edit().putInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SHADE_ONLY).apply();
+            updateScopeButtonStyles(SunroofAutomationEngine.TARGET_SHADE_ONLY, density);
+            callback.log("Otomasyon kapsam\u0131 se\u00e7ildi: Yaln\u0131zca Perde (Cam tavan a\u00e7\u0131lmaz)");
+        });
+
+        btnScopeSunroofAndShade.setOnClickListener(v -> {
+            prefs.edit().putInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SUNROOF_AND_SHADE).apply();
+            updateScopeButtonStyles(SunroofAutomationEngine.TARGET_SUNROOF_AND_SHADE, density);
+            callback.log("Otomasyon kapsam\u0131 se\u00e7ildi: Tavan + Perde (Tam Otomasyon)");
+        });
+
+        row.addView(btnScopeShadeOnly, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(btnScopeSunroofAndShade, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return row;
+    }
+
+    private void updateScopeButtonStyles(int selectedScope, float density) {
+        boolean isShadeOnly = (selectedScope == SunroofAutomationEngine.TARGET_SHADE_ONLY);
+        styleScopeButton(btnScopeShadeOnly, isShadeOnly, density);
+        styleScopeButton(btnScopeSunroofAndShade, !isShadeOnly, density);
+    }
+
+    private void styleScopeButton(TextView btn, boolean selected, float density) {
+        if (btn == null) return;
+        if (selected) {
+            btn.setBackgroundResource(R.drawable.bg_segment_thumb);
+            btn.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            btn.setTypeface(null, Typeface.BOLD);
+        } else {
+            btn.setBackgroundColor(Color.TRANSPARENT);
+            btn.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+            btn.setTypeface(null, Typeface.NORMAL);
+        }
     }
 
     private LinearLayout buildGestureRow(float density, GestureAction first, GestureAction second, int bottomMargin) {
@@ -680,7 +760,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         switchSpeedGuard = createSwitchRow(
                 card,
                 "Yüksek Hız Koruması",
-                "100 km/s üzerinde rüzgar uğultusu ve mekanik hasarı önlemek için tavan açılmaz.",
+                "100 km/s üzerinde rüzgar uğultusu ve mekanik hasarı önlemek için tavanı kapatır.",
                 SunroofAutomationEngine.KEY_SPEED_GUARD,
                 true,
                 density);
@@ -739,6 +819,11 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         updateModeCardTitleColor(cardModeSmart, selectedMode == SunroofAutomationEngine.MODE_SMART_COMFORT);
         updateModeCardTitleColor(cardModeShadeOnly, selectedMode == SunroofAutomationEngine.MODE_SHADE_ONLY);
         updateModeCardTitleColor(cardModeOpenAir, selectedMode == SunroofAutomationEngine.MODE_OPEN_AIR);
+        updateModeCardStyle(cardModeAlwaysOpen, selectedMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN, density);
+        updateModeCardTitleColor(cardModeAlwaysOpen, selectedMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN);
+        if (sensSectionContainer != null) {
+            sensSectionContainer.setVisibility(selectedMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void updateModeCardStyle(LinearLayout card, boolean selected, float density) {
