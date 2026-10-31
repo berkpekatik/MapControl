@@ -115,11 +115,14 @@ public final class VehicleQuickControls {
         }
     }
 
+    /**
+     * Başka dinleyicileri (launcher) etkilememek için dinleyicileri silmez ve tekil örneği kapatmaz;
+     * yalnızca dinleyen kalmadıysa takibi durdurur. Her sahip kendi dinleyicisini removeListener ile çıkarır.
+     */
     public void release() {
-        listeners.clear();
-        stop();
-        ioExecutor.shutdownNow();
-        instance = null;
+        if (listeners.isEmpty()) {
+            stop();
+        }
     }
 
     public boolean isCarInfoConnected() {
@@ -137,6 +140,7 @@ public final class VehicleQuickControls {
         if (!CarInfoProxy.getInstance().isServiceConnnected()) {
             return;
         }
+        // Komut kodlaması araçta doğrulanmadı (okuma 0=kilitli, 1=açık); 2. araç testinde denenecek.
         int value = locked ? 2 : 1;
         CarInfoProxy.getInstance().sendItemValue(MODULE_SETTING, LOCK_CMD_ID, value);
     }
@@ -168,7 +172,8 @@ public final class VehicleQuickControls {
     }
 
     private void applyCentralLockValue(int rawValue, boolean notify) {
-        centralLocked = rawValue == 2;
+        // Araçta ölçüldü: 0 kilitli, 1 açık.
+        centralLocked = rawValue == 0;
         if (notify) {
             notifyListeners();
         }

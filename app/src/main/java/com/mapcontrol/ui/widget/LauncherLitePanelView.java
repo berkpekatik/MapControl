@@ -359,12 +359,10 @@ public final class LauncherLitePanelView extends LinearLayout implements OpenMet
     @NonNull
     private String formatFuelPercent(@NonNull VehicleMetricsSnapshot snapshot) {
         int fuel = snapshot.fuelPercent;
-        if (!VehicleMetricsSnapshot.isValid(fuel) || fuel < 0) {
+        int tenths = VehicleMetricsSnapshot.fuelTenths(fuel);
+        if (tenths < 0) {
             return "—";
         }
-        if (fuel <= 100) {
-            return String.format(Locale.getDefault(), "%d%%", fuel);
-        }
-        return String.format(Locale.getDefault(), "%.1f%%", fuel / 10.0);
+        return String.format(Locale.getDefault(), "%.1f%%", tenths / 10.0);
     }
 }
