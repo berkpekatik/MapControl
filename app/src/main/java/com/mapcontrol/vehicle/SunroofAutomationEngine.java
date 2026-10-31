@@ -446,7 +446,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
             }
         }
 
-        int targetScope = prefs.getInt(KEY_TARGET_SCOPE, TARGET_SHADE_ONLY);
+        int targetScope = prefs.getInt(KEY_TARGET_SCOPE, TARGET_SUNROOF_AND_SHADE);
         int currentSpeed = metrics.preferredSpeed();
         boolean speedGuardActive = prefs.getBoolean(KEY_SPEED_GUARD, true);
         int speedLimit = prefs.getInt(KEY_SPEED_LIMIT, 100);

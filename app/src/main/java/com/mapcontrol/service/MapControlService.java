@@ -32,8 +32,6 @@ import java.io.InputStreamReader;
 import java.io.File;
 import java.io.IOException;
 import android.media.MediaPlayer;
-import android.net.Uri;
-import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
@@ -61,8 +59,8 @@ public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
     private static final int NOTIFICATION_ID = 1;
     private static final String TAG = "MapControlService";
-    private static final int UI_LAUNCH_ATTEMPTS = 8;
-    private static final long UI_LAUNCH_RETRY_MS = 1000L;
+    private static final int UI_LAUNCH_ATTEMPTS = 30;
+    private static final long UI_LAUNCH_RETRY_MS = 2000L;
 
     /** Bench: {@link com.mapcontrol.manager.ClusterVDBusBenchManager} — power modu olmadan cluster aç. */
     public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
@@ -121,6 +119,7 @@ public class MapControlService extends Service {
 
         // Power mode kontrolünü başlat
         com.mapcontrol.dvr.DvrController.get(this).start();
+        com.mapcontrol.trip.TripRecorder.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
         SunroofAutomationEngine.getInstance(this).start();
@@ -370,12 +369,17 @@ public class MapControlService extends Service {
                     } catch (Exception e) {
                         // Ignore
                     }
+                    com.mapcontrol.trip.TripRecorder.get(this).onPowerSample(-1);
                     return;
                 }
 
                 int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
                         VDEventCarInfo.MODULE_READONLY_INFO,
                         ReadOnlyID.ID_SYSTEM_POWER_MODE);
+
+                // Yolculuk kaydı her örneği görür; kısa okuma kayıpları 60 sn'lik bitiş beklemesine takılır.
+                com.mapcontrol.trip.TripRecorder.get(this).onPowerSample(
+                        pwrItems != null && pwrItems.length > 0 ? pwrItems[0] : -1);
 
                 if (pwrItems != null && pwrItems.length > 0) {
                     int currentPowerMode = pwrItems[0];
@@ -386,7 +390,7 @@ public class MapControlService extends Service {
                         lastPowerMode = currentPowerMode;
                         com.mapcontrol.dvr.DvrController.get(MapControlService.this)
                                 .onPowerMode(currentPowerMode);
-                        
+
                         // Power mode 2 = Araç çalışıyor (ON)
                         // Power mode 1 = Araç power aldı (STANDBY)
                         // Power mode 0 = Araç kapalı (OFF)
@@ -466,20 +470,7 @@ public class MapControlService extends Service {
                             } else {
                                 log("Araç kapanınca otomatik kapatma devre dışı, navigasyon kapatılmıyor");
                             }
-                            
-                            // Otomatik konum kaydetme kontrolü
-                            boolean autoLocationSaveOnPowerOff = prefs.getBoolean("autoLocationSaveOnPowerOff", false);
-                            if (autoLocationSaveOnPowerOff) {
-                                // ProfileApiService ile giriş kontrolü yap
-                                ProfileApiService profileApiService = new ProfileApiService(MapControlService.this);
-                                if (profileApiService.isLoggedIn()) {
-                                    log("Otomatik konum kaydetme aktif, konum kaydediliyor...");
-                                    saveLocationAutomatically(profileApiService);
-                                } else {
-                                    log("Otomatik konum kaydetme aktif ama kullanıcı giriş yapmamış");
-                                }
-                            }
-                            
+
                             // Sürüş modu sıfırla (bir sonraki açılışta tekrar uygulanabilir)
                             lastAppliedDriveMode = -1;
                         } else {
@@ -526,17 +517,23 @@ public class MapControlService extends Service {
             if (previous != mode) {
                 lastWelcomePowerMode = mode;
             }
-            SharedPreferences prefs = getSharedPreferences(WelcomeDesignCatalog.PREFS_NAME, MODE_PRIVATE);
-            boolean designEnabled = !WelcomeDesignCatalog.ID_OFF.equals(WelcomeDesignCatalog.savedId(prefs));
+            SharedPreferences welcomePrefs = getSharedPreferences(WelcomeDesignCatalog.PREFS_NAME, MODE_PRIVATE);
+            SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
+            boolean designEnabled = !WelcomeDesignCatalog.ID_OFF.equals(WelcomeDesignCatalog.savedId(welcomePrefs));
             StartupGate gate = StartupGate.decide(
                     previous,
                     mode,
                     BootSession.isWelcomeShown(this),
                     designEnabled,
-                    BootSession.isUiPending(this));
+                    BootSession.isUiPending(this),
+                    prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true),
+                    BootSession.isUiLaunched(this));
             if (gate.clearWelcome) {
                 BootSession.clearWelcomeShown(this);
+                BootSession.clearUiLaunched(this);
+                BootSession.setUiPending(this, false);
                 uiLaunchAttempts = 0;
+                nextUiLaunchAt = 0L;
             }
             if (gate.showWelcome) {
                 playWelcomeAudio();
@@ -544,6 +541,11 @@ public class MapControlService extends Service {
                 BootSession.markWelcomeShown(this);
             }
             if (gate.launchUi) {
+                if (!BootSession.isUiPending(this)) {
+                    BootSession.setUiPending(this, true);
+                    uiLaunchAttempts = 0;
+                    nextUiLaunchAt = 0L;
+                }
                 maybeLaunchHome();
             }
         } catch (Exception e) {
@@ -569,6 +571,10 @@ public class MapControlService extends Service {
     }
 
     private void maybeLaunchHome() {
+        if (BootSession.isUiLaunched(this)) {
+            BootSession.setUiPending(this, false);
+            return;
+        }
         if (!BootSession.isUiPending(this) || uiLaunchAttempts >= UI_LAUNCH_ATTEMPTS) {
             return;
         }
@@ -599,8 +605,8 @@ public class MapControlService extends Service {
                     | Intent.FLAG_ACTIVITY_CLEAR_TOP
                     | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(activityIntent);
-            BootSession.setUiPending(this, false);
-            uiLaunchAttempts = 0;
+            // Başarı MainActivity.onResume onayıyla sayılır; gelmezse sonraki turda tekrar denenir.
+            uiLaunchAttempts++;
         } catch (Exception e) {
             uiLaunchAttempts++;
         }
@@ -1060,9 +1066,6 @@ public class MapControlService extends Service {
     }
 
     /**
-     * Ana ekrandaki Yansıtma sekmesiyle aynı uygulama: {@link ClusterDisplayManager#openClusterDisplay()}.
-     */
-    /**
      * Powermode 2 olunca kayıtlı çocuk cam kilidi ayarını araca otomatik uygula
      */
     private void applyChildWindowLockIfNeeded() {
@@ -1088,6 +1091,9 @@ public class MapControlService extends Service {
         }
     }
 
+    /**
+     * Ana ekrandaki Yansıtma sekmesiyle aynı uygulama: {@link ClusterDisplayManager#openClusterDisplay()}.
+     */
     private ClusterDisplayManager getClusterDisplayHelper() {
         if (clusterDisplayHelper == null) {
             clusterDisplayHelper = new ClusterDisplayManager(getApplicationContext(),
@@ -1220,64 +1226,6 @@ public class MapControlService extends Service {
                 log("❌ Cluster display kapatma hatası: " + e.getMessage());
             }
         });
-    }
-
-    /**
-     * Otomatik konum kaydetme (araç kapanınca)
-     */
-    private void saveLocationAutomatically(ProfileApiService profileApiService) {
-        new Thread(() -> {
-            try {
-                // LocationManager ile konum al
-                android.location.LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                if (locationManager == null) {
-                    log("❌ LocationManager bulunamadı");
-                    return;
-                }
-                
-                // Konum izni kontrolü
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                        checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        log("❌ Konum izni yok, otomatik konum kaydedilemedi");
-                        return;
-                    }
-                }
-                
-                // Mevcut konumu al
-                android.location.Location lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER);
-                if (lastLocation == null) {
-                    lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);
-                }
-                
-                if (lastLocation != null) {
-                    double latitude = lastLocation.getLatitude();
-                    double longitude = lastLocation.getLongitude();
-                    
-                    log("📍 Otomatik konum kaydediliyor: " + latitude + ", " + longitude);
-                    
-                    profileApiService.saveCoordinates(latitude, longitude, "Auto Location (Power Off)", "Araç kapanınca otomatik kaydedilen konum", new ProfileApiService.ApiCallback() {
-                        @Override
-                        public void onSuccess(String message, org.json.JSONObject data) {
-                            handler.post(() -> {
-                                log("✅ Otomatik konum başarıyla kaydedildi: " + message);
-                            });
-                        }
-                        
-                        @Override
-                        public void onError(String error) {
-                            handler.post(() -> {
-                                log("❌ Otomatik konum kaydetme hatası: " + error);
-                            });
-                        }
-                    });
-                } else {
-                    log("⚠️ Konum alınamadı, otomatik konum kaydedilemedi");
-                }
-            } catch (Exception e) {
-                log("❌ Otomatik konum kaydetme hatası: " + e.getMessage());
-            }
-        }).start();
     }
 
     /**

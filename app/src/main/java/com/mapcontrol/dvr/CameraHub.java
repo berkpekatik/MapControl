@@ -75,11 +75,19 @@ public final class CameraHub {
         final boolean[] hold = new boolean[CAM_COUNT];
     }
 
-    /** Cift buffer: grab thread'i back'e yazar, kilit altinda front ile degistirir. */
+    /**
+     * Cift buffer: grab thread'i back'e yazar, kilit altinda front ile degistirir.
+     * readFrame kareyi kilit DISINDA okur (GL yuklemesi grab thread'ini bekletmesin); o sirada
+     * okunan buffer "reading" olarak isaretlenir. Takastan sonra back o buffer'a denk gelirse
+     * grab thread'i yazmak icin "spare"i kullanir (okunan kare yazilirken bozulmaz).
+     */
     private static final class FrameSlot {
         final Object lock = new Object();
         ByteBuffer front;
         ByteBuffer back;
+        ByteBuffer spare;
+        /** readFrame'in kilit disinda okudugu buffer (yalnizca tek okuyucu: GL thread'i). */
+        ByteBuffer reading;
         int frontWidth;
         int frontHeight;
         long seq;
@@ -236,16 +244,39 @@ public final class CameraHub {
 
     // ---------- Kare okuma (CPU kopya yolu) ----------
 
-    /** Kameranin son karesini kilit altinda okur (okuma bitene kadar degistirilmez). */
+    /**
+     * Kameranin son karesini okur. Okuma (GL yuklemesi) kilit disinda yapilir; okunan buffer
+     * okuma bitene kadar grab thread'i tarafindan yazilmaz. Ayni kamera icin ayni anda yalnizca
+     * tek cagiran olmali (GL thread'i).
+     */
     public void readFrame(int cam, FrameReader reader) {
         FrameSlot s = slots[cam];
+        ByteBuffer buf = null;
+        int width = 0;
+        int height = 0;
+        long seq = 0;
         synchronized (s.lock) {
             boolean has = s.front != null && s.seq > 0 && !s.stale && states.get(cam) == STATE_LIVE;
             if (has) {
-                s.front.position(0);
-                reader.read(s.front, s.frontWidth, s.frontHeight, s.seq);
-            } else {
-                reader.read(null, 0, 0, 0);
+                buf = s.front;
+                width = s.frontWidth;
+                height = s.frontHeight;
+                seq = s.seq;
+                s.reading = buf;
+            }
+        }
+        if (buf == null) {
+            reader.read(null, 0, 0, 0);
+            return;
+        }
+        try {
+            // Konum paylasilmasin: readFrames (CPU kayit) ayni buffer'i ayni anda okuyabilir.
+            ByteBuffer view = buf.duplicate();
+            view.position(0);
+            reader.read(view, width, height, seq);
+        } finally {
+            synchronized (s.lock) {
+                if (s.reading == buf) s.reading = null;
             }
         }
     }
@@ -347,6 +378,8 @@ public final class CameraHub {
             synchronized (s.lock) {
                 s.front = null;
                 s.back = null;
+                s.spare = null;
+                s.reading = null;
                 s.seq = 0;
             }
             setState(i, STATE_OFF);
@@ -421,6 +454,12 @@ public final class CameraHub {
             if (mode != HabNative.COPY_NONE) {
                 int bytes = width * height * 2;
                 synchronized (slot.lock) {
+                    if (slot.back != null && slot.back == slot.reading) {
+                        // GL bu buffer'i kilit disinda okuyor: yedek buffer'a yaz.
+                        ByteBuffer t = slot.back;
+                        slot.back = slot.spare;
+                        slot.spare = t;
+                    }
                     if (slot.back == null || slot.back.capacity() < bytes) {
                         slot.back = ByteBuffer.allocateDirect(bytes);
                     }

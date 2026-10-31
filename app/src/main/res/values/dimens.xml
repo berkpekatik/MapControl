@@ -26,13 +26,13 @@
 
     <!-- OEM shell / glass -->
     <dimen name="oem_card_radius">26dp</dimen>
+    <dimen name="cluster_nav_card_radius">20dp</dimen>
     <dimen name="oem_nav_pill_radius">22dp</dimen>
     <dimen name="oem_button_radius">14dp</dimen>
     <dimen name="oem_segment_track_radius">16dp</dimen>
     <dimen name="oem_segment_thumb_radius">12dp</dimen>
     <dimen name="oem_content_padding">16dp</dimen>
     <dimen name="oem_card_margin">12dp</dimen>
-    <dimen name="cluster_nav_card_radius">20dp</dimen>
     <dimen name="oem_card_inner_padding">18dp</dimen>
 
     <!-- Sol rail: 10,25" araç ekranı — geniş şerit (~%30–35 ekran), büyük dokunma -->

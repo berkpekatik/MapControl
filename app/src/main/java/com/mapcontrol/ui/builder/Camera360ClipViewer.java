@@ -121,6 +121,10 @@ final class Camera360ClipViewer {
 
     private List<DvrClipStore.Clip> clips = new ArrayList<>();
     private int current = -1;
+    /** Arka plani "secili" olarak boyanmis satir (highlightRow yalnizca degisen satirlari gunceller). */
+    private int highlightedRow = -1;
+    /** Listenin kuruldugu gun (gun basliklari "Bugun/Dun" gece yarisi degisir). */
+    private int listBuiltDay = -1;
     /** -1 = 4 aci birlikte; aksi halde tek aci. */
     private int focusCam = -1;
 
@@ -139,6 +143,8 @@ final class Camera360ClipViewer {
     private boolean visible;
     private boolean exporting;
     private boolean usbPresent;
+    /** Arka plan USB yoklamasi suruyor (yanit gelmeden yenisi kuyruga eklenmez). */
+    private boolean usbProbePending;
     private int tickCount;
 
     private final Runnable ticker = new Runnable() {
@@ -632,8 +638,11 @@ final class Camera360ClipViewer {
         dvr.loadClips(list -> {
             if (!visible) return;
             String keepBase = current >= 0 && current < clips.size() ? clips.get(current).base : null;
+            // Kayit surerken liste sik yenilenir; icerik ayniysa satirlar yeniden kurulmaz.
+            boolean unchanged = listBuiltDay == todayKey() && rowViews.size() == list.size()
+                    && sameClips(clips, list);
             clips = list;
-            buildList();
+            if (!unchanged) buildList();
             int idx = -1;
             if (keepBase != null) {
                 for (int i = 0; i < clips.size(); i++) {
@@ -655,10 +664,37 @@ final class Camera360ClipViewer {
         });
     }
 
+    /** Listede gosterilen her sey (sira, ad, boyut, aci sayisi) ayni mi. */
+    private static boolean sameClips(List<DvrClipStore.Clip> a, List<DvrClipStore.Clip> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            DvrClipStore.Clip x = a.get(i);
+            DvrClipStore.Clip y = b.get(i);
+            if (!x.base.equals(y.base) || x.bytes != y.bytes || x.timeMs != y.timeMs
+                    || x.isSingle() != y.isSingle() || angleCount(x) != angleCount(y)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static int angleCount(DvrClipStore.Clip c) {
+        int n = 0;
+        for (File f : c.camFiles) if (f != null) n++;
+        return n;
+    }
+
+    private static int todayKey() {
+        Calendar c = Calendar.getInstance();
+        return c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR);
+    }
+
     private void buildList() {
         listColumn.removeAllViews();
         rowViews.clear();
         rowChecks.clear();
+        highlightedRow = -1;
+        listBuiltDay = todayKey();
         Set<String> present = new HashSet<>();
         for (DvrClipStore.Clip c : clips) present.add(c.base);
         selected.retainAll(present);
@@ -731,21 +767,32 @@ final class Camera360ClipViewer {
         LinearLayout.LayoutParams p = ui.matchWrap();
         p.bottomMargin = ui.dp(4);
         row.setLayoutParams(p);
+        applyRowBackground(row, false);
         rowViews.add(row);
         return row;
     }
 
+    private void applyRowBackground(View row, boolean isCurrent) {
+        if (isCurrent) {
+            int accent = ui.themeColor(R.color.oemAccent);
+            GradientDrawable bg = ui.roundRect(Camera360Ui.withAlpha(accent, 0x30), 14);
+            bg.setStroke(ui.dp(1), Camera360Ui.withAlpha(accent, 0xAA));
+            ui.setPressableBackground(row, bg, 14);
+        } else {
+            ui.setPressableBackground(row, ui.roundRect(ui.themeColor(R.color.surfaceCardInner), 14), 14);
+        }
+    }
+
+    /** Yalnizca onceki ve yeni secili satirin arka plani degisir (tum liste yeniden boyanmaz). */
     private void highlightRow() {
-        int accent = ui.themeColor(R.color.oemAccent);
-        for (int i = 0; i < rowViews.size(); i++) {
-            View row = rowViews.get(i);
-            if (i == current) {
-                GradientDrawable bg = ui.roundRect(Camera360Ui.withAlpha(accent, 0x30), 14);
-                bg.setStroke(ui.dp(1), Camera360Ui.withAlpha(accent, 0xAA));
-                ui.setPressableBackground(row, bg, 14);
-            } else {
-                ui.setPressableBackground(row, ui.roundRect(ui.themeColor(R.color.surfaceCardInner), 14), 14);
+        if (highlightedRow != current) {
+            if (highlightedRow >= 0 && highlightedRow < rowViews.size()) {
+                applyRowBackground(rowViews.get(highlightedRow), false);
             }
+            if (current >= 0 && current < rowViews.size()) {
+                applyRowBackground(rowViews.get(current), true);
+            }
+            highlightedRow = current;
         }
         if (current >= 0 && current < rowViews.size()) {
             View row = rowViews.get(current);
@@ -1168,12 +1215,18 @@ final class Camera360ClipViewer {
                 }
             }
         }
-        if (tickCount % 12 == 0) {
-            boolean usb = DvrController.findUsbRoot(ui.context) != null;
-            if (usb != usbPresent) {
-                usbPresent = usb;
-                updateExportButton();
-            }
+        if (tickCount % 12 == 0 && !usbProbePending) {
+            // Ana thread'de StorageManager/dosya sistemi beklenmez; sonuc gelince buton guncellenir.
+            usbProbePending = true;
+            dvr.findUsbRootAsync(root -> {
+                usbProbePending = false;
+                if (!visible) return;
+                boolean usb = root != null;
+                if (usb != usbPresent) {
+                    usbPresent = usb;
+                    updateExportButton();
+                }
+            });
         }
     }
 

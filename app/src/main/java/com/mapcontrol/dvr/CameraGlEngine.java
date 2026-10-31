@@ -52,6 +52,15 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     /** Art arda bu kadar cizim hatasindan sonra motor durur. */
     private static final int MAX_DRAW_ERRORS = 5;
     private static final long SURFACE_RETRY_MS = 500;
+    /**
+     * Izgara onizlemesinde ilk yeni kareden sonra diger kameralarin karesi en fazla bu kadar
+     * beklenir; boylece 4 kameranin kareleri tek cizimde toplanir (kamera basina cizim yerine).
+     * 25 fps kare araliginin yarisi: senkron kameralarda kare basina tek cizim, senkron
+     * olmayanlarda en fazla bu kadar ek gecikme.
+     */
+    private static final long PREVIEW_COALESCE_NS = 20_000_000L;
+    /** Cizim/sn olcumunun log araligi. */
+    private static final long DRAW_STATS_LOG_MS = 5000;
 
     private static final String VERT =
             "attribute vec4 aPos;\n" +
@@ -175,7 +184,10 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private CountDownLatch previewReleased;
     private Request startRequest;
     private Request stopRequest;
-    private boolean frameDirty;
+    /** Son onizleme ciziminden beri yeni kare gelen kameralar (bit i = kamera i). */
+    private int frameDirtyMask;
+    /** frameDirtyMask'in bos durumdan doldugu an (System.nanoTime). */
+    private long frameDirtySinceNs;
     private boolean layoutDirty;
     /** Onizleme EGL yuzeyi sifirdan kurulsun (buyuk/izgara gecisinde bayat kare kalmasin). */
     private boolean previewRecreate;
@@ -230,6 +242,9 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private boolean uploadFresh;
     private final int[] frameCounts = new int[CAM_COUNT];
     private long fpsWindowStart;
+    private int previewDraws;
+    private int recordDraws;
+    private long drawStatsStart;
     private final TextSprite[] labelSprites = new TextSprite[CAM_COUNT];
     private final TextSprite infoSprite = new TextSprite();
     private final TextSprite noSignalSprite = new TextSprite();
@@ -344,10 +359,45 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
     @Override
     public void onFrame(int cam) {
+        // Buyuk modda yalnizca gosterilen kamera yeniden cizim gerektirir (kayit sirasinda
+        // diger kameralar da kare uretir; kayit kendi temposuyla cizilir).
+        int big = bigCam;
+        if (big >= 0 && big != cam) {
+            return;
+        }
         synchronized (lock) {
-            frameDirty = true;
+            if (frameDirtyMask == 0) {
+                frameDirtySinceNs = System.nanoTime();
+            }
+            frameDirtyMask |= 1 << cam;
             lock.notifyAll();
         }
+    }
+
+    /**
+     * Onizleme icin kare toplama penceresi doldu mu: beklenen tum kameralar yeni kare verdi
+     * veya ilk kareden beri PREVIEW_COALESCE_NS gecti. lock altinda cagrilir.
+     */
+    private boolean previewFramesDueLocked(long nowNs) {
+        int mask = frameDirtyMask;
+        if (mask == 0) {
+            return false;
+        }
+        int want = expectedFrameMask();
+        return (mask & want) == want || nowNs - frameDirtySinceNs >= PREVIEW_COALESCE_NS;
+    }
+
+    /** Onizlemede kare beklenen kameralar: buyuk modda yalnizca o, izgarada canli olanlar. */
+    private int expectedFrameMask() {
+        int big = bigCam;
+        if (big >= 0 && big < CAM_COUNT) {
+            return 1 << big;
+        }
+        int want = 0;
+        for (int cam = 0; cam < CAM_COUNT; cam++) {
+            if (hub.getState(cam) == CameraHub.STATE_LIVE) want |= 1 << cam;
+        }
+        return want;
     }
 
     private void ensureThreadLocked() {
@@ -414,6 +464,9 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
     private void loop() throws InterruptedException {
         fpsWindowStart = SystemClock.uptimeMillis();
+        drawStatsStart = fpsWindowStart;
+        previewDraws = 0;
+        recordDraws = 0;
         int drawErrors = 0;
         while (true) {
             boolean surfaceChange;
@@ -427,6 +480,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
             Request stopReq;
             boolean layout;
             boolean previewOn;
+            boolean framesReady;
             synchronized (lock) {
                 while (true) {
                     if (previewSurfaceChanged || startRequest != null || stopRequest != null) break;
@@ -442,10 +496,15 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                     if (previewEnabled && previewRecreate && previewSurface != null) break;
                     // Buyuk kamera degistiyse bayraklar yarisa girse bile yeniden ciz.
                     boolean prevDue = previewEnabled && surfaceUp
-                            && (frameDirty || layoutDirty || bigCam != drawnBig);
+                            && (previewFramesDueLocked(now) || layoutDirty || bigCam != drawnBig);
                     if (recDue || prevDue) break;
                     long waitMs = record != null ? Math.max(1, (nextRecordNs - now) / 1_000_000L) : 500;
                     if (lost) waitMs = Math.min(waitMs, Math.max(1, surfaceRetryAtMs - nowMs));
+                    if (previewEnabled && surfaceUp && frameDirtyMask != 0) {
+                        // Toplama penceresi bitince eksik kamera beklenmeden cizilsin.
+                        long leftNs = PREVIEW_COALESCE_NS - (now - frameDirtySinceNs);
+                        waitMs = Math.min(waitMs, Math.max(1, (leftNs + 999_999L) / 1_000_000L));
+                    }
                     lock.wait(waitMs);
                 }
                 surfaceChange = previewSurfaceChanged;
@@ -463,8 +522,12 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                 stopRequest = null;
                 layout = layoutDirty;
                 layoutDirty = false;
-                frameDirty = false;
                 previewOn = previewEnabled;
+                // Kayit temposuyla uyanildiginda pencere dolmadiysa kareler sonraki cizime kalir.
+                framesReady = previewOn && previewFramesDueLocked(System.nanoTime());
+                if (framesReady || !previewOn) {
+                    frameDirtyMask = 0;
+                }
             }
             surfaceRetry = previewOn && previewEgl == EGL14.EGL_NO_SURFACE && surf != null
                     && surf.isValid() && !surfaceChange
@@ -496,10 +559,13 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
             boolean drew = false;
             try {
                 updateDemand(previewOn);
-                boolean fresh = updateTextures();
+                // Dokular her turda guncellenir (sifir kopyada eski kare boylece iade edilir);
+                // onizleme ise yalnizca toplanan kareler hazir olunca cizilir.
+                updateTextures();
                 if (previewOn && previewEgl != EGL14.EGL_NO_SURFACE
-                        && (fresh || layout || surfaceChange || bigCam != drawnBig)) {
+                        && (framesReady || layout || surfaceChange || bigCam != drawnBig)) {
                     drew = drawPreview();
+                    if (drew) previewDraws++;
                 }
                 drawErrors = 0;
             } catch (RuntimeException e) {
@@ -517,10 +583,12 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
             if (record != null && System.nanoTime() >= nextRecordNs) {
                 drawRecord();
                 drew = true;
+                recordDraws++;
             }
             if (zeroCopy && drew) {
-                // Cizim bitmeden onceki kare sunucuya iade edilmemeli (zcAcquire bunu varsayar).
-                GLES20.glFinish();
+                // Cizim bitmeden onceki kare sunucuya iade edilmemeli. glFinish yerine fence:
+                // render thread'i GPU'yu beklemez; zcAcquire/zcDetach iadeden once fence'i bekler.
+                HabNative.zcFenceInsert();
             }
             reportFps();
         }
@@ -721,7 +789,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         return fresh;
     }
 
-    /** Hub kilidi altinda (readFrame) cagrilir. */
+    /** readFrame'den, hub kilidi DISINDA cagrilir; buf okuma suresince yazilmaz (CameraHub.reading). */
     private void uploadCopy(int cam, ByteBuffer buf, int width, int height, long seq) {
         if (buf == null || width < 2 || height <= 0) {
             return;
@@ -950,6 +1018,20 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
     private void reportFps() {
         long now = SystemClock.uptimeMillis();
+        if (drawStatsStart == 0) {
+            drawStatsStart = now;
+        }
+        long statsElapsed = now - drawStatsStart;
+        if (statsElapsed >= DRAW_STATS_LOG_MS) {
+            if (previewDraws > 0 || recordDraws > 0) {
+                Log.i(TAG, "cizim/sn: onizleme=" + (previewDraws * 1000L / statsElapsed)
+                        + " kayit=" + (recordDraws * 1000L / statsElapsed)
+                        + " (buyuk=" + bigCam + ", sifir kopya=" + zeroCopy + ")");
+            }
+            previewDraws = 0;
+            recordDraws = 0;
+            drawStatsStart = now;
+        }
         long elapsed = now - fpsWindowStart;
         if (elapsed < 1000) {
             return;

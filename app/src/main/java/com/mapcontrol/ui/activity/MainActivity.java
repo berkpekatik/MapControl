@@ -13,7 +13,6 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInstaller;
-import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
@@ -109,9 +108,12 @@ import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
+import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import com.mapcontrol.vehicle.SunroofGestureStore;
+import com.mapcontrol.util.MapsLink;
+import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class MainActivity extends AppCompatActivity {
@@ -185,12 +187,15 @@ public class MainActivity extends AppCompatActivity {
     private AssistTabBuilder assistTabBuilder;
     private LogTabBuilder logTabBuilder;
     private Camera360TabBuilder camera360TabBuilder;
-    private SplitScreenTabBuilder splitScreenTabBuilder;
     private android.view.View camera360TabContent;
+    private SplitScreenTabBuilder splitScreenTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
     private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager
+    /** Kullanıcı seçtiyse kontak açılınca (güç modu 1/2) sunucuyu açar. */
+    private VehicleMetricsRepository.Listener webServerPowerListener;
+    private boolean webServerPowerOn;
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
     private android.widget.ImageView qrCodeImageView; // QR kod görseli
@@ -365,6 +370,13 @@ public class MainActivity extends AppCompatActivity {
                     public void log(String msg) {
                         MainActivity.this.log(msg);
                     }
+
+                    @Override
+                    public void onSessionChanged(boolean loggedIn, boolean premium) {
+                        if (sideRailBuilder != null) {
+                            sideRailBuilder.setPremiumTitle(loggedIn && premium);
+                        }
+                    }
                 });
         profileScrollView = profileTabBuilder.build();
         
@@ -419,6 +431,9 @@ public class MainActivity extends AppCompatActivity {
                 new SideRailBuilder.SideRailCallback() {
                     @Override
                     public void onTabSelected(int tabIndex, String title) {
+                        if (tabIndex == 8 && welcomeSoundTabBuilder != null) {
+                            welcomeSoundTabBuilder.showPublicSound();
+                        }
                         crossfadeContent(() -> {
                             switchTab(tabIndex);
                             if (topBarTitle != null) {
@@ -437,6 +452,10 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.log(msg);
                     }
                 });
+        if (profileApiService != null) {
+            sideRailBuilder.setPremiumTitle(
+                    profileApiService.isLoggedIn() && profileApiService.isPremium());
+        }
 
         // Ana içerik alanı (yatayda sağ kolon, dikeyde şeridin altı)
         LinearLayout mainContent = new LinearLayout(this);
@@ -513,6 +532,7 @@ public class MainActivity extends AppCompatActivity {
                     if (qrCodeImageView != null) {
                         qrCodeImageView.setVisibility(android.view.View.GONE);
                     }
+                    if (fileUploadTabBuilder != null) fileUploadTabBuilder.hidePairQr();
                     if (btnWebServerToggle != null) {
                         btnWebServerToggle.setText(R.string.web_server_start);
                     }
@@ -567,29 +587,11 @@ public class MainActivity extends AppCompatActivity {
                         if (u.isEmpty()) {
                             return;
                         }
-                        Uri uri = Uri.parse(u);
-                        Intent i = new Intent(Intent.ACTION_VIEW, uri);
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        String scheme = uri.getScheme();
-                        if (scheme != null
-                                && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
-                            i.addCategory(Intent.CATEGORY_BROWSABLE);
+                        // Google Haritalar bağlantısı: tarayıcı seçicisine düşmeden doğrudan Google Haritalar'a ver.
+                        if (MapsLink.isGoogleMaps(u) && openGoogleMapsLink(u)) {
+                            return;
                         }
-                        if (shouldShowChooserToPickBrowserOrMaps(uri)) {
-                            // Yandex /maps, goo.gl harita kısası: önce tek hedef uyg. sessizce çalışıp
-                            // ekran göstermeyebiliyor; listeden tarayıcı seçilebilir.
-                            Intent chooser = Intent.createChooser(i, "Linki aç (tarayıcı önerilir)");
-                            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(chooser);
-                        } else {
-                            try {
-                                startActivity(i);
-                            } catch (android.content.ActivityNotFoundException noHandler) {
-                                Intent chooser = Intent.createChooser(i, "Bağlantıyı aç");
-                                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                startActivity(chooser);
-                            }
-                        }
+                        openLinkViaSystem(u);
                     } catch (Exception e) {
                         Toast.makeText(MainActivity.this,
                                 "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -760,6 +762,35 @@ public class MainActivity extends AppCompatActivity {
             public void onWelcomeTts() {
                 speakTtsText(getString(R.string.log_tts_welcome_phrase));
             }
+
+            @Override
+            public void onOpenProfile() {
+                crossfadeContent(() -> {
+                    switchTab(2);
+                    if (topBarTitle != null) {
+                        topBarTitle.setText(R.string.side_rail_profile);
+                    }
+                    if (sideRailBuilder != null) {
+                        sideRailBuilder.setSelectionForTabIndex(2);
+                    }
+                });
+            }
+
+            @Override
+            public void onOpenSoundGenerate() {
+                crossfadeContent(() -> {
+                    if (welcomeSoundTabBuilder != null) {
+                        welcomeSoundTabBuilder.openGenerateTools();
+                    }
+                    switchTab(8);
+                    if (topBarTitle != null) {
+                        topBarTitle.setText(R.string.welcome_sound_title);
+                    }
+                    if (sideRailBuilder != null) {
+                        sideRailBuilder.setSelectionForTabIndex(8);
+                    }
+                });
+            }
         });
         logTabContent = logTabBuilder.getTabContent();
         tvLogs = logTabBuilder.getLogsTextView();
@@ -770,7 +801,6 @@ public class MainActivity extends AppCompatActivity {
         camera360TabBuilder = new Camera360TabBuilder(this, () -> {
             try {
                 if (vehicleMetricsRepository == null) return 0;
-                // Alinacak hiz: DisVehSpd (gosterge hizi); yedek ActVehSpd.
                 int g = vehicleMetricsRepository.getCombined(
                         com.desaysv.ivi.extra.project.carinfo.ReadOnlyID.ID_SPEED_GAUGE_DISPLAY);
                 if (com.mapcontrol.vehicle.VehicleMetricsSnapshot.isValid(g)) {
@@ -783,7 +813,6 @@ public class MainActivity extends AppCompatActivity {
                 return 0;
             }
         }, () -> {
-            // Vites: ID_GEARBOX_STATE (1=P 2=R 3=N, 4.. = ileri vites 1.. -> D1..)
             try {
                 if (vehicleMetricsRepository == null) return "";
                 int g = vehicleMetricsRepository.getCombined(
@@ -822,9 +851,20 @@ public class MainActivity extends AppCompatActivity {
                         ScrollView.LayoutParams.WRAP_CONTENT));
 
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
-        // Onbellek yalnizca dinleyici varken doluyordu; hiz overlay'i (ve launcher)
-        // icin izlemeyi bastan acik tut (VDBus olay gudumlu, hafif).
         vehicleMetricsRepository.startMonitoring();
+        // Elle kapatılan sunucu aynı kontakta tekrar açılmasın: yalnızca kapalıdan açığa geçişte başlar.
+        webServerPowerListener = snapshot -> {
+            boolean on = VehicleMetricsSnapshot.isValid(snapshot.powerMode)
+                    && (snapshot.powerMode == 1 || snapshot.powerMode == 2);
+            if (on && !webServerPowerOn) {
+                startWebServerIfPreferred();
+            }
+            if (VehicleMetricsSnapshot.isValid(snapshot.powerMode)) {
+                webServerPowerOn = on;
+            }
+        };
+        vehicleMetricsRepository.addListener(webServerPowerListener);
+        startWebServerIfPreferred();
 
         vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
                 msg -> MainActivity.this.log(msg));
@@ -1580,6 +1620,15 @@ public class MainActivity extends AppCompatActivity {
         return new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
     }
 
+    /** Kullanıcı Web Yönetimi'nde otomatik başlatmayı seçtiyse sunucuyu açar; varsayılan kapalı. */
+    private void startWebServerIfPreferred() {
+        if (webServerManager != null && !webServerManager.isRunning()
+                && getSharedPreferences("MapControlPrefs", MODE_PRIVATE)
+                        .getBoolean(FileUploadTabBuilder.KEY_WEB_SERVER_AUTO_START, false)) {
+            webServerManager.startServer();
+        }
+    }
+
     // QR üretimi `FileUploadTabBuilder.generateQRCode()` içine taşındı.
 
     @Override
@@ -1972,6 +2021,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        com.mapcontrol.util.BootSession.markUiLaunched(this);
         SunroofGestureOverlayManager.getInstance(this).onActivityResumed();
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabVisible();
@@ -2021,7 +2071,6 @@ public class MainActivity extends AppCompatActivity {
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.onHostPause();
         }
-        // Kamera 360 arka planda akmaya devam etmesin (bant genisligi/CPU + ekran karincalanmasi)
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabHidden();
         }
@@ -2293,6 +2342,9 @@ public class MainActivity extends AppCompatActivity {
         VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
         // WebServerManager'ı durdur
+        if (vehicleMetricsRepository != null && webServerPowerListener != null) {
+            vehicleMetricsRepository.removeListener(webServerPowerListener);
+        }
         if (webServerManager != null) {
             webServerManager.stopServer();
         }
@@ -2412,6 +2464,118 @@ public class MainActivity extends AppCompatActivity {
      * Aynı host’ta /q açılırken /maps gibi yollarda Yandex Haritalar (veya App Link) intent’i alıp
      * ekran göstermeyebiliyor; doğrudan tarayıcı hiç seçilmiyor. Bu URL’lerde önce seçici gösterilir.
      */
+    /** Bağlantıyı sistemin seçtiği uygulamayla açar; bazı harita bağlantılarında önce seçici gösterir. */
+    private void openLinkViaSystem(String u) {
+        try {
+            Uri uri = Uri.parse(u);
+            Intent i = new Intent(Intent.ACTION_VIEW, uri);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            String scheme = uri.getScheme();
+            if (scheme != null
+                    && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                i.addCategory(Intent.CATEGORY_BROWSABLE);
+            }
+            if (shouldShowChooserToPickBrowserOrMaps(uri)) {
+                // Yandex /maps, goo.gl harita kısası: önce tek hedef uyg. sessizce çalışıp
+                // ekran göstermeyebiliyor; listeden tarayıcı seçilebilir.
+                Intent chooser = Intent.createChooser(i, "Linki aç (tarayıcı önerilir)");
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(chooser);
+            } else {
+                try {
+                    startActivity(i);
+                } catch (android.content.ActivityNotFoundException noHandler) {
+                    Intent chooser = Intent.createChooser(i, "Bağlantıyı aç");
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(chooser);
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(MainActivity.this, "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            log("Link açma hatası: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Google Haritalar bağlantısını doğrudan Google Haritalar'a verir (açık paket adıyla, seçici yok).
+     * Sırayla dener: bağlantının kendisi, koordinat varsa rota/konum, yer adı varsa arama. Kısa bağlantıda
+     * (maps.app.goo.gl) koordinat bağlantıda yoktur; yönlendirme arka planda çözülür.
+     *
+     * @return Google Haritalar kurulu değilse false (çağıran sistemin yoluna döner); aksi halde true
+     */
+    private boolean openGoogleMapsLink(String u) {
+        if (!isPackageInstalled(AppLaunchHelper.GOOGLE_MAPS_PACKAGE)) {
+            log("Google Haritalar kurulu değil; sistem yoluyla açılıyor");
+            return false;
+        }
+        if (startGoogleMaps(Uri.parse(u), "bağlantı")) {
+            return true;
+        }
+        if (openGoogleMapsTarget(u)) {
+            return true;
+        }
+        if (MapsLink.isShortLink(u)) {
+            log("Kısa bağlantı çözülüyor: " + u);
+            new Thread(() -> {
+                String resolved = MapsLink.resolve(u);
+                handler.post(() -> {
+                    log("Kısa bağlantı çözüldü: " + resolved);
+                    if (!resolved.equals(u) && (startGoogleMaps(Uri.parse(resolved), "çözülen bağlantı")
+                            || openGoogleMapsTarget(resolved))) {
+                        return;
+                    }
+                    openLinkViaSystem(u);
+                });
+            }, "MapsLinkResolve").start();
+            return true;
+        }
+        return false;
+    }
+
+    /** Bağlantıdan koordinat ya da yer adı çıkarıp Google Haritalar'ın anladığı bir adresle açar. */
+    private boolean openGoogleMapsTarget(String url) {
+        double[] c = MapsLink.coordinates(url);
+        if (c != null) {
+            return startGoogleMaps(Uri.parse(MapsLink.navigationUri(c[0], c[1])), "rota")
+                    || startGoogleMaps(Uri.parse(MapsLink.geoUri(c[0], c[1])), "konum");
+        }
+        String name = MapsLink.placeName(url);
+        return name != null && startGoogleMaps(Uri.parse(MapsLink.searchUri(name)), "yer araması");
+    }
+
+    private boolean startGoogleMaps(Uri uri, String what) {
+        Intent i = new Intent(Intent.ACTION_VIEW, uri);
+        i.setPackage(AppLaunchHelper.GOOGLE_MAPS_PACKAGE);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        String scheme = uri.getScheme();
+        if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+        }
+        List<ResolveInfo> handlers = getPackageManager().queryIntentActivities(i, 0);
+        if (handlers.isEmpty()) {
+            // Hangi biçimleri anladığı araçta bilinmediği için tanı kaydı: Günlük sekmesinde görünür.
+            log("Google Haritalar bu biçimi açmıyor (" + what + "): " + uri.getScheme() + ":");
+            return false;
+        }
+        try {
+            startActivity(i);
+            log("Google Haritalar'a verildi (" + what + "): " + uri);
+            return true;
+        } catch (Exception e) {
+            log("Google Haritalar açılamadı (" + what + "): " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isPackageInstalled(String packageName) {
+        try {
+            getPackageManager().getApplicationInfo(packageName, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     private static boolean shouldShowChooserToPickBrowserOrMaps(Uri uri) {
         if (uri == null) {
             return false;

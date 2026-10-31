@@ -33,7 +33,6 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
     private static final String ENGMODE_MAIN_ACTIVITY = "com.desaysv.engmode.MainActivity";
 
     private final Context uiContext;
-    private final Context appContext;
     private final VehicleMetricsRepository repository;
     private final VehicleMetricsFormatter formatter;
     private final VehicleInfoCallback callback;
@@ -50,7 +49,6 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
             VehicleMetricsRepository repository,
             VehicleInfoCallback callback) {
         this.uiContext = context;
-        this.appContext = context.getApplicationContext();
         this.repository = repository;
         this.formatter = new VehicleMetricsFormatter(context);
         this.callback = callback;
@@ -100,47 +98,47 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
     }
 
     private void build() {
-        scrollView = new ScrollView(appContext);
+        scrollView = new ScrollView(uiContext);
         scrollView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         scrollView.setFillViewport(true);
 
-        LinearLayout outer = new LinearLayout(appContext);
+        LinearLayout outer = new LinearLayout(uiContext);
         outer.setOrientation(LinearLayout.VERTICAL);
-        int margin = UiStyles.dimenPx(appContext, R.dimen.oem_card_margin);
+        int margin = UiStyles.dimenPx(uiContext, R.dimen.oem_card_margin);
         outer.setPadding(margin, margin, margin, margin);
 
-        contentRoot = new LinearLayout(appContext);
+        contentRoot = new LinearLayout(uiContext);
         contentRoot.setOrientation(LinearLayout.VERTICAL);
-        int inner = UiStyles.dimenPx(appContext, R.dimen.oem_card_inner_padding);
+        int inner = UiStyles.dimenPx(uiContext, R.dimen.oem_card_inner_padding);
         contentRoot.setPadding(inner, inner, inner, inner);
         UiStyles.setGlassCardBackground(contentRoot);
 
-        TextView title = new TextView(appContext);
+        TextView title = new TextView(uiContext);
         title.setText(R.string.vehicle_info_title);
         title.setTextSize(20);
-        title.setTextColor(UiStyles.color(appContext, R.color.textPrimary));
+        title.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
         title.setTypeface(null, Typeface.BOLD);
         contentRoot.addView(title);
 
-        TextView intro = new TextView(appContext);
+        TextView intro = new TextView(uiContext);
         intro.setText(R.string.vehicle_info_intro);
         intro.setTextSize(14);
-        intro.setTextColor(UiStyles.color(appContext, R.color.textHint));
-        intro.setPadding(0, UiStyles.dimenPx(appContext, R.dimen.spacing_small), 0,
-                UiStyles.dimenPx(appContext, R.dimen.spacing_medium));
+        intro.setTextColor(UiStyles.color(uiContext, R.color.textHint));
+        intro.setPadding(0, UiStyles.dimenPx(uiContext, R.dimen.spacing_small), 0,
+                UiStyles.dimenPx(uiContext, R.dimen.spacing_medium));
         contentRoot.addView(intro);
 
-        statusText = new TextView(appContext);
+        statusText = new TextView(uiContext);
         statusText.setText(R.string.vehicle_info_tab_idle);
         statusText.setTextSize(14);
-        statusText.setTextColor(UiStyles.color(appContext, R.color.textPrimary87));
-        statusText.setPadding(0, 0, 0, UiStyles.dimenPx(appContext, R.dimen.spacing_small));
+        statusText.setTextColor(UiStyles.color(uiContext, R.color.textPrimary87));
+        statusText.setPadding(0, 0, 0, UiStyles.dimenPx(uiContext, R.dimen.spacing_small));
         contentRoot.addView(statusText);
 
-        LinearLayout actionRow = new LinearLayout(appContext);
+        LinearLayout actionRow = new LinearLayout(uiContext);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
         actionRow.setGravity(Gravity.CENTER_VERTICAL);
-        int btnGap = UiStyles.dimenPx(appContext, R.dimen.spacing_small);
+        int btnGap = UiStyles.dimenPx(uiContext, R.dimen.spacing_small);
 
         Button refreshBtn = createActionButton(R.string.vehicle_info_refresh, R.color.buttonPrimary);
         refreshBtn.setOnClickListener(v -> refreshSnapshot());
@@ -153,10 +151,10 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         LinearLayout.LayoutParams actionRowLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        actionRowLp.bottomMargin = UiStyles.dimenPx(appContext, R.dimen.spacing_medium);
+        actionRowLp.bottomMargin = UiStyles.dimenPx(uiContext, R.dimen.spacing_medium);
         contentRoot.addView(actionRow, actionRowLp);
 
-        rowsContainer = new LinearLayout(appContext);
+        rowsContainer = new LinearLayout(uiContext);
         rowsContainer.setOrientation(LinearLayout.VERTICAL);
         contentRoot.addView(rowsContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -172,13 +170,13 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
     }
 
     private Button createActionButton(int labelResId, int backgroundColorResId) {
-        Button button = new Button(appContext);
+        Button button = new Button(uiContext);
         button.setText(labelResId);
         button.setTextSize(14);
-        button.setTextColor(UiStyles.color(appContext, R.color.textPrimary));
+        button.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
         button.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(button, UiStyles.color(appContext, backgroundColorResId));
-        int padH = UiStyles.dimenPx(appContext, R.dimen.spacing_medium);
+        UiStyles.styleOemButton(button, UiStyles.color(uiContext, backgroundColorResId));
+        int padH = UiStyles.dimenPx(uiContext, R.dimen.spacing_medium);
         button.setPadding(padH, 12, padH, 12);
         return button;
     }
@@ -203,11 +201,11 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
             uiContext.startActivity(intent);
             log("EngMode menüsü açıldı");
         } catch (PackageManager.NameNotFoundException e) {
-            log(appContext.getString(R.string.vehicle_info_engmode_launch_fail));
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_fail));
         } catch (SecurityException e) {
-            log(appContext.getString(R.string.vehicle_info_engmode_launch_denied) + ": " + e.getMessage());
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_denied) + ": " + e.getMessage());
         } catch (Exception e) {
-            log(appContext.getString(R.string.vehicle_info_engmode_launch_fail) + ": " + e.getMessage());
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_fail) + ": " + e.getMessage());
         }
     }
 
@@ -221,87 +219,87 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         rowsContainer.removeAllViews();
 
         if (!snapshot.connected) {
-            addRow(appContext.getString(R.string.vehicle_info_hint_title),
-                    appContext.getString(R.string.vehicle_info_hint_body));
+            addRow(uiContext.getString(R.string.vehicle_info_hint_title),
+                    uiContext.getString(R.string.vehicle_info_hint_body));
             return;
         }
 
-        addSection(appContext.getString(R.string.vehicle_info_section_distance));
-        addRow(appContext.getString(R.string.vehicle_info_odo),
+        addSection(uiContext.getString(R.string.vehicle_info_section_distance));
+        addRow(uiContext.getString(R.string.vehicle_info_odo),
                 formatter.formatKm(repository.getCombined(ReadOnlyID.ID_GRAND_TOTAL_KM)));
-        addRow(appContext.getString(R.string.vehicle_info_trip),
+        addRow(uiContext.getString(R.string.vehicle_info_trip),
                 formatter.formatDeciKm(repository.getCombined(ReadOnlyID.ID_TRIP)));
-        addRow(appContext.getString(R.string.vehicle_info_trip_after_reset),
+        addRow(uiContext.getString(R.string.vehicle_info_trip_after_reset),
                 formatter.formatKm(repository.getCombined(ReadOnlyID.ID_GRAND_TOTAL_KM_AFTER_CLEAR)));
-        addRow(appContext.getString(R.string.vehicle_info_trip_since_start),
+        addRow(uiContext.getString(R.string.vehicle_info_trip_since_start),
                 formatter.formatKm(repository.getCombined(ReadOnlyID.ID_GRAND_TOTAL_KM_AFTER_RUNNING)));
 
-        addSection(appContext.getString(R.string.vehicle_info_section_fuel));
-        addRow(appContext.getString(R.string.vehicle_info_fuel_level),
+        addSection(uiContext.getString(R.string.vehicle_info_section_fuel));
+        addRow(uiContext.getString(R.string.vehicle_info_fuel_level),
                 formatter.formatFuelLevel(repository.getCombined(ReadOnlyID.ID_FUEL_PERCENT)));
-        addRow(appContext.getString(R.string.vehicle_info_range_remaining),
+        addRow(uiContext.getString(R.string.vehicle_info_range_remaining),
                 formatter.formatKm(repository.getCombined(ReadOnlyID.ID_ENDURANCE_KM)));
-        addRow(appContext.getString(R.string.vehicle_info_range_total),
+        addRow(uiContext.getString(R.string.vehicle_info_range_total),
                 formatter.formatKm(repository.getCombined(ReadOnlyID.ID_TOTAL_RANGE)));
-        addRow(appContext.getString(R.string.vehicle_info_fuel_used),
+        addRow(uiContext.getString(R.string.vehicle_info_fuel_used),
                 formatter.formatFuelUsedMl(repository.getCombined(ReadOnlyID.ID_SUM_FUEL)));
-        addRow(appContext.getString(R.string.vehicle_info_low_fuel),
+        addRow(uiContext.getString(R.string.vehicle_info_low_fuel),
                 formatter.formatLowFuel(repository.getCombined(ReadOnlyID.ID_LOW_FUEL_WARNING)));
-        addRow(appContext.getString(R.string.vehicle_info_afc),
+        addRow(uiContext.getString(R.string.vehicle_info_afc),
                 formatter.formatConsumption(repository.getCombined(ReadOnlyID.ID_AVG_FUEL_CONS)));
-        addRow(appContext.getString(R.string.vehicle_info_afc_trip),
+        addRow(uiContext.getString(R.string.vehicle_info_afc_trip),
                 formatter.formatConsumption(repository.getCombined(ReadOnlyID.ID_AVERAGE_FUEL_CONS_AFTER_RUNNING)));
 
-        addSection(appContext.getString(R.string.vehicle_info_section_motor));
-        addRow(appContext.getString(R.string.vehicle_info_eng_spd),
+        addSection(uiContext.getString(R.string.vehicle_info_section_motor));
+        addRow(uiContext.getString(R.string.vehicle_info_eng_spd),
                 formatter.formatRpm(repository.getCombined(ReadOnlyID.ID_ENGINE_RPM)));
-        addRow(appContext.getString(R.string.vehicle_info_col_tmp),
+        addRow(uiContext.getString(R.string.vehicle_info_col_tmp),
                 formatter.formatTemperature(repository.getCombined(ReadOnlyID.ID_WATER_TEMPERATURE)));
-        addRow(appContext.getString(R.string.vehicle_info_battery),
+        addRow(uiContext.getString(R.string.vehicle_info_battery),
                 formatter.formatVoltage(repository.getCombined(ReadOnlyID.ID_IBS_VOLTAGE)));
-        addRow(appContext.getString(R.string.vehicle_info_act_speed),
+        addRow(uiContext.getString(R.string.vehicle_info_act_speed),
                 formatter.formatSpeed(repository.getCombined(ReadOnlyID.ID_CAR_SPEED)));
-        addRow(appContext.getString(R.string.vehicle_info_dis_speed),
+        addRow(uiContext.getString(R.string.vehicle_info_dis_speed),
                 formatter.formatSpeed(repository.getCombined(ReadOnlyID.ID_SPEED_GAUGE_DISPLAY)));
-        addRow(appContext.getString(R.string.vehicle_info_gear),
+        addRow(uiContext.getString(R.string.vehicle_info_gear),
                 formatter.formatGear(repository.getCombined(ReadOnlyID.ID_GEARBOX_STATE)));
-        addRow(appContext.getString(R.string.vehicle_info_power_mode),
+        addRow(uiContext.getString(R.string.vehicle_info_power_mode),
                 formatter.formatPowerMode(repository.getCombined(ReadOnlyID.ID_SYSTEM_POWER_MODE)));
-        addRow(appContext.getString(R.string.vehicle_info_avg_speed),
+        addRow(uiContext.getString(R.string.vehicle_info_avg_speed),
                 formatter.formatSpeed(repository.getCombined(ReadOnlyID.ID_AVG_SPEED)));
 
-        addSection(appContext.getString(R.string.vehicle_info_section_etm_note));
-        addRow(appContext.getString(R.string.vehicle_info_etm_only_title),
-                appContext.getString(R.string.vehicle_info_etm_only_body));
+        addSection(uiContext.getString(R.string.vehicle_info_section_etm_note));
+        addRow(uiContext.getString(R.string.vehicle_info_etm_only_title),
+                uiContext.getString(R.string.vehicle_info_etm_only_body));
     }
 
     private void addSection(String title) {
-        TextView tv = new TextView(appContext);
+        TextView tv = new TextView(uiContext);
         tv.setText(title);
         tv.setTextSize(17);
         tv.setTypeface(null, Typeface.BOLD);
-        tv.setTextColor(UiStyles.color(appContext, R.color.textPrimary));
-        int top = UiStyles.dimenPx(appContext, R.dimen.spacing_medium);
-        tv.setPadding(0, top, 0, UiStyles.dimenPx(appContext, R.dimen.spacing_small));
+        tv.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
+        int top = UiStyles.dimenPx(uiContext, R.dimen.spacing_medium);
+        tv.setPadding(0, top, 0, UiStyles.dimenPx(uiContext, R.dimen.spacing_small));
         rowsContainer.addView(tv);
     }
 
     private void addRow(String label, String value) {
-        LinearLayout row = new LinearLayout(appContext);
+        LinearLayout row = new LinearLayout(uiContext);
         row.setOrientation(LinearLayout.VERTICAL);
-        int padV = UiStyles.dimenPx(appContext, R.dimen.spacing_small);
+        int padV = UiStyles.dimenPx(uiContext, R.dimen.spacing_small);
         row.setPadding(0, padV, 0, padV);
 
-        TextView labelTv = new TextView(appContext);
+        TextView labelTv = new TextView(uiContext);
         labelTv.setText(label);
         labelTv.setTextSize(14);
-        labelTv.setTextColor(UiStyles.color(appContext, R.color.textHint));
+        labelTv.setTextColor(UiStyles.color(uiContext, R.color.textHint));
         row.addView(labelTv);
 
-        TextView valueTv = new TextView(appContext);
+        TextView valueTv = new TextView(uiContext);
         valueTv.setText(value);
         valueTv.setTextSize(18);
-        valueTv.setTextColor(UiStyles.color(appContext, R.color.textPrimary));
+        valueTv.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
         valueTv.setGravity(Gravity.START);
         row.addView(valueTv);
 

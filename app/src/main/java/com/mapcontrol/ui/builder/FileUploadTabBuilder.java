@@ -23,9 +23,18 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.mapcontrol.R;
 import com.mapcontrol.manager.WebServerManager;
+import com.mapcontrol.trip.PairingUri;
+import com.mapcontrol.trip.PhoneAccess;
+import com.mapcontrol.trip.TripRecorder;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class FileUploadTabBuilder {
+    /** Açıksa web sunucusu uygulama açılınca ve kontak açılınca (güç modu 1/2) kendiliğinden başlar. */
+    public static final String KEY_WEB_SERVER_AUTO_START = "webServerAutoStart";
+
+    /** Telefon eşleme sayfasının deneme aşaması bilgisi bir kez gösterildi. */
+    public static final String KEY_PHONE_PAIR_BETA_SHOWN = "phonePairBetaNoticeShown";
+
     private final Context context;
     private final WebServerManager webServerManager;
 
@@ -34,6 +43,14 @@ public class FileUploadTabBuilder {
     private Button btnWebServerToggle;
     private TextView webServerStatusText;
     private ImageView qrCodeImageView;
+    private ImageView pairQrImageView;
+    private Button btnSegmentWeb;
+    private Button btnSegmentPair;
+    private LinearLayout webPanelView;
+    private LinearLayout pairPanel;
+    private boolean pairPageShown;
+    /** Sunucu çalışırken adresi; eşleşme QR'ı buradan ana makine ve portu alır. */
+    private String serverUrl;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     public FileUploadTabBuilder(Context context, WebServerManager webServerManager) {
@@ -59,13 +76,43 @@ public class FileUploadTabBuilder {
         fileUploadTabContent.setPadding(inner, inner, inner, inner);
         UiStyles.setGlassCardBackground(fileUploadTabContent);
 
+        // Aynı anda tek QR görünsün: web yönetimi ve telefon eşleme ayrı sayfalarda, üstten geçilir.
+        LinearLayout segments = new LinearLayout(context);
+        segments.setOrientation(LinearLayout.HORIZONTAL);
+        btnSegmentWeb = new Button(context);
+        btnSegmentWeb.setText(R.string.web_mgmt_title);
+        btnSegmentPair = new Button(context);
+        btnSegmentPair.setText(R.string.phone_pair_tab);
+        for (Button b : new Button[]{btnSegmentWeb, btnSegmentPair}) {
+            b.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            b.setTextSize(15);
+            b.setTypeface(null, Typeface.BOLD);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            lp.setMargins(0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium) / 2, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+            segments.addView(b, lp);
+        }
+        btnSegmentWeb.setOnClickListener(v -> showPairPage(false));
+        btnSegmentPair.setOnClickListener(v -> {
+            showPairPage(true);
+            showBetaNoticeOnce();
+        });
+        fileUploadTabContent.addView(segments, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout webPanel = new LinearLayout(context);
+        webPanel.setOrientation(LinearLayout.VERTICAL);
+        pairPanel = new LinearLayout(context);
+        pairPanel.setOrientation(LinearLayout.VERTICAL);
+        webPanelView = webPanel;
+
         TextView fileUploadTitle = new TextView(context);
         fileUploadTitle.setText(R.string.web_mgmt_title);
         fileUploadTitle.setTextSize(18);
         fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         fileUploadTitle.setTypeface(null, Typeface.BOLD);
         fileUploadTitle.setPadding(16, 16, 16, 8);
-        fileUploadTabContent.addView(fileUploadTitle, new LinearLayout.LayoutParams(
+        webPanel.addView(fileUploadTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -74,7 +121,7 @@ public class FileUploadTabBuilder {
         fileUploadDesc.setTextSize(13);
         fileUploadDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         fileUploadDesc.setPadding(16, 0, 16, 16);
-        fileUploadTabContent.addView(fileUploadDesc, new LinearLayout.LayoutParams(
+        webPanel.addView(fileUploadDesc, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -89,7 +136,20 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         webServerToggleParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
-        fileUploadTabContent.addView(btnWebServerToggle, webServerToggleParams);
+        webPanel.addView(btnWebServerToggle, webServerToggleParams);
+
+        android.widget.Switch autoStart = new android.widget.Switch(context);
+        autoStart.setText(R.string.web_server_auto_start);
+        autoStart.setTextSize(15);
+        autoStart.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        autoStart.setPadding(16, 8, 16, 8);
+        android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+        autoStart.setChecked(prefs.getBoolean(KEY_WEB_SERVER_AUTO_START, false));
+        autoStart.setOnCheckedChangeListener((b, on) ->
+                prefs.edit().putBoolean(KEY_WEB_SERVER_AUTO_START, on).apply());
+        webPanel.addView(autoStart, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         LinearLayout urlQrContainer = new LinearLayout(context);
         urlQrContainer.setOrientation(LinearLayout.VERTICAL);
@@ -119,9 +179,84 @@ public class FileUploadTabBuilder {
         qrParams.gravity = Gravity.CENTER;
         urlQrContainer.addView(qrCodeImageView, qrParams);
 
-        fileUploadTabContent.addView(urlQrContainer, new LinearLayout.LayoutParams(
+        webPanel.addView(urlQrContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Telefon uygulaması yalnızca test kullanıcılarına açık: sayfada kalıcı bir not.
+        LinearLayout betaBanner = new LinearLayout(context);
+        betaBanner.setOrientation(LinearLayout.VERTICAL);
+        betaBanner.setPadding(16, 12, 16, 12);
+        betaBanner.setBackgroundColor(UiStyles.color(context, R.color.surfaceColor));
+        TextView betaBannerTitle = new TextView(context);
+        betaBannerTitle.setText(R.string.phone_pair_banner_title);
+        betaBannerTitle.setTextSize(13);
+        betaBannerTitle.setTypeface(null, Typeface.BOLD);
+        betaBannerTitle.setTextColor(UiStyles.color(context, R.color.statusWarning));
+        betaBanner.addView(betaBannerTitle);
+        TextView betaBannerText = new TextView(context);
+        betaBannerText.setText(R.string.phone_pair_banner);
+        betaBannerText.setTextSize(13);
+        betaBannerText.setTextColor(UiStyles.color(context, R.color.textHint));
+        betaBannerText.setPadding(0, 4, 0, 0);
+        betaBanner.addView(betaBannerText);
+        LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        bannerParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        pairPanel.addView(betaBanner, bannerParams);
+
+        TextView pairTitle = new TextView(context);
+        pairTitle.setText(R.string.phone_pair_title);
+        pairTitle.setTextSize(16);
+        pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        pairTitle.setTypeface(null, Typeface.BOLD);
+        pairTitle.setPadding(16, 16, 16, 4);
+        pairPanel.addView(pairTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView pairDesc = new TextView(context);
+        pairDesc.setText(R.string.phone_pair_desc);
+        pairDesc.setTextSize(13);
+        pairDesc.setTextColor(UiStyles.color(context, R.color.textHint));
+        pairDesc.setPadding(16, 0, 16, 8);
+        pairPanel.addView(pairDesc, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView pairKey = new TextView(context);
+        pairKey.setText(PhoneAccess.token(context));
+        pairKey.setTextSize(15);
+        pairKey.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        pairKey.setTextIsSelectable(true);
+        pairKey.setTextColor(UiStyles.color(context, R.color.accentHighlight));
+        pairKey.setPadding(16, 8, 16, 8);
+        pairPanel.addView(pairKey, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        Button btnPairRegenerate = new Button(context);
+        btnPairRegenerate.setText(R.string.phone_pair_regenerate);
+        btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        btnPairRegenerate.setTextSize(14);
+        UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonPrimary));
+        btnPairRegenerate.setOnClickListener(v -> {
+            pairKey.setText(PhoneAccess.regenerate(context));
+            renderPairQr();
+        });
+        pairPanel.addView(btnPairRegenerate, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        pairQrImageView = new ImageView(context);
+        pairQrImageView.setVisibility(View.GONE);
+        pairQrImageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        pairQrImageView.setPadding(16, 16, 16, 16);
+        int pairQrSize = (int) (200 * context.getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams pairQrParams = new LinearLayout.LayoutParams(pairQrSize, pairQrSize);
+        pairQrParams.gravity = Gravity.CENTER;
+        pairPanel.addView(pairQrImageView, pairQrParams);
 
         btnWebServerToggle.setOnClickListener(v -> {
             if (webServerManager.isRunning()) {
@@ -131,6 +266,14 @@ public class FileUploadTabBuilder {
             }
         });
 
+        fileUploadTabContent.addView(webPanel, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        fileUploadTabContent.addView(pairPanel, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        showPairPage(pairPageShown);
+
         outer.addView(fileUploadTabContent, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -138,7 +281,31 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        if (serverUrl != null) {
+            generateQRCode(serverUrl);
+        }
         return scrollView;
+    }
+
+    /** Telefon eşleme sayfasına ilk geçişte bir kez: uygulamanın deneme aşamasında olduğunu söyler. */
+    private void showBetaNoticeOnce() {
+        android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_PHONE_PAIR_BETA_SHOWN, false)) {
+            return;
+        }
+        prefs.edit().putBoolean(KEY_PHONE_PAIR_BETA_SHOWN, true).apply();
+        com.mapcontrol.util.DialogHelper.showPhonePairingBeta(context);
+    }
+
+    private void showPairPage(boolean pair) {
+        pairPageShown = pair;
+        if (pair && pairQrImageView != null) {
+            renderPairQr();
+        }
+        webPanelView.setVisibility(pair ? View.GONE : View.VISIBLE);
+        pairPanel.setVisibility(pair ? View.VISIBLE : View.GONE);
+        UiStyles.styleOemButton(btnSegmentWeb, UiStyles.color(context, pair ? R.color.buttonSecondaryMuted : R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnSegmentPair, UiStyles.color(context, pair ? R.color.buttonPrimary : R.color.buttonSecondaryMuted));
     }
 
     public LinearLayout getFileUploadTabContent() {
@@ -165,6 +332,37 @@ public class FileUploadTabBuilder {
     }
 
     public void generateQRCode(String url) {
+        serverUrl = url;
+        renderQr(url, qrCodeImageView);
+        renderPairQr();
+    }
+
+    /** Sunucu durunca eski adresli QR ekranda kalmasın. */
+    public void hidePairQr() {
+        serverUrl = null;
+        if (pairQrImageView != null) {
+            pairQrImageView.setVisibility(View.GONE);
+        }
+    }
+
+    /** Telefonun okuyacağı eşleşme QR'ı; sunucu çalışmıyorsa adres yoktur, gizli kalır. */
+    private void renderPairQr() {
+        String[] hostPort = serverUrl == null ? null : PairingUri.hostAndPort(serverUrl);
+        if (hostPort == null) {
+            return;
+        }
+        // Adres sunucu açıldığından beri değişmiş olabilir (hotspot sonradan açıldı); QR her çizimde güncel adresi alır.
+        String host = webServerManager.currentHost();
+        if (host.startsWith("127.")) {
+            pairQrImageView.setVisibility(View.GONE);
+            return;
+        }
+        String uri = PairingUri.build(host, Integer.parseInt(hostPort[1]),
+                PhoneAccess.token(context), TripRecorder.get(context).vinOrEmpty());
+        renderQr(uri, pairQrImageView);
+    }
+
+    private void renderQr(String content, ImageView target) {
         new Thread(() -> {
             try {
                 QRCodeWriter qrCodeWriter = new QRCodeWriter();
@@ -174,7 +372,7 @@ public class FileUploadTabBuilder {
                 hints.put(EncodeHintType.MARGIN, 1);
 
                 int size = 512;
-                BitMatrix bitMatrix = qrCodeWriter.encode(url, BarcodeFormat.QR_CODE, size, size, hints);
+                BitMatrix bitMatrix = qrCodeWriter.encode(content, BarcodeFormat.QR_CODE, size, size, hints);
 
                 Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
                 for (int x = 0; x < size; x++) {
@@ -184,9 +382,9 @@ public class FileUploadTabBuilder {
                 }
 
                 handler.post(() -> {
-                    if (qrCodeImageView != null) {
-                        qrCodeImageView.setImageBitmap(bitmap);
-                        qrCodeImageView.setVisibility(View.VISIBLE);
+                    if (target != null) {
+                        target.setImageBitmap(bitmap);
+                        target.setVisibility(View.VISIBLE);
                     }
                 });
             } catch (WriterException ignored) {

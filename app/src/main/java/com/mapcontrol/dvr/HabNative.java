@@ -1,24 +1,14 @@
 package com.mapcontrol.dvr;
 
-import android.graphics.Bitmap;
 import android.util.Log;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-
 /**
- * Native HAB köprüsü: teşhis testleri (probe/oturum/tek kare) ve canlı akış
- * için kamera hub'ı (kamera başına bağımsız oturum, CPU kopyası veya
- * EGLImage ile sıfır kopya). Akış yönetimi {@link CameraHub} üzerinden yapılır.
+ * Native HAB köprüsü: canlı akış için kamera hub'ı (kamera başına bağımsız oturum,
+ * CPU kopyası veya EGLImage ile sıfır kopya) ve CPU kayıt yolu dönüşümleri.
+ * Akış yönetimi {@link CameraHub} üzerinden yapılır.
  */
 public final class HabNative {
     private static final String TAG = "HabNative";
-    private static final ExecutorService EXEC = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "hab-native-probe");
-        t.setDaemon(true);
-        return t;
-    });
 
     private static final boolean LOADED;
 
@@ -37,14 +27,6 @@ public final class HabNative {
     private HabNative() {
     }
 
-    private static native String nativeProbe();
-
-    private static native String nativeSessionTest();
-
-    private static native String nativeStreamTest();
-
-    private static native byte[] nativeCaptureFrame();
-
     private static native int nativeHubStart();
 
     private static native void nativeHubStop();
@@ -60,6 +42,10 @@ public final class HabNative {
     private static native long nativeZcAcquire(int cam);
 
     private static native void nativeZcDetach(int cam);
+
+    private static native void nativeZcFenceInsert();
+
+    private static native void nativeSetIonCached(boolean enabled);
 
     private static native void nativeZcShutdown();
 
@@ -176,6 +162,20 @@ public final class HabNative {
         }
     }
 
+    /**
+     * Kamera tamponlari onbellekli ayrilsin mi ("hizli okuma"). Acikken CPU kare kopyasi
+     * belirgin ucuzlar; her okuma DMA_BUF sync ile korunur, sorun cikarsa kamera kendiliginden
+     * onbelleksiz moda doner. Degisiklik kameralar yeniden acilinca gecerli olur.
+     */
+    public static void setIonCached(boolean enabled) {
+        if (!LOADED) return;
+        try {
+            nativeSetIonCached(enabled);
+        } catch (Throwable t) {
+            Log.w(TAG, "ion onbellek ayari hata", t);
+        }
+    }
+
     /** GL thread'inde: dma-buf -> EGLImage destegi varsa true. */
     public static boolean zcInit() {
         if (!LOADED) return false;
@@ -208,6 +208,23 @@ public final class HabNative {
         } catch (Throwable t) {
             Log.w(TAG, "zc detach hata", t);
         }
+    }
+
+    /**
+     * GL thread'inde, sifir kopya cizimden sonra (glFinish yerine): GPU bitis isareti koyar.
+     * Kare iadesi bir sonraki zcAcquire/zcDetach'te bu isaret beklenerek yapilir.
+     * Fence desteklenmiyorsa native taraf glFinish yapar. Hata olursa da glFinish'e duser.
+     */
+    public static void zcFenceInsert() {
+        if (LOADED) {
+            try {
+                nativeZcFenceInsert();
+                return;
+            } catch (Throwable t) {
+                Log.w(TAG, "zc fence hata", t);
+            }
+        }
+        android.opengl.GLES20.glFinish();
     }
 
     /** GL thread'inde, baglam yok edilmeden once. */
@@ -248,123 +265,10 @@ public final class HabNative {
         }
     }
 
-
     /** Varsayilan geometri; acik kameranin gercek boyutu {@link #hubDescriptor} ile alinir. */
     public static final int FRAME_WIDTH = 1280;
     public static final int FRAME_HEIGHT = 800;
 
-    /** Varsayilan ham kare boyutu (YUYV 1280x800x2; tek kare testi bununla calisir). */
-    public static final int YUYV_BYTES = FRAME_WIDTH * FRAME_HEIGHT * 2;
-
     /** Canli kameralar (id sirasi kamera indeksiyle ayni: On, Sag, Sol, Arka). */
     public static final int[] CAMERA_IDS = {5, 4, 8, 9};
-
-    /** Tek kare yakala (YUYV baytları); başarısızsa null. Arka planda çalışır. */
-    public static void captureFrameRawAsync(Consumer<byte[]> callback) {
-        EXEC.execute(() -> {
-            byte[] result = null;
-            if (LOADED) {
-                try {
-                    result = nativeCaptureFrame();
-                } catch (Throwable t) {
-                    Log.w(TAG, "kare yakalama hata", t);
-                }
-            }
-            if (callback != null) {
-                callback.accept(result);
-            }
-        });
-    }
-
-    /** YUYV (Y0 U Y1 V) paketlenmiş kareyi Bitmap'e çevirir (BT.601). */
-    public static Bitmap yuyvToBitmap(byte[] data, int width, int height) {
-        if (data == null || data.length < width * height * 2) {
-            return null;
-        }
-        int[] pixels = new int[width * height];
-        for (int i = 0, p = 0; i + 3 < data.length && p < pixels.length - 1; i += 4) {
-            int y0 = data[i] & 0xFF;
-            int u = data[i + 1] & 0xFF;
-            int y1 = data[i + 2] & 0xFF;
-            int v = data[i + 3] & 0xFF;
-            pixels[p++] = yuvToRgb(y0, u, v);
-            pixels[p++] = yuvToRgb(y1, u, v);
-        }
-        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bmp.setPixels(pixels, 0, width, 0, 0, width, height);
-        return bmp;
-    }
-
-    private static int yuvToRgb(int y, int u, int v) {
-        int c = y - 16;
-        if (c < 0) c = 0;
-        int d = u - 128;
-        int e = v - 128;
-        int r = (298 * c + 409 * e + 128) >> 8;
-        int g = (298 * c - 100 * d - 208 * e + 128) >> 8;
-        int b = (298 * c + 516 * d + 128) >> 8;
-        r = r < 0 ? 0 : (r > 255 ? 255 : r);
-        g = g < 0 ? 0 : (g > 255 ? 255 : g);
-        b = b < 0 ? 0 : (b > 255 ? 255 : b);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
-    }
-
-    /** Tek stream denemesi: tip1 + ION + tip5/export + tip7 + 1 kare (tip11/12). */
-    public static void streamTestAsync(Consumer<String> callback) {
-        EXEC.execute(() -> {
-            String result;
-            if (!LOADED) {
-                result = "HAB Stream: FAIL libmapcontrol_hab yüklenemedi";
-            } else {
-                try {
-                    result = nativeStreamTest();
-                } catch (Throwable t) {
-                    result = "HAB Stream: FAIL " + t.getClass().getSimpleName() + ": " + t.getMessage();
-                }
-            }
-            Log.i(TAG, result);
-            if (callback != null) {
-                callback.accept(result);
-            }
-        });
-    }
-
-    /** Oturum açma denemesi: kanal + tip 17/0/19 (stream/kare yok). */
-    public static void sessionTestAsync(Consumer<String> callback) {
-        EXEC.execute(() -> {
-            String result;
-            if (!LOADED) {
-                result = "HAB Oturum: FAIL libmapcontrol_hab yüklenemedi";
-            } else {
-                try {
-                    result = nativeSessionTest();
-                } catch (Throwable t) {
-                    result = "HAB Oturum: FAIL " + t.getClass().getSimpleName() + ": " + t.getMessage();
-                }
-            }
-            Log.i(TAG, result);
-            if (callback != null) {
-                callback.accept(result);
-            }
-        });
-    }
-
-    public static void probeAsync(Consumer<String> callback) {
-        EXEC.execute(() -> {
-            String result;
-            if (!LOADED) {
-                result = "HAB Native: FAIL libmapcontrol_hab yüklenemedi";
-            } else {
-                try {
-                    result = nativeProbe();
-                } catch (Throwable t) {
-                    result = "HAB Native: FAIL " + t.getClass().getSimpleName() + ": " + t.getMessage();
-                }
-            }
-            Log.i(TAG, result);
-            if (callback != null) {
-                callback.accept(result);
-            }
-        });
-    }
 }

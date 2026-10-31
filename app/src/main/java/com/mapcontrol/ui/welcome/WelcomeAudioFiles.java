@@ -106,6 +106,46 @@ public final class WelcomeAudioFiles {
         }
     }
 
+    /**
+     * Üretilen mp3'ü welcome-audio altına yeni bir adla yazar. Önceki dosyalar durur.
+     */
+    public static File writeGenerated(Context context, InputStream in) throws IOException {
+        File dir = storeDir(context);
+        String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+                .format(new java.util.Date());
+        File dest = new File(dir, "mp3-" + stamp + ".mp3");
+        int extra = 2;
+        while (dest.exists()) {
+            dest = new File(dir, "mp3-" + stamp + "-" + extra + ".mp3");
+            extra++;
+        }
+        File tmp = new File(dir, dest.getName() + ".part");
+        long total = 0;
+        try (OutputStream out = new FileOutputStream(tmp)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) >= 0) {
+                if (n == 0) {
+                    continue;
+                }
+                out.write(buf, 0, n);
+                total += n;
+            }
+        } catch (IOException e) {
+            tmp.delete();
+            throw e;
+        }
+        if (total <= 0) {
+            tmp.delete();
+            throw new IOException("empty");
+        }
+        if (!tmp.renameTo(dest)) {
+            tmp.delete();
+            throw new IOException("rename");
+        }
+        return dest;
+    }
+
     public static File copyUri(Context context, Uri uri) throws IOException {
         String name = displayName(context, uri);
         try (InputStream in = context.getContentResolver().openInputStream(uri)) {
@@ -317,6 +357,14 @@ public final class WelcomeAudioFiles {
             return "welcome-sound";
         }
         return cleaned;
+    }
+
+    private static boolean isSameFile(File a, File b) {
+        try {
+            return a.getCanonicalPath().equals(b.getCanonicalPath());
+        } catch (IOException e) {
+            return a.getAbsolutePath().equals(b.getAbsolutePath());
+        }
     }
 
     private static boolean isInside(File file, File dir) {
