@@ -275,6 +275,7 @@
     <string name="assist_card_fcw">Forward collision warning</string>
     <string name="assist_card_aeb">Automatic emergency braking</string>
     <string name="assist_card_cpd">CPD (child presence detection)</string>
+    <string name="assist_card_child_lock">Rear Window Child Lock</string>
     <string name="assist_card_dms">DMS (driver attention alarm)</string>
     <string name="assist_cpd_disclaimer">CPD: In-car child detection. Depends on hardware and software; may not work on every model (e.g. some Tiggo 8 trims). Verify on your vehicle.</string>
     <string name="assist_dms_disclaimer">Driver attention monitor: cabin-camera fatigue and distraction alarm. Depends on hardware and software; may not work on every model. Verify on your vehicle.</string>
@@ -286,6 +287,7 @@
     <string name="assist_status_fcw">FCW off</string>
     <string name="assist_status_aeb">AEB off</string>
     <string name="assist_status_cpd">CPD off</string>
+    <string name="assist_status_child_lock">Auto-Locked</string>
     <string name="assist_status_dms">DMS off</string>
     <string name="assist_status_active">Active</string>
 
@@ -836,7 +838,7 @@
     <string name="sunroof_auto_rain_guard_title">Rain Safety Guard</string>
     <string name="sunroof_auto_rain_guard_desc">Immediately closes sunroof when rain is detected and prevents opening.</string>
     <string name="sunroof_auto_speed_guard_title">High Speed Safety Limit</string>
-    <string name="sunroof_auto_speed_guard_desc">Prevents opening above configured speed to avoid wind noise and damage.</string>
+    <string name="sunroof_auto_speed_guard_desc">Closes the sunroof above 100 km/h to prevent wind noise and mechanical damage.</string>
     <string name="sunroof_auto_close_on_off_title">Auto-Close on Ignition Off</string>
     <string name="sunroof_auto_close_on_off_desc">Automatically closes open sunroof when the vehicle ignition is turned off.</string>
     <string name="sunroof_auto_control_shade_title">Sunshade / Curtain Control</string>

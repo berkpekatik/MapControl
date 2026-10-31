@@ -102,7 +102,8 @@ public class AssistTabBuilder {
                 {R.string.assist_card_ldp, R.drawable.ic_mdi_shield_car, 2, -1, "ldpSetting", "LDP"},
                 {R.string.assist_card_fcw, R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
                 {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"},
-                {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"}
+                {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"},
+                {R.string.assist_card_child_lock, R.drawable.ic_vehicle_lock, 1, -1, "childLockSetting", "Çocuk Kilidi"}
         };
 
         int[] savedValues = {
@@ -112,7 +113,8 @@ public class AssistTabBuilder {
                 prefs.getInt("ldpSetting", -1),
                 prefs.getInt("fcwSetting", -1),
                 prefs.getInt("aebSetting", -1),
-                prefs.getInt("cpdSetting", -1)
+                prefs.getInt("cpdSetting", -1),
+                prefs.getInt("childLockSetting", prefs.getBoolean("childWindowLockAutoEnable", false) ? 1 : -1)
         };
 
         final LinearLayout[] cardContainers = new LinearLayout[assistCards.length];
@@ -296,6 +298,7 @@ public class AssistTabBuilder {
             case "fcwSetting": return context.getString(R.string.assist_status_fcw);
             case "aebSetting": return context.getString(R.string.assist_status_aeb);
             case "cpdSetting": return context.getString(R.string.assist_status_cpd);
+            case "childLockSetting": return context.getString(R.string.assist_status_child_lock);
             default: return context.getString(R.string.assist_status_active);
         }
     }
@@ -332,6 +335,11 @@ public class AssistTabBuilder {
                             VDEventCarInfo.MODULE_CAR_SETTING,
                             CarSettingID.ID_CAR_CIR_ENA_STS,
                             disable ? 2 : 1);
+                } else if (settingKey.equals("childLockSetting")) {
+                    CarInfoProxy.getInstance().sendItemValue(
+                            VDEventCarInfo.MODULE_CAR_SETTING,
+                            CarSettingID.ID_CAR_WINDOW_PROHIBIT,
+                            1);
                 }
                 callback.log("✅ " + logPrefix + " değeri araca gönderildi");
             }

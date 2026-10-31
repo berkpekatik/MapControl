@@ -37,6 +37,12 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
     public static final int MODE_SMART_COMFORT = 0;   // Akıllı Konfor (Bulutlu/Gün Batımında Aç, Dik Güneşte & Gece Kapat) - VARSAYILAN
     public static final int MODE_SHADE_ONLY = 1;      // Sadece Gölgede Aç (Hassas Güneş Koruması)
     public static final int MODE_OPEN_AIR = 2;        // Açık Hava (Gece Hariç Çoğu Zaman Açık)
+    public static final int MODE_ALWAYS_OPEN = 3;     // Daima Açık (Işıktan Bağımsız Her Sürüşte Aç)
+
+    // Otomasyon Kapsamı / Hedef Eleman
+    public static final int TARGET_SHADE_ONLY = 0;    // Yalnızca Perde
+    public static final int TARGET_SUNROOF_AND_SHADE = 1; // Tavan + Perde
+    public static final String KEY_TARGET_SCOPE = "sunroof_auto_target_scope";
 
     // Güneş Hassasiyeti Seviyeleri (Kullanıcı sayısal lux ile uğraşmasın diye)
     public static final int SENSITIVITY_SENSITIVE = 0; // Hassas (Güneşte Erken Kapatır)
@@ -426,6 +432,9 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
             } else if (currentLux <= (shadeLimit - 1500f) && avgLux <= (shadeLimit - 1500f)) {
                 targetAction = Boolean.TRUE;
             }
+        } else if (mode == MODE_ALWAYS_OPEN) {
+            // Daima Açık Modu: Işık seviyesi ne olursa olsun her zaman AÇ
+            targetAction = Boolean.TRUE;
         } else {
             // Açık Hava Modu
             if (currentLux >= 35000f || avgLux >= 35000f) {
@@ -437,7 +446,33 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
             }
         }
 
-        Boolean isCurrentlyOpen = metrics.sunroofOpenOrNull();
+        int targetScope = prefs.getInt(KEY_TARGET_SCOPE, TARGET_SHADE_ONLY);
+        int currentSpeed = metrics.preferredSpeed();
+        boolean speedGuardActive = prefs.getBoolean(KEY_SPEED_GUARD, true);
+        int speedLimit = prefs.getInt(KEY_SPEED_LIMIT, 100);
+        boolean isHighSpeed = speedGuardActive && (currentSpeed > speedLimit);
+
+        // Yüksek Hız Koruması: Hız belirlenen limiti (>100 km/s) aştığında cam tavanı kapatır ve açılmasını engeller
+        if (isHighSpeed && targetScope != TARGET_SHADE_ONLY) {
+            targetAction = Boolean.FALSE;
+        }
+
+        // Yalnızca Perde modunda olunsa dahi cam tavan açıksa ve yüksek hız limiti aşıldıysa güvenlik için tavanı kapat
+        if (targetScope == TARGET_SHADE_ONLY && isHighSpeed && metrics.isSunroofOpen()) {
+            if (now - lastMovementTimestamp > 10000L) {
+                logEvent("\u26A0\uFE0F Y\u00dcKSEK HIZ G\u00dcVENL\u0130\u011e\u0130: H\u0131z " + currentSpeed + " km/s > " + speedLimit + " km/s! Cam tavan kapat\u0131l\u0131yor.");
+                controller.closeSunroof(false);
+                lastMovementTimestamp = now;
+                lastActionDescription = String.format(Locale.getDefault(),
+                        "Yüksek hız (%d km/s) — Cam tavan kapatıldı [%s]", currentSpeed, timeFormat.format(new Date()));
+                lastActionTimestamp = System.currentTimeMillis();
+                notifyStatusChanged();
+            }
+        }
+
+        Boolean isCurrentlyOpen = (targetScope == TARGET_SHADE_ONLY)
+                ? metrics.isSunshadeOpen()
+                : metrics.sunroofOpenOrNull();
 
         // Eğer mevcut durum hedefle aynıysa veya deadband içindeyse, bekle
         if (targetAction == null || (isCurrentlyOpen != null && isCurrentlyOpen.equals(targetAction))) {
@@ -448,38 +483,29 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         }
 
         // 6. Hız Korumaları
-        int currentSpeed = metrics.preferredSpeed();
         boolean isInitialStartupOpen = initialStartupPending && Boolean.TRUE.equals(targetAction);
 
         // A. Minimum Hız Koruması (Kullanıcı Kuralı: Kırmızı ışık / dur-kalkta gölgede açılmayı engeller)
         // İlk çalıştırmada güneş yoksa hız şartı aranmaz (hemen açılır); seyir halindeyken en az 15 km/s şartı aranır.
-        if (targetAction && !isInitialStartupOpen && currentSpeed < 15) {
+        if (targetScope != TARGET_SHADE_ONLY && Boolean.TRUE.equals(targetAction) && !isInitialStartupOpen && currentSpeed < 15) {
             pendingTarget = null;
             conditionMetSinceTimestamp = 0L;
             notifyStatusChanged("Hız bekleniyor (Dur-kalk / Işık koruması: < 15 km/s)");
             return;
         }
 
-        // B. Maksimum Hız Güvenlik Limiti Koruması (Yüksek süratte tavan açılmasını engeller)
-        if (targetAction && prefs.getBoolean(KEY_SPEED_GUARD, true)) {
-            int speedLimit = prefs.getInt(KEY_SPEED_LIMIT, 100);
-            if (currentSpeed > speedLimit) {
-                pendingTarget = null;
-                conditionMetSinceTimestamp = 0L;
-                notifyStatusChanged("Hız limiti aşıldı (" + currentSpeed + " > " + speedLimit + " km/s)");
-                return;
-            }
-        }
-
         // 7. Kararlılık / Asimetrik Debounce Süresi Kontrolü
         // - İlk çalıştırmada güneş yoksa: 0 saniye (Kullanıcı Kuralı: Hız sıfır olsa bile derhal aç!)
         // - Seyir esnasında gölgede açma: 120 saniye / 2 dakika (Trafik ışığı ve köprü altı koruması)
+        // - Yüksek hızda kapatma: 3 saniye (Hızlı güvenlik koruması)
         // - Güneşte kapatma: 5 saniye (Acil güneş koruması)
         long debounceMs;
         if (isInitialStartupOpen) {
-            debounceMs = 0L; // İlk çalıştırmada hemen aç!
-        } else if (targetAction) {
+            debounceMs = 0L;
+        } else if (Boolean.TRUE.equals(targetAction)) {
             debounceMs = 120 * 1000L;
+        } else if (isHighSpeed) {
+            debounceMs = 3 * 1000L;
         } else {
             debounceMs = 5 * 1000L;
         }
@@ -492,10 +518,15 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         long conditionDurationMs = now - conditionMetSinceTimestamp;
         if (conditionDurationMs < debounceMs) {
             long remainingSec = Math.max(1, (debounceMs - conditionDurationMs) / 1000);
-            String actionName = targetAction ? "Açılıyor" : "Kapanıyor";
-            String reasonText = targetAction
-                    ? "(Gölge Onayı: " + remainingSec + " sn)"
-                    : "(Güneş Koruması: " + remainingSec + " sn)";
+            String actionName = Boolean.TRUE.equals(targetAction) ? "Açılıyor" : "Kapanıyor";
+            String reasonText;
+            if (isHighSpeed) {
+                reasonText = "(Yüksek Hız Koruması: " + remainingSec + " sn)";
+            } else if (Boolean.TRUE.equals(targetAction)) {
+                reasonText = "(Gölge Onayı: " + remainingSec + " sn)";
+            } else {
+                reasonText = "(Güneş Koruması: " + remainingSec + " sn)";
+            }
             notifyStatusChanged(actionName + " " + reasonText);
             return;
         }
@@ -518,18 +549,35 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
 
         // 9. Komut İcrası (Güneşlik/perde kontrolü kaldırıldı, yalnızca cam tavan yönetilir)
         boolean success;
+        String elementLabel = (targetScope == TARGET_SHADE_ONLY) ? "Perde" : "Cam tavan";
         if (targetAction) {
-            success = controller.openSunroof(false);
-            String prefix = isInitialStartupOpen ? "İlk çalıştırma (Güneş yok)" : "İdeal ışık koşulu oluştu";
+            if (targetScope == TARGET_SHADE_ONLY) {
+                success = controller.openSunshadeOnly();
+            } else {
+                success = controller.openSunroof(false);
+            }
+            String prefix = (mode == MODE_ALWAYS_OPEN) ? "Daima Açık Modu" :
+                    (isInitialStartupOpen ? "İlk çalıştırma" : "İdeal ışık koşulu");
             lastActionDescription = String.format(Locale.getDefault(),
-                    "%s — Tavan açıldı [%s]", prefix, timeFormat.format(new Date()));
-            logEvent("Cam tavan açıldı (" + prefix + ", Işık: " + (int) currentLux + " lx, Ort: " + (int) avgLux + " lx)");
+                    "%s — %s açıldı [%s]", prefix, elementLabel, timeFormat.format(new Date()));
+            logEvent(elementLabel + " açıldı (" + prefix + ", Işık: " + (int) currentLux + " lx, Ort: " + (int) avgLux + " lx)");
         } else {
-            success = controller.closeSunroof(false);
-            String reason = (currentLux >= sunThreshold || avgLux >= sunThreshold) ? "Yakıcı güneş algılandı" : "Karanlık/Gece algılandı";
+            if (targetScope == TARGET_SHADE_ONLY) {
+                success = controller.closeSunshadeOnly();
+            } else {
+                success = controller.closeSunroof(false);
+            }
+            String reason;
+            if (isHighSpeed) {
+                reason = "Yüksek hız (" + currentSpeed + " km/s > " + speedLimit + " km/s)";
+            } else if (currentLux >= sunThreshold || avgLux >= sunThreshold) {
+                reason = "Yakıcı güneş algılandı";
+            } else {
+                reason = "Karanlık/Gece algılandı";
+            }
             lastActionDescription = String.format(Locale.getDefault(),
-                    "%s — Tavan kapatıldı [%s]", reason, timeFormat.format(new Date()));
-            logEvent("Cam tavan kapatıldı (" + reason + ", Işık: " + (int) currentLux + " lx)");
+                    "%s — %s kapatıldı [%s]", reason, elementLabel, timeFormat.format(new Date()));
+            logEvent(elementLabel + " kapatıldı (" + reason + ", Işık: " + (int) currentLux + " lx)");
         }
 
         if (success) {

@@ -430,6 +430,9 @@ public class MapControlService extends Service {
                                                         applySpdLimitIfNeeded();
                                                         handler.postDelayed(() -> {
                                                             applyCpdIfNeeded();
+                                                            handler.postDelayed(() -> {
+                                                                applyChildWindowLockIfNeeded();
+                                                            }, 100);
                                                         }, 100);
                                                     }, 100);
                                                 }, 100);
@@ -1059,6 +1062,32 @@ public class MapControlService extends Service {
     /**
      * Ana ekrandaki Yansıtma sekmesiyle aynı uygulama: {@link ClusterDisplayManager#openClusterDisplay()}.
      */
+    /**
+     * Powermode 2 olunca kayıtlı çocuk cam kilidi ayarını araca otomatik uygula
+     */
+    private void applyChildWindowLockIfNeeded() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+            boolean enabled = prefs.getInt("childLockSetting", -1) == 1 || prefs.getBoolean("childWindowLockAutoEnable", false);
+            if (!enabled) {
+                return;
+            }
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                log("🔌 CarInfoProxy bağlı değil, çocuk cam kilidi uygulanamıyor");
+                return;
+            }
+            log("🔒 Çocuk cam kilidi otomatik kilitleniyor (ID_CAR_WINDOW_PROHIBIT=1)...");
+            CarInfoProxy.getInstance().sendItemValue(
+                    VDEventCarInfo.MODULE_CAR_SETTING,
+                    CarSettingID.ID_CAR_WINDOW_PROHIBIT,
+                    1);
+            log("✅ Çocuk cam kilidi otomatik aktif edildi.");
+        } catch (Exception e) {
+            log("❌ applyChildWindowLockIfNeeded hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     private ClusterDisplayManager getClusterDisplayHelper() {
         if (clusterDisplayHelper == null) {
             clusterDisplayHelper = new ClusterDisplayManager(getApplicationContext(),
