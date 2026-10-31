@@ -27,16 +27,17 @@ import androidx.appcompat.widget.AppCompatImageView;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.SplitScreenGesture;
 
 /**
  * Arka planda ve diğer tüm uygulamaların (Yandex Navigasyon, Spotify, vb.) üzerindeyken
- * çalışan iki parmakla hızlı jest (Sunroof Quick Gestures) kontrol yöneticisi.
+ * çalışan çok parmaklı hızlı jest (Sunroof Quick Gestures) kontrol yöneticisi.
  *
- * Jest Tanımları:
- * - İki parmakla SAĞA kaydırma: Cam Tavanı Aç
- * - İki parmakla SOLA kaydırma: Cam Tavanı Kapat
- * - İki parmakla YUKARI kaydırma: Perdeyi Kapat
- * - İki parmakla AŞAĞI kaydırma: Perdeyi Aç
+ * Varsayılan jest tanımları (parmak sayısı ve yön {@link SunroofGestureStore} ile değiştirilebilir):
+ * - Üç parmakla SAĞA kaydırma: Cam Tavanı Aç
+ * - Üç parmakla SOLA kaydırma: Cam Tavanı Kapat
+ * - Üç parmakla YUKARI kaydırma: Perdeyi Kapat
+ * - Üç parmakla AŞAĞI kaydırma: Perdeyi Aç
  */
 public final class SunroofGestureOverlayManager {
 
@@ -297,6 +298,14 @@ public final class SunroofGestureOverlayManager {
         });
     }
 
+    /** HUD açıklaması: seçili parmak sayısıyla "3 parmakla sağa kaydırıldı". */
+    private String swipeText(GestureAction action, String directionWord) {
+        int code = SunroofGestureStore.getCode(appContext, action);
+        int fingers = SplitScreenGesture.fingersOf(code);
+        String count = SplitScreenGesture.isValid(code) ? fingers + " parmakla" : "Kaydırmayla";
+        return count + " " + directionWord + " kaydırıldı";
+    }
+
     /**
      * Jest algılandığında doğrudan VDBus kontrolcüsünü çalıştırır,
      * ekranda görsel HUD rozeti gösterir ve motoru bilgilendirir.
@@ -320,7 +329,7 @@ public final class SunroofGestureOverlayManager {
                     desc = "➡️ Perde açılıyor, ardından cam otomatik açılacak";
                 } else {
                     title = "Cam Tavan Açılıyor";
-                    desc = "➡️ İki parmakla sağa kaydırıldı (" + source + ")";
+                    desc = "➡️ " + swipeText(action, "sağa") + " (" + source + ")";
                 }
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride("Hızlı Jest: Tavan Açıldı", true, false);
@@ -330,7 +339,7 @@ public final class SunroofGestureOverlayManager {
                 // SOLA: Cam Tavanı Kapat
                 controller.closeSunroof(controlShade);
                 title = "Cam Tavan Kapatılıyor";
-                desc = "⬅️ İki parmakla sola kaydırıldı (" + source + ")";
+                desc = "⬅️ " + swipeText(action, "sola") + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride("Hızlı Jest: Tavan Kapatıldı", true, true);
                 break;
@@ -339,7 +348,7 @@ public final class SunroofGestureOverlayManager {
                 // YUKARI: Perdeyi Kapat
                 controller.closeSunshadeOnly();
                 title = "Tavan Perdesi Kapatılıyor";
-                desc = "⬆️ İki parmakla yukarı kaydırıldı (" + source + ")";
+                desc = "⬆️ " + swipeText(action, "yukarı") + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride("Hızlı Jest: Perde Kapatıldı", false, true);
                 break;
@@ -348,7 +357,7 @@ public final class SunroofGestureOverlayManager {
                 // AŞAĞI: Perdeyi Aç
                 controller.openSunshadeOnly();
                 title = "Tavan Perdesi Açılıyor";
-                desc = "⬇️ İki parmakla aşağı kaydırıldı (" + source + ")";
+                desc = "⬇️ " + swipeText(action, "aşağı") + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride("Hızlı Jest: Perde Açıldı", false, false);
                 break;

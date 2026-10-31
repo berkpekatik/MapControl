@@ -36,6 +36,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -49,12 +50,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.mapcontrol.R;
+import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.Ipv4Http;
 import com.mapcontrol.util.NetworkWifiHelper;
 
 public class AppsTabBuilder {
 
-    private static final String SERVER_LIST_URL = "https://vnoisy.dev/apk/list.json";
+    private static final String SERVER_LIST_URL = ProfileApiService.API_ROOT + "/api/catalog";
     private static final long SERVER_RETRY_INITIAL_MS = 2_000L;
     private static final long SERVER_RETRY_MAX_MS = 15_000L;
     public interface AppsCallback {
@@ -1481,6 +1484,23 @@ public class AppsTabBuilder {
         }
     }
 
+    private HttpURLConnection openDownloadConnection(URL url) throws IOException {
+        HttpURLConnection connection = Ipv4Http.open(url);
+        String connectedHost = connection.getURL().getHost();
+        if (connectedHost != null && !connectedHost.equalsIgnoreCase(url.getHost())) {
+            callback.log("[INFO] IPv4: " + connectedHost);
+        }
+        return connection;
+    }
+
+    private static boolean isHttpRedirect(int responseCode) {
+        return responseCode == HttpURLConnection.HTTP_MOVED_PERM
+                || responseCode == HttpURLConnection.HTTP_MOVED_TEMP
+                || responseCode == HttpURLConnection.HTTP_SEE_OTHER
+                || responseCode == 307
+                || responseCode == 308;
+    }
+
     private void downloadAndInstallApp(String packageName, String displayName, String downloadUrl) {
         downloadAndInstallApp(packageName, displayName, downloadUrl, 0);
     }
@@ -1510,11 +1530,10 @@ public class AppsTabBuilder {
                 callback.log("[INFO] URL: " + downloadUrl);
 
                 URL url = new URL(downloadUrl);
-                connection = (HttpURLConnection) url.openConnection();
+                connection = openDownloadConnection(url);
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(60000);
                 connection.setReadTimeout(60000);
-                connection.setInstanceFollowRedirects(true);
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36");
                 connection.setRequestProperty("Accept", "*/*");
                 connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
@@ -1522,17 +1541,15 @@ public class AppsTabBuilder {
 
                 int responseCode = connection.getResponseCode();
                 int redirectCount = 0;
-                while (responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-                        responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-                        responseCode == HttpURLConnection.HTTP_SEE_OTHER) {
+                while (isHttpRedirect(responseCode)) {
                     redirectCount++;
                     if (redirectCount > 5) throw new Exception("Çok fazla yönlendirme (redirect)");
                     String location = connection.getHeaderField("Location");
                     if (location == null) break;
                     callback.log("[INFO] Redirect takip ediliyor: " + location);
                     connection.disconnect();
-                    url = new URL(location);
-                    connection = (HttpURLConnection) url.openConnection();
+                    url = new URL(url, location);
+                    connection = openDownloadConnection(url);
                     connection.setRequestMethod("GET");
                     connection.setConnectTimeout(60000);
                     connection.setReadTimeout(60000);

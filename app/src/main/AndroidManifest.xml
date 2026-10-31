@@ -154,7 +154,6 @@
             android:name=".ui.activity.CameraActivity"
             android:label="Kamera Test"
             android:screenOrientation="landscape" />
-
         
         <activity
             android:name=".ui.activity.ClusterVDBusTestActivity"

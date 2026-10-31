@@ -12,6 +12,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.mapcontrol.R;
+import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.SplitScreenLauncher;
 import com.mapcontrol.util.SplitScreenMessages;
@@ -82,6 +83,14 @@ public final class SplitScreenGestureController {
 
         String pkg1 = SplitScreenStore.getPkg1(appContext);
         String pkg2 = SplitScreenStore.getPkg2(appContext);
+        if (!isUserApp(pkg1)) {
+            SplitScreenStore.setPkg1(appContext, null);
+            pkg1 = null;
+        }
+        if (!isUserApp(pkg2)) {
+            SplitScreenStore.setPkg2(appContext, null);
+            pkg2 = null;
+        }
         if (pkg1 == null || pkg2 == null || pkg1.equals(pkg2)) {
             main.post(() -> Toast.makeText(appContext,
                     R.string.split_gesture_need_pair, Toast.LENGTH_LONG).show());
@@ -96,6 +105,19 @@ public final class SplitScreenGestureController {
                                 Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private boolean isUserApp(String pkg) {
+        if (pkg == null || pkg.isEmpty()) {
+            return false;
+        }
+        try {
+            android.content.pm.ApplicationInfo info = appContext.getPackageManager()
+                    .getApplicationInfo(pkg, 0);
+            return !ProjectionTargetApps.isSystemOrPrivApp(info);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void syncRegistrationOnMain() {

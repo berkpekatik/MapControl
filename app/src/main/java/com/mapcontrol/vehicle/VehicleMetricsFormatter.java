@@ -14,7 +14,7 @@ public final class VehicleMetricsFormatter {
     private final Context context;
 
     public VehicleMetricsFormatter(Context context) {
-        this.context = context.getApplicationContext();
+        this.context = context;
     }
 
     public String formatDashboardSpeed(VehicleMetricsSnapshot snapshot) {

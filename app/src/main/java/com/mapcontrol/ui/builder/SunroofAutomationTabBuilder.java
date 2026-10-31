@@ -457,7 +457,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         return card;
     }
 
-private void populateGestureGrid(float density) {
+    private void populateGestureGrid(float density) {
         if (gestureGrid == null) {
             return;
         }
@@ -475,7 +475,7 @@ private void populateGestureGrid(float density) {
         int pad = dp(4, density);
         row.setPadding(pad, pad, pad, pad);
 
-        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SHADE_ONLY);
+        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SUNROOF_AND_SHADE);
 
         btnScopeShadeOnly = new TextView(context);
         btnScopeShadeOnly.setText("\uD83E\uDE9F Yaln\u0131zca Perde");

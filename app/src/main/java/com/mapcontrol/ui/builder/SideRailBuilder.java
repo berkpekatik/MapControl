@@ -4,10 +4,11 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Shader;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.text.TextUtils;
@@ -72,6 +73,7 @@ public class SideRailBuilder {
     private LinearLayout selectedMenuRow;
     private boolean launcherModeActive;
     private boolean contentWide;
+    private boolean premiumTitle;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -92,37 +94,7 @@ public class SideRailBuilder {
         sideRailTopBar.setGravity(Gravity.CENTER_VERTICAL);
         sideRailTopBar.setMinimumHeight((int) (76 * context.getResources().getDisplayMetrics().density));
 
-        appTitleText = new TextView(context);
-        try {
-            String versionName = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
-            SpannableString spannableText = new SpannableString("MapControl by vNoisy (" + versionName + ")");
-            int vNoisyStart = spannableText.toString().indexOf("vNoisy");
-            int vNoisyEnd = vNoisyStart + "vNoisy".length();
-            if (vNoisyStart >= 0) {
-                spannableText.setSpan(new StyleSpan(android.graphics.Typeface.ITALIC),
-                        vNoisyStart, vNoisyEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            int versionStart = spannableText.toString().indexOf("(");
-            int versionEnd = spannableText.length();
-            if (versionStart >= 0) {
-                spannableText.setSpan(new RelativeSizeSpan(0.82f),
-                        versionStart, versionEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            appTitleText.setText(spannableText);
-        } catch (PackageManager.NameNotFoundException e) {
-            SpannableString spannableText = new SpannableString("MapControl by vNoisy");
-            int vNoisyStart = spannableText.toString().indexOf("vNoisy");
-            int vNoisyEnd = vNoisyStart + "vNoisy".length();
-            if (vNoisyStart >= 0) {
-                spannableText.setSpan(new StyleSpan(android.graphics.Typeface.ITALIC),
-                        vNoisyStart, vNoisyEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            appTitleText.setText(spannableText);
-        }
-        appTitleText.setTextSize(28);
-        appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        appTitleText.setTypeface(null, android.graphics.Typeface.BOLD);
-        sideRailTopBar.addView(appTitleText);
+        bindAppTitle(sideRailTopBar, 28);
 
         sideRail.addView(sideRailTopBar, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -139,7 +111,6 @@ public class SideRailBuilder {
         menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
-        // Temporarily hidden: Profile rail item (uncomment addView and onClick below to restore).
         menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
@@ -164,7 +135,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
-        // menuContainer.addView(menuProfile); // Temporarily hidden — see comment above menuProfile creation.
+        menuProfile.setVisibility(View.GONE);
+        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -202,6 +174,15 @@ public class SideRailBuilder {
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
 
+        LinearLayout titleBar = new LinearLayout(context);
+        titleBar.setOrientation(LinearLayout.HORIZONTAL);
+        titleBar.setGravity(Gravity.CENTER_VERTICAL);
+        titleBar.setPadding(28, 16, 20, 8);
+        bindAppTitle(titleBar, 22);
+        sideRail.addView(titleBar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
         HorizontalScrollView menuScroll = new HorizontalScrollView(context);
         menuScroll.setHorizontalScrollBarEnabled(false);
         menuScroll.setFillViewport(true);
@@ -237,6 +218,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
+        menuProfile.setVisibility(View.GONE);
+        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -272,6 +255,11 @@ public class SideRailBuilder {
         menuFileUpload.setOnClickListener(v -> {
             callback.onTabSelected(TAB_FILE, t(R.string.side_rail_web));
             updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
+
+        menuProfile.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_PROFILE, t(R.string.side_rail_profile));
+            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuProjection.setOnClickListener(v -> {
@@ -380,14 +368,66 @@ public class SideRailBuilder {
         return launcherModeActive;
     }
 
+    /** Premium üyelikte MapControl (sürüm) başlığını camgöbeğinden altına boyar. */
+    public void setPremiumTitle(boolean premium) {
+        premiumTitle = premium;
+        paintAppTitle();
+    }
+
+    private void bindAppTitle(LinearLayout parent, float textSizeSp) {
+        appTitleText = new TextView(context);
+        try {
+            String versionName = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0).versionName;
+            SpannableString spannableText = new SpannableString("MapControl (" + versionName + ")");
+            int versionStart = spannableText.toString().indexOf("(");
+            if (versionStart >= 0) {
+                spannableText.setSpan(new RelativeSizeSpan(0.82f),
+                        versionStart, spannableText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            appTitleText.setText(spannableText);
+        } catch (PackageManager.NameNotFoundException e) {
+            appTitleText.setText("MapControl");
+        }
+        appTitleText.setTextSize(textSizeSp);
+        appTitleText.setTypeface(null, android.graphics.Typeface.BOLD);
+        parent.addView(appTitleText);
+        paintAppTitle();
+    }
+
+    private void paintAppTitle() {
+        if (appTitleText == null) {
+            return;
+        }
+        if (!premiumTitle) {
+            appTitleText.getPaint().setShader(null);
+            appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            appTitleText.invalidate();
+            return;
+        }
+        appTitleText.post(() -> {
+            if (appTitleText == null) {
+                return;
+            }
+            float width = appTitleText.getWidth();
+            if (width <= 0) {
+                width = appTitleText.getPaint().measureText(appTitleText.getText().toString());
+            }
+            appTitleText.getPaint().setShader(new LinearGradient(
+                    0, 0, Math.max(width, 1f), 0,
+                    new int[]{0xFF2EE6D6, 0xFFE6C15A},
+                    null,
+                    Shader.TileMode.CLAMP));
+            appTitleText.invalidate();
+        });
+    }
+
     /** Light/dark değişiminde rail arka planı ve seçim renklerini yeniler (Activity recreate yok). */
     public void reapplyTheme() {
         if (sideRail != null) {
             UiStyles.setRailPanelBackground(sideRail);
         }
-        if (appTitleText != null) {
-            appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        }
+        paintAppTitle();
         LinearLayout[] rows = menuRows();
         for (LinearLayout row : rows) {
             if (row != null) {

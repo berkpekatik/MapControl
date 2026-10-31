@@ -18,12 +18,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.NetworkWifiHelper;
+import com.mapcontrol.util.PhoneLinkSession;
 
 public class WifiTabBuilder {
     public interface WifiCallback {
@@ -41,6 +44,7 @@ public class WifiTabBuilder {
     private TextView wifiStatusLine;
     private TextView wifiStatusIcon;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean toggleInFlight = new AtomicBoolean(false);
 
     public WifiTabBuilder(Context context, WifiCallback callback) {
         this.context = context;
@@ -72,6 +76,26 @@ public class WifiTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         card.addView(wifiStatusLine, statusLineParams);
+
+        boolean keepProjection = NetworkWifiHelper.keepWirelessProjection(context);
+        // Wide/short (landscape head-unit) screens: single compact row so the network list keeps room.
+        boolean compact = context.getResources().getConfiguration().screenWidthDp >= 600;
+        String projTitle = context.getString(R.string.wifi_projection_title);
+        String projDrop = context.getString(R.string.wifi_projection_drop);
+        String projKeep = context.getString(R.string.wifi_projection_keep);
+        String projDropHelp = context.getString(R.string.wifi_projection_drop_help);
+        String projKeepHelp = context.getString(R.string.wifi_projection_keep_help);
+        java.util.function.Consumer<Boolean> onProjectionChanged =
+                leftSelected -> NetworkWifiHelper.setKeepWirelessProjection(context, !leftSelected);
+        if (compact) {
+            UiStyles.addInlineBinarySegmentedControl(context, card, projTitle,
+                    projDrop, projKeep, projDropHelp, projKeepHelp,
+                    !keepProjection, onProjectionChanged);
+        } else {
+            UiStyles.addBinarySegmentedControl(context, card, projTitle,
+                    projDrop, projKeep, projDropHelp, projKeepHelp,
+                    !keepProjection, onProjectionChanged);
+        }
 
         LinearLayout controlButtonsRow = new LinearLayout(context);
         controlButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -216,36 +240,75 @@ public class WifiTabBuilder {
             callback.log("WifiManager bulunamadı");
             return;
         }
+        if (!toggleInFlight.compareAndSet(false, true)) {
+            return;
+        }
 
+        final boolean newState;
         try {
             boolean currentState = wifiManager.isWifiEnabled();
-            boolean newState = !currentState;
-
+            newState = !currentState;
             callback.log("Mevcut durum: " + (currentState ? "AÇIK" : "KAPALI"));
             callback.log("Hedef durum: " + (newState ? "AÇIK" : "KAPALI"));
             callback.log("UID: " + android.os.Process.myUid());
-
-            boolean result = wifiManager.setWifiEnabled(newState);
-            callback.log("setWifiEnabled(" + newState + ") sonucu: " + result);
-
-            handler.postDelayed(() -> {
-                updateWifiStatus();
-                if (newState) {
-                    scanWifiNetworks();
-                } else {
-                    if (wifiListContainer != null) {
-                        wifiListContainer.removeAllViews();
-                        TextView emptyText = new TextView(context);
-                        emptyText.setText(R.string.wifi_off_label);
-                        emptyText.setTextColor(UiStyles.color(context, R.color.textLoading));
-                        emptyText.setTextSize(14);
-                        emptyText.setPadding(8, 8, 8, 8);
-                        wifiListContainer.addView(emptyText);
-                    }
-                }
-            }, 1000);
         } catch (Exception e) {
+            toggleInFlight.set(false);
             callback.log("Wi-Fi toggle hatası: " + e.getMessage());
+            return;
+        }
+
+        if (btnWifiToggle != null) {
+            btnWifiToggle.setEnabled(false);
+        }
+        final boolean keepProjection = NetworkWifiHelper.keepWirelessProjection(context);
+        new Thread(() -> {
+            try {
+                if (keepProjection) {
+                    Boolean concurrent = NetworkWifiHelper.staApConcurrencyOrNull(context);
+                    handler.post(() -> callback.log(
+                            "Telefon bağlantısı korunuyor. STA+AP: " + concurrent));
+                } else {
+                    PhoneLinkSession.Release phone = PhoneLinkSession.releaseWireless(context);
+                    boolean apDown = NetworkWifiHelper.releaseAccessPoint(context);
+                    handler.post(() -> {
+                        if (phone == PhoneLinkSession.Release.INACTIVE) {
+                            callback.log("Telefon oturumu kapandı");
+                        } else if (phone == PhoneLinkSession.Release.UNREACHABLE) {
+                            callback.log("Telefon servisine ulaşılamadı");
+                        } else {
+                            callback.log("Telefon oturumu kapanmadı");
+                        }
+                        callback.log(apDown
+                                ? "Erişim noktası kapandı"
+                                : "Erişim noktası kapanışı doğrulanamadı; Wi-Fi yine de değiştiriliyor");
+                    });
+                }
+                boolean result = wifiManager.setWifiEnabled(newState);
+                handler.post(() -> callback.log("setWifiEnabled(" + newState + ") sonucu: " + result));
+            } catch (Exception e) {
+                handler.post(() -> callback.log("Wi-Fi toggle hatası: " + e.getMessage()));
+            } finally {
+                handler.postDelayed(() -> finishWifiToggle(newState), 1000);
+            }
+        }, "wifi-radio").start();
+    }
+
+    private void finishWifiToggle(boolean turnedOn) {
+        toggleInFlight.set(false);
+        if (btnWifiToggle != null) {
+            btnWifiToggle.setEnabled(true);
+        }
+        updateWifiStatus();
+        if (turnedOn) {
+            scanWifiNetworks();
+        } else if (wifiListContainer != null) {
+            wifiListContainer.removeAllViews();
+            TextView emptyText = new TextView(context);
+            emptyText.setText(R.string.wifi_off_label);
+            emptyText.setTextColor(UiStyles.color(context, R.color.textLoading));
+            emptyText.setTextSize(14);
+            emptyText.setPadding(8, 8, 8, 8);
+            wifiListContainer.addView(emptyText);
         }
     }
 
