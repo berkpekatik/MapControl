@@ -12,24 +12,40 @@
     <string name="common_clear">Temizle</string>
     <string name="common_em_dash">—</string>
 
+    <!-- Zone 1: Golden Dock -->
+    <string name="dock_home">Home</string>
+    <string name="dock_menu">Menü</string>
+    <string name="dock_back">Geri</string>
+    <string name="dock_drive_memory">Hafıza</string>
+    <string name="dock_settings">Ayarlar</string>
+
     <string name="settings_language_section_title">Dil / Language</string>
     <string name="settings_language_section_desc">Uygulama arayüz dili. Değişince ekran yenilenir.</string>
     <string name="settings_language_tr">Türkçe</string>
     <string name="settings_language_en">English</string>
 
-    <string name="settings_boot_section_title">Sistem açılışı</string>
-    <string name="settings_boot_section_desc">Cihaz yeniden başladığında servis ve uygulama ekranının otomatik açılması.</string>
-    <string name="settings_boot_service_title">Açılışta arka plan servisi</string>
-    <string name="settings_boot_service_help_on">BOOT sonrası MapControl servisini başlat.</string>
-    <string name="settings_boot_service_help_off">Servis yalnızca uygulamayı elle açınca başlar.</string>
-    <string name="settings_boot_ui_title">Açılışta uygulama ekranı</string>
-    <string name="settings_boot_ui_help_on">Araç güç alınca ana ekranı aç.</string>
-    <string name="settings_boot_ui_help_off">Yalnızca bildirimden veya launcher\'dan açın.</string>
+    <string name="settings_boot_section_title">Araç açıldığında</string>
+    <string name="settings_boot_section_desc">MapControl’ün otomatik başlama seçenekleri.</string>
+    <string name="settings_boot_service_title">Arka planda çalış</string>
+    <string name="settings_boot_service_help_on">Araç açıldığında MapControl arka planda çalışır.</string>
+    <string name="settings_boot_service_help_off">MapControl siz açana kadar başlamaz.</string>
+    <string name="settings_boot_ui_title">Uygulamayı ekranda aç</string>
+    <string name="settings_boot_ui_help_on">Araç açıldığında MapControl ekranı da açılır.</string>
+    <string name="settings_boot_ui_help_off">Ekranı açmak için uygulama simgesine dokunun.</string>
 
-    <string name="settings_floating_back_title">Floating Back Button</string>
-    <string name="settings_floating_back_desc">Kısa dokunuş (sol ok): geri. Uzun bas (sol ok): menüyü aç / menü açıkken kapat. Menüdeki düğmelere dokununca çubuk açık kalır. Çubuğu her yerinden sürükleyerek taşıyın.</string>
+    <string name="settings_floating_back_title">Ekrandaki geri tuşu</string>
+    <string name="settings_floating_back_desc">Geri gitmek için dokunun. Kısayolları açmak için basılı tutun. Yerini değiştirmek için sürükleyin.</string>
     <string name="settings_floating_back_help_on">Yüzen geri tuşunu göster.</string>
     <string name="settings_floating_back_help_off">Yüzen geri tuşunu gizle.</string>
+
+    <string name="settings_dark_mode_title">Karanlık Mod</string>
+    <string name="settings_dark_mode_help_on">Karanlık tema etkin. Gece sürüşü için göz yormaz.</string>
+    <string name="settings_dark_mode_help_off">Aydınlık tema etkin.</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_auto">Otomatik</string>
+    <string name="settings_theme_light">Aydınlık</string>
+    <string name="settings_theme_dark">Karanlık</string>
+    <string name="settings_theme_help_auto">Tema sistem ayarını izler: araç gece moduna geçince uygulama da karanlık olur.</string>
     <string name="overlay_permission_toast">Lütfen \'Diğer uygulamaların üzerinde görüntüleme\' iznini açın</string>
 
     <string name="settings_app_about_title">Uygulama Hakkında</string>
@@ -48,22 +64,22 @@
     <string name="settings_changelog_load_error">Güncelleme notları yüklenirken hata oluştu: %1$s</string>
     <string name="settings_changelog_version_prefix">Versiyon </string>
 
-    <string name="settings_launcher_mode_title">Araç Launcher Modu</string>
-    <string name="settings_launcher_mode_desc">Etkinleştirildiğinde MapControl tam ekran araç paneli olarak açılır (sol menü gizlenir, durum çubuğu saklanır, araç göstergeleri ve uygulama kısayolları gösterilir). Kapatıldığında uygulama normal sekme görünümünde çalışır.</string>
-    <string name="settings_launcher_mode_help_on">Tam ekran araç paneli açık.</string>
-    <string name="settings_launcher_mode_help_off">Normal sekme görünümü.</string>
+    <string name="settings_launcher_mode_title">Tam ekran ana sayfa</string>
+    <string name="settings_launcher_mode_desc">Saat, araç bilgileri, müzik ve kısayolları büyük kartlarla gösterir.</string>
+    <string name="settings_launcher_mode_help_on">Büyük kartlı ana sayfa kullanılır.</string>
+    <string name="settings_launcher_mode_help_off">Yan menülü görünüm kullanılır.</string>
     <string name="settings_launcher_home_link">Varsayılan ana ekran uygulamasını sistem ayarlarından değiştir</string>
 
     <string name="settings_vehicle_image_title">Araç görseli</string>
-    <string name="settings_vehicle_image_desc">Launcher panelindeki araç görseline dokunarak listeden model seçin. Listede otomatik algılama veya yüklü OEM paketleri bulunur.</string>
+    <string name="settings_vehicle_image_desc">Ana sayfada kullanılacak araç görselini seçin.</string>
     <string name="settings_vehicle_image_pick">Araç görseli seç</string>
-    <string name="settings_vehicle_selected">Seçili: %1$s (%2$s)</string>
-    <string name="settings_vehicle_auto_detect">Otomatik algılama: %1$s — %2$s</string>
-    <string name="settings_vehicle_auto_no_pkg">Otomatik algılama etkin; paket bulunamadı — listeden elle seçin.</string>
-    <string name="settings_vehicle_no_selection">Seçim yok — launcher\'daki araca dokunarak seçin.</string>
+    <string name="settings_vehicle_selected">Seçili: %1$s</string>
+    <string name="settings_vehicle_auto_detect">Otomatik: %1$s</string>
+    <string name="settings_vehicle_auto_no_pkg">Araç görseli bulunamadı. Listeden seçebilirsiniz.</string>
+    <string name="settings_vehicle_no_selection">Listeden bir araç görseli seçebilirsiniz.</string>
 
-    <string name="topbar_wifi_management">Wi-Fi Yönetimi</string>
-    <string name="topbar_app_management">Uygulama Yönetimi</string>
+    <string name="topbar_wifi_management">Wi-Fi</string>
+    <string name="topbar_app_management">Uygulamalar</string>
     <string name="topbar_system_logs">Sistem Kayıtları</string>
     <string name="topbar_apps">Uygulamalar</string>
     <string name="topbar_vehicle_home">Araç Ana Ekranı</string>
@@ -133,12 +149,12 @@
     <string name="profile_member_note">Bu hesap hoşgeldin sesi ve açılış tasarımı için açık.</string>
     <string name="profile_login_failed">Giriş başarısız</string>
 
-    <string name="projection_title">Yansıtma Kontrolü</string>
+    <string name="projection_title">Gösterge ekranı</string>
     <string name="projection_status_off">Yansıtma kapalı</string>
     <string name="projection_open">Yansıt</string>
     <string name="projection_stop">Durdur</string>
     <string name="projection_app_title">Uygulama</string>
-    <string name="projection_app_desc">Seçili uygulamayı araç ekranına yansıt</string>
+    <string name="projection_app_desc">Gösterge ekranında açılacak uygulamayı seçin.</string>
     <string name="projection_change_app">Değiştir</string>
     <string name="projection_launch_cluster">Ana Ekrana Al</string>
     <string name="projection_nav_behavior">Navigasyon Davranışı</string>
@@ -148,25 +164,25 @@
     <string name="projection_stop_desc">Araç kapanınca yansıtma otomatik kapansın mı?</string>
     <string name="projection_map_key_title">MapControl tuşu</string>
     <string name="projection_map_key_desc">Göstergedeki haritayı aracın donanım tuşuyla kontrol etmek ister misiniz?</string>
-    <string name="projection_google_maps_nav_title">Google Maps bildirimi</string>
-    <string name="projection_google_maps_nav_desc">Google Maps navigasyonu başladığında gösterge yansıtmasını otomatik açar. Bildirim erişimi ve yansıtma hedefinin Google Maps olması gerekir. Navigasyon bitince yansıtma kapanmaz.</string>
+    <string name="projection_google_maps_nav_title">Navigasyonla birlikte aç</string>
+    <string name="projection_google_maps_nav_desc">Google Maps yol tarifi başladığında göstergeyi açar. Google Maps seçili olmalı ve bildirim erişimi açık olmalıdır. Yol tarifi bittiğinde gösterge açık kalır.</string>
     <string name="projection_google_maps_nav_on_help">Google Maps navigasyon bildirimi gelince yansıtmayı aç.</string>
     <string name="projection_google_maps_nav_off_help">Google Maps bildiriminden yansıtma açma.</string>
     <string name="projection_google_maps_nav_need_access">Önce MapControl için bildirim erişimini açın.</string>
     <string name="projection_map_swipe_title">Harita kaydırma</string>
-    <string name="projection_map_swipe_desc">Kapalı gelir; istemezseniz açmayın. İki parmak sola: cluster kapalıyken ana ekrandaki Google Maps veya Yandex Maps göstergeye alınır. Google Maps mevcut cluster haritasıyla açılır. Cluster zaten bu haritalardan birini gösteriyorsa ve diğeri ana ekrandaysa yer değiştirirler. İki parmak sağa gösterge yansıtmasını kapatır. Diğer uygulamalar yok sayılır, araç ekranı onlar için hareket ettirilmez. Kullanım erişimi gerekir.</string>
+    <string name="projection_map_swipe_desc">İki parmakla sola kaydırarak Google Maps veya Yandex haritasını göstergeye taşıyın. İki harita da açıksa yer değiştirirler. Sağa kaydırarak göstergeyi kapatın. Kullanım erişimi gerekir.</string>
     <string name="projection_map_swipe_on_help">Yalnızca Google Maps ve Yandex Maps için iki parmak kaydırmayı işle.</string>
     <string name="projection_map_swipe_off_help">Araç kaydırmasını yok say. MapControl uygulama taşımaz.</string>
     <string name="projection_map_swipe_need_access">Önce MapControl için kullanım erişimini açın. Erişim yokken kaydırma kapalı kalır.</string>
     <string name="projection_google_maps_nav_summary_idle">Aktif Google Maps navigasyon bildirimi yok.</string>
-    <string name="projection_google_maps_cluster_cards_title">Google Maps → Cluster kartları</string>
-    <string name="projection_google_maps_cluster_cards_desc">Navigasyon bildirimindeki mesafe, manevra ve ETA bilgisini gösterge ekranında kart olarak gösterir. Bildirim erişimi gerekir.</string>
+    <string name="projection_google_maps_cluster_cards_title">Yol tarifi kartları</string>
+    <string name="projection_google_maps_cluster_cards_desc">Dönüş, mesafe ve varış bilgisini göstergede gösterir. Bildirim erişimi gerekir.</string>
     <string name="projection_google_maps_cluster_overlay_label">Cluster kartları</string>
     <string name="projection_google_maps_cluster_overlay_on_help">Gösterge ekranında manevra ve ETA kartlarını göster.</string>
     <string name="projection_google_maps_cluster_overlay_off_help">Cluster navigasyon kartlarını kapat.</string>
     <string name="projection_google_cluster_position_title">Google Maps kart konumu</string>
     <string name="projection_yandex_cluster_position_title">Yandex kart konumu</string>
-    <string name="projection_cluster_offset_desc">Her kart ayrı: konum cluster ekran boyutuna göre (genişlik/yüksekliğin yarısı kadar ± dp), boyut %%50–%%150.</string>
+    <string name="projection_cluster_offset_desc">Kartın konumunu ve boyutunu ayarlayın.</string>
     <string name="projection_cluster_layout_reset">Sıfırla</string>
     <string name="projection_cluster_layout_reset_done">Kart konumu ve boyutu varsayılana döndü.</string>
     <string name="projection_cluster_maneuver_card">Manevra kartı</string>
@@ -247,10 +263,10 @@
     <string name="web_server_stopped">Sunucu durduruldu</string>
     <string name="web_text_sent">Metin gönderildi</string>
 
-    <string name="assist_title">Araç ve Sürücü Yardımları</string>
-    <string name="assist_subtitle">Sürüş güvenliği ve konfor ayarları</string>
+    <string name="assist_title">Açılışta kapatılacak özellikler</string>
+    <string name="assist_subtitle">İşaretlediğiniz özellikler araç açıldığında kapatılır.</string>
     <string name="assist_chip_on">Açık</string>
-    <string name="drive_modes_title">Sürüş Modları</string>
+    <string name="drive_modes_title">Sürüş Hafızası</string>
 
     <string name="splash_preparing_title">Uygulama Hazırlanıyor</string>
     <string name="splash_preparing_sub">Lütfen bekleyin</string>
@@ -305,12 +321,12 @@
     <string name="cluster_test_title">Cluster / VDBus bench</string>
     <string name="cluster_test_output">Çıktı hem burada hem ana logda (MainActivity açıkken).</string>
 
-    <string name="assist_card_iss">ISS (Start-Stop)</string>
+    <string name="assist_card_iss">Otomatik motor durdurma</string>
     <string name="assist_card_spd_limit">Hız Limitleyici</string>
     <string name="assist_card_ldw">Şerit Takip Uyarısı</string>
-    <string name="assist_card_ldp">Şeritten Kaçınma (LDP)</string>
-    <string name="assist_card_fcw">Ön Çarpışma Uyarısı</string>
-    <string name="assist_card_aeb">Aktif Acil Fren</string>
+    <string name="assist_card_ldp">Şeritte tutma yardımı</string>
+    <string name="assist_card_fcw">Önden çarpışma uyarısı</string>
+    <string name="assist_card_aeb">Otomatik acil frenleme</string>
     <string name="assist_card_cpd">CPD (Çocuk Algılama)</string>
     <string name="assist_card_child_lock">Arka Cam Çocuk Kilidi</string>
     <string name="assist_cpd_disclaimer">CPD: Araç içi çocuk algılama. Donanım ve yazılıma bağlıdır; her modelde çalışmayabilir (ör. bazı Tiggo 8 donanımları). Araçta etkisini kontrol edin.</string>
@@ -375,12 +391,13 @@
 
     <string name="target_picker_search_hint">Ara…</string>
 
-    <string name="side_rail_wifi">Wi-Fi Yönetimi</string>
-    <string name="side_rail_apps">Uygulama Yönetimi</string>
-    <string name="side_rail_web">Web Yönetimi</string>
+    <string name="side_rail_wifi">Wi-Fi</string>
+    <string name="side_rail_apps">Uygulamalar</string>
+    <string name="side_rail_web">Aktar</string>
     <string name="side_rail_profile">Profil</string>
-    <string name="side_rail_drive_mode">Hafıza Modu</string>
+    <string name="side_rail_drive_mode">Sürüş Hafızası</string>
     <string name="side_rail_camera">Kamera Test</string>
+    <string name="side_rail_projection">Gösterge ekranı</string>
     <string name="camera360_menu_title">Bir mod seçin</string>
     <string name="camera360_menu_live">Canlı Önizleme</string>
     <string name="camera360_menu_live_sub">4 kamerayı canlı izle</string>
@@ -527,7 +544,6 @@
     <string name="camera360_delete_msg">%1$d klip (%2$s) kalıcı olarak silinecek. Bu işlem geri alınamaz.</string>
     <string name="camera360_deleted">%1$d klip silindi</string>
     <string name="camera360_saved">Kare: %1$s B - raw kaydedildi: %2$s</string>
-    <string name="side_rail_projection">Yansıtma</string>
     <string name="side_rail_settings">Ayarlar</string>
 
     <string name="drive_mode_none">Hiçbiri</string>
@@ -548,15 +564,15 @@
     <string name="projection_installed_apps">Yüklü Uygulamalar (%1$d)</string>
 
     <string name="launcher_shortcut_wifi">Wi-Fi</string>
-    <string name="launcher_shortcut_web">Web</string>
+    <string name="launcher_shortcut_web">Aktar</string>
     <string name="launcher_shortcut_profile">Profil</string>
-    <string name="launcher_shortcut_projection">Yansıtma</string>
+    <string name="launcher_shortcut_projection">Gösterge</string>
     <string name="launcher_shortcut_apps">Uygulamalar</string>
-    <string name="launcher_shortcut_drive">Hafıza</string>
-    <string name="launcher_shortcut_welcome">Hoşgeldin Ekranı</string>
-    <string name="launcher_shortcut_equalizer">Ekolayzer</string>
+    <string name="launcher_shortcut_drive">Sürüş Hafızası</string>
+    <string name="launcher_shortcut_welcome">Karşılama</string>
+    <string name="launcher_shortcut_equalizer">Ses ayarları</string>
     <string name="launcher_shortcut_settings">Ayarlar</string>
-    <string name="side_rail_equalizer">Ekolayzer</string>
+    <string name="side_rail_equalizer">Ses ayarları</string>
     <string name="equalizer_title">Ekolayzer</string>
     <string name="equalizer_desc">Beş bant. Yükseltme en fazla 15 dB. Sınırlayıcı tepeleri cızırtıya bırakmaz.</string>
     <string name="equalizer_unsupported">Bu cihazda ekolayzer kullanılamıyor.</string>
@@ -574,13 +590,25 @@
     <string name="equalizer_band_khz_whole">%1$d kHz</string>
     <string name="equalizer_level_db">%1$+.1f dB</string>
     <string name="equalizer_gain_db">%1$.1f dB</string>
+    <string name="equalizer_main_card_title">Ses ve Ekolayzer Kontrolü</string>
+    <string name="equalizer_main_card_desc">Sistem geneli ses çıkışı için dinamik işleme ve kazanç kontrolü.</string>
+    <string name="equalizer_bands_card_title">5-Bant Grafik Ekolayzer</string>
+    <string name="equalizer_bands_card_desc">5-bant grafik ekolayzer ile ses karakterini hoparlörlerinize göre özelleştirin.</string>
+    <string name="equalizer_reset_to_flat">Ayarları Sıfırla (Düz)</string>
+    <string name="equalizer_limiter_note">Dinamik sınırlayıcı yüksek kazançta tepe kırpılmasını ve hoparlör cızırtısını önler.</string>
+    <string name="equalizer_preset_custom">Özel</string>
+    <string name="equalizer_band_name_0">Derin Bas (Sub)</string>
+    <string name="equalizer_band_name_1">Bas (Mid-Bass)</string>
+    <string name="equalizer_band_name_2">Orta Sesler (Mid)</string>
+    <string name="equalizer_band_name_3">Üst Orta (Netlik)</string>
+    <string name="equalizer_band_name_4">Tiz (Treble)</string>
     <string name="onboarding_title">Map Control</string>
     <string name="onboarding_subtitle">Başlamak için dilinizi seçin</string>
     <string name="onboarding_continue">Devam Et</string>
     <string name="installer_confirm_countdown">Kurulum onayı %1$d saniye sonra</string>
     <string name="installer_confirm_cancel">İptal</string>
-    <string name="settings_permissions_title">İzinleri görüntüle</string>
-    <string name="settings_permissions_desc">Her izni canlı dener. Yeşil gerçek çağrı geçti, kırmızı reddedildi veya hata verdi, sarı denenmedi.</string>
+    <string name="settings_permissions_title">Uygulama izinleri</string>
+    <string name="settings_permissions_desc">Eksik erişimleri ve bağlantı sorunlarını kontrol edin.</string>
     <string name="settings_permissions_show">İzinleri görüntüle</string>
     <string name="settings_permissions_hide">İzinleri gizle</string>
     <string name="settings_permissions_dialog_title">İzin testi</string>
@@ -671,6 +699,27 @@
     <string name="settings_perm_no">hayır</string>
     <string name="settings_perm_on">açık</string>
     <string name="settings_perm_off">kapalı</string>
+    <string name="ui_advanced_show">Teknik ayrıntıları göster</string>
+    <string name="ui_advanced_hide">Teknik ayrıntıları gizle</string>
+    <string name="vehicle_info_more">Diğer ölçümler ↓</string>
+    <string name="vehicle_info_less">Diğer ölçümleri gizle ↑</string>
+    <string name="vehicle_info_connection_hint">Araç bağlantısı bekleniyor. Kontağı açıp Yenile’ye dokunun.</string>
+    <string name="launcher_current_drive_mode_unknown">Sürüş modu · —</string>
+    <string name="drive_modes_4x4">4x4 modlar</string>
+    <string name="drive_mode_clear_selection">Seçimi kaldır</string>
+    <string name="header_back_home">Ana ekrana dön</string>
+    <string name="header_wifi">Wi-Fi</string>
+    <string name="header_mode">Mod</string>
+    <string name="header_phone">Telefon</string>
+    <string name="header_projection">Yansıtma</string>
+    <string name="header_unknown">—</string>
+    <string name="header_connected">Bağlı</string>
+    <string name="header_disconnected">Bağlı değil</string>
+    <string name="header_off">Kapalı</string>
+    <string name="header_running">Etkin</string>
+    <string name="header_stopped">Durdu</string>
+    <string name="header_active">Etkin</string>
+    <string name="header_phone_description">Telefon yönetim sunucusu: %1$s</string>
     <string name="settings_uninstall_button">MapControl uygulamasını kaldır</string>
     <string name="settings_uninstall_title">MapControl kaldırılsın mı?</string>
     <string name="settings_uninstall_message">Yalnızca MapControl uygulaması kaldırılacak. Android’in sistem onayı da açılacak.</string>
@@ -938,6 +987,11 @@
     <string name="split_dir_phrase_down">aşağı</string>
     <string name="split_dir_phrase_left">sola</string>
     <string name="split_dir_phrase_right">sağa</string>
+    <string name="settings_header_position_title">Header Menü Konumu</string>
+    <string name="settings_header_position_top">Yukarıda</string>
+    <string name="settings_header_position_bottom">Aşağıda</string>
+    <string name="settings_header_position_help_top">Header menü ekranın üstünde gösterilir.</string>
+    <string name="settings_header_position_help_bottom">Header menü ekranın altında gösterilir.</string>
     <string name="profile_features_title">Neler yapabilirsiniz</string>
     <string name="profile_feature_ai_title">Yapay zeka karşılama sesi (ElevenLabs)</string>
     <string name="profile_feature_ai_desc">Bir cümle yazın, karşılama sesiniz için doğal bir ses üretin. Üyeliğe dahildir.</string>
@@ -947,6 +1001,8 @@
     <string name="profile_badge_premium_only">Üyelik gerekli</string>
     <string name="profile_badge_free">Ücretsiz</string>
     <string name="web_server_auto_start">Uygulama açılınca ve kontak açılınca otomatik başlat</string>
+    <string name="web_server_auto_start_help_on">Sunucu uygulama ve kontak açılınca kendiliğinden başlar.</string>
+    <string name="web_server_auto_start_help_off">Sunucuyu kendiniz başlatırsınız.</string>
     <string name="phone_pair_beta_title">Test aşamasında</string>
     <string name="phone_pair_beta_subtitle">Telefon uygulaması</string>
     <string name="phone_pair_beta_message">MapControl telefon uygulaması şu anda test (beta) aşamasındadır ve yalnızca davet edilen test kullanıcıları (tester) katılabilir.\n\nUygulamaya erişiminiz yoksa bu sayfadaki anahtar ve QR ile telefonunuzu eşleyemezsiniz. Test sürümünde bazı özellikler eksik olabilir veya beklenmedik davranabilir.\n\nEn yakın zamanda App Store ve Google Play üzerinden herkese açık olarak yayınlayacağız.</string>

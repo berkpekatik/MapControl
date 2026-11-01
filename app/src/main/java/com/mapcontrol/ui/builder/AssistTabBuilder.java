@@ -64,7 +64,7 @@ public class AssistTabBuilder {
 
         TextView assistTitle = new TextView(context);
         assistTitle.setText(R.string.assist_title);
-        assistTitle.setTextSize(20);
+        UiStyles.setTextSize(assistTitle, R.dimen.text_size_large);
         assistTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         assistTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
@@ -78,7 +78,7 @@ public class AssistTabBuilder {
 
         TextView assistSubtitle = new TextView(context);
         assistSubtitle.setText(R.string.assist_subtitle);
-        assistSubtitle.setTextSize(14);
+        UiStyles.setTextSize(assistSubtitle, R.dimen.text_size_small);
         assistSubtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         assistSubtitle.setPadding(16, 0, 16, 16);
         container.addView(assistSubtitle, new LinearLayout.LayoutParams(
@@ -139,12 +139,13 @@ public class AssistTabBuilder {
             cardFrames[cardIndex] = cardFrame;
 
             LinearLayout card = new LinearLayout(context);
-            card.setOrientation(LinearLayout.VERTICAL);
-            card.setGravity(android.view.Gravity.CENTER);
+            card.setOrientation(LinearLayout.HORIZONTAL);
+            card.setGravity(android.view.Gravity.CENTER_VERTICAL);
             card.setPadding((int) (16 * density), (int) (16 * density), (int) (16 * density), (int) (16 * density));
-            card.setMinimumHeight((int) (130 * density));
+            card.setMinimumHeight((int) (96 * density));
             card.setClickable(true);
             card.setFocusable(true);
+            card.setTag("assist_card_" + settingKey);
             cardContainers[cardIndex] = card;
 
             final boolean[] isActiveRef = {savedValues[cardIndex] == activeValue};
@@ -173,38 +174,42 @@ public class AssistTabBuilder {
             iconViews[cardIndex] = iconView;
             card.addView(iconView);
 
+            LinearLayout labels = new LinearLayout(context);
+            labels.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams labelsLp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            labelsLp.setMargins((int) (12 * density), 0, (int) (8 * density), 0);
+            card.addView(labels, labelsLp);
             TextView titleView = new TextView(context);
             titleView.setText(cardTitleRes);
-            titleView.setTextSize(15);
-            titleView.setGravity(android.view.Gravity.CENTER);
+            UiStyles.setTextSize(titleView, R.dimen.text_size_normal);
+            titleView.setGravity(android.view.Gravity.START);
             titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
             titleView.setTypeface(null, isActiveRef[0] ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             titleView.setPadding(0, (int) (8 * density), 0, (int) (4 * density));
             titleViews[cardIndex] = titleView;
-            card.addView(titleView);
+            labels.addView(titleView);
 
             TextView statusView = new TextView(context);
-            statusView.setText(isActiveRef[0] ? getStatusText(settingKey) : context.getString(R.string.assist_status_not_set));
-            statusView.setTextSize(12);
-            statusView.setGravity(android.view.Gravity.CENTER);
+            statusView.setText(getStatusText(settingKey, isActiveRef[0]));
+            UiStyles.setTextSize(statusView, R.dimen.text_size_small);
+            statusView.setGravity(android.view.Gravity.START);
             statusView.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+            statusView.setMaxLines(3);
+            statusView.setEllipsize(android.text.TextUtils.TruncateAt.END);
             statusViews[cardIndex] = statusView;
-            card.addView(statusView);
+            labels.addView(statusView);
 
-            TextView onChip = new TextView(context);
-            onChip.setText(R.string.assist_chip_on);
-            onChip.setTextSize(10);
-            onChip.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            onChip.setTypeface(null, android.graphics.Typeface.BOLD);
-            onChip.setBackgroundColor(UiStyles.color(context, R.color.chipOn));
-            onChip.setPadding((int) (8 * density), (int) (2 * density), (int) (8 * density), (int) (2 * density));
-            onChip.setVisibility(isActiveRef[0] ? android.view.View.VISIBLE : android.view.View.GONE);
-            FrameLayout.LayoutParams chipParams = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT);
-            chipParams.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-            chipParams.setMargins(0, (int) (8 * density), (int) (8 * density), 0);
-            cardFrame.addView(onChip, chipParams);
+            androidx.appcompat.widget.AppCompatCheckBox onChip = new androidx.appcompat.widget.AppCompatCheckBox(context);
+            onChip.setButtonDrawable(R.drawable.bg_choice_control);
+            onChip.setButtonTintList(new ColorStateList(new int[][]{
+                    new int[]{android.R.attr.state_checked}, new int[]{}},
+                    new int[]{UiStyles.color(context, R.color.oemAccent), UiStyles.color(context, R.color.textSecondary)}));
+            onChip.setChecked(isActiveRef[0]);
+            onChip.setClickable(false);
+            onChip.setFocusable(false);
+            onChip.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            card.addView(onChip);
             onChips[cardIndex] = onChip;
 
             cardFrame.addView(card);
@@ -255,7 +260,7 @@ public class AssistTabBuilder {
 
         TextView cpdDisclaimer = new TextView(context);
         cpdDisclaimer.setText(R.string.assist_cpd_disclaimer);
-        cpdDisclaimer.setTextSize(12);
+        UiStyles.setTextSize(cpdDisclaimer, R.dimen.text_size_small);
         cpdDisclaimer.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         cpdDisclaimer.setPadding(16, 0, 16, 16);
         container.addView(cpdDisclaimer, new LinearLayout.LayoutParams(
@@ -285,11 +290,14 @@ public class AssistTabBuilder {
         iconViews[cardIndex].setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                 isActive ? R.color.textPrimary : R.color.textPrimary70)));
         titleViews[cardIndex].setTypeface(null, isActive ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        statusViews[cardIndex].setText(isActive ? getStatusText(settingKey) : context.getString(R.string.assist_status_not_set));
-        onChips[cardIndex].setVisibility(isActive ? android.view.View.VISIBLE : android.view.View.GONE);
+        statusViews[cardIndex].setText(getStatusText(settingKey, isActive));
+        ((android.widget.CompoundButton) onChips[cardIndex]).setChecked(isActive);
     }
 
-    private String getStatusText(String settingKey) {
+    private String getStatusText(String settingKey, boolean isActive) {
+        if (!isActive) {
+            return context.getString(R.string.assist_status_not_set);
+        }
         switch (settingKey) {
             case "issSetting": return context.getString(R.string.assist_status_iss);
             case "spdLimitSetting": return context.getString(R.string.assist_status_spd);

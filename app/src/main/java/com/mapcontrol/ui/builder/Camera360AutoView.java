@@ -73,7 +73,7 @@ final class Camera360AutoView {
         root.addView(page, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout header = ui.header(R.string.camera360_menu_auto, onBack);
+        LinearLayout header = ui.header(R.string.camera360_menu_auto);
         LinearLayout.LayoutParams hp = ui.matchWrap();
         hp.bottomMargin = ui.dp(12);
         page.addView(header, hp);

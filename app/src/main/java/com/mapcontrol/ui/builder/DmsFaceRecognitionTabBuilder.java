@@ -95,7 +95,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView title = new TextView(activity);
         title.setText("Koltuk Hafıza Tipi Seçimi");
-        title.setTextSize(22);
+        UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         title.setGravity(Gravity.CENTER);
@@ -103,7 +103,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView subtitle = new TextView(activity);
         subtitle.setText("Lütfen aracınızın koltuk hafıza donanım tipini seçin:");
-        subtitle.setTextSize(14);
+        UiStyles.setTextSize(subtitle, R.dimen.text_size_small);
         subtitle.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
         subtitle.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -130,7 +130,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView screenTitle = new TextView(activity);
         screenTitle.setText("Multimedya Ekranı Üzerinde");
-        screenTitle.setTextSize(18);
+        UiStyles.setTextSize(screenTitle, R.dimen.text_size_medium);
         screenTitle.setTypeface(null, Typeface.BOLD);
         screenTitle.setTextColor(0xFFFFFFFF);
         screenTitle.setGravity(Gravity.CENTER);
@@ -153,7 +153,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView doorTitle = new TextView(activity);
         doorTitle.setText("Araç Kapısı Üzerinde");
-        doorTitle.setTextSize(18);
+        UiStyles.setTextSize(doorTitle, R.dimen.text_size_medium);
         doorTitle.setTypeface(null, Typeface.BOLD);
         doorTitle.setTextColor(0xFFFFFFFF);
         doorTitle.setGravity(Gravity.CENTER);
@@ -201,7 +201,7 @@ public final class DmsFaceRecognitionTabBuilder {
         content.addView(topBar, topBarLp);
 
         activeModeLabel = new TextView(activity);
-        activeModeLabel.setTextSize(14);
+        UiStyles.setTextSize(activeModeLabel, R.dimen.text_size_small);
         activeModeLabel.setTypeface(null, Typeface.BOLD);
         activeModeLabel.setTextColor(0xFF60A5FA);
         topBar.addView(activeModeLabel, new LinearLayout.LayoutParams(
@@ -210,16 +210,18 @@ public final class DmsFaceRecognitionTabBuilder {
         Button changeModeBtn = new Button(activity);
         changeModeBtn.setText("Hafıza Tipini Değiştir");
         changeModeBtn.setAllCaps(false);
-        changeModeBtn.setTextSize(12);
+        UiStyles.setTextSize(changeModeBtn, R.dimen.text_size_small);
         changeModeBtn.setTextColor(0xFFFFFFFF);
-        changeModeBtn.setPadding(dp(12), dp(6), dp(12), dp(6));
+        changeModeBtn.setMinHeight(0);
+        changeModeBtn.setMinimumHeight(0);
+        changeModeBtn.setPadding(dp(14), dp(8), dp(14), dp(8));
         UiStyles.applySolidRoundedBackgroundDp(changeModeBtn, 0xFF334155, 8f);
         changeModeBtn.setOnClickListener(v -> {
             normalContentContainer.setVisibility(View.GONE);
             selectionScreenView.setVisibility(View.VISIBLE);
         });
         topBar.addView(changeModeBtn, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(36)));
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // Header Card
         LinearLayout mainCard = new LinearLayout(activity);
@@ -231,13 +233,13 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView title = new TextView(activity);
         title.setText(R.string.dms_recognition_title);
-        title.setTextSize(22);
+        UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         title.setTypeface(null, Typeface.BOLD);
         mainCard.addView(title);
 
         description = new TextView(activity);
-        description.setTextSize(14);
+        UiStyles.setTextSize(description, R.dimen.text_size_small);
         description.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
         LinearLayout.LayoutParams descriptionLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -255,7 +257,7 @@ public final class DmsFaceRecognitionTabBuilder {
         mainCard.addView(toggleRow, toggleRowLp);
 
         toggleLabel = new TextView(activity);
-        toggleLabel.setTextSize(15);
+        UiStyles.setTextSize(toggleLabel, R.dimen.text_size_normal);
         toggleLabel.setTypeface(null, Typeface.BOLD);
         toggleLabel.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         toggleRow.addView(toggleLabel, new LinearLayout.LayoutParams(0,
@@ -286,7 +288,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         status = new TextView(activity);
         status.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
-        status.setTextSize(14);
+        UiStyles.setTextSize(status, R.dimen.text_size_small);
         LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         statusLp.topMargin = dp(14);
@@ -295,7 +297,7 @@ public final class DmsFaceRecognitionTabBuilder {
         Button profilesButton = new Button(activity);
         profilesButton.setText(R.string.dms_recognition_manage_profiles);
         profilesButton.setAllCaps(false);
-        profilesButton.setTextSize(15);
+        UiStyles.setTextSize(profilesButton, R.dimen.text_size_normal);
         profilesButton.setTypeface(null, Typeface.BOLD);
         profilesButton.setTextColor(0xFFFFFFFF);
         UiStyles.applySolidRoundedBackgroundDp(profilesButton,
@@ -319,7 +321,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         TextView profilesTitle = new TextView(activity);
         profilesTitle.setText(R.string.log_dms_face_profiles);
-        profilesTitle.setTextSize(16);
+        UiStyles.setTextSize(profilesTitle, R.dimen.text_size_normal);
         profilesTitle.setTypeface(null, Typeface.BOLD);
         profilesTitle.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         profilesCard.addView(profilesTitle);
@@ -415,7 +417,7 @@ public final class DmsFaceRecognitionTabBuilder {
             empty.setText(CarSeatMemoryManager.isSeatMemoryAvailable(activity)
                     ? R.string.dms_face_no_profiles
                     : R.string.dms_face_no_profiles_no_memory);
-            empty.setTextSize(14);
+            UiStyles.setTextSize(empty, R.dimen.text_size_small);
             empty.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
             savedProfilesContainer.addView(empty);
             return;
@@ -436,7 +438,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
             TextView nameTv = new TextView(activity);
             nameTv.setText((i + 1) + ". " + p.name);
-            nameTv.setTextSize(15);
+            UiStyles.setTextSize(nameTv, R.dimen.text_size_normal);
             nameTv.setTypeface(null, Typeface.BOLD);
             nameTv.setTextColor(UiStyles.color(activity, R.color.textPrimary));
             row.addView(nameTv, new LinearLayout.LayoutParams(
@@ -450,7 +452,7 @@ public final class DmsFaceRecognitionTabBuilder {
                 } else {
                     badge.setText("Koltuk Hafızası " + p.seatMemory);
                 }
-                badge.setTextSize(12);
+                UiStyles.setTextSize(badge, R.dimen.text_size_small);
                 badge.setTypeface(null, Typeface.BOLD);
                 badge.setTextColor(UiStyles.color(activity, R.color.textAccent));
                 badge.setGravity(Gravity.END);

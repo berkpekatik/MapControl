@@ -85,7 +85,7 @@ public class FileUploadTabBuilder {
         btnSegmentPair.setText(R.string.phone_pair_tab);
         for (Button b : new Button[]{btnSegmentWeb, btnSegmentPair}) {
             b.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            b.setTextSize(15);
+            UiStyles.setTextSize(b, R.dimen.text_size_normal);
             b.setTypeface(null, Typeface.BOLD);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             lp.setMargins(0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium) / 2, UiStyles.dimenPx(context, R.dimen.spacing_medium));
@@ -105,83 +105,92 @@ public class FileUploadTabBuilder {
         pairPanel = new LinearLayout(context);
         pairPanel.setOrientation(LinearLayout.VERTICAL);
         webPanelView = webPanel;
+        // Yatay ekran: web yönetimi paneli iki kolonlu (sol kontroller, sağ durum + QR).
+        webPanel.setOrientation(LinearLayout.HORIZONTAL);
+        webPanel.setGravity(Gravity.TOP);
+        LinearLayout row = webPanel;
+
+        // --- SOL KOLON (%30-32) ---
+        LinearLayout leftCol = new LinearLayout(context);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        leftCol.setGravity(Gravity.TOP);
+        leftCol.setPadding(dp(8), dp(8), dp(16), dp(8));
 
         TextView fileUploadTitle = new TextView(context);
         fileUploadTitle.setText(R.string.web_mgmt_title);
-        fileUploadTitle.setTextSize(18);
+        UiStyles.setTextSize(fileUploadTitle, R.dimen.text_size_large);
         fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         fileUploadTitle.setTypeface(null, Typeface.BOLD);
-        fileUploadTitle.setPadding(16, 16, 16, 8);
-        webPanel.addView(fileUploadTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        leftCol.addView(fileUploadTitle);
 
         TextView fileUploadDesc = new TextView(context);
         fileUploadDesc.setText(R.string.web_mgmt_desc);
-        fileUploadDesc.setTextSize(13);
+        UiStyles.setTextSize(fileUploadDesc, R.dimen.text_size_small);
         fileUploadDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        fileUploadDesc.setPadding(16, 0, 16, 16);
-        webPanel.addView(fileUploadDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        fileUploadDesc.setPadding(0, dp(6), 0, dp(16));
+        leftCol.addView(fileUploadDesc);
 
         btnWebServerToggle = new Button(context);
         btnWebServerToggle.setText(R.string.web_server_start);
         btnWebServerToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        btnWebServerToggle.setTextSize(16);
+        UiStyles.setTextSize(btnWebServerToggle, R.dimen.text_size_normal);
         btnWebServerToggle.setTypeface(null, Typeface.BOLD);
         UiStyles.styleOemButton(btnWebServerToggle, UiStyles.color(context, R.color.buttonPrimary));
-        btnWebServerToggle.setPadding(16, 20, 16, 20);
+        btnWebServerToggle.setPadding(dp(16), dp(16), dp(16), dp(16));
         LinearLayout.LayoutParams webServerToggleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         webServerToggleParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
-        webPanel.addView(btnWebServerToggle, webServerToggleParams);
+        leftCol.addView(btnWebServerToggle, webServerToggleParams);
 
-        android.widget.Switch autoStart = new android.widget.Switch(context);
-        autoStart.setText(R.string.web_server_auto_start);
-        autoStart.setTextSize(15);
-        autoStart.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        autoStart.setPadding(16, 8, 16, 8);
         android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
-        autoStart.setChecked(prefs.getBoolean(KEY_WEB_SERVER_AUTO_START, false));
-        autoStart.setOnCheckedChangeListener((b, on) ->
-                prefs.edit().putBoolean(KEY_WEB_SERVER_AUTO_START, on).apply());
-        webPanel.addView(autoStart, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        UiStyles.addBinarySegmentedControl(context, leftCol,
+                context.getString(R.string.web_server_auto_start),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.web_server_auto_start_help_on),
+                context.getString(R.string.web_server_auto_start_help_off),
+                prefs.getBoolean(KEY_WEB_SERVER_AUTO_START, false),
+                on -> prefs.edit().putBoolean(KEY_WEB_SERVER_AUTO_START, on).apply());
 
-        LinearLayout urlQrContainer = new LinearLayout(context);
-        urlQrContainer.setOrientation(LinearLayout.VERTICAL);
-        urlQrContainer.setGravity(Gravity.CENTER);
-        urlQrContainer.setPadding(16, 16, 16, 16);
+        row.addView(leftCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.32f));
+
+        // --- AYIRICI DİKEY ÇİZGİ ---
+        View divider = new View(context);
+        divider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
+        LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(Math.max(1, dp(1)), LinearLayout.LayoutParams.MATCH_PARENT);
+        divParams.setMargins(dp(8), dp(8), dp(8), dp(8));
+        row.addView(divider, divParams);
+
+        // --- SAĞ KOLON (%68-70) ---
+        LinearLayout rightCol = new LinearLayout(context);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        rightCol.setPadding(dp(16), dp(8), dp(16), dp(8));
 
         webServerStatusText = new TextView(context);
         webServerStatusText.setText(R.string.web_server_stopped);
-        webServerStatusText.setTextSize(20);
+        UiStyles.setTextSize(webServerStatusText, R.dimen.text_size_medium);
         webServerStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         webServerStatusText.setGravity(Gravity.CENTER);
-        webServerStatusText.setPadding(16, 16, 16, 16);
+        webServerStatusText.setPadding(dp(8), dp(4), dp(8), dp(4));
         webServerStatusText.setTypeface(null, Typeface.BOLD);
-        LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        urlQrContainer.addView(webServerStatusText, urlParams);
+        rightCol.addView(webServerStatusText, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         qrCodeImageView = new ImageView(context);
         qrCodeImageView.setVisibility(View.GONE);
-        qrCodeImageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        qrCodeImageView.setPadding(16, 16, 16, 16);
-        int qrSize = (int) (200 * context.getResources().getDisplayMetrics().density);
-        LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(
-                qrSize,
-                qrSize);
-        qrParams.gravity = Gravity.CENTER;
-        urlQrContainer.addView(qrCodeImageView, qrParams);
+        qrCodeImageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        qrCodeImageView.setAdjustViewBounds(true);
+        int screenHeightDp = context.getResources().getConfiguration().screenHeightDp;
+        int maxQrDp = Math.max(260, screenHeightDp - 170);
+        int qrSizeDp = Math.min(400, maxQrDp);
+        int qrSize = Math.round(qrSizeDp * context.getResources().getDisplayMetrics().density);
+        LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
+        qrParams.gravity = Gravity.CENTER_HORIZONTAL;
+        qrParams.topMargin = dp(6);
+        rightCol.addView(qrCodeImageView, qrParams);
 
-        webPanel.addView(urlQrContainer, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.addView(rightCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.68f));
 
         // Telefon uygulaması yalnızca test kullanıcılarına açık: sayfada kalıcı bir not.
         LinearLayout betaBanner = new LinearLayout(context);
@@ -190,13 +199,13 @@ public class FileUploadTabBuilder {
         betaBanner.setBackgroundColor(UiStyles.color(context, R.color.surfaceColor));
         TextView betaBannerTitle = new TextView(context);
         betaBannerTitle.setText(R.string.phone_pair_banner_title);
-        betaBannerTitle.setTextSize(13);
+        UiStyles.setTextSize(betaBannerTitle, R.dimen.text_size_small);
         betaBannerTitle.setTypeface(null, Typeface.BOLD);
         betaBannerTitle.setTextColor(UiStyles.color(context, R.color.statusWarning));
         betaBanner.addView(betaBannerTitle);
         TextView betaBannerText = new TextView(context);
         betaBannerText.setText(R.string.phone_pair_banner);
-        betaBannerText.setTextSize(13);
+        UiStyles.setTextSize(betaBannerText, R.dimen.text_size_small);
         betaBannerText.setTextColor(UiStyles.color(context, R.color.textHint));
         betaBannerText.setPadding(0, 4, 0, 0);
         betaBanner.addView(betaBannerText);
@@ -208,7 +217,7 @@ public class FileUploadTabBuilder {
 
         TextView pairTitle = new TextView(context);
         pairTitle.setText(R.string.phone_pair_title);
-        pairTitle.setTextSize(16);
+        UiStyles.setTextSize(pairTitle, R.dimen.text_size_normal);
         pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         pairTitle.setTypeface(null, Typeface.BOLD);
         pairTitle.setPadding(16, 16, 16, 4);
@@ -218,7 +227,7 @@ public class FileUploadTabBuilder {
 
         TextView pairDesc = new TextView(context);
         pairDesc.setText(R.string.phone_pair_desc);
-        pairDesc.setTextSize(13);
+        UiStyles.setTextSize(pairDesc, R.dimen.text_size_small);
         pairDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         pairDesc.setPadding(16, 0, 16, 8);
         pairPanel.addView(pairDesc, new LinearLayout.LayoutParams(
@@ -227,7 +236,7 @@ public class FileUploadTabBuilder {
 
         TextView pairKey = new TextView(context);
         pairKey.setText(PhoneAccess.token(context));
-        pairKey.setTextSize(15);
+        UiStyles.setTextSize(pairKey, R.dimen.text_size_normal);
         pairKey.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         pairKey.setTextIsSelectable(true);
         pairKey.setTextColor(UiStyles.color(context, R.color.accentHighlight));
@@ -239,7 +248,7 @@ public class FileUploadTabBuilder {
         Button btnPairRegenerate = new Button(context);
         btnPairRegenerate.setText(R.string.phone_pair_regenerate);
         btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        btnPairRegenerate.setTextSize(14);
+        UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_small);
         UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonPrimary));
         btnPairRegenerate.setOnClickListener(v -> {
             pairKey.setText(PhoneAccess.regenerate(context));
@@ -312,6 +321,10 @@ public class FileUploadTabBuilder {
         return fileUploadTabContent;
     }
 
+    private int dp(float value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
+    }
+
     public ScrollView getScrollView() {
         if (scrollView == null) {
             return build();
@@ -371,7 +384,7 @@ public class FileUploadTabBuilder {
                 hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
                 hints.put(EncodeHintType.MARGIN, 1);
 
-                int size = 512;
+                int size = 1024;
                 BitMatrix bitMatrix = qrCodeWriter.encode(content, BarcodeFormat.QR_CODE, size, size, hints);
 
                 Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);

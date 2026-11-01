@@ -182,30 +182,11 @@ final class Camera360Ui {
         return tv;
     }
 
-    /** Alt gorunumlerin ust satiri: geri butonu + baslik; sag tarafa cagiran ekler. */
-    LinearLayout header(int titleRes, Runnable onBack) {
+    /** Alt gorunum basligi; geri gezinme ortak alt menu tarafindan saglanir. */
+    LinearLayout header(int titleRes) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-
-        LinearLayout back = new LinearLayout(context);
-        back.setOrientation(LinearLayout.HORIZONTAL);
-        back.setGravity(Gravity.CENTER_VERTICAL);
-        back.setPadding(dp(12), 0, dp(16), 0);
-        setPressableBackground(back, roundRect(themeColor(R.color.surfaceCardInner), 22), 22);
-        back.setOnClickListener(v -> onBack.run());
-        ImageView arrow = new ImageView(context);
-        arrow.setImageResource(R.drawable.ic_hub_arrow_left);
-        arrow.setColorFilter(themeColor(R.color.textPrimary));
-        back.addView(arrow, new LinearLayout.LayoutParams(dp(22), dp(22)));
-        TextView backText = text(15, R.color.textPrimary, true);
-        backText.setText(R.string.camera360_title);
-        LinearLayout.LayoutParams btp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        btp.setMarginStart(dp(8));
-        back.addView(backText, btp);
-        row.addView(back, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(44)));
 
         TextView title = text(20, R.color.textPrimary, true);
         title.setText(titleRes);
@@ -213,7 +194,7 @@ final class Camera360Ui {
         title.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        tp.setMarginStart(dp(16));
+        tp.setMarginStart(0);
         tp.setMarginEnd(dp(12));
         row.addView(title, tp);
         return row;

@@ -16,6 +16,7 @@ import androidx.annotation.Nullable;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
+import com.mapcontrol.vehicle.DriveModeStyle;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 import com.mapcontrol.weather.OpenMeteoWeatherClient;
 import com.mapcontrol.weather.OpenMeteoWeatherLabels;
@@ -35,6 +36,9 @@ public final class LauncherLitePanelView extends LinearLayout implements OpenMet
 
     private TextClock clockView;
     private TextView dateView;
+    private TextView driveModeBadge;
+    private int currentDriveMode = Integer.MIN_VALUE;
+    private boolean driveModeConnected;
     private TextView weatherGlyphView;
     private TextView weatherTempView;
     private TextView weatherLabelView;
@@ -87,6 +91,19 @@ public final class LauncherLitePanelView extends LinearLayout implements OpenMet
         LinearLayout.LayoutParams dateLp = matchWidthWrap();
         dateLp.topMargin = UiStyles.dimenPx(getContext(), R.dimen.spacing_tiny);
         addView(dateView, dateLp);
+
+        driveModeBadge = new TextView(getContext());
+        driveModeBadge.setTag("current_drive_mode");
+        UiStyles.setTextSize(driveModeBadge, R.dimen.text_size_small);
+        driveModeBadge.setTypeface(null, Typeface.BOLD);
+        driveModeBadge.setGravity(Gravity.CENTER);
+        int badgePad = UiStyles.dimenPx(getContext(), R.dimen.spacing_small);
+        driveModeBadge.setPadding(badgePad * 2, badgePad, badgePad * 2, badgePad);
+        LinearLayout.LayoutParams badgeLp = wrapContent();
+        badgeLp.gravity = Gravity.CENTER_HORIZONTAL;
+        badgeLp.topMargin = badgePad;
+        addView(driveModeBadge, badgeLp);
+        refreshDriveModeBadge();
 
         weatherDivider = createDivider();
         addView(weatherDivider, dividerLp());
@@ -248,14 +265,39 @@ public final class LauncherLitePanelView extends LinearLayout implements OpenMet
             return;
         }
         int speed = snapshot.preferredSpeed();
-        statSpeedValueView.setText(speed > 0
+        boolean speedAvailable = VehicleMetricsSnapshot.isValid(snapshot.displaySpeed)
+                || VehicleMetricsSnapshot.isValid(snapshot.actualSpeed);
+        statSpeedValueView.setText(speedAvailable
                 ? String.format(Locale.getDefault(), "%d", speed)
-                : "0");
+                : "—");
         statGearValueView.setText(formatter.formatDashboardGearShort(snapshot));
         statFuelValueView.setText(formatFuelPercent(snapshot));
+        // This is the mode reported by the vehicle, never the remembered startup preference.
+        currentDriveMode = snapshot.driveMode;
+        driveModeConnected = snapshot.connected;
+        refreshDriveModeBadge();
+    }
+
+    private void refreshDriveModeBadge() {
+        if (driveModeBadge == null) return;
+        boolean available = driveModeConnected && DriveModeStyle.isThemed(currentDriveMode);
+        String label = available ? getContext().getString(R.string.launcher_dashboard_drive_mode,
+                DriveModeStyle.shortLabel(currentDriveMode))
+                : getContext().getString(R.string.launcher_current_drive_mode_unknown);
+        driveModeBadge.setText(available ? DriveModeStyle.shortLabel(currentDriveMode) : "—");
+        driveModeBadge.setContentDescription(label);
+        int fill = available ? DriveModeStyle.accentColor(getContext(), currentDriveMode)
+                : UiStyles.color(getContext(), R.color.surfaceCardInner);
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(fill);
+        background.setCornerRadius(UiStyles.dimenPx(getContext(), R.dimen.oem_button_radius));
+        driveModeBadge.setBackground(background);
+        driveModeBadge.setTextColor(available ? UiStyles.textOnColor(fill)
+                : UiStyles.color(getContext(), R.color.textHint));
     }
 
     public void reapplyTheme() {
+        refreshDriveModeBadge();
         int primary = UiStyles.color(getContext(), R.color.textPrimary);
         int muted = UiStyles.color(getContext(), R.color.textMuted);
         int secondary = UiStyles.color(getContext(), R.color.textSecondary);
@@ -344,7 +386,7 @@ public final class LauncherLitePanelView extends LinearLayout implements OpenMet
             return;
         }
         Calendar calendar = Calendar.getInstance();
-        Locale locale = Locale.getDefault();
+        Locale locale = getResources().getConfiguration().getLocales().get(0);
         String pattern = DateFormat.getBestDateTimePattern(locale, "EEEE d MMMM");
         dateView.setText(new SimpleDateFormat(pattern, locale).format(calendar.getTime()));
         removeCallbacks(dateRefreshRunnable);

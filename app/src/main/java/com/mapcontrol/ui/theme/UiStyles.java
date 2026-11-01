@@ -6,6 +6,8 @@ import android.graphics.Color;
 import android.graphics.RenderEffect;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import androidx.core.graphics.ColorUtils;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
@@ -34,6 +36,12 @@ public final class UiStyles {
     private static volatile Configuration uiModeOverride;
 
     private UiStyles() {
+    }
+
+    /** Apply an sp dimension without applying the display scale twice. */
+    public static void setTextSize(TextView view, int sizeResId) {
+        view.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
+                view.getResources().getDimension(sizeResId));
     }
 
     public static int dimenPx(Context context, int dimenResId) {
@@ -112,8 +120,21 @@ public final class UiStyles {
         view.setBackground(d);
     }
 
+    /** Choose a readable foreground for the actual button fill in either theme. */
+    public static int textOnColor(int backgroundColorArgb) {
+        return androidx.core.graphics.ColorUtils.calculateLuminance(backgroundColorArgb) > 0.179
+                ? Color.BLACK : Color.WHITE;
+    }
+
     public static void styleOemButton(Button button, int backgroundColorArgb) {
         applySolidRoundedBackground(button, backgroundColorArgb);
+        setTextSize(button, R.dimen.text_size_normal);
+        button.setTextColor(textOnColor(backgroundColorArgb));
+        button.setAllCaps(false);
+        int inset = dimenPx(button.getContext(), R.dimen.spacing_medium);
+        button.setPadding(inset, inset / 4, inset, inset / 4);
+        button.setMinHeight(dimenPx(button.getContext(), R.dimen.button_height));
+        button.setMinimumHeight(dimenPx(button.getContext(), R.dimen.button_height));
     }
 
     /**
@@ -196,135 +217,240 @@ public final class UiStyles {
         }
     }
 
-    /** Lists every option's outcome; the selected one is highlighted, the rest dimmed. */
+    /** Explain only the current choice; the other choices remain visible on the control. */
     private static CharSequence buildOptionsHelp(Context context, String[] labels, String[] helps, int selected) {
-        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
-        for (int i = 0; i < labels.length; i++) {
-            if (i > 0) {
-                sb.append('\n');
-            }
-            int start = sb.length();
-            sb.append(i == selected ? "● " : "○ ").append(labels[i]).append(" — ").append(helps[i]);
-            boolean active = i == selected;
-            sb.setSpan(new android.text.style.ForegroundColorSpan(
-                    color(context, active ? R.color.textPrimary : R.color.textHint)),
-                    start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            if (active) {
-                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                        start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-        }
-        return sb;
+        return helps[selected];
     }
 
     /**
      * @param title optional section title above the track
      */
-    public static BinarySegmentHandle addBinarySegmentedControl(Context context, LinearLayout parent,
-            @Nullable String title,
-            String leftLabel, String rightLabel,
-            String leftHelp, String rightHelp,
-            boolean initialLeftSelected,
+    public static BinarySegmentHandle addBinarySegmentedControl(Context context, android.view.ViewGroup parent,
+            @Nullable String title, String leftLabel, String rightLabel,
+            String leftHelp, String rightHelp, boolean initialLeftSelected,
             Consumer<Boolean> onCommit) {
-        if (title != null && !title.isEmpty()) {
-            TextView rowTitle = new TextView(context);
-            rowTitle.setText(title);
-            rowTitle.setTextSize(16);
-            rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-            int hPad = dimenPx(context, R.dimen.spacing_medium);
-            rowTitle.setPadding(hPad, dimenPx(context, R.dimen.spacing_medium), hPad,
-                    dimenPx(context, R.dimen.spacing_small));
-            parent.addView(rowTitle, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT));
-        }
-
-        LinearLayout track = new LinearLayout(context);
-        track.setOrientation(LinearLayout.HORIZONTAL);
-        setBackgroundRes(track, R.drawable.bg_segment_track);
-        int tpad = dimenPx(context, R.dimen.spacing_tiny);
-        track.setPadding(tpad, tpad, tpad, tpad);
-
-        TextView left = new TextView(context);
-        TextView right = new TextView(context);
-        left.setText(leftLabel);
-        right.setText(rightLabel);
-        left.setTextSize(15);
-        right.setTextSize(15);
-        left.setGravity(Gravity.CENTER);
-        right.setGravity(Gravity.CENTER);
-        left.setMinHeight(dimenPx(context, R.dimen.button_height));
-        right.setMinHeight(dimenPx(context, R.dimen.button_height));
-
-        TextView help = new TextView(context);
-        help.setTextSize(13);
-        help.setTextColor(UiStyles.color(context, R.color.textHint));
-        int hPad = dimenPx(context, R.dimen.spacing_medium);
-        help.setPadding(hPad, dimenPx(context, R.dimen.spacing_small), hPad,
-                dimenPx(context, R.dimen.spacing_medium));
-
+        boolean languageChoice = leftLabel.equals(context.getString(R.string.settings_language_tr))
+                && rightLabel.equals(context.getString(R.string.settings_language_en));
+        int gap = dimenPx(context, R.dimen.spacing_small);
+        TextView heading = new TextView(context);
+        heading.setText(title);
+        heading.setTag("feature_toggle_title");
+        setTextSize(heading, R.dimen.text_size_medium);
+        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        heading.setTextColor(color(context, R.color.textPrimary));
         final boolean[] state = {initialLeftSelected};
-        Runnable refresh = () -> {
-            boolean on = state[0];
-            if (on) {
-                setBackgroundRes(left, R.drawable.bg_segment_thumb);
-                left.setTextColor(color(context, R.color.textPrimary));
-                left.setTypeface(null, android.graphics.Typeface.BOLD);
-                right.setBackgroundColor(Color.TRANSPARENT);
-                right.setTextColor(color(context, R.color.textSecondary));
-                right.setTypeface(null, android.graphics.Typeface.NORMAL);
-                help.setText(buildOptionsHelp(context, new String[]{leftLabel, rightLabel},
-                        new String[]{leftHelp, rightHelp}, 0));
+        TextView help = new TextView(context);
+        setTextSize(help, R.dimen.text_size_small);
+        help.setTextColor(color(context, R.color.textHint));
+        help.setPadding(0, gap / 2, 0, gap / 2);
+        TextView left;
+        TextView right;
+        Runnable refresh;
+        float density = context.getResources().getDisplayMetrics().density;
+        if (languageChoice) {
+            LinearLayout container = (parent instanceof FeatureGridLayout) ? new LinearLayout(context) : null;
+            if (container != null) {
+                container.setOrientation(LinearLayout.VERTICAL);
+            }
+            if (title != null && !title.isEmpty()) {
+                LinearLayout row = new LinearLayout(context);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.addView(heading, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                if (container != null) {
+                    container.addView(row);
+                } else {
+                    parent.addView(row);
+                }
+            }
+            LinearLayout track = new LinearLayout(context);
+            track.setOrientation(LinearLayout.HORIZONTAL);
+            int langGap = Math.round(10f * density);
+
+            LinearLayout[] langCards = new LinearLayout[2];
+            androidx.appcompat.widget.AppCompatRadioButton[] langRbs = new androidx.appcompat.widget.AppCompatRadioButton[2];
+            TextView[] langTvs = new TextView[2];
+
+            String[] langLabels = {leftLabel, rightLabel};
+            for (int i = 0; i < 2; i++) {
+                LinearLayout card = new LinearLayout(context);
+                card.setOrientation(LinearLayout.HORIZONTAL);
+                card.setGravity(Gravity.CENTER);
+                card.setPadding(Math.round(16 * density), Math.round(12 * density),
+                        Math.round(16 * density), Math.round(12 * density));
+                card.setMinimumHeight(Math.round(52 * density));
+                card.setClickable(true);
+                card.setFocusable(true);
+
+                androidx.appcompat.widget.AppCompatRadioButton rb = new androidx.appcompat.widget.AppCompatRadioButton(context);
+                rb.setButtonDrawable(R.drawable.bg_choice_control);
+                rb.setFocusable(false);
+                LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                rbLp.setMarginEnd(Math.round(6 * density));
+                card.addView(rb, rbLp);
+
+                TextView tv = new TextView(context);
+                tv.setText(langLabels[i]);
+                setTextSize(tv, R.dimen.text_size_normal);
+                tv.setGravity(Gravity.CENTER_VERTICAL);
+                card.addView(tv, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+                langCards[i] = card;
+                langRbs[i] = rb;
+                langTvs[i] = tv;
+
+                LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+                if (i > 0) cardLp.setMarginStart(langGap);
+                track.addView(card, cardLp);
+            }
+
+            LinearLayout.LayoutParams trackLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            trackLp.setMargins(0, Math.round(4 * density), 0, Math.round(8 * density));
+            if (container != null) {
+                container.addView(track, trackLp);
+                ((FeatureGridLayout) parent).addCard(container);
             } else {
-                setBackgroundRes(right, R.drawable.bg_segment_thumb);
-                right.setTextColor(color(context, R.color.textPrimary));
-                right.setTypeface(null, android.graphics.Typeface.BOLD);
-                left.setBackgroundColor(Color.TRANSPARENT);
-                left.setTextColor(color(context, R.color.textSecondary));
-                left.setTypeface(null, android.graphics.Typeface.NORMAL);
-                help.setText(buildOptionsHelp(context, new String[]{leftLabel, rightLabel},
-                        new String[]{leftHelp, rightHelp}, 1));
+                parent.addView(track, trackLp);
             }
-        };
 
-        left.setOnClickListener(v -> {
-            if (!left.isEnabled()) {
-                return;
+            left = langRbs[0];
+            right = langRbs[1];
+
+            refresh = () -> {
+                for (int i = 0; i < 2; i++) {
+                    boolean isSelected = (i == 0) ? state[0] : !state[0];
+                    langRbs[i].setChecked(isSelected);
+                    tintChoice(langRbs[i], context);
+
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setCornerRadius(16 * density);
+                    if (isSelected) {
+                        bg.setColor(color(context, R.color.assistCardActive));
+                        bg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
+                        langTvs[i].setTextColor(color(context, R.color.textPrimary));
+                        langTvs[i].setTypeface(null, android.graphics.Typeface.BOLD);
+                    } else {
+                        bg.setColor(color(context, R.color.assistCardIdle));
+                        bg.setStroke(Math.round(1 * density), color(context, R.color.outline));
+                        langTvs[i].setTextColor(color(context, R.color.textSecondary));
+                        langTvs[i].setTypeface(null, android.graphics.Typeface.NORMAL);
+                    }
+                    langCards[i].setBackground(bg);
+                }
+            };
+
+            langCards[0].setOnClickListener(v -> {
+                if (!state[0]) {
+                    state[0] = true;
+                    refresh.run();
+                    onCommit.accept(true);
+                }
+            });
+            langRbs[0].setOnClickListener(v -> langCards[0].performClick());
+
+            langCards[1].setOnClickListener(v -> {
+                if (state[0]) {
+                    state[0] = false;
+                    refresh.run();
+                    onCommit.accept(false);
+                }
+            });
+            langRbs[1].setOnClickListener(v -> langCards[1].performClick());
+        } else {
+            LinearLayout card = new LinearLayout(context);
+            card.setOrientation(LinearLayout.HORIZONTAL);
+            card.setGravity(Gravity.CENTER_VERTICAL);
+            card.setPadding(Math.round(16 * density), Math.round(14 * density),
+                    Math.round(16 * density), Math.round(14 * density));
+            card.setMinimumHeight(Math.round(64 * density));
+            card.setClickable(true);
+            card.setFocusable(true);
+
+            LinearLayout labels = new LinearLayout(context);
+            labels.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams labelsLp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            labelsLp.setMargins(0, 0, Math.round(12 * density), 0);
+            card.addView(labels, labelsLp);
+
+            if (title != null && !title.isEmpty()) {
+                heading.setText(title);
+                heading.setPadding(0, 0, 0, 0);
+                heading.setVisibility(View.VISIBLE);
+                labels.addView(heading);
+            } else {
+                heading.setVisibility(View.GONE);
             }
-            if (!state[0]) {
-                state[0] = true;
-                refresh.run();
-                onCommit.accept(true);
+
+            help.setPadding(0, Math.round(3 * density), 0, 0);
+            labels.addView(help);
+
+            androidx.appcompat.widget.AppCompatCheckBox choice = new androidx.appcompat.widget.AppCompatCheckBox(context);
+            choice.setButtonDrawable(R.drawable.bg_choice_control);
+            tintChoice(choice, context);
+            choice.setFocusable(false);
+            choice.setClickable(false);
+            card.addView(choice);
+
+            if (parent instanceof FeatureGridLayout) {
+                ((FeatureGridLayout) parent).addCard(card);
+            } else {
+                LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                cardLp.setMargins(0, Math.round(4 * density), 0, Math.round(6 * density));
+                parent.addView(card, cardLp);
             }
-        });
-        right.setOnClickListener(v -> {
-            if (!right.isEnabled()) {
-                return;
-            }
-            if (state[0]) {
-                state[0] = false;
-                refresh.run();
-                onCommit.accept(false);
-            }
-        });
+
+            left = choice;
+            right = choice;
+
+            refresh = () -> {
+                choice.setChecked(state[0]);
+                tintChoice(choice, context);
+
+                GradientDrawable cardBg = new GradientDrawable();
+                cardBg.setCornerRadius(16 * density);
+                if (state[0]) {
+                    cardBg.setColor(color(context, R.color.assistCardActive));
+                    cardBg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
+                    heading.setTypeface(null, android.graphics.Typeface.BOLD);
+                    heading.setTextColor(color(context, R.color.textPrimary));
+                } else {
+                    cardBg.setColor(color(context, R.color.assistCardIdle));
+                    cardBg.setStroke(Math.round(1 * density), color(context, R.color.outline));
+                    heading.setTypeface(null, android.graphics.Typeface.NORMAL);
+                    heading.setTextColor(color(context, R.color.textSecondary));
+                }
+                card.setBackground(cardBg);
+
+                help.setTextColor(color(context, R.color.textHint));
+                help.setText(state[0] ? leftHelp : rightHelp);
+            };
+
+            card.setOnClickListener(v -> {
+                if (choice.isEnabled()) {
+                    state[0] = !state[0];
+                    refresh.run();
+                    onCommit.accept(state[0]);
+                }
+            });
+        }
         refresh.run();
-
-        LinearLayout.LayoutParams segLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        track.addView(left, segLp);
-        track.addView(right, segLp);
-
-        LinearLayout.LayoutParams trackLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        trackLp.setMargins(hPad, 0, hPad, 0);
-        parent.addView(track, trackLp);
-        parent.addView(help, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
         return new BinarySegmentHandle(state, refresh, onCommit, left, right, help);
+    }
+
+    private static void tintChoice(android.widget.CompoundButton button, Context context) {
+        int accent = color(context, R.color.oemAccent);
+        int idle = color(context, R.color.textSecondary);
+        androidx.core.widget.CompoundButtonCompat.setButtonTintList(button,
+                new android.content.res.ColorStateList(new int[][]{
+                        new int[]{-android.R.attr.state_enabled},
+                        new int[]{android.R.attr.state_checked}, new int[]{}},
+                        new int[]{color(context, R.color.textMuted), accent, idle}));
     }
 
     /**
@@ -435,7 +561,7 @@ public final class UiStyles {
         private final int[] modeIds;
         private final int[] selectedIndex;
         private final Runnable refresh;
-        private TextView[] segs;
+        private View[] segs;
         private TextView helpSeg;
 
         private TernarySegmentHandle(int[] modeIds, int[] selectedIndex, Runnable refresh) {
@@ -444,7 +570,7 @@ public final class UiStyles {
             this.refresh = refresh;
         }
 
-        private void bindViews(TextView[] segs, TextView helpSeg) {
+        private void bindViews(View[] segs, TextView helpSeg) {
             this.segs = segs;
             this.helpSeg = helpSeg;
         }
@@ -452,8 +578,12 @@ public final class UiStyles {
         public void setInteractionEnabled(boolean enabled) {
             float a = enabled ? 1f : 0.5f;
             if (segs != null) {
-                for (TextView tv : segs) {
+                for (View tv : segs) {
                     tv.setEnabled(enabled);
+                    if (tv instanceof android.view.ViewGroup) {
+                        android.view.ViewGroup card = (android.view.ViewGroup) tv;
+                        for (int i = 0; i < card.getChildCount(); i++) card.getChildAt(i).setEnabled(enabled);
+                    }
                     tv.setAlpha(a);
                 }
             }
@@ -499,7 +629,7 @@ public final class UiStyles {
         if (title != null && !title.isEmpty()) {
             TextView rowTitle = new TextView(context);
             rowTitle.setText(title);
-            rowTitle.setTextSize(16);
+            setTextSize(rowTitle, R.dimen.text_size_medium);
             rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
             rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
             int hPad = dimenPx(context, R.dimen.spacing_medium);
@@ -512,23 +642,50 @@ public final class UiStyles {
 
         LinearLayout track = new LinearLayout(context);
         track.setOrientation(LinearLayout.HORIZONTAL);
-        setBackgroundRes(track, R.drawable.bg_segment_track);
-        int tpad = dimenPx(context, R.dimen.spacing_tiny);
-        track.setPadding(tpad, tpad, tpad, tpad);
+        track.setBackgroundColor(Color.TRANSPARENT);
+        track.setPadding(0, 0, 0, 0);
 
-        TextView[] segs = new TextView[3];
+        LinearLayout[] cards = new LinearLayout[3];
+        androidx.appcompat.widget.AppCompatRadioButton[] radioButtons = new androidx.appcompat.widget.AppCompatRadioButton[3];
+        TextView[] labelViews = new TextView[3];
+
+        float density = context.getResources().getDisplayMetrics().density;
+        int cornerRadius = Math.round(16f * density);
+        int gap = Math.round(10f * density);
+
         for (int i = 0; i < 3; i++) {
+            LinearLayout card = new LinearLayout(context);
+            card.setOrientation(LinearLayout.HORIZONTAL);
+            card.setGravity(Gravity.CENTER);
+            card.setPadding(Math.round(14 * density), Math.round(12 * density),
+                    Math.round(14 * density), Math.round(12 * density));
+            card.setMinimumHeight(Math.round(52 * density));
+            card.setClickable(true);
+            card.setFocusable(true);
+
+            androidx.appcompat.widget.AppCompatRadioButton rb = new androidx.appcompat.widget.AppCompatRadioButton(context);
+            rb.setButtonDrawable(R.drawable.bg_choice_control);
+            rb.setFocusable(false);
+            LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rbLp.setMarginEnd(Math.round(6f * density));
+            card.addView(rb, rbLp);
+
             TextView tv = new TextView(context);
             tv.setText(labels[i]);
-            tv.setTextSize(14);
-            tv.setGravity(Gravity.CENTER);
-            tv.setMinHeight(dimenPx(context, R.dimen.button_height));
+            setTextSize(tv, R.dimen.text_size_normal);
+            tv.setGravity(Gravity.CENTER_VERTICAL);
             tv.setMaxLines(2);
-            segs[i] = tv;
+            card.addView(tv, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            cards[i] = card;
+            radioButtons[i] = rb;
+            labelViews[i] = tv;
         }
 
         TextView help = new TextView(context);
-        help.setTextSize(13);
+        setTextSize(help, R.dimen.text_size_small);
         help.setTextColor(UiStyles.color(context, R.color.textHint));
         int hPad = dimenPx(context, R.dimen.spacing_medium);
         help.setPadding(hPad, dimenPx(context, R.dimen.spacing_small), hPad,
@@ -546,49 +703,68 @@ public final class UiStyles {
         Runnable refresh = () -> {
             int idx = selectedIndex[0];
             for (int i = 0; i < 3; i++) {
-                TextView tv = segs[i];
-                if (i == idx) {
-                    setBackgroundRes(tv, R.drawable.bg_segment_thumb);
-                    tv.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                boolean isSelected = (i == idx);
+                androidx.appcompat.widget.AppCompatRadioButton rb = radioButtons[i];
+                TextView tv = labelViews[i];
+                LinearLayout card = cards[i];
+
+                rb.setChecked(isSelected);
+                tintChoice(rb, context);
+
+                GradientDrawable bg = new GradientDrawable();
+                bg.setCornerRadius(cornerRadius);
+
+                if (isSelected) {
+                    bg.setColor(color(context, R.color.assistCardActive));
+                    bg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
+                    tv.setTextColor(color(context, R.color.textPrimary));
                     tv.setTypeface(null, android.graphics.Typeface.BOLD);
                 } else {
-                    tv.setBackgroundColor(Color.TRANSPARENT);
-                    tv.setTextColor(UiStyles.color(context, R.color.textSecondary));
+                    bg.setColor(color(context, R.color.assistCardIdle));
+                    bg.setStroke(Math.round(1 * density), color(context, R.color.outline));
+                    tv.setTextColor(color(context, R.color.textSecondary));
                     tv.setTypeface(null, android.graphics.Typeface.NORMAL);
                 }
+                card.setBackground(bg);
             }
             help.setText(buildOptionsHelp(context, labels, helps, idx));
         };
 
         for (int i = 0; i < 3; i++) {
             final int fi = i;
-            segs[i].setOnClickListener(v -> {
-                if (selectedIndex[0] != fi) {
+            cards[i].setOnClickListener(v -> {
+                if (cards[fi].isEnabled() && selectedIndex[0] != fi) {
                     selectedIndex[0] = fi;
                     refresh.run();
                     onCommit.accept(modeIds[fi]);
                 }
             });
+            radioButtons[i].setOnClickListener(v -> cards[fi].performClick());
         }
         refresh.run();
 
-        LinearLayout.LayoutParams segLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        for (TextView tv : segs) {
-            track.addView(tv, segLp);
+        for (int i = 0; i < 3; i++) {
+            LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            if (i > 0) {
+                cardLp.setMarginStart(gap);
+            }
+            track.addView(cards[i], cardLp);
         }
 
         LinearLayout.LayoutParams trackLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        trackLp.setMargins(hPad, 0, hPad, 0);
+        trackLp.setMargins(0, 0, 0, 0);
         parent.addView(track, trackLp);
+        help.setPadding(0, dimenPx(context, R.dimen.spacing_small), 0,
+                dimenPx(context, R.dimen.spacing_small));
         parent.addView(help, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TernarySegmentHandle handle = new TernarySegmentHandle(modeIds, selectedIndex, refresh);
-        handle.bindViews(segs, help);
+        handle.bindViews(cards, help);
         return handle;
     }
 

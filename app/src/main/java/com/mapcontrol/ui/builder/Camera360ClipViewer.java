@@ -168,7 +168,7 @@ final class Camera360ClipViewer {
         LinearLayout page = new LinearLayout(ui.context);
         page.setOrientation(LinearLayout.VERTICAL);
 
-        LinearLayout header = ui.header(R.string.camera360_menu_viewer, onBack);
+        LinearLayout header = ui.header(R.string.camera360_menu_viewer);
         summaryPill = ui.statusPill();
         ui.attachIcon(summaryPill, R.drawable.ic_mdi_folder, ui.themeColor(R.color.textSecondaryCool), 16);
         summaryPill.setTextColor(ui.themeColor(R.color.textSecondaryCool));

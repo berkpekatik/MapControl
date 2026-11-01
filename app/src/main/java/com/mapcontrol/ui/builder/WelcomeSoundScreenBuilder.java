@@ -89,7 +89,7 @@ public final class WelcomeSoundScreenBuilder {
         row.setPadding(16, 14, 16, 14);
         TextView title = new TextView(context);
         title.setText(label);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(title, R.dimen.text_size_normal);
         title.setTextColor(primary);
         row.addView(title);
         paintCard(context, row);
@@ -190,13 +190,13 @@ public final class WelcomeSoundScreenBuilder {
         headingText.setPadding(dp(context, 14), 0, 0, 0);
         TextView title = new TextView(context);
         title.setText(R.string.welcome_sound_title);
-        title.setTextSize(24);
+        UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         headingText.addView(title);
         TextView subtitle = new TextView(context);
         subtitle.setText(R.string.welcome_menu_sub);
-        subtitle.setTextSize(13);
+        UiStyles.setTextSize(subtitle, R.dimen.text_size_small);
         subtitle.setMaxLines(3);
         subtitle.setEllipsize(TextUtils.TruncateAt.END);
         subtitle.setTextColor(UiStyles.color(context, R.color.textSecondary));
@@ -261,21 +261,21 @@ public final class WelcomeSoundScreenBuilder {
 
         Button generate = new Button(context);
         generate.setText(R.string.welcome_tts_generate);
-        generate.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(generate, R.dimen.text_size_normal);
         generate.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(generate, UiStyles.color(context, R.color.buttonPrimary));
         generate.setPadding(24, 16, 24, 16);
         apiBlock.addView(generate, buttonParams(context));
 
         TextView savedLine = new TextView(context);
-        savedLine.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        UiStyles.setTextSize(savedLine, R.dimen.text_size_normal);
         savedLine.setTypeface(null, Typeface.BOLD);
         savedLine.setTextColor(UiStyles.color(context, R.color.textPrimary));
         savedLine.setVisibility(View.GONE);
         apiBlock.addView(savedLine);
 
         TextView accessWarning = new TextView(context);
-        accessWarning.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        UiStyles.setTextSize(accessWarning, R.dimen.text_size_small);
         accessWarning.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
         accessWarning.setVisibility(View.GONE);
         accessWarning.setPadding(0, dp(context, 8), 0, 0);
@@ -363,13 +363,13 @@ public final class WelcomeSoundScreenBuilder {
 
             TextView title = new TextView(context);
             title.setText(design.titleRes());
-            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            UiStyles.setTextSize(title, R.dimen.text_size_normal);
             title.setTextColor(primary);
             row.addView(title);
 
             TextView help = new TextView(context);
             help.setText(design.helpRes());
-            help.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            UiStyles.setTextSize(help, R.dimen.text_size_small);
             help.setTextColor(secondary);
             help.setPadding(0, 4, 0, 0);
             row.addView(help);
@@ -395,7 +395,7 @@ public final class WelcomeSoundScreenBuilder {
         parent.addView(label(context, R.string.welcome_design_line_label));
         EditText lineInput = new EditText(context);
         lineInput.setHint(R.string.welcome_custom_text_hint);
-        lineInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(lineInput, R.dimen.text_size_normal);
         lineInput.setSingleLine(true);
         lineInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         lineInput.setFilters(new android.text.InputFilter[0]);
@@ -431,7 +431,7 @@ public final class WelcomeSoundScreenBuilder {
 
         Button btnPreview = new Button(context);
         btnPreview.setText(R.string.welcome_design_preview);
-        btnPreview.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(btnPreview, R.dimen.text_size_normal);
         btnPreview.setTextColor(primary);
         UiStyles.styleOemButton(btnPreview, UiStyles.color(context, R.color.buttonPrimary));
         btnPreview.setPadding(24, 16, 24, 16);
@@ -489,13 +489,13 @@ public final class WelcomeSoundScreenBuilder {
 
         TextView title = new TextView(context);
         title.setText(titleRes);
-        title.setTextSize(20);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         texts.addView(title);
         TextView sub = new TextView(context);
         sub.setText(subRes);
-        sub.setTextSize(14);
+        UiStyles.setTextSize(sub, R.dimen.text_size_small);
         sub.setMaxLines(2);
         sub.setEllipsize(TextUtils.TruncateAt.END);
         sub.setTextColor(UiStyles.color(context, R.color.textSecondary));
@@ -525,7 +525,7 @@ public final class WelcomeSoundScreenBuilder {
         back.addView(arrow, new LinearLayout.LayoutParams(dp(context, 22), dp(context, 22)));
         TextView label = new TextView(context);
         label.setText(R.string.welcome_sound_title);
-        label.setTextSize(15);
+        UiStyles.setTextSize(label, R.dimen.text_size_normal);
         label.setTypeface(null, Typeface.BOLD);
         label.setTextColor(UiStyles.color(context, R.color.textPrimary));
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
@@ -585,7 +585,7 @@ public final class WelcomeSoundScreenBuilder {
     private static TextView sectionTitle(Context context, int textRes) {
         TextView title = new TextView(context);
         title.setText(textRes);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+        UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setPadding(0, 0, 0, dp(context, 8));
@@ -595,7 +595,7 @@ public final class WelcomeSoundScreenBuilder {
     private static TextView label(Context context, int textRes) {
         TextView label = new TextView(context);
         label.setText(textRes);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        UiStyles.setTextSize(label, R.dimen.text_size_normal);
         label.setTextColor(UiStyles.color(context, R.color.textPrimary87));
         label.setPadding(0, dp(context, 16), 0, dp(context, 8));
         return label;
@@ -604,7 +604,7 @@ public final class WelcomeSoundScreenBuilder {
     private static TextView hint(Context context, int textRes) {
         TextView hint = new TextView(context);
         hint.setText(textRes);
-        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        UiStyles.setTextSize(hint, R.dimen.text_size_small);
         hint.setTextColor(UiStyles.color(context, R.color.textHint));
         hint.setPadding(0, 0, 0, dp(context, 8));
         return hint;
@@ -613,7 +613,7 @@ public final class WelcomeSoundScreenBuilder {
     private static EditText lineField(Context context, String customLine, Consumer<String> onLineCommitted) {
         EditText lineInput = new EditText(context);
         lineInput.setHint(R.string.welcome_tts_text_hint);
-        lineInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(lineInput, R.dimen.text_size_normal);
         lineInput.setSingleLine(true);
         lineInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         lineInput.setFilters(new android.text.InputFilter[0]);
@@ -650,7 +650,7 @@ public final class WelcomeSoundScreenBuilder {
     private static TextView boxedText(Context context, String text) {
         TextView view = new TextView(context);
         view.setText(text);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        UiStyles.setTextSize(view, R.dimen.text_size_small);
         view.setTextColor(UiStyles.color(context, R.color.textPrimary));
         int pad = dp(context, 12);
         view.setPadding(pad, pad, pad, pad);
@@ -732,7 +732,7 @@ public final class WelcomeSoundScreenBuilder {
         tile.setPadding(dp(context, 14), dp(context, 12), dp(context, 14), dp(context, 12));
         TextView title = new TextView(context);
         title.setText(titleRes);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        UiStyles.setTextSize(title, R.dimen.text_size_normal);
         title.setTypeface(null, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setMaxLines(2);
@@ -740,7 +740,7 @@ public final class WelcomeSoundScreenBuilder {
         tile.addView(title);
         TextView sub = new TextView(context);
         sub.setText(subtitle);
-        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        UiStyles.setTextSize(sub, R.dimen.text_size_small);
         sub.setTextColor(UiStyles.color(context, R.color.textSecondary));
         sub.setMaxLines(2);
         sub.setEllipsize(TextUtils.TruncateAt.END);

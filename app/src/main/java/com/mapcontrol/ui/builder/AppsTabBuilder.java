@@ -19,6 +19,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.HorizontalScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -211,6 +212,13 @@ public class AppsTabBuilder {
         card.setPadding(inner, inner, inner, inner);
         UiStyles.setGlassCardBackground(card);
 
+        HorizontalScrollView actions = new HorizontalScrollView(context);
+        actions.setHorizontalScrollBarEnabled(false);
+        actions.addView(buildPageActions(context));
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(-1, -2);
+        actionsParams.bottomMargin = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        card.addView(actions, actionsParams);
+
         ScrollView appsListScrollView = new ScrollView(context);
         appsListScrollView.setBackgroundColor(UiStyles.color(context, R.color.transparent));
         appsListScrollView.setPadding(0, 0, 0, 0);
@@ -239,13 +247,13 @@ public class AppsTabBuilder {
         return tabContent;
     }
 
-    public LinearLayout buildTopBarButtons(Context ctx) {
+    private LinearLayout buildPageActions(Context ctx) {
         LinearLayout container = new LinearLayout(ctx);
         container.setOrientation(LinearLayout.HORIZONTAL);
         container.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         Button btnRefreshApps = new Button(ctx);
-        btnRefreshApps.setTextSize(20);
+        UiStyles.setTextSize(btnRefreshApps, R.dimen.text_size_large);
         btnRefreshApps.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         btnRefreshApps.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnRefreshApps.setPadding(12, 12, 12, 12);
@@ -265,7 +273,7 @@ public class AppsTabBuilder {
         });
 
         Button btnDownloadedFiles = new Button(ctx);
-        btnDownloadedFiles.setTextSize(20);
+        UiStyles.setTextSize(btnDownloadedFiles, R.dimen.text_size_large);
         btnDownloadedFiles.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         btnDownloadedFiles.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnDownloadedFiles.setPadding(12, 12, 12, 12);
@@ -280,7 +288,7 @@ public class AppsTabBuilder {
 
         Button btnModeToggle = new Button(ctx);
         updateModeToggleButton(btnModeToggle);
-        btnModeToggle.setTextSize(16);
+        UiStyles.setTextSize(btnModeToggle, R.dimen.text_size_normal);
         btnModeToggle.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         btnModeToggle.setBackgroundColor(UiStyles.color(ctx, R.color.transparent));
         btnModeToggle.setPadding(12, 12, 12, 12);
@@ -304,23 +312,23 @@ public class AppsTabBuilder {
         int iconGap = UiStyles.dimenPx(ctx, R.dimen.spacing_small);
 
         Button btnDeleteOps = new Button(ctx);
-        styleTopBarAction(btnDeleteOps, destructive);
+        stylePageAction(btnDeleteOps, destructive);
         btnDeleteOps.setText(R.string.apps_delete_ops);
         UiStyles.setButtonStartIconTinted(btnDeleteOps, R.drawable.ic_mdi_delete, destructive, iconGap);
         btnDeleteOps.setOnClickListener(v -> performReset());
-        container.addView(btnDeleteOps, topBarActionParams());
+        container.addView(btnDeleteOps, pageActionParams());
 
         Button btnDeleteSelf = new Button(ctx);
-        styleTopBarAction(btnDeleteSelf, destructive);
+        stylePageAction(btnDeleteSelf, destructive);
         btnDeleteSelf.setText(R.string.apps_delete_self);
         UiStyles.setButtonStartIconTinted(btnDeleteSelf, R.drawable.ic_mdi_delete, destructive, iconGap);
         btnDeleteSelf.setOnClickListener(v -> confirmDeleteSelf());
-        container.addView(btnDeleteSelf, topBarActionParams());
+        container.addView(btnDeleteSelf, pageActionParams());
 
         return container;
     }
 
-    private static LinearLayout.LayoutParams topBarActionParams() {
+    private static LinearLayout.LayoutParams pageActionParams() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -328,9 +336,9 @@ public class AppsTabBuilder {
         return params;
     }
 
-    private static void styleTopBarAction(Button button, int color) {
+    private static void stylePageAction(Button button, int color) {
         button.setAllCaps(false);
-        button.setTextSize(15);
+        UiStyles.setTextSize(button, R.dimen.text_size_normal);
         button.setTextColor(color);
         button.setBackgroundColor(UiStyles.color(button.getContext(), R.color.transparent));
         button.setPadding(12, 12, 12, 12);
@@ -370,7 +378,7 @@ public class AppsTabBuilder {
                     TextView loadingText = new TextView(context);
                     loadingText.setText(R.string.common_loading);
                     loadingText.setTextColor(UiStyles.color(context, R.color.textLoading));
-                    loadingText.setTextSize(14);
+                    UiStyles.setTextSize(loadingText, R.dimen.text_size_small);
                     loadingText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(loadingText);
                 });
@@ -389,7 +397,7 @@ public class AppsTabBuilder {
                     TextView errorText = new TextView(context);
                     errorText.setText(context.getString(R.string.common_error_prefix, e.getMessage()));
                     errorText.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
-                    errorText.setTextSize(14);
+                    UiStyles.setTextSize(errorText, R.dimen.text_size_small);
                     errorText.setPadding(8, 8, 8, 8);
                     appsListContainer.addView(errorText);
                 });
@@ -483,14 +491,14 @@ public class AppsTabBuilder {
                 TextView nameText = new TextView(context);
                 nameText.setText(finalDisplayName);
                 nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                nameText.setTextSize(17);
+                UiStyles.setTextSize(nameText, R.dimen.text_size_medium);
                 nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
                 statusText.setText(context.getString(R.string.apps_status_installed, finalCurrentVersion));
                 statusText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                statusText.setTextSize(13);
+                UiStyles.setTextSize(statusText, R.dimen.text_size_small);
                 LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -507,7 +515,7 @@ public class AppsTabBuilder {
 
                 Button actionButton = new Button(context);
                 actionButton.setText(R.string.apps_action_open);
-                actionButton.setTextSize(14);
+                UiStyles.setTextSize(actionButton, R.dimen.text_size_small);
                 actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 actionButton.setPadding(24, 12, 24, 12);
 
@@ -531,7 +539,7 @@ public class AppsTabBuilder {
 
                 Button removeButton = new Button(context);
                 removeButton.setText(R.string.apps_action_remove);
-                removeButton.setTextSize(14);
+                UiStyles.setTextSize(removeButton, R.dimen.text_size_small);
                 removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
                 removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
                 removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
@@ -565,7 +573,7 @@ public class AppsTabBuilder {
                 TextView emptyText = new TextView(context);
                 emptyText.setText(R.string.apps_local_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
-                emptyText.setTextSize(15);
+                UiStyles.setTextSize(emptyText, R.dimen.text_size_normal);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -698,7 +706,7 @@ public class AppsTabBuilder {
         TextView loadingText = new TextView(context);
         loadingText.setText(reconnecting ? R.string.apps_server_reconnecting : R.string.common_loading);
         loadingText.setTextColor(UiStyles.color(context, reconnecting ? R.color.textSecondaryCool : R.color.textLoading));
-        loadingText.setTextSize(14);
+        UiStyles.setTextSize(loadingText, R.dimen.text_size_small);
         loadingText.setPadding(8, 8, 8, 8);
         appsListContainer.addView(loadingText);
     }
@@ -805,7 +813,7 @@ public class AppsTabBuilder {
                 TextView emptyText = new TextView(context);
                 emptyText.setText(R.string.apps_remote_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textMuted));
-                emptyText.setTextSize(15);
+                UiStyles.setTextSize(emptyText, R.dimen.text_size_normal);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etLp = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -834,7 +842,7 @@ public class AppsTabBuilder {
         String titleText = group != null && !group.title.trim().isEmpty() ? group.title.trim() : groupId;
         title.setText(titleText);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTextSize(15);
+        UiStyles.setTextSize(title, R.dimen.text_size_normal);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         section.addView(title);
 
@@ -842,7 +850,7 @@ public class AppsTabBuilder {
             TextView warn = new TextView(context);
             warn.setText(group.warning.trim());
             warn.setTextColor(UiStyles.color(context, R.color.statusWarning));
-            warn.setTextSize(13);
+            UiStyles.setTextSize(warn, R.dimen.text_size_small);
             LinearLayout.LayoutParams warnParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -943,7 +951,7 @@ public class AppsTabBuilder {
         TextView nameText = new TextView(context);
         nameText.setText(displayName);
         nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        nameText.setTextSize(17);
+        UiStyles.setTextSize(nameText, R.dimen.text_size_medium);
         nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
         infoContainer.addView(nameText);
 
@@ -958,7 +966,7 @@ public class AppsTabBuilder {
             statusText.setText(R.string.apps_status_not_installed);
             statusText.setTextColor(UiStyles.color(context, R.color.textMuted));
         }
-        statusText.setTextSize(13);
+        UiStyles.setTextSize(statusText, R.dimen.text_size_small);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -970,7 +978,7 @@ public class AppsTabBuilder {
             TextView companionText = new TextView(context);
             companionText.setText(companionNote);
             companionText.setTextColor(UiStyles.color(context, R.color.statusWarning));
-            companionText.setTextSize(12);
+            UiStyles.setTextSize(companionText, R.dimen.text_size_small);
             LinearLayout.LayoutParams companionParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -987,7 +995,7 @@ public class AppsTabBuilder {
         rightContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
         Button actionButton = new Button(context);
-        actionButton.setTextSize(14);
+        UiStyles.setTextSize(actionButton, R.dimen.text_size_small);
         actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
         actionButton.setPadding(24, 12, 24, 12);
 
@@ -1030,7 +1038,7 @@ public class AppsTabBuilder {
         if (finalIsInstalled && !isLocked) {
             Button removeButton = new Button(context);
             removeButton.setText(R.string.apps_action_remove);
-            removeButton.setTextSize(14);
+            UiStyles.setTextSize(removeButton, R.dimen.text_size_small);
             removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
             removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
             removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
@@ -1699,14 +1707,14 @@ public class AppsTabBuilder {
             TextView titleText = new TextView(context);
             titleText.setText(R.string.apps_downloads_title);
             titleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            titleText.setTextSize(20);
+            UiStyles.setTextSize(titleText, R.dimen.text_size_large);
             titleText.setTypeface(null, android.graphics.Typeface.BOLD);
             titleContainer.addView(titleText);
 
             TextView subtitleText = new TextView(context);
             subtitleText.setText(context.getString(R.string.apps_downloads_subtitle, fileCount, folderName));
             subtitleText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-            subtitleText.setTextSize(13);
+            UiStyles.setTextSize(subtitleText, R.dimen.text_size_small);
             subtitleText.setPadding(0, 4, 0, 0);
             titleContainer.addView(subtitleText);
 
@@ -1717,7 +1725,7 @@ public class AppsTabBuilder {
             if (fileCount > 0) {
                 Button deleteAllButton = new Button(context);
                 deleteAllButton.setText(R.string.apps_delete_all);
-                deleteAllButton.setTextSize(13);
+                UiStyles.setTextSize(deleteAllButton, R.dimen.text_size_small);
                 deleteAllButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
                 deleteAllButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
                 deleteAllButton.setPadding(12, 8, 12, 8);
@@ -1777,7 +1785,7 @@ public class AppsTabBuilder {
                 TextView emptyText = new TextView(context);
                 emptyText.setText(R.string.apps_downloads_empty);
                 emptyText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                emptyText.setTextSize(16);
+                UiStyles.setTextSize(emptyText, R.dimen.text_size_normal);
                 emptyText.setGravity(android.view.Gravity.CENTER);
                 LinearLayout.LayoutParams etP = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1830,7 +1838,7 @@ public class AppsTabBuilder {
                     TextView nameText = new TextView(context);
                     nameText.setText(file.getName().replace(".apk", ""));
                     nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    nameText.setTextSize(14);
+                    UiStyles.setTextSize(nameText, R.dimen.text_size_small);
                     nameText.setTypeface(null, android.graphics.Typeface.BOLD);
                     nameText.setMaxLines(1);
                     nameText.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1839,7 +1847,7 @@ public class AppsTabBuilder {
                     TextView sizeText = new TextView(context);
                     sizeText.setText(context.getString(R.string.apps_file_size, sizeStr));
                     sizeText.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-                    sizeText.setTextSize(12);
+                    UiStyles.setTextSize(sizeText, R.dimen.text_size_small);
                     sizeText.setPadding(0, 2, 0, 0);
                     infoLayout.addView(sizeText);
 
@@ -1853,7 +1861,7 @@ public class AppsTabBuilder {
                     installButton.setText(R.string.apps_action_install);
                     installButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(installButton, UiStyles.color(context, R.color.buttonPrimary));
-                    installButton.setTextSize(13);
+                    UiStyles.setTextSize(installButton, R.dimen.text_size_small);
                     installButton.setTypeface(null, android.graphics.Typeface.BOLD);
                     installButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonStartIconTinted(installButton, R.drawable.ic_mdi_package_variant,
@@ -1864,7 +1872,7 @@ public class AppsTabBuilder {
                     Button deleteButton = new Button(context);
                     deleteButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.styleOemButton(deleteButton, UiStyles.color(context, R.color.buttonDestructiveBg));
-                    deleteButton.setTextSize(18);
+                    UiStyles.setTextSize(deleteButton, R.dimen.text_size_medium);
                     deleteButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonIconOnlyTinted(deleteButton, R.drawable.ic_mdi_delete,
                             UiStyles.color(context, R.color.textPrimary), context.getString(R.string.apps_cd_delete_file));
@@ -2203,4 +2211,3 @@ public class AppsTabBuilder {
         }).start();
     }
 }
-
