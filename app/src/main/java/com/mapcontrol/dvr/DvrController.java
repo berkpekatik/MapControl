@@ -99,6 +99,8 @@ public final class DvrController {
     private static final String KEY_RES_INDEX = "resIndex";
     private static final String KEY_SEPARATE = "separate";
     private static final String KEY_INTERNAL_MODE = "internalMode";
+    /** Kamera tamponlari onbellekli ("hizli okuma"); gizli ayar, varsayilan acik. */
+    private static final String KEY_ION_CACHED = "ionCached";
 
     private static final long TICK_MS = 10_000;
     private static final long RETRY_MS = 30_000;
@@ -155,6 +157,12 @@ public final class DvrController {
     private final SharedPreferences prefs;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor(r -> new Thread(r, "dvr-io"));
+    /** USB yoklamasi: dvr-io'daki uzun islerin (listeleme/silme) arkasinda beklemesin. */
+    private final ExecutorService usbProbe = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "dvr-usb");
+        t.setDaemon(true);
+        return t;
+    });
     private final CameraRecorder recorder = new CameraRecorder();
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     private final boolean cameraSupported = new File("/dev/hab").exists();
@@ -187,6 +195,25 @@ public final class DvrController {
         if (isAutoInternalEnabled() && isAutoUsbEnabled()) {
             prefs.edit().putBoolean(KEY_AUTO_USB, false).apply();
         }
+        if (cameraSupported) {
+            // Kameralar acilmadan once native tarafa iletilir (hub ilk acilista bunu okur).
+            HabNative.setIonCached(isCameraFastReadEnabled());
+        }
+    }
+
+    /** Kamera "hizli okuma" (onbellekli ION tampon) acik mi. */
+    public boolean isCameraFastReadEnabled() {
+        return prefs.getBoolean(KEY_ION_CACHED, true);
+    }
+
+    /**
+     * Hizli okumayi acar/kapatir ve kameralari yeni modla yeniden acar. Gizli ayar: sorun
+     * cikan bir aracta yeniden derlemeden eski (onbelleksiz) davranisa donmek icin.
+     */
+    public void setCameraFastReadEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_ION_CACHED, enabled).apply();
+        HabNative.setIonCached(enabled);
+        CameraHub.get().restartAll();
     }
 
     /**
@@ -698,6 +725,17 @@ public final class DvrController {
     }
 
     // ---------- Yardimcilar ----------
+
+    /**
+     * findUsbRoot'u arka planda calistirir (StorageManager binder cagrisi + dosya sistemi
+     * kontrolu ana thread'i tutmasin); sonuc ana thread'de verilir (USB yoksa null).
+     */
+    public void findUsbRootAsync(java.util.function.Consumer<File> callback) {
+        usbProbe.execute(() -> {
+            File root = findUsbRoot(app);
+            main.post(() -> callback.accept(root));
+        });
+    }
 
     public static File findUsbRoot(Context context) {
         try {

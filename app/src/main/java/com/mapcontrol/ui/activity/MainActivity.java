@@ -13,7 +13,6 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInstaller;
-import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
@@ -66,6 +65,7 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
+import android.view.MotionEvent;
 import com.mapcontrol.R;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
@@ -82,6 +82,7 @@ import com.mapcontrol.ui.builder.DriveModeTabBuilder;
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.builder.Camera360TabBuilder;
 import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
+import com.mapcontrol.ui.builder.SunroofAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
@@ -104,9 +105,16 @@ import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.util.LauncherSwipeStore;
+import com.mapcontrol.util.GestureConflicts;
+import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
+import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 import com.mapcontrol.vehicle.VehicleQuickControls;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
+import com.mapcontrol.vehicle.SunroofGestureStore;
+import com.mapcontrol.util.MapsLink;
+import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.HeaderStatusMonitor;
 
@@ -121,10 +129,13 @@ public class MainActivity extends AppCompatActivity {
     public static final int TAB_FACE_RECOGNITION = 13;
     public static final int TAB_CAMERA_360 = 14;
     public static final int TAB_SPLIT_SCREEN = 15;
+    public static final int TAB_SUNROOF_AUTOMATION = 16;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
+    private ScrollView sunroofAutomationScrollView;
     private ClimateAutomationTabBuilder climateAutomationTabBuilder;
     private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
+    private SunroofAutomationTabBuilder sunroofAutomationTabBuilder;
     private boolean faceRecognitionStatusBroadcastRegistered;
     private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -178,12 +189,15 @@ public class MainActivity extends AppCompatActivity {
     private AssistTabBuilder assistTabBuilder;
     private LogTabBuilder logTabBuilder;
     private Camera360TabBuilder camera360TabBuilder;
-    private SplitScreenTabBuilder splitScreenTabBuilder;
     private android.view.View camera360TabContent;
+    private SplitScreenTabBuilder splitScreenTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
     private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager
+    /** Kullanıcı seçtiyse kontak açılınca (güç modu 1/2) sunucuyu açar. */
+    private VehicleMetricsRepository.Listener webServerPowerListener;
+    private boolean webServerPowerOn;
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
     private android.widget.ImageView qrCodeImageView;
@@ -290,12 +304,12 @@ public class MainActivity extends AppCompatActivity {
         }
         ApkSessionInstaller.handleSessionResultIntent(this, getIntent());
 
+        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
+
         // Cold start: önce splash boyansın — initializeApp uzun sürer, siyah frame olmasın
         launchSplashRoot = DisplayHelper.createAppLaunchSplashView(this);
         setContentView(launchSplashRoot);
-
-        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-        boolean disclaimerAccepted = prefs.getBoolean("disclaimerAccepted", false);
 
         if (!disclaimerAccepted) {
             handler.post(this::showLegalDisclaimer);
@@ -362,6 +376,13 @@ public class MainActivity extends AppCompatActivity {
                     public void log(String msg) {
                         MainActivity.this.log(msg);
                     }
+
+                    @Override
+                    public void onSessionChanged(boolean loggedIn, boolean premium) {
+                        if (topBarBuilder != null) {
+                            topBarBuilder.setPremiumTitle(loggedIn && premium);
+                        }
+                    }
                 });
         profileScrollView = profileTabBuilder.build();
         
@@ -425,6 +446,9 @@ public class MainActivity extends AppCompatActivity {
                             });
                             return;
                         }
+                        if (tabIndex == 8 && welcomeSoundTabBuilder != null) {
+                            welcomeSoundTabBuilder.showPublicSound();
+                        }
                         crossfadeContent(() -> {
                             switchTab(tabIndex);
                         });
@@ -456,7 +480,6 @@ public class MainActivity extends AppCompatActivity {
                         onBackPressed();
                     }
                 });
-
         // Ana içerik alanı (yatayda sağ kolon, dikeyde şeridin altı)
         LinearLayout mainContent = new LinearLayout(this);
         mainContent.setOrientation(LinearLayout.VERTICAL);
@@ -491,6 +514,10 @@ public class MainActivity extends AppCompatActivity {
                 });
         topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
+        if (profileApiService != null ) {
+            topBarBuilder.setPremiumTitle(
+                    profileApiService.isLoggedIn() && profileApiService.isPremium());
+        }
         topBarBuilder.setLauncherBackButtonListener(v -> {
             if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
                 updateLauncherBackButton(LauncherModeManager.isEnabled(this));
@@ -545,6 +572,7 @@ public class MainActivity extends AppCompatActivity {
                     if (qrCodeImageView != null) {
                         qrCodeImageView.setVisibility(android.view.View.GONE);
                     }
+                    if (fileUploadTabBuilder != null) fileUploadTabBuilder.hidePairQr();
                     if (btnWebServerToggle != null) {
                         btnWebServerToggle.setText(R.string.web_server_start);
                     }
@@ -602,29 +630,11 @@ public class MainActivity extends AppCompatActivity {
                         if (u.isEmpty()) {
                             return;
                         }
-                        Uri uri = Uri.parse(u);
-                        Intent i = new Intent(Intent.ACTION_VIEW, uri);
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        String scheme = uri.getScheme();
-                        if (scheme != null
-                                && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
-                            i.addCategory(Intent.CATEGORY_BROWSABLE);
+                        // Google Haritalar bağlantısı: tarayıcı seçicisine düşmeden doğrudan Google Haritalar'a ver.
+                        if (MapsLink.isGoogleMaps(u) && openGoogleMapsLink(u)) {
+                            return;
                         }
-                        if (shouldShowChooserToPickBrowserOrMaps(uri)) {
-                            // Yandex /maps, goo.gl harita kısası: önce tek hedef uyg. sessizce çalışıp
-                            // ekran göstermeyebiliyor; listeden tarayıcı seçilebilir.
-                            Intent chooser = Intent.createChooser(i, "Linki aç (tarayıcı önerilir)");
-                            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(chooser);
-                        } else {
-                            try {
-                                startActivity(i);
-                            } catch (android.content.ActivityNotFoundException noHandler) {
-                                Intent chooser = Intent.createChooser(i, "Bağlantıyı aç");
-                                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                startActivity(chooser);
-                            }
-                        }
+                        openLinkViaSystem(u);
                     } catch (Exception e) {
                         Toast.makeText(MainActivity.this,
                                 "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -799,6 +809,35 @@ public class MainActivity extends AppCompatActivity {
             public void onWelcomeTts() {
                 speakTtsText(getString(R.string.log_tts_welcome_phrase));
             }
+
+            @Override
+            public void onOpenProfile() {
+                crossfadeContent(() -> {
+                    switchTab(2);
+                    if (topBarTitle != null) {
+                        topBarTitle.setText(R.string.side_rail_profile);
+                    }
+                    if (sideRailBuilder != null) {
+                        sideRailBuilder.setSelectionForTabIndex(2);
+                    }
+                });
+            }
+
+            @Override
+            public void onOpenSoundGenerate() {
+                crossfadeContent(() -> {
+                    if (welcomeSoundTabBuilder != null) {
+                        welcomeSoundTabBuilder.openGenerateTools();
+                    }
+                    switchTab(8);
+                    if (topBarTitle != null) {
+                        topBarTitle.setText(R.string.welcome_sound_title);
+                    }
+                    if (sideRailBuilder != null) {
+                        sideRailBuilder.setSelectionForTabIndex(8);
+                    }
+                });
+            }
         });
         logTabContent = logTabBuilder.getTabContent();
         tvLogs = logTabBuilder.getLogsTextView();
@@ -809,7 +848,6 @@ public class MainActivity extends AppCompatActivity {
         camera360TabBuilder = new Camera360TabBuilder(this, () -> {
             try {
                 if (vehicleMetricsRepository == null) return 0;
-                // Alinacak hiz: DisVehSpd (gosterge hizi); yedek ActVehSpd.
                 int g = vehicleMetricsRepository.getCombined(
                         com.desaysv.ivi.extra.project.carinfo.ReadOnlyID.ID_SPEED_GAUGE_DISPLAY);
                 if (com.mapcontrol.vehicle.VehicleMetricsSnapshot.isValid(g)) {
@@ -822,7 +860,6 @@ public class MainActivity extends AppCompatActivity {
                 return 0;
             }
         }, () -> {
-            // Vites: ID_GEARBOX_STATE (1=P 2=R 3=N, 4.. = ileri vites 1.. -> D1..)
             try {
                 if (vehicleMetricsRepository == null) return "";
                 int g = vehicleMetricsRepository.getCombined(
@@ -857,6 +894,10 @@ public class MainActivity extends AppCompatActivity {
                 msg -> MainActivity.this.log(msg));
         rebuildClimateAutomationTab();
 
+        sunroofAutomationTabBuilder = new SunroofAutomationTabBuilder(this,
+                msg -> MainActivity.this.log(msg));
+        rebuildSunroofAutomationTab();
+
         dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         faceRecognitionScrollView = new ScrollView(this);
@@ -873,6 +914,19 @@ public class MainActivity extends AppCompatActivity {
         // Onbellek yalnizca dinleyici varken doluyordu; hiz overlay'i (ve launcher)
         // icin izlemeyi bastan acik tut (VDBus olay gudumlu, hafif).
         vehicleMetricsRepository.startMonitoring();
+        // Elle kapatılan sunucu aynı kontakta tekrar açılmasın: yalnızca kapalıdan açığa geçişte başlar.
+        webServerPowerListener = snapshot -> {
+            boolean on = VehicleMetricsSnapshot.isValid(snapshot.powerMode)
+                    && (snapshot.powerMode == 1 || snapshot.powerMode == 2);
+            if (on && !webServerPowerOn) {
+                startWebServerIfPreferred();
+            }
+            if (VehicleMetricsSnapshot.isValid(snapshot.powerMode)) {
+                webServerPowerOn = on;
+            }
+        };
+        vehicleMetricsRepository.addListener(webServerPowerListener);
+        startWebServerIfPreferred();
 
         vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
                 msg -> MainActivity.this.log(msg));
@@ -1302,6 +1356,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_CLIMATE_AUTOMATION) {
             rebuildClimateAutomationTab();
             addTabChild(parent, climateAutomationScrollView, matchParent);
+        } else if (tabIndex == TAB_SUNROOF_AUTOMATION) {
+            rebuildSunroofAutomationTab();
+            addTabChild(parent, sunroofAutomationScrollView, matchParent);
         } else if (tabIndex == TAB_FACE_RECOGNITION) {
             addTabChild(parent, faceRecognitionScrollView, matchParent);
             if (dmsFaceRecognitionTabBuilder != null) {
@@ -1660,6 +1717,15 @@ public class MainActivity extends AppCompatActivity {
 
     private String now() {
         return new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+    }
+
+    /** Kullanıcı Web Yönetimi'nde otomatik başlatmayı seçtiyse sunucuyu açar; varsayılan kapalı. */
+    private void startWebServerIfPreferred() {
+        if (webServerManager != null && !webServerManager.isRunning()
+                && getSharedPreferences("MapControlPrefs", MODE_PRIVATE)
+                        .getBoolean(FileUploadTabBuilder.KEY_WEB_SERVER_AUTO_START, false)) {
+            webServerManager.startServer();
+        }
     }
 
     // QR üretimi `FileUploadTabBuilder.generateQRCode()` içine taşındı.
@@ -2085,6 +2151,22 @@ public class MainActivity extends AppCompatActivity {
                         ScrollView.LayoutParams.WRAP_CONTENT));
     }
 
+    private void rebuildSunroofAutomationTab() {
+        if (sunroofAutomationTabBuilder == null) {
+            return;
+        }
+        if (sunroofAutomationScrollView == null) {
+            sunroofAutomationScrollView = new ScrollView(this);
+            sunroofAutomationScrollView.setFillViewport(true);
+        } else {
+            sunroofAutomationScrollView.removeAllViews();
+        }
+        sunroofAutomationScrollView.addView(sunroofAutomationTabBuilder.build(),
+                new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT));
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -2112,6 +2194,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        com.mapcontrol.util.BootSession.markUiLaunched(this);
+        SunroofGestureOverlayManager.getInstance(this).onActivityResumed();
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabVisible();
         }
@@ -2149,6 +2233,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        SunroofGestureOverlayManager.getInstance(this).onActivityPaused();
         unregisterTargetPackageBroadcastReceiver();
         unregisterNavigationClusterBroadcastReceiver();
         unregisterGoogleMapsNavBroadcastReceiver();
@@ -2159,7 +2244,6 @@ public class MainActivity extends AppCompatActivity {
         if (welcomeSoundTabBuilder != null) {
             welcomeSoundTabBuilder.onHostPause();
         }
-        // Kamera 360 arka planda akmaya devam etmesin (bant genisligi/CPU + ekran karincalanmasi)
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabHidden();
         }
@@ -2180,6 +2264,133 @@ public class MainActivity extends AppCompatActivity {
         activityStarted = false;
         if (headerStatusMonitor != null) headerStatusMonitor.stop();
         super.onStop();
+    }
+
+    /** Hareketin başladığı andaki parmak ortası. */
+    private float touchMidDownX = 0f;
+    private float touchMidDownY = 0f;
+    /** Ekrandaki geçerli parmak sayısı (2-4). Parmak kalkınca 0: yeni parmak gelene dek değerlendirme yok. */
+    private int touchActiveFingers = 0;
+    /** Bu parmak seti için eşik aşıldı ve hareket yönü değerlendirildi. */
+    private boolean touchSwipeEvaluated = false;
+    /** Cam tavan hareketi tanındı; parmaklar kalkana dek olaylar uygulamaya iletilmez. */
+    private boolean touchSwipeConsumed = false;
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        int action = event.getActionMasked();
+        int pointerCount = event.getPointerCount();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
+                break;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (pointerCount >= 2 && pointerCount <= 4) {
+                    touchActiveFingers = pointerCount;
+                    touchSwipeEvaluated = false;
+                    updateTouchMid(event);
+                } else {
+                    touchActiveFingers = 0;
+                }
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                // Kalan parmaklar eski ortaya göre ölçülmez; yeni parmak gelene dek hareket yok.
+                touchActiveFingers = 0;
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (touchSwipeConsumed) {
+                    return true;
+                }
+                if (touchActiveFingers >= 2 && pointerCount == touchActiveFingers
+                        && !touchSwipeEvaluated && handleSunroofSwipe(event, pointerCount)) {
+                    MotionEvent cancelEvent = MotionEvent.obtain(event);
+                    cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancelEvent);
+                    cancelEvent.recycle();
+                    return true;
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                boolean consumed = touchSwipeConsumed;
+                touchActiveFingers = 0;
+                touchSwipeEvaluated = false;
+                touchSwipeConsumed = false;
+                if (consumed) {
+                    return true;
+                }
+                break;
+        }
+
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void updateTouchMid(MotionEvent event) {
+        float sumX = 0f;
+        float sumY = 0f;
+        int count = event.getPointerCount();
+        for (int i = 0; i < count; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        touchMidDownX = sumX / count;
+        touchMidDownY = sumY / count;
+    }
+
+    /**
+     * Çok parmaklı kaydırma eşiği aşıldıysa yönü bulur ve o harekete bağlı cam tavan / perde
+     * işlemini çalıştırır. Hareket seçilmemişse veya başka bir özellik (bölünmüş ekran, harita
+     * kaydırma) aynı hareketi kullanıyorsa dokunuşa karışmaz.
+     *
+     * @return işlem çalıştıysa true (dokunuş iptal edilmeli)
+     */
+    private boolean handleSunroofSwipe(MotionEvent event, int fingers) {
+        float sumX = 0f;
+        float sumY = 0f;
+        for (int i = 0; i < fingers; i++) {
+            sumX += event.getX(i);
+            sumY += event.getY(i);
+        }
+        float dx = sumX / fingers - touchMidDownX;
+        float dy = sumY / fingers - touchMidDownY;
+        float absDx = Math.abs(dx);
+        float absDy = Math.abs(dy);
+        float density = getResources().getDisplayMetrics().density;
+        if (absDx <= 35 * density && absDy <= 22 * density) {
+            return false;
+        }
+        touchSwipeEvaluated = true;
+
+        int direction;
+        if (absDx >= absDy) {
+            direction = dx > 0 ? SplitScreenGesture.RIGHT : SplitScreenGesture.LEFT;
+        } else {
+            direction = dy < 0 ? SplitScreenGesture.UP : SplitScreenGesture.DOWN;
+        }
+        int code = SplitScreenGesture.code(fingers, direction);
+        SunroofGestureOverlayManager.GestureAction gesture = SunroofGestureStore.actionFor(this, code);
+        if (gesture == null) {
+            return false;
+        }
+        if (GestureConflicts.findOwnerLabel(this, code, GestureConflicts.slotOf(gesture)) != 0) {
+            return false;
+        }
+        touchSwipeConsumed = true;
+        SunroofGestureOverlayManager.getInstance(this).handleGestureAction(gesture, "Ekran");
+        return true;
     }
 
     private void registerTargetPackageBroadcastReceiver() {
@@ -2329,6 +2540,9 @@ public class MainActivity extends AppCompatActivity {
         VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
         // WebServerManager'ı durdur
+        if (vehicleMetricsRepository != null && webServerPowerListener != null) {
+            vehicleMetricsRepository.removeListener(webServerPowerListener);
+        }
         if (webServerManager != null) {
             webServerManager.stopServer();
         }
@@ -2449,6 +2663,118 @@ public class MainActivity extends AppCompatActivity {
      * Aynı host’ta /q açılırken /maps gibi yollarda Yandex Haritalar (veya App Link) intent’i alıp
      * ekran göstermeyebiliyor; doğrudan tarayıcı hiç seçilmiyor. Bu URL’lerde önce seçici gösterilir.
      */
+    /** Bağlantıyı sistemin seçtiği uygulamayla açar; bazı harita bağlantılarında önce seçici gösterir. */
+    private void openLinkViaSystem(String u) {
+        try {
+            Uri uri = Uri.parse(u);
+            Intent i = new Intent(Intent.ACTION_VIEW, uri);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            String scheme = uri.getScheme();
+            if (scheme != null
+                    && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                i.addCategory(Intent.CATEGORY_BROWSABLE);
+            }
+            if (shouldShowChooserToPickBrowserOrMaps(uri)) {
+                // Yandex /maps, goo.gl harita kısası: önce tek hedef uyg. sessizce çalışıp
+                // ekran göstermeyebiliyor; listeden tarayıcı seçilebilir.
+                Intent chooser = Intent.createChooser(i, "Linki aç (tarayıcı önerilir)");
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(chooser);
+            } else {
+                try {
+                    startActivity(i);
+                } catch (android.content.ActivityNotFoundException noHandler) {
+                    Intent chooser = Intent.createChooser(i, "Bağlantıyı aç");
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(chooser);
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(MainActivity.this, "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            log("Link açma hatası: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Google Haritalar bağlantısını doğrudan Google Haritalar'a verir (açık paket adıyla, seçici yok).
+     * Sırayla dener: bağlantının kendisi, koordinat varsa rota/konum, yer adı varsa arama. Kısa bağlantıda
+     * (maps.app.goo.gl) koordinat bağlantıda yoktur; yönlendirme arka planda çözülür.
+     *
+     * @return Google Haritalar kurulu değilse false (çağıran sistemin yoluna döner); aksi halde true
+     */
+    private boolean openGoogleMapsLink(String u) {
+        if (!isPackageInstalled(AppLaunchHelper.GOOGLE_MAPS_PACKAGE)) {
+            log("Google Haritalar kurulu değil; sistem yoluyla açılıyor");
+            return false;
+        }
+        if (startGoogleMaps(Uri.parse(u), "bağlantı")) {
+            return true;
+        }
+        if (openGoogleMapsTarget(u)) {
+            return true;
+        }
+        if (MapsLink.isShortLink(u)) {
+            log("Kısa bağlantı çözülüyor: " + u);
+            new Thread(() -> {
+                String resolved = MapsLink.resolve(u);
+                handler.post(() -> {
+                    log("Kısa bağlantı çözüldü: " + resolved);
+                    if (!resolved.equals(u) && (startGoogleMaps(Uri.parse(resolved), "çözülen bağlantı")
+                            || openGoogleMapsTarget(resolved))) {
+                        return;
+                    }
+                    openLinkViaSystem(u);
+                });
+            }, "MapsLinkResolve").start();
+            return true;
+        }
+        return false;
+    }
+
+    /** Bağlantıdan koordinat ya da yer adı çıkarıp Google Haritalar'ın anladığı bir adresle açar. */
+    private boolean openGoogleMapsTarget(String url) {
+        double[] c = MapsLink.coordinates(url);
+        if (c != null) {
+            return startGoogleMaps(Uri.parse(MapsLink.navigationUri(c[0], c[1])), "rota")
+                    || startGoogleMaps(Uri.parse(MapsLink.geoUri(c[0], c[1])), "konum");
+        }
+        String name = MapsLink.placeName(url);
+        return name != null && startGoogleMaps(Uri.parse(MapsLink.searchUri(name)), "yer araması");
+    }
+
+    private boolean startGoogleMaps(Uri uri, String what) {
+        Intent i = new Intent(Intent.ACTION_VIEW, uri);
+        i.setPackage(AppLaunchHelper.GOOGLE_MAPS_PACKAGE);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        String scheme = uri.getScheme();
+        if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+        }
+        List<ResolveInfo> handlers = getPackageManager().queryIntentActivities(i, 0);
+        if (handlers.isEmpty()) {
+            // Hangi biçimleri anladığı araçta bilinmediği için tanı kaydı: Günlük sekmesinde görünür.
+            log("Google Haritalar bu biçimi açmıyor (" + what + "): " + uri.getScheme() + ":");
+            return false;
+        }
+        try {
+            startActivity(i);
+            log("Google Haritalar'a verildi (" + what + "): " + uri);
+            return true;
+        } catch (Exception e) {
+            log("Google Haritalar açılamadı (" + what + "): " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isPackageInstalled(String packageName) {
+        try {
+            getPackageManager().getApplicationInfo(packageName, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     private static boolean shouldShowChooserToPickBrowserOrMaps(Uri uri) {
         if (uri == null) {
             return false;

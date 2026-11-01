@@ -56,6 +56,10 @@ public final class BootSession {
         return currentId(context).equals(prefs(context).getString(KEY_UI, null));
     }
 
+    public static void clearUiLaunched(Context context) {
+        prefs(context).edit().remove(KEY_UI).apply();
+    }
+
     public static void markUiLaunched(Context context) {
         prefs(context).edit().putString(KEY_UI, currentId(context)).apply();
     }

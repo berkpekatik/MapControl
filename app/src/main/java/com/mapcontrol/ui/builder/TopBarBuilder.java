@@ -2,6 +2,8 @@ package com.mapcontrol.ui.builder;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.LinearGradient;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
@@ -47,6 +49,7 @@ public class TopBarBuilder implements HeaderStatusSink {
     private LinearLayout topBar;
     private TextView titleView;
     private TextView brandView;
+    private boolean premiumTitle;
     private AppCompatImageButton launcherBackButton;
     private View topBarDivider;
     private LinearLayout headerRow;
@@ -418,6 +421,38 @@ public class TopBarBuilder implements HeaderStatusSink {
 
     public void release() { titleClickHandler.removeCallbacksAndMessages(null); }
 
+    /** Premium üyelikte MapControl (sürüm) başlığını camgöbeğinden altına boyar. */
+    public void setPremiumTitle(boolean premium) {
+        premiumTitle = premium;
+        paintBrand();
+    }
+
+    private void paintBrand() {
+        if (brandView == null) {
+            return;
+        }
+        if (!premiumTitle) {
+            brandView.getPaint().setShader(null);
+            brandView.invalidate();
+            return;
+        }
+        brandView.post(() -> {
+            if (brandView == null || !premiumTitle) {
+                return;
+            }
+            float width = brandView.getWidth();
+            if (width <= 0) {
+                width = brandView.getPaint().measureText(brandView.getText().toString());
+            }
+            brandView.getPaint().setShader(new LinearGradient(
+                    0, 0, Math.max(width, 1f), 0,
+                    new int[]{0xFF2EE6D6, 0xFFE6C15A},
+                    null,
+                    Shader.TileMode.CLAMP));
+            brandView.invalidate();
+        });
+    }
+
     public void reapplyTheme() {
         if (topBar != null) {
             float r = 16f * context.getResources().getDisplayMetrics().density;
@@ -430,6 +465,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         if (brandView != null) {
             brandView.setTextColor(UiStyles.color(context, R.color.textSecondary));
             UiStyles.applySolidRoundedBackgroundDp(brandView, UiStyles.color(context, R.color.surfaceCardInner), 10);
+            paintBrand();
         }
         if (launcherBackButton != null) {
             UiStyles.setGlassCardBackground(launcherBackButton);

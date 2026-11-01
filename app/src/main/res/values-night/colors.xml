@@ -44,6 +44,9 @@
     <color name="cluster_nav_maneuver_subtext">#C8DCF2</color>
     <color name="cluster_nav_eta_fill">#1A222E</color>
     <color name="cluster_nav_eta_stroke">#3A4A5E</color>
+    <color name="cluster_nav_card_highlight">#14FFFFFF</color>
+    <color name="cluster_nav_maneuver_stroke">#33FFFFFF</color>
+    <color name="cluster_nav_label">#9AA8BA</color>
     <color name="cardColor">#1E2530</color>
 
     <color name="textPrimary">#FFFFFF</color>

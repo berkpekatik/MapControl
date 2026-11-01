@@ -41,6 +41,7 @@ import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.DialogHelper;
+import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.util.UsageAccessHelper;
 
@@ -409,6 +410,16 @@ public class ProjectionTabBuilder {
                 context.getString(R.string.projection_map_swipe_off_help),
                 CarSystemGestureController.isEnabled(context),
                 isEnabled -> {
+                    if (isEnabled) {
+                        int conflictOwner = GestureConflicts.findMapSwipeConflict(context);
+                        if (conflictOwner != 0) {
+                            mapSwipeHandle[0].syncVisualWithoutCommit(false);
+                            prefs.edit().putBoolean(CarSystemGestureController.PREF_ENABLED, false).apply();
+                            DialogHelper.showGestureConflict(context, conflictOwner);
+                            callback.log("Harita kaydırma: hareket başka özellikte kullanılıyor");
+                            return;
+                        }
+                    }
                     if (isEnabled && !UsageAccessHelper.hasPackageUsageAccess(context)) {
                         UsageAccessHelper.openUsageAccessSettings(context);
                         Toast.makeText(context,

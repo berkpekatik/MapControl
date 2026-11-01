@@ -16,12 +16,12 @@ import android.widget.Toast;
 import androidx.core.graphics.ColorUtils;
 
 import com.mapcontrol.R;
-import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.SplitRatioView;
 import com.mapcontrol.ui.widget.SwipeGestureIconView;
 import com.mapcontrol.util.AppIconHelper;
 import com.mapcontrol.util.DialogHelper;
+import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.SplitScreenLauncher;
@@ -217,6 +217,10 @@ public class SplitScreenTabBuilder {
         if (icon == null || name == null) {
             return;
         }
+        if (pkg != null && !isUserApp(pkg)) {
+            clearSlot(slot);
+            pkg = null;
+        }
         if (pkg == null) {
             icon.setImageResource(R.drawable.ic_mdi_view_grid);
             icon.setImageTintList(android.content.res.ColorStateList.valueOf(
@@ -227,6 +231,27 @@ public class SplitScreenTabBuilder {
             AppIconHelper.apply(icon, pkg);
             name.setText(labelOf(pkg));
             name.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        }
+    }
+
+    private void clearSlot(int slot) {
+        if (slot == 0) {
+            SplitScreenStore.setPkg1(context, null);
+        } else {
+            SplitScreenStore.setPkg2(context, null);
+        }
+    }
+
+    private boolean isUserApp(String pkg) {
+        if (pkg == null || pkg.isEmpty()) {
+            return false;
+        }
+        try {
+            android.content.pm.ApplicationInfo info = context.getPackageManager()
+                    .getApplicationInfo(pkg, 0);
+            return !ProjectionTargetApps.isSystemOrPrivApp(info);
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -241,7 +266,7 @@ public class SplitScreenTabBuilder {
 
     private void openPicker(int slot) {
         try {
-            List<ProjectionTargetApps.Row> rows = ProjectionTargetApps.loadAllLaunchableRows(context);
+            List<ProjectionTargetApps.Row> rows = ProjectionTargetApps.loadSortedRows(context);
             if (rows.isEmpty()) {
                 Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
@@ -256,6 +281,9 @@ public class SplitScreenTabBuilder {
             String title = context.getString(R.string.split_pick_title, slot + 1, items.length);
             DialogHelper.showAppSelectionDialog(context, title, items, packages, null,
                     selected -> {
+                        if (!isUserApp(selected)) {
+                            return;
+                        }
                         if (slot == 0) {
                             SplitScreenStore.setPkg1(context, selected);
                         } else {
@@ -266,11 +294,7 @@ public class SplitScreenTabBuilder {
                     },
                     null,
                     () -> {
-                        if (slot == 0) {
-                            SplitScreenStore.setPkg1(context, null);
-                        } else {
-                            SplitScreenStore.setPkg2(context, null);
-                        }
+                        clearSlot(slot);
                         refreshAppRow(slot);
                     });
         } catch (Exception e) {
@@ -353,6 +377,16 @@ public class SplitScreenTabBuilder {
         }
         String pkg1 = SplitScreenStore.getPkg1(context);
         String pkg2 = SplitScreenStore.getPkg2(context);
+        if (pkg1 != null && !isUserApp(pkg1)) {
+            SplitScreenStore.setPkg1(context, null);
+            pkg1 = null;
+            refreshAppRow(0);
+        }
+        if (pkg2 != null && !isUserApp(pkg2)) {
+            SplitScreenStore.setPkg2(context, null);
+            pkg2 = null;
+            refreshAppRow(1);
+        }
         if (pkg1 == null || pkg2 == null) {
             Toast.makeText(context, R.string.split_select_both, Toast.LENGTH_SHORT).show();
             return;
@@ -472,11 +506,14 @@ public class SplitScreenTabBuilder {
     }
 
     private void onGestureCellClicked(int code) {
-        if (isBlockedByMapSwipe(code)) {
-            Toast.makeText(context, R.string.split_gesture_map_busy, Toast.LENGTH_LONG).show();
-            return;
-        }
         int current = SplitScreenStore.getGestureCode(context);
+        if (current != code) {
+            int owner = ownerOf(code);
+            if (owner != 0) {
+                DialogHelper.showGestureConflict(context, owner);
+                return;
+            }
+        }
         int next = current == code ? SplitScreenStore.GESTURE_OFF : code;
         SplitScreenStore.setGestureCode(context, next);
         callback.log(next == SplitScreenStore.GESTURE_OFF
@@ -488,9 +525,9 @@ public class SplitScreenTabBuilder {
         refreshGestureUi();
     }
 
-    private boolean isBlockedByMapSwipe(int code) {
-        return SplitScreenGesture.isReservedByMapSwipe(code)
-                && CarSystemGestureController.isEnabled(context);
+    /** Bu hareketi bölünmüş ekran dışında kullanan özelliğin ad kaynağı; yoksa 0. */
+    private int ownerOf(int code) {
+        return GestureConflicts.findOwnerLabel(context, code, GestureConflicts.Slot.SPLIT_SCREEN);
     }
 
     private void refreshGestureUi() {
@@ -504,7 +541,7 @@ public class SplitScreenTabBuilder {
 
         for (GestureCell cell : gestureCells) {
             boolean isSelected = cell.code == selected;
-            boolean blocked = isBlockedByMapSwipe(cell.code);
+            boolean blocked = !isSelected && ownerOf(cell.code) != 0;
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(UiStyles.dimenPx(context, R.dimen.oem_button_radius));
             bg.setColor(UiStyles.color(context, R.color.surfaceCardInner));
@@ -590,14 +627,19 @@ public class SplitScreenTabBuilder {
         if (!SplitScreenStore.hasPair(context)) {
             addInfoWarning(R.string.split_gesture_need_pair);
         }
-        if (isBlockedByMapSwipe(selected)) {
-            addInfoWarning(R.string.split_gesture_map_conflict);
+        int owner = ownerOf(selected);
+        if (owner != 0) {
+            addInfoWarning(context.getString(R.string.split_gesture_conflict, context.getString(owner)));
         }
     }
 
     private void addInfoWarning(int textRes) {
+        addInfoWarning(context.getString(textRes));
+    }
+
+    private void addInfoWarning(String text) {
         TextView warn = new TextView(context);
-        warn.setText(textRes);
+        warn.setText(text);
         warn.setTextSize(13);
         warn.setTypeface(null, Typeface.BOLD);
         warn.setTextColor(UiStyles.color(context, R.color.textLoading));

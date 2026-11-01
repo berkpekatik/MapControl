@@ -33,6 +33,8 @@ public class LogTabBuilder {
         void onReadAloud(String text);
         /** Hoşgeldin cümlesini tekrar okut */
         void onWelcomeTts();
+        void onOpenProfile();
+        void onOpenSoundGenerate();
     }
 
     private final Context context;
@@ -69,19 +71,34 @@ public class LogTabBuilder {
                 0, 1f);
         tabContent.addView(glassShell, shellParams);
 
-        LinearLayout logControlPanel = new LinearLayout(context);
-        logControlPanel.setOrientation(LinearLayout.HORIZONTAL);
-        logControlPanel.setPadding(0, 0, 0, 8);
-        logControlPanel.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        LinearLayout logHeader = new LinearLayout(context);
+        logHeader.setOrientation(LinearLayout.VERTICAL);
+        logHeader.setPadding(0, 0, 0, 8);
 
         TextView logTitle = new TextView(context);
         logTitle.setText(R.string.log_system_logs);
         logTitle.setTextSize(20);
         logTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        LinearLayout.LayoutParams logTitleParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        logControlPanel.addView(logTitle, logTitleParams);
+        logHeader.addView(logTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        android.widget.HorizontalScrollView buttonScroll = new android.widget.HorizontalScrollView(context);
+        buttonScroll.setHorizontalScrollBarEnabled(false);
+        buttonScroll.setFillViewport(true);
+        LinearLayout.LayoutParams buttonScrollParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        buttonScrollParams.topMargin = 8;
+        logHeader.addView(buttonScroll, buttonScrollParams);
+
+        LinearLayout logControlPanel = new LinearLayout(context);
+        logControlPanel.setOrientation(LinearLayout.HORIZONTAL);
+        logControlPanel.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        buttonScroll.addView(logControlPanel, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT));
 
         Button btnCameraTest = new Button(context);
         btnCameraTest.setText(R.string.log_camera_test);
@@ -111,6 +128,13 @@ public class LogTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         cameraTestParams.setMargins(0, 0, 8, 0);
         logControlPanel.addView(btnCameraTest, cameraTestParams);
+
+        logControlPanel.addView(
+                logNavButton(R.string.log_open_profile, v -> callback.onOpenProfile()),
+                logNavParams());
+        logControlPanel.addView(
+                logNavButton(R.string.log_open_generate, v -> callback.onOpenSoundGenerate()),
+                logNavParams());
 
         Button btnDmsFaces = new Button(context);
         btnDmsFaces.setText(R.string.log_dms_face_profiles);
@@ -236,7 +260,7 @@ public class LogTabBuilder {
         LinearLayout upperColumn = new LinearLayout(context);
         upperColumn.setOrientation(LinearLayout.VERTICAL);
         upperColumn.setBaselineAligned(false);
-        upperColumn.addView(logControlPanel, new LinearLayout.LayoutParams(
+        upperColumn.addView(logHeader, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         upperColumn.addView(btnClusterVDBusTest, benchBtnLp);
@@ -332,6 +356,25 @@ public class LogTabBuilder {
         btnClearLogs.setOnClickListener(v -> callback.onClearLogs());
 
         return tabContent;
+    }
+
+    private Button logNavButton(int textRes, View.OnClickListener click) {
+        Button button = new Button(context);
+        button.setText(textRes);
+        button.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        button.setTextSize(14);
+        UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSecondaryMuted));
+        button.setPadding(16, 8, 16, 8);
+        button.setOnClickListener(click);
+        return button;
+    }
+
+    private LinearLayout.LayoutParams logNavParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 8, 0);
+        return params;
     }
 
     public LinearLayout getTabContent() {

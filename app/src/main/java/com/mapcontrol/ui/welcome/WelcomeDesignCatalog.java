@@ -20,10 +20,12 @@ public final class WelcomeDesignCatalog {
     public static final String PREFS_NAME = "MapControlPrefs";
     public static final String PREF_KEY = "welcomeDesignId";
     public static final String PREF_LINE = "welcomeCustomText";
+    public static final String PREF_TTS_LINE = "welcomeTtsText";
     public static final String ID_OFF = "off";
     public static final String ID_SIGNATURE = "signature";
     public static final String ID_WINTER = "winter";
     public static final String ID_HIKE = "hike";
+    public static final String ID_PRESTIGE = "prestige";
 
     private static final WelcomeDesign OFF = new WelcomeDesign() {
         @Override
@@ -48,11 +50,34 @@ public final class WelcomeDesignCatalog {
         }
     };
 
+    /*
+     * Giriş tasarımları artık HTML (assets/welcome/*.html). Kodla çizilen eski tasarımlar
+     * listeden çıkarıldı, sınıflar silinmedi: WebView açılamazsa yedek olarak kullanılır.
+     * Aynı id'ler korunduğu için kullanıcının kayıtlı seçimi bozulmaz.
+     *
+     * Eski liste:
+     *   new SignatureWelcomeDesign(), new WinterTouchWelcomeDesign(), new MountainHikeWelcomeDesign()
+     *
+     * İleride HTML API'den gelirse WelcomeHtmlSource.fromAsset(...) yerine yeni bir kaynak verilir.
+     */
     private static final List<WelcomeDesign> DESIGNS = Collections.unmodifiableList(Arrays.asList(
             OFF,
-            new SignatureWelcomeDesign(),
-            new WinterTouchWelcomeDesign(),
-            new MountainHikeWelcomeDesign()
+            new HtmlWelcomeDesign(ID_SIGNATURE,
+                    R.string.welcome_design_signature, R.string.welcome_design_signature_help,
+                    WelcomeHtmlSource.fromAsset("welcome/signature.html"),
+                    new SignatureWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_WINTER,
+                    R.string.welcome_design_winter, R.string.welcome_design_winter_help,
+                    WelcomeHtmlSource.fromAsset("welcome/winter.html"),
+                    new WinterTouchWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_HIKE,
+                    R.string.welcome_design_hike, R.string.welcome_design_hike_help,
+                    WelcomeHtmlSource.fromAsset("welcome/hike.html"),
+                    new MountainHikeWelcomeDesign()),
+            new HtmlWelcomeDesign(ID_PRESTIGE,
+                    R.string.welcome_design_prestige, R.string.welcome_design_prestige_help,
+                    WelcomeHtmlSource.fromAsset("welcome/prestige.html"),
+                    new SignatureWelcomeDesign())
     ));
 
     private WelcomeDesignCatalog() {

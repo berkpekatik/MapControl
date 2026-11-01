@@ -453,6 +453,110 @@ public final class UiStyles {
                         new int[]{color(context, R.color.textMuted), accent, idle}));
     }
 
+    /**
+     * Compact single-row variant for short/wide (landscape) screens: title and the help of the
+     * selected option on the left, the segment track on the right. Same handle/behaviour as
+     * {@link #addBinarySegmentedControl}.
+     */
+    public static BinarySegmentHandle addInlineBinarySegmentedControl(Context context, LinearLayout parent,
+            String title,
+            String leftLabel, String rightLabel,
+            String leftHelp, String rightHelp,
+            boolean initialLeftSelected,
+            Consumer<Boolean> onCommit) {
+        int gap = dimenPx(context, R.dimen.spacing_medium);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout textCol = new LinearLayout(context);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+
+        TextView rowTitle = new TextView(context);
+        rowTitle.setText(title);
+        rowTitle.setTextSize(15);
+        rowTitle.setTextColor(color(context, R.color.textPrimary));
+        rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        textCol.addView(rowTitle, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView help = new TextView(context);
+        help.setTextSize(12);
+        help.setTextColor(color(context, R.color.textHint));
+        help.setMaxLines(2);
+        help.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        textCol.addView(help, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout track = new LinearLayout(context);
+        track.setOrientation(LinearLayout.HORIZONTAL);
+        setBackgroundRes(track, R.drawable.bg_segment_track);
+        int tpad = dimenPx(context, R.dimen.spacing_tiny);
+        track.setPadding(tpad, tpad, tpad, tpad);
+
+        TextView left = new TextView(context);
+        TextView right = new TextView(context);
+        left.setText(leftLabel);
+        right.setText(rightLabel);
+        for (TextView seg : new TextView[]{left, right}) {
+            seg.setTextSize(14);
+            seg.setGravity(Gravity.CENTER);
+            seg.setSingleLine(true);
+            seg.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            seg.setMinHeight(dimenPx(context, R.dimen.button_height));
+        }
+
+        final boolean[] state = {initialLeftSelected};
+        Runnable refresh = () -> {
+            boolean on = state[0];
+            TextView active = on ? left : right;
+            TextView idle = on ? right : left;
+            setBackgroundRes(active, R.drawable.bg_segment_thumb);
+            active.setTextColor(color(context, R.color.textPrimary));
+            active.setTypeface(null, android.graphics.Typeface.BOLD);
+            idle.setBackgroundColor(Color.TRANSPARENT);
+            idle.setTextColor(color(context, R.color.textSecondary));
+            idle.setTypeface(null, android.graphics.Typeface.NORMAL);
+            help.setText(on ? leftHelp : rightHelp);
+        };
+
+        left.setOnClickListener(v -> {
+            if (left.isEnabled() && !state[0]) {
+                state[0] = true;
+                refresh.run();
+                onCommit.accept(true);
+            }
+        });
+        right.setOnClickListener(v -> {
+            if (right.isEnabled() && state[0]) {
+                state[0] = false;
+                refresh.run();
+                onCommit.accept(false);
+            }
+        });
+        refresh.run();
+
+        LinearLayout.LayoutParams segLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        track.addView(left, segLp);
+        track.addView(right, segLp);
+
+        LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        textLp.setMarginEnd(gap);
+        row.addView(textCol, textLp);
+        row.addView(track, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowLp.setMargins(0, dimenPx(context, R.dimen.spacing_small), 0, dimenPx(context, R.dimen.spacing_small));
+        parent.addView(row, rowLp);
+
+        return new BinarySegmentHandle(state, refresh, onCommit, left, right, help);
+    }
+
     public static final class TernarySegmentHandle {
         private final int[] modeIds;
         private final int[] selectedIndex;

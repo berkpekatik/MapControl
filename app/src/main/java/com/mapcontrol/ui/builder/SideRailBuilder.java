@@ -7,7 +7,6 @@ import android.graphics.Typeface;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.text.TextUtils;
@@ -49,6 +48,7 @@ public class SideRailBuilder {
     private static final int TAB_FACE_RECOGNITION = 13;
     private static final int TAB_CAMERA_360 = 14;
     private static final int TAB_SPLIT_SCREEN = 15;
+    private static final int TAB_SUNROOF_AUTOMATION = 16;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -66,6 +66,7 @@ public class SideRailBuilder {
     private LinearLayout menuEqualizer;
     private LinearLayout menuClimateAutomation;
     private LinearLayout menuFaceRecognition;
+    private LinearLayout menuSunroofAutomation;
     private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
     private LinearLayout menuSplitScreen;
@@ -118,7 +119,6 @@ public class SideRailBuilder {
         menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
-        // Temporarily hidden: Profile rail item (uncomment addView and onClick below to restore).
         menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
@@ -127,6 +127,8 @@ public class SideRailBuilder {
                 t(R.string.side_rail_equalizer));
         menuClimateAutomation = createRailMenuItemView(R.drawable.ic_mdi_thermometer,
                 t(R.string.side_rail_climate_automation));
+        menuSunroofAutomation = createRailMenuItemView(R.drawable.ic_mdi_car_sunroof,
+                t(R.string.side_rail_sunroof_automation));
         menuFaceRecognition = createRailMenuItemView(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
@@ -141,11 +143,13 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
-        // menuContainer.addView(menuProfile); // Temporarily hidden — see comment above menuProfile creation.
+        menuProfile.setVisibility(View.GONE);
+        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
         menuContainer.addView(menuClimateAutomation);
+        menuContainer.addView(menuSunroofAutomation);
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
@@ -204,6 +208,8 @@ public class SideRailBuilder {
                 t(R.string.side_rail_equalizer));
         menuClimateAutomation = createPortraitRailItem(R.drawable.ic_mdi_thermometer,
                 t(R.string.side_rail_climate_automation));
+        menuSunroofAutomation = createPortraitRailItem(R.drawable.ic_mdi_car_sunroof,
+                t(R.string.side_rail_sunroof_automation));
         menuFaceRecognition = createPortraitRailItem(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
@@ -218,10 +224,13 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
+        menuProfile.setVisibility(View.GONE);
+        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
         menuContainer.addView(menuClimateAutomation);
+        menuContainer.addView(menuSunroofAutomation);
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
@@ -264,6 +273,11 @@ public class SideRailBuilder {
         menuFileUpload.setOnClickListener(v -> {
             callback.onTabSelected(TAB_FILE, t(R.string.side_rail_web));
             updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
+
+        menuProfile.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_PROFILE, t(R.string.side_rail_profile));
+            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuProjection.setOnClickListener(v -> {
@@ -313,6 +327,11 @@ public class SideRailBuilder {
                     callback.onTabSelected(TAB_CLIMATE_AUTOMATION, t(R.string.side_rail_climate_automation));
                     updateMenuSelection(menuClimateAutomation);
                 }));
+
+        menuSunroofAutomation.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_SUNROOF_AUTOMATION, t(R.string.side_rail_sunroof_automation));
+            updateMenuSelection(menuSunroofAutomation);
+        });
 
         menuFaceRecognition.setOnClickListener(v -> openEarlyAccessMenu(
                 "dmsFaceBetaWarningSeen",
@@ -643,6 +662,9 @@ public class SideRailBuilder {
             case TAB_CLIMATE_AUTOMATION:
                 updateMenuSelection(menuClimateAutomation);
                 break;
+            case TAB_SUNROOF_AUTOMATION:
+                updateMenuSelection(menuSunroofAutomation);
+                break;
             case TAB_FACE_RECOGNITION:
                 updateMenuSelection(menuFaceRecognition);
                 break;
@@ -794,17 +816,14 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen
         };
     }
 
     private void updateMenuSelection(LinearLayout selected, LinearLayout... others) {
         selectedMenuRow = selected;
-        applyRailRowSelectedState(selected, true);
-        for (LinearLayout other : others) {
-            if (other != null && other != selected) {
-                applyRailRowSelectedState(other, false);
-            }
+        if (selected != null) {
+            applyRailRowSelectedState(selected, true);
         }
         for (LinearLayout row : menuRows()) {
             if (row != null && row != selected) {

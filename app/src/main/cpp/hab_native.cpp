@@ -1,17 +1,14 @@
-// HAB native köprü.
-//  Adım 1 (nativeProbe): /dev/hab open testi + libuhab dlopen/sembol varlık testi.
-//  Adım 2 (nativeSessionTest): mycar kvSy'den çıkarılan protokol ile qcarcam
-//    sunucusuna oturum açma denemesi:
-//      /dev/hab aç -> kanal aç (ioctl 0xC0100A04, subId=0)
-//      -> 32B tanışma başlığı gönder/al -> tip 17 (init) -> tip 0 (giriş listesi)
-//      -> tip 19 (kapat) -> kanal kapat.
-//    Stream açma / buffer ayırma / kare alma YOK.
+// HAB native köprü: qcarcam sunucusundan kamera akışı (kamera hub'ı), sıfır kopya
+// (dma-buf -> EGLImage) ve CPU kayıt yolu için YUYV -> I420 dönüşümü.
+//  Oturum: /dev/hab aç -> kanal aç (ioctl 0xC0100A04, subId=0)
+//    -> 32B tanışma başlığı gönder/al -> tip 17 (init) -> kamera: 1 -> 5 -> 7, kare 11/12.
+//  (Eski teşhis testleri - probe/oturum/tek kare - kaldırıldı; git geçmişinde.)
 #include <jni.h>
 
 #include <android/log.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <time.h>
@@ -31,6 +28,12 @@
 #include <sys/mman.h>
 #include <vector>
 
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
+
+#define NLOG(...) __android_log_print(ANDROID_LOG_INFO, "HabNative", __VA_ARGS__)
+
 namespace {
 
 // ---- HAB ioctl arayüzü (libuhab ile aynı numaralar, tip 0x0A) ----
@@ -41,6 +44,38 @@ constexpr unsigned long kHabIoctlClose = 0x40080A05UL;  // nr 5, 0x08 B
 constexpr unsigned long kHabIoctlExport = 0xC0180A06UL;   // nr 6, 0x18 B
 constexpr unsigned long kHabIoctlUnexport = 0x400C0A08UL; // nr 8, 0x0C B
 constexpr unsigned long kIonIoctlAlloc = 0xC0184900UL;    // ION_IOC_ALLOC
+
+// ---- ION onbellekli tampon ("hizli okuma") ----
+// Onbelleksiz (flags=0) tampondan CPU okumasi cok yavas (aracta olculen: kamera basina
+// 25 MB/sn kopya ~%11 cekirdek). Onbellekli tamponda kamera DMA ile bellege yazar; CPU'nun
+// onbellegi bunu gormez, bu yuzden her okumadan once DMA_BUF_IOCTL_SYNC(START) ile
+// gecersiz kilinir, okuma bitince END yapilir. Sync basarisizsa onbellekli tampon guvenli
+// okunamaz: o kamera onbelleksiz moda kalici olarak doner (gSlotCachedBroken).
+constexpr uint32_t kIonFlagCached = 1;  // ION_FLAG_CACHED
+struct DmaBufSyncReq {
+    uint64_t flags;
+};
+static_assert(sizeof(DmaBufSyncReq) == 8, "dma_buf_sync");
+constexpr uint64_t kDmaBufSyncRead = 1;
+constexpr uint64_t kDmaBufSyncWrite = 2;
+constexpr uint64_t kDmaBufSyncRw = kDmaBufSyncRead | kDmaBufSyncWrite;
+constexpr uint64_t kDmaBufSyncStart = 0;
+constexpr uint64_t kDmaBufSyncEnd = 4;
+constexpr unsigned long kDmaBufIoctlSync = 0x40086200UL;  // _IOW('b', 0, struct dma_buf_sync)
+
+bool DmaBufSync(int fd, uint64_t flags) {
+    DmaBufSyncReq req{flags};
+    for (int attempt = 0; attempt < 3; attempt++) {
+        if (ioctl(fd, kDmaBufIoctlSync, &req) == 0) return true;
+        if (errno != EINTR && errno != EAGAIN) return false;
+    }
+    return false;
+}
+
+// Java ayari (varsayilan acik). Kamera acilirken okunur; degisiklik yeniden acilista gecerli.
+std::atomic<bool> gIonCachedEnabled{true};
+// Kamera bazinda: onbellekli acilis/sync basarisiz oldu, bu oturum boyunca onbelleksiz.
+std::atomic<bool> gSlotCachedBroken[4];
 
 struct HabOpenReq {
     uint32_t id;    // çıkış: çekirdeğin verdiği kanal id
@@ -68,17 +103,6 @@ static_assert(sizeof(HabOpenReq) == 0x10, "open req");
 static_assert(sizeof(HabSendReq) == 0x18, "send req");
 static_assert(sizeof(HabRecvReq) == 0x18, "recv req");
 static_assert(sizeof(HabCloseReq) == 0x08, "close req");
-
-void AppendHex(std::string* out, const uint8_t* data, size_t len, size_t maxLen) {
-    size_t n = len < maxLen ? len : maxLen;
-    char tmp[4];
-    for (size_t i = 0; i < n; i++) {
-        snprintf(tmp, sizeof(tmp), "%02x", data[i]);
-        *out += tmp;
-        if (i + 1 < n) *out += ' ';
-    }
-    if (len > n) *out += " ...";
-}
 
 uint64_t NowNs() {
     struct timespec ts;
@@ -114,18 +138,46 @@ int HabSend(int fd, uint32_t chan, const void* buf, uint32_t size) {
     return 0;
 }
 
+// /dev/hab poll destegi (surucuye bagli, aracta dogrulanmadi):
+// 0 = deneniyor, 1 = calistigi goruldu, 2 = kapali (desteklenmiyor/hata).
+// poll yalnizca bekleme suresini erken bitirir; zaman asimlari eski uyku plani ile ayni,
+// yani poll calismasa da davranis eskisinden kotu olmaz.
+std::atomic<int> gHabPollMode{0};
+std::atomic<int> gHabPollReal{0};      // poll "hazir" sonrasi recv basarili
+std::atomic<int> gHabPollSpurious{0};  // poll "hazir" ama recv EAGAIN
+constexpr int kHabPollSpuriousLimit = 64;
+
+void HabPollDisable(const char* why) {
+    if (gHabPollMode.exchange(2) != 2) {
+        NLOG("HAB poll kapatildi (%s); uyku ile yoklamaya donuldu", why);
+    }
+}
+
+void SleepNs(long ns) {
+    struct timespec ts{0, ns};
+    nanosleep(&ts, nullptr);
+}
+
 // mycar FUN_0012d914 eşdeğeri: deadline'a kadar EAGAIN/EINTR'de tekrar dene.
 int HabRecv(int fd, uint32_t chan, void* buf, uint32_t cap, int timeoutMs, uint32_t* outSize) {
-    uint64_t deadline = NowNs() / 1000000ULL + (uint64_t)timeoutMs;
+    const uint64_t deadlineNs = NowNs() + (uint64_t)timeoutMs * 1000000ULL;
     int polls = 0;
+    bool pollReady = false;  // son bekleme poll "hazir" ile bitti
     while (true) {
-        if (NowNs() / 1000000ULL >= deadline) return -110;  // -ETIMEDOUT
+        const uint64_t now = NowNs();
+        if (now >= deadlineNs) return -110;  // -ETIMEDOUT
         HabRecvReq req{};
         req.buf = buf;
         req.chan = chan;
         req.size = cap;
         req.timeout = 1;  // variant 2 davranışı
         if (ioctl(fd, kHabIoctlRecv, &req) == 0) {
+            if (pollReady && gHabPollReal.fetch_add(1) == 0) {
+                int expected = 0;
+                if (gHabPollMode.compare_exchange_strong(expected, 1)) {
+                    NLOG("HAB poll calisiyor (veri gelince erken uyanma)");
+                }
+            }
             *outSize = req.size;
             return 0;
         }
@@ -133,10 +185,41 @@ int HabRecv(int fd, uint32_t chan, void* buf, uint32_t cap, int timeoutMs, uint3
         if (e != EAGAIN && e != EINTR) return -e;
         // Kontrol cevaplari genelde ilk birkac ms'de gelir; uzayan beklemede
         // (kare bekleme) uyanma sayisini azaltmak icin araligi 4 ms'ye kadar acar.
-        long sleepNs = polls < 4 ? 1000000L : (polls < 8 ? 2000000L : 4000000L);
+        const long sleepNs = polls < 4 ? 1000000L : (polls < 8 ? 2000000L : 4000000L);
         polls++;
-        struct timespec ts{0, sleepNs};
-        nanosleep(&ts, nullptr);
+        if (pollReady) {
+            // "Hazir" dendi ama bu kanalda veri yok: surucu poll'u desteklemiyor (varsayilan
+            // maske hep hazir doner) ya da ayni fd'deki baska kanal. Donmemek icin uyunur.
+            pollReady = false;
+            if (gHabPollMode.load(std::memory_order_relaxed) == 0 &&
+                gHabPollSpurious.fetch_add(1) + 1 >= kHabPollSpuriousLimit &&
+                gHabPollReal.load() == 0) {
+                HabPollDisable("hep hazir, veri yok");
+            }
+            SleepNs(sleepNs);
+            continue;
+        }
+        if (gHabPollMode.load(std::memory_order_relaxed) != 2) {
+            uint64_t leftMs = (deadlineNs - now + 999999ULL) / 1000000ULL;
+            int waitMs = (int)((sleepNs + 999999L) / 1000000L);
+            if ((uint64_t)waitMs > leftMs) waitMs = (int)leftMs;
+            if (waitMs < 1) waitMs = 1;
+            struct pollfd p{fd, POLLIN, 0};
+            int pr = poll(&p, 1, waitMs);
+            if (pr == 0) continue;  // zaman asimi: poll uykunun yerini tuttu
+            if (pr > 0) {
+                if ((p.revents & (POLLERR | POLLNVAL | POLLHUP)) == 0) {
+                    pollReady = true;
+                    continue;
+                }
+                HabPollDisable("revents hata");
+            } else if (errno == EINTR) {
+                continue;
+            } else {
+                HabPollDisable("poll hata");
+            }
+        }
+        SleepNs(sleepNs);
     }
 }
 
@@ -153,158 +236,6 @@ int HabChannelClose(int fd, uint32_t chan) {
     req.zero = 0;
     if (ioctl(fd, kHabIoctlClose, &req) != 0) return -errno;
     return 0;
-}
-
-std::string SessionTest() {
-    std::string out = "HAB Oturum: ";
-
-    int fd = open("/dev/hab", O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        out += "open(/dev/hab)=FAIL errno=" + std::to_string(errno);
-        return out;
-    }
-    out += "fd OK | ";
-
-    uint32_t chan = 0;
-    int r = HabChannelOpen(fd, 0, &chan);
-    if (r != 0 || chan == 0) {
-        out += "kanal ac=FAIL ret=" + std::to_string(r) + " id=" + std::to_string(chan);
-        close(fd);
-        return out;
-    }
-    out += "kanal id=" + std::to_string(chan) + " | ";
-
-    // Tanışma başlığı (32B): {0,3} {token,pid} {0x407,0x407} {flag=1,0}
-    uint32_t header[8] = {};
-    header[0] = 0;
-    header[1] = 3;
-    header[2] = (uint32_t)MakeSessionToken();
-    header[3] = (uint32_t)getpid();
-    header[4] = 0x407;
-    header[5] = 0x407;
-    header[6] = 1;  // flag baytı (+24)
-    header[7] = 0;
-
-    r = HabSend(fd, chan, header, sizeof(header));
-    if (r != 0) {
-        out += "baslik gonder=FAIL ret=" + std::to_string(r);
-        HabChannelClose(fd, chan);
-        close(fd);
-        return out;
-    }
-    out += "baslik gonderildi (token=0x";
-    {
-        char tmp[16];
-        snprintf(tmp, sizeof(tmp), "%08x", header[2]);
-        out += tmp;
-    }
-    out += ") | ";
-
-    uint8_t resp[64] = {};
-    uint32_t respSize = 0;
-    r = HabRecv(fd, chan, resp, sizeof(resp), 750, &respSize);
-    if (r != 0) {
-        out += "baslik cevap=FAIL ret=" + std::to_string(r);
-        HabChannelClose(fd, chan);
-        close(fd);
-        return out;
-    }
-    uint32_t respA = 0, respB = 0;
-    memcpy(&respA, resp, 4);
-    if (respSize >= 8) memcpy(&respB, resp + 4, 4);
-    out += "cevap " + std::to_string(respSize) + "B A=" + std::to_string(respA) +
-           " B=" + std::to_string(respB) + " [";
-    AppendHex(&out, resp, respSize, 32);
-    out += "] | ";
-
-    // Kontrol kanalı (A): subId = cevapA + 1 (mycar beginSession akışı)
-    uint32_t chanA = 0;
-    r = HabChannelOpen(fd, respA + 1, &chanA);
-    if (r != 0 || chanA == 0) {
-        out += "kanalA ac=FAIL ret=" + std::to_string(r) + " id=" + std::to_string(chanA);
-        HabChannelClose(fd, chan);
-        close(fd);
-        return out;
-    }
-    out += "kanalA id=" + std::to_string(chanA) + " | ";
-
-    // Tip 17: oturum başlat (kanal A üzerinden)
-    uint8_t msg[64] = {};
-    uint64_t type17 = 17;
-    memcpy(msg, &type17, 8);
-    uint32_t msgSize = 0;
-    r = HabSend(fd, chanA, msg, 8);
-    if (r == 0) {
-        r = HabRecv(fd, chanA, msg, sizeof(msg), 750, &msgSize);
-        if (r != 0) r = -1000 + r;  // recv hatasını send'den ayır
-    } else {
-        r = -2000 + r;
-    }
-    if (r != 0) {
-        out += "tip17=FAIL ret=" + std::to_string(r);
-        HabChannelClose(fd, chanA);
-        HabChannelClose(fd, chan);
-        close(fd);
-        return out;
-    }
-    uint32_t respType = 0;
-    memcpy(&respType, msg, 4);
-    out += "tip17 cevap " + std::to_string(msgSize) + "B tip=" + std::to_string(respType) + " [";
-    AppendHex(&out, msg, msgSize, 32);
-    out += "] | ";
-
-    // Tip 0: giriş listesi (0x1418B tampon, kayıtlar +0x14'ten, 0x140'ar bayt)
-    static uint8_t listBuf[0x1418];
-    memset(listBuf, 0, sizeof(listBuf));
-    uint32_t hasOut = 1, capacity = 16;
-    memcpy(listBuf + 8, &hasOut, 4);
-    memcpy(listBuf + 12, &capacity, 4);
-    uint32_t listSize = 0;
-    r = HabTransact(fd, chanA, listBuf, sizeof(listBuf), sizeof(listBuf), 1000, &listSize);
-    if (r != 0) {
-        out += "tip0=FAIL ret=" + std::to_string(r);
-    } else {
-        uint32_t c12 = 0, c16 = 0;
-        memcpy(&c12, listBuf + 12, 4);
-        memcpy(&c16, listBuf + 16, 4);
-        out += "tip0 cevap " + std::to_string(listSize) + "B adayAdet[12]=" + std::to_string(c12) +
-               " [16]=" + std::to_string(c16) + " hdr[";
-        AppendHex(&out, listBuf, listSize, 32);
-        out += "]";
-        // Her kayıtta sıfırdan farklı dword'leri dök (descriptor düzenini çözmek için)
-        for (int i = 0; i < 16; i++) {
-            size_t off = 0x14 + (size_t)i * 0x140;
-            if (listSize < off + 0x140) break;
-            out += " | K" + std::to_string(i) + ":";
-            bool any = false;
-            for (int d = 0; d < 0x140 / 4; d++) {
-                uint32_t v = 0;
-                memcpy(&v, listBuf + off + d * 4, 4);
-                if (v != 0) {
-                    char tmp[32];
-                    snprintf(tmp, sizeof(tmp), " +%x=%x", d * 4, v);
-                    out += tmp;
-                    any = true;
-                }
-            }
-            if (!any) out += " (bos)";
-        }
-    }
-    out += " | ";
-
-    // Tip 19: oturum kapat
-    uint8_t bye[64] = {};
-    uint64_t type19 = 19;
-    memcpy(bye, &type19, 8);
-    uint32_t byeSize = 0;
-    r = HabTransact(fd, chanA, bye, 8, sizeof(bye), 300, &byeSize);
-    out += "tip19=" + std::string(r == 0 ? "OK" : "FAIL ret=" + std::to_string(r)) + " | ";
-
-    HabChannelClose(fd, chanA);
-    HabChannelClose(fd, chan);
-    close(fd);
-    out += "kanal kapatildi";
-    return out;
 }
 
 struct HabExportReq {
@@ -330,7 +261,7 @@ struct IonAllocReq {
 };
 static_assert(sizeof(IonAllocReq) == 24, "ion alloc");
 
-// Oturum açma adımları (SessionTest ile aynı); başarılıysa fd/kanallar dolu döner.
+// Oturum açma adımları; başarılıysa fd/kanallar dolu döner.
 struct Session {
     int fd = -1;
     uint32_t chanHs = 0;
@@ -390,7 +321,6 @@ bool OpenSession(std::string* out, Session* s) {
     return true;
 }
 
-#define NLOG(...) __android_log_print(ANDROID_LOG_INFO, "HabNative", __VA_ARGS__)
 
 void CloseSession(Session* s, bool sendBye) {
     if (s->fd < 0) return;
@@ -465,6 +395,8 @@ struct CamStream {
     std::vector<Buf> bufs;
     bool opened = false;
     bool started = false;
+    /** Tamponlar ION_FLAG_CACHED ile ayrildi: CPU okumasi DMA_BUF sync ile sarilmali. */
+    bool cached = false;
 };
 
 bool CamOpenInput(Session& s, CamStream& c, std::string* out, uint32_t* chanBSlot) {
@@ -500,7 +432,7 @@ bool CamConfig(Session& s, int ionFd, CamStream& c, std::string* out) {
         IonAllocReq req{};
         req.len = c.allocSize;
         req.heapMask = 0x02000000;
-        req.flags = 0;
+        req.flags = c.cached ? kIonFlagCached : 0;
         req.fd = -1;
         if (ioctl(ionFd, kIonIoctlAlloc, &req) != 0 || req.fd < 0) {
             *out += "ION alloc=FAIL errno=" + std::to_string(errno); return false;
@@ -515,10 +447,19 @@ bool CamConfig(Session& s, int ionFd, CamStream& c, std::string* out) {
         b.fd = req.fd;
         b.ptr = ptr;
         c.bufs.push_back(b);
+        if (c.cached) {
+            // Cekirdek tamponu sifirlarken yazdigi satirlar onbellekte "kirli" kalabilir; kamera
+            // yazdiktan sonra geri yazilirlarsa goruntuyu ezer (siyah serit). Sunucuya vermeden
+            // once tamami gecersiz kilinip temizlenir (START+END, cift yon).
+            if (!DmaBufSync(req.fd, kDmaBufSyncStart | kDmaBufSyncRw) ||
+                !DmaBufSync(req.fd, kDmaBufSyncEnd | kDmaBufSyncRw)) {
+                *out += "ION sync=FAIL errno=" + std::to_string(errno);
+                return false;
+            }
+        }
     }
     {
-        static uint8_t msg[1000];
-        memset(msg, 0, sizeof(msg));
+        uint8_t msg[1000] = {};  // yigin: static paylasimli tampon gerekmez (1 KB)
         uint32_t type = 5;
         memcpy(msg, &type, 4);
         memcpy(msg + 8, &c.token, 8);
@@ -580,13 +521,6 @@ bool CamStartStream(Session& s, CamStream& c, std::string* out) {
     c.started = true;
     NLOG("CamStart id=%u: tip7 OK (akista)", c.inputId);
     return true;
-}
-
-bool CamOpen(Session& s, int ionFd, CamStream& c, std::string* out, uint32_t* chanBSlot,
-             bool /*firstOfSession*/) {
-    if (!CamOpenInput(s, c, out, chanBSlot)) return false;
-    if (!CamConfig(s, ionFd, c, out)) return false;
-    return CamStartStream(s, c, out);
 }
 
 void CamClose(Session& s, CamStream& c) {
@@ -692,8 +626,7 @@ bool QueryInputList(std::vector<InputDesc>* out) {
         CloseSession(&s, false);
         return false;
     }
-    static uint8_t listBuf[0x14 + 16 * 0x140];
-    memset(listBuf, 0, sizeof(listBuf));
+    uint8_t listBuf[0x14 + 16 * 0x140] = {};  // ~5 KB yigin (static paylasimli tampon yerine)
     uint32_t hasOut = 1, capacity = 16;
     memcpy(listBuf + 8, &hasOut, 4);
     memcpy(listBuf + 12, &capacity, 4);
@@ -839,20 +772,50 @@ void SlotResetHoldLocked(Slot& s) {
     s.generation++;
 }
 
-bool SlotOpenLocked(int i) {
+// Tek acilis denemesi. Basarisizsa her sey kapatilir; *configFailed: hata tampon ayirma /
+// sync / export / tip5 adiminda mi (onbellekliyse onbelleksiz tekrar denemeye deger).
+bool SlotTryOpenLocked(int i, bool cached, std::string* step, bool* configFailed) {
     Slot& s = gSlots[i];
+    *configFailed = false;
     s.session = Session();
     s.chanB = 0;
     s.cam = CamStream();
     s.cam.inputId = kCamIds[i];
+    s.cam.cached = cached;
+    SlotApplyDescriptorLocked(i, s.cam);
+    bool ok = OpenSession(step, &s.session);
+    if (ok) ok = CamOpenInput(s.session, s.cam, step, &s.chanB);
+    if (ok) {
+        ok = CamConfig(s.session, gIonFd, s.cam, step);
+        if (!ok) *configFailed = true;
+    }
+    if (ok) ok = CamStartStream(s.session, s.cam, step);
+    if (!ok) {
+        CamClose(s.session, s.cam);
+        if (s.chanB != 0) { HabChannelClose(s.session.fd, s.chanB); s.chanB = 0; }
+        CloseSession(&s.session, true);
+    }
+    return ok;
+}
+
+bool SlotOpenLocked(int i) {
+    Slot& s = gSlots[i];
     PublishSlotDesc(i, nullptr);
     SetSlotError(i, 0, "");
-    SlotApplyDescriptorLocked(i, s.cam);
+    bool cached = gIonCachedEnabled.load() && !gSlotCachedBroken[i].load();
     std::string step;
-    bool ok = OpenSession(&step, &s.session);
-    if (ok) ok = CamOpenInput(s.session, s.cam, &step, &s.chanB);
-    if (ok) ok = CamConfig(s.session, gIonFd, s.cam, &step);
-    if (ok) ok = CamStartStream(s.session, s.cam, &step);
+    bool configFailed = false;
+    bool ok = SlotTryOpenLocked(i, cached, &step, &configFailed);
+    if (!ok && cached && configFailed) {
+        // Onbellekli tampon kabul edilmedi (ayirma/sync/export): eski yolla tekrar dene.
+        NLOG("kamera id=%u onbellekli acilamadi (%s); onbelleksiz deneniyor", kCamIds[i],
+             step.c_str());
+        gSlotCachedBroken[i] = true;
+        cached = false;
+        step.clear();
+        SetSlotError(i, 0, "");
+        ok = SlotTryOpenLocked(i, false, &step, &configFailed);
+    }
     if (!ok) {
         NLOG("kamera id=%u acilamadi: %s", s.cam.inputId, step.c_str());
         {
@@ -860,9 +823,6 @@ bool SlotOpenLocked(int i) {
             if (gSlotErrCode[i] == 0) gSlotErrCode[i] = 4;
             gSlotErrDetail[i] = step;
         }
-        CamClose(s.session, s.cam);
-        if (s.chanB != 0) { HabChannelClose(s.session.fd, s.chanB); s.chanB = 0; }
-        CloseSession(&s.session, true);
         gSlotStatus[i] = 2;
         return false;
     }
@@ -881,8 +841,10 @@ bool SlotOpenLocked(int i) {
     gSlotStatus[i] = 1;
     SetSlotError(i, 0, "");
     PublishSlotDesc(i, &s.cam);
-    NLOG("kamera id=%u acik %ux%u fps=%.1f format=0x%08x", s.cam.inputId, s.cam.width,
-         s.cam.height, (double)s.cam.fps, s.cam.format);
+    NLOG("kamera id=%u acik %ux%u fps=%.1f format=0x%08x ion=%s", s.cam.inputId, s.cam.width,
+         s.cam.height, (double)s.cam.fps, s.cam.format,
+         s.cam.cached ? "onbellekli"
+                      : (gIonCachedEnabled.load() ? "onbelleksiz (geri donus)" : "onbelleksiz (ayar)"));
     return true;
 }
 
@@ -951,13 +913,27 @@ void HubStop() {
 // 1920x1380'lik araclarda goruldu; asagidaki tum tuketiciler YUYV varsayar.
 constexpr uint32_t kFormatUyvy = 0x07080102;
 
+// UYVY -> YUYV her 16 bitlik ciftin iki baytini yer degistirmektir:
+// [U Y0][V Y1] -> [Y0 U][Y1 V]. NEON'da vrev16q_u8 ile 16 bayt/komut.
 void SwapUyvyToYuyv(uint8_t* data, size_t bytes) {
-    for (size_t i = 0; i + 3 < bytes; i += 4) {
-        uint8_t u = data[i], y0 = data[i + 1], v = data[i + 2], y1 = data[i + 3];
-        data[i] = y0;
-        data[i + 1] = u;
-        data[i + 2] = y1;
-        data[i + 3] = v;
+    size_t i = 0;
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+    for (; i + 64 <= bytes; i += 64) {
+        uint8x16x4_t v = vld1q_u8_x4(data + i);
+        v.val[0] = vrev16q_u8(v.val[0]);
+        v.val[1] = vrev16q_u8(v.val[1]);
+        v.val[2] = vrev16q_u8(v.val[2]);
+        v.val[3] = vrev16q_u8(v.val[3]);
+        vst1q_u8_x4(data + i, v);
+    }
+    for (; i + 16 <= bytes; i += 16) {
+        vst1q_u8(data + i, vrev16q_u8(vld1q_u8(data + i)));
+    }
+#endif
+    for (; i + 1 < bytes; i += 2) {
+        uint8_t t = data[i];
+        data[i] = data[i + 1];
+        data[i + 1] = t;
     }
 }
 
@@ -966,29 +942,41 @@ void SwapUyvyToYuyv(uint8_t* data, size_t bytes) {
 int HubGrab(int i, uint8_t* dst, size_t cap, int mode, bool hold) {
     if (i < 0 || i >= 4) return -1;
     Slot& s = gSlots[i];
-    std::lock_guard<std::mutex> io(s.io);
-    if (!s.active) return -1;
-    std::vector<int> toRelease;
+    uint64_t lastFrameNs = 0;
+    uint64_t intervalNs = 0;
     {
-        std::lock_guard<std::mutex> h(s.hold);
-        toRelease.swap(s.pendingRelease);
-        if (!hold && s.latestIdx >= 0) {
-            toRelease.push_back(s.latestIdx);
-            s.latestIdx = -1;
+        std::lock_guard<std::mutex> io(s.io);
+        if (!s.active) return -1;
+        // GL'in biraktigi kareler bekleme oncesi iade edilir (sunucu bos buffer'a erken yazar).
+        std::vector<int> toRelease;
+        {
+            std::lock_guard<std::mutex> h(s.hold);
+            toRelease.swap(s.pendingRelease);
+            if (!hold && s.latestIdx >= 0) {
+                toRelease.push_back(s.latestIdx);
+                s.latestIdx = -1;
+            }
         }
+        for (int idx : toRelease) CamRelease(s.session, s.cam, (uint32_t)idx);
+        lastFrameNs = s.lastFrameNs;
+        intervalNs = s.intervalNs;
     }
-    for (int idx : toRelease) CamRelease(s.session, s.cam, (uint32_t)idx);
 
     // Sonraki kare beklenen zamandan once istenmez: yoklama penceresi kisalir.
-    if (s.lastFrameNs != 0) {
-        uint64_t target = std::min<uint64_t>(s.intervalNs * 6 / 10, 30000000ULL);
-        uint64_t elapsed = NowNs() - s.lastFrameNs;
+    // Bekleme io kilidi disinda: kapatma/yeniden baslatma bu sureyi beklemez.
+    if (lastFrameNs != 0) {
+        uint64_t target = std::min<uint64_t>(intervalNs * 6 / 10, 30000000ULL);
+        uint64_t elapsed = NowNs() - lastFrameNs;
         if (elapsed < target) {
             uint64_t waitNs = target - elapsed;
             struct timespec ts{(time_t)(waitNs / 1000000000ULL), (long)(waitNs % 1000000000ULL)};
             nanosleep(&ts, nullptr);
         }
     }
+
+    std::lock_guard<std::mutex> io(s.io);
+    // Bekleme sirasinda kapatilmis (HubStop) olabilir; yeniden acildiysa yeni oturumla devam.
+    if (!s.active) return -1;
     uint32_t grabStatus = 0;
     int grabRet = 0;
     int idx = CamGrab(s.session, s.chanB, s.cam, 3, 5, &grabStatus, &grabRet);
@@ -1011,15 +999,34 @@ int HubGrab(int i, uint8_t* dst, size_t cap, int mode, bool hold) {
     const uint8_t* src = (const uint8_t*)s.cam.bufs[idx].ptr;
     const size_t stride = s.cam.stride;
     const uint32_t halfRows = s.cam.height / 2;
+    const bool copyFull = dst != nullptr && mode == kCopyFull && cap >= s.cam.frameSize;
+    const bool copyHalf = !copyFull && dst != nullptr && mode == kCopyHalf &&
+                          cap >= stride * halfRows;
+    const int bufFd = s.cam.bufs[idx].fd;
+    const bool syncRead = s.cam.cached && (copyFull || copyHalf);
+    if (syncRead && !DmaBufSync(bufFd, kDmaBufSyncStart | kDmaBufSyncRead)) {
+        // Onbellek gecersiz kilinamadi: kare bayat olabilir, kopyalanmaz. Kamera hata
+        // sayacina takilip yeniden acilinca onbelleksiz moda gecer.
+        int e = errno;
+        if (!gSlotCachedBroken[i].exchange(true)) {
+            NLOG("kamera id=%u DMA_BUF sync FAIL errno=%d; onbelleksiz moda geciliyor",
+                 s.cam.inputId, e);
+        }
+        CamRelease(s.session, s.cam, (uint32_t)idx);
+        return -1;
+    }
     size_t copied = 0;
-    if (dst != nullptr && mode == kCopyFull && cap >= s.cam.frameSize) {
+    if (copyFull) {
         memcpy(dst, src, s.cam.frameSize);
         copied = s.cam.frameSize;
-    } else if (dst != nullptr && mode == kCopyHalf && cap >= stride * halfRows) {
+    } else if (copyHalf) {
         for (uint32_t y = 0; y < halfRows; y++) {
             memcpy(dst + y * stride, src + (size_t)(y * 2) * stride, stride);
         }
         copied = stride * halfRows;
+    }
+    if (syncRead) {
+        DmaBufSync(bufFd, kDmaBufSyncEnd | kDmaBufSyncRead);
     }
     if (copied > 0 && s.cam.format == kFormatUyvy) {
         SwapUyvyToYuyv(dst, copied);
@@ -1058,6 +1065,54 @@ PFNEGLCREATEIMAGEKHRPROC pEglCreateImageKHR = nullptr;
 PFNEGLDESTROYIMAGEKHRPROC pEglDestroyImageKHR = nullptr;
 PFNGLEGLIMAGETARGETTEXTURE2DOESPROC pGlEglImageTargetTexture2DOES = nullptr;
 
+// ---- Cizim bitis isareti (glFinish yerine) ----
+// Sifir kopyada GL'in cizdigi kare, GPU okumayi bitirmeden sunucuya iade edilmemeli.
+// Eskiden her cizimden sonra glFinish ile render thread'i GPU'yu bekliyordu. Simdi cizimden
+// sonra fence konur (ZcFenceInsert) ve kare iadesinden hemen once (ZcAcquire/ZcDetach) beklenir.
+// Arada render thread'i sonraki kareyi beklerken GPU isini bitirir; bekleme genelde sifirdir.
+// EGL_KHR_fence_sync yoksa veya fence olusturulamazsa eski glFinish davranisi kullanilir.
+PFNEGLCREATESYNCKHRPROC pEglCreateSyncKHR = nullptr;
+PFNEGLDESTROYSYNCKHRPROC pEglDestroySyncKHR = nullptr;
+PFNEGLCLIENTWAITSYNCKHRPROC pEglClientWaitSyncKHR = nullptr;
+EGLSyncKHR gZcFence = EGL_NO_SYNC_KHR;
+constexpr EGLTimeKHR kZcFenceTimeoutNs = 200000000ULL;  // 200 ms; asilirsa glFinish
+
+// Bekleyen fence varsa GPU bitene kadar bekler (yalnizca render thread'i).
+void ZcFenceWait() {
+    if (gZcFence == EGL_NO_SYNC_KHR) return;
+    EGLint r = EGL_FALSE;
+    if (gZcDisplay != EGL_NO_DISPLAY && pEglClientWaitSyncKHR != nullptr) {
+        r = pEglClientWaitSyncKHR(gZcDisplay, gZcFence, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
+                                  kZcFenceTimeoutNs);
+    }
+    if (r != EGL_CONDITION_SATISFIED_KHR) {
+        glFinish();  // zaman asimi/hata: emin olmak icin tam bekleme
+    }
+    if (gZcDisplay != EGL_NO_DISPLAY && pEglDestroySyncKHR != nullptr) {
+        pEglDestroySyncKHR(gZcDisplay, gZcFence);
+    }
+    gZcFence = EGL_NO_SYNC_KHR;
+}
+
+// Cizimden sonra cagrilir. Ayni baglamdaki komutlar sirali bittiginden yeni fence eskisini
+// kapsar; eskisi beklenmeden birakilir (onizleme + kayit ayni turda cizilirse bekleme olmaz).
+void ZcFenceInsert() {
+    if (gZcDisplay == EGL_NO_DISPLAY || pEglCreateSyncKHR == nullptr) {
+        glFinish();
+        return;
+    }
+    if (gZcFence != EGL_NO_SYNC_KHR) {
+        pEglDestroySyncKHR(gZcDisplay, gZcFence);
+        gZcFence = EGL_NO_SYNC_KHR;
+    }
+    gZcFence = pEglCreateSyncKHR(gZcDisplay, EGL_SYNC_FENCE_KHR, nullptr);
+    if (gZcFence == EGL_NO_SYNC_KHR) {
+        glFinish();
+        return;
+    }
+    glFlush();  // fence GPU kuyruguna gitsin (aksi halde bekleme sonsuza kalabilir)
+}
+
 bool ZcInit() {
     EGLDisplay dpy = eglGetCurrentDisplay();
     if (dpy == EGL_NO_DISPLAY) return false;
@@ -1075,7 +1130,23 @@ bool ZcInit() {
              pGlEglImageTargetTexture2DOES != nullptr;
     }
     gZcDisplay = ok ? dpy : EGL_NO_DISPLAY;
-    NLOG("ZcInit: %s", ok ? "dma-buf import var (sifir kopya)" : "yok (kopya yolu)");
+    gZcFence = EGL_NO_SYNC_KHR;
+    pEglCreateSyncKHR = nullptr;
+    pEglDestroySyncKHR = nullptr;
+    pEglClientWaitSyncKHR = nullptr;
+    if (ok && strstr(eglExt, "EGL_KHR_fence_sync") != nullptr) {
+        pEglCreateSyncKHR = (PFNEGLCREATESYNCKHRPROC)eglGetProcAddress("eglCreateSyncKHR");
+        pEglDestroySyncKHR = (PFNEGLDESTROYSYNCKHRPROC)eglGetProcAddress("eglDestroySyncKHR");
+        pEglClientWaitSyncKHR =
+            (PFNEGLCLIENTWAITSYNCKHRPROC)eglGetProcAddress("eglClientWaitSyncKHR");
+        if (pEglCreateSyncKHR == nullptr || pEglDestroySyncKHR == nullptr ||
+            pEglClientWaitSyncKHR == nullptr) {
+            pEglCreateSyncKHR = nullptr;
+        }
+    }
+    NLOG("ZcInit: %s, cizim bitisi: %s",
+         ok ? "dma-buf import var (sifir kopya)" : "yok (kopya yolu)",
+         pEglCreateSyncKHR != nullptr ? "fence" : "glFinish");
     return ok;
 }
 
@@ -1135,9 +1206,11 @@ bool ZcBuildCam(ZcCam& z, const int* fds, uint32_t width, uint32_t height) {
 
 // <0: sifir kopya bu cihazda calismiyor (kopya yoluna gec).
 // Aksi halde alt 32 bit = doku (0: kare yok), bit 32 = yeni kare.
-// Cagiran, onceki cizimi glFinish ile bitirmis olmali (eski kare hemen iade edilir).
+// Eski kare iade kuyruguna girmeden (ve dokular yeniden kurulmadan) once onceki cizimin
+// fence'i beklenir; GPU artik o buffer'i okumuyordur.
 int64_t ZcAcquire(int i) {
     if (i < 0 || i >= 4 || gZcDisplay == EGL_NO_DISPLAY) return -1;
+    ZcFenceWait();
     Slot& s = gSlots[i];
     ZcCam& z = gZc[i];
     std::lock_guard<std::mutex> h(s.hold);
@@ -1161,6 +1234,7 @@ int64_t ZcAcquire(int i) {
 // GL artik bu kameradan kare tutmuyor: tutulanlar iade kuyruguna.
 void ZcDetach(int i) {
     if (i < 0 || i >= 4) return;
+    ZcFenceWait();
     Slot& s = gSlots[i];
     std::lock_guard<std::mutex> h(s.hold);
     if (s.inUseIdx >= 0) s.pendingRelease.push_back(s.inUseIdx);
@@ -1175,113 +1249,8 @@ void ZcShutdown() {
         std::lock_guard<std::mutex> h(gSlots[i].hold);
         ZcDestroyCam(gZc[i]);
     }
+    ZcFenceWait();  // ZcDetach zaten bekledi; display kapanmadan once kalan fence birakilsin
     gZcDisplay = EGL_NO_DISPLAY;
-}
-
-// Tek stream testi: input 5 (1280x800@25), 4 buffer, 1 kare al/bırak.
-// frameOut != nullptr ise yakalanan kare baytları ona kopyalanır.
-std::string StreamTestImpl(std::vector<uint8_t>* frameOut) {
-    std::string out = "HAB Stream: ";
-    Session s;
-    if (!OpenSession(&out, &s)) {
-        CloseSession(&s, false);
-        return out;
-    }
-    uint32_t chanB = 0;
-    int ionFd = open("/dev/ion", O_RDONLY | O_CLOEXEC);
-    if (ionFd < 0) {
-        out += "open(/dev/ion)=FAIL errno=" + std::to_string(errno);
-        HabChannelClose(s.fd, chanB);
-        CloseSession(&s, true);
-        return out;
-    }
-    CamStream cam;
-    cam.inputId = 5;
-    std::string camOut;
-    if (!CamOpen(s, ionFd, cam, &camOut, &chanB, true)) {
-        out += "kamera ac=FAIL: " + camOut;
-        CamClose(s, cam);
-        close(ionFd);
-        HabChannelClose(s.fd, chanB);
-        CloseSession(&s, true);
-        return out;
-    }
-    out += "kamera id=5 acik | ";
-    // Ilk kare (sensor acilisi icin genis deneme penceresi)
-    int idx = CamGrab(s, chanB, cam, 30, 100);
-    if (idx < 0) {
-        out += "tip11 kare gelmedi ret=" + std::to_string(idx);
-        CamClose(s, cam);
-        close(ionFd);
-        HabChannelClose(s.fd, chanB);
-        CloseSession(&s, true);
-        return out;
-    }
-    out += "kare buffer=" + std::to_string(idx) + " | ";
-    {
-        const uint8_t* px = (const uint8_t*)cam.bufs[idx].ptr;
-        if (frameOut != nullptr) {
-            frameOut->assign(px, px + cam.frameSize);
-        }
-        uint64_t sum = 0;
-        size_t nonzero = 0;
-        for (size_t i = 0; i < cam.frameSize; i++) {
-            sum += px[i];
-            if (px[i] != 0) nonzero++;
-        }
-        out += "kare toplam=" + std::to_string(sum) + " nonzero=" + std::to_string(nonzero) + "/" +
-               std::to_string(cam.frameSize) + " ilk16[";
-        AppendHex(&out, px, cam.frameSize, 16);
-        out += "] | ";
-    }
-    CamRelease(s, cam, (uint32_t)idx);
-    out += "tip12 OK | ";
-    CamClose(s, cam);
-    close(ionFd);
-    HabChannelClose(s.fd, chanB);
-    CloseSession(&s, true);
-    out += "temiz kapatildi";
-    return out;
-}
-
-std::string StreamTest() {
-    return StreamTestImpl(nullptr);
-}
-
-std::string Probe() {
-    std::string out = "HAB Native: ";
-
-    int fd = open("/dev/hab", O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        out += "open(/dev/hab)=FAIL errno=" + std::to_string(errno) + " (" + strerror(errno) + ") | ";
-    } else {
-        out += "open(/dev/hab)=OK fd=" + std::to_string(fd) + " | ";
-        close(fd);
-    }
-
-    dlerror();  // clear
-    void* handle = dlopen("/vendor/lib64/libuhab.so", RTLD_NOW | RTLD_LOCAL);
-    if (handle == nullptr) {
-        const char* err = dlerror();
-        out += "dlopen(libuhab)=FAIL ";
-        out += (err != nullptr ? err : "unknown");
-        return out;
-    }
-    out += "dlopen(libuhab)=OK | semboller: ";
-
-    static const char* kSymbols[] = {
-        "habmm_socket_open", "habmm_socket_close", "habmm_socket_send",
-        "habmm_socket_recv", "habmm_export",     "habmm_import",
-        "habmm_unexport",    "habmm_unimport",   "hab_DevCtl",
-    };
-    for (const char* name : kSymbols) {
-        dlerror();
-        void* sym = dlsym(handle, name);
-        out += name;
-        out += (sym != nullptr ? "=var " : "=YOK ");
-    }
-    dlclose(handle);
-    return out;
 }
 
 }  // namespace
@@ -1293,11 +1262,27 @@ void ScaleYuyvToI420(const uint8_t* src, int srcW, int srcH, uint8_t* yPlane, ui
                      uint8_t* vPlane, int outW, int dx, int dy, int w, int h) {
     const int SW = srcW;
     const size_t srcStride = (size_t)srcW * 2;
-    std::vector<int> lumaX((size_t)w);
-    for (int x = 0; x < w; x++) lumaX[x] = (x * SW / w) * 2;
     const int cw = w / 2, ch = h / 2;
-    std::vector<int> chromaX((size_t)cw);
-    for (int x = 0; x < cw; x++) chromaX[x] = ((x * SW / cw) & ~1) * 2;
+    // Sutun tablolari yalnizca (kaynak genisligi, hedef genisligi) degisince yeniden hesaplanir.
+    // Mozaikte 4 kadran ayni genislikte oldugundan kare basina 8 heap ayirma yerine hic yok.
+    // thread_local: kayit thread'i disinda cagiran olursa birbirini bozmaz.
+    struct ColumnMap {
+        int srcW = -1;
+        int w = -1;
+        std::vector<int> luma;
+        std::vector<int> chroma;
+    };
+    thread_local ColumnMap map;
+    if (map.srcW != SW || map.w != w) {
+        map.luma.resize((size_t)w);
+        for (int x = 0; x < w; x++) map.luma[x] = (x * SW / w) * 2;
+        map.chroma.resize((size_t)cw);
+        for (int x = 0; x < cw; x++) map.chroma[x] = ((x * SW / cw) & ~1) * 2;
+        map.srcW = SW;
+        map.w = w;
+    }
+    const int* lumaX = map.luma.data();
+    const int* chromaX = map.chroma.data();
     for (int y = 0; y < h; y++) {
         const uint8_t* srow = src + (size_t)(y * srcH / h) * srcStride;
         uint8_t* d = yPlane + (size_t)(dy + y) * outW + dx;
@@ -1503,12 +1488,6 @@ void DrawQuadrantLabels(uint8_t* yPlane, int width, int height) {
     }
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_mapcontrol_dvr_HabNative_nativeProbe(JNIEnv* env, jclass /*clazz*/) {
-    std::string result = Probe();
-    return env->NewStringUTF(result.c_str());
-}
-
 namespace {
 
 bool ValidOutSize(jint w, jint h) {
@@ -1604,18 +1583,6 @@ Java_com_mapcontrol_dvr_HabNative_nativeConvertSingle(JNIEnv* env, jclass /*claz
     if (l2 != nullptr) env->ReleaseStringUTFChars(line2, l2);
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_mapcontrol_dvr_HabNative_nativeSessionTest(JNIEnv* env, jclass /*clazz*/) {
-    std::string result = SessionTest();
-    return env->NewStringUTF(result.c_str());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_mapcontrol_dvr_HabNative_nativeStreamTest(JNIEnv* env, jclass /*clazz*/) {
-    std::string result = StreamTest();
-    return env->NewStringUTF(result.c_str());
-}
-
 extern "C" JNIEXPORT jint JNICALL
 Java_com_mapcontrol_dvr_HabNative_nativeHubStart(JNIEnv* /*env*/, jclass /*clazz*/) {
     return HubStart();
@@ -1693,22 +1660,25 @@ Java_com_mapcontrol_dvr_HabNative_nativeZcDetach(JNIEnv* /*env*/, jclass /*clazz
     ZcDetach((int)cam);
 }
 
+// Onbellekli ION ("hizli okuma") acik/kapali. Kameralar bir sonraki acilista yeni modla
+// acilir. Acilinca onceki geri donusler (gSlotCachedBroken) sifirlanir, tekrar denenir.
+extern "C" JNIEXPORT void JNICALL
+Java_com_mapcontrol_dvr_HabNative_nativeSetIonCached(JNIEnv* /*env*/, jclass /*clazz*/,
+                                                   jboolean enabled) {
+    bool on = enabled == JNI_TRUE;
+    bool old = gIonCachedEnabled.exchange(on);
+    if (on) {
+        for (auto& b : gSlotCachedBroken) b = false;
+    }
+    if (old != on) NLOG("ION hizli okuma: %s", on ? "acik" : "kapali");
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_mapcontrol_dvr_HabNative_nativeZcFenceInsert(JNIEnv* /*env*/, jclass /*clazz*/) {
+    ZcFenceInsert();
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_mapcontrol_dvr_HabNative_nativeZcShutdown(JNIEnv* /*env*/, jclass /*clazz*/) {
     ZcShutdown();
-}
-
-extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_mapcontrol_dvr_HabNative_nativeCaptureFrame(JNIEnv* env, jclass /*clazz*/) {
-    std::vector<uint8_t> frame;
-    std::string result = StreamTestImpl(&frame);
-    __android_log_print(ANDROID_LOG_INFO, "HabNative", "%s", result.c_str());
-    if (frame.empty()) {
-        return nullptr;
-    }
-    jbyteArray arr = env->NewByteArray((jsize)frame.size());
-    if (arr != nullptr) {
-        env->SetByteArrayRegion(arr, 0, (jsize)frame.size(), (const jbyte*)frame.data());
-    }
-    return arr;
 }
