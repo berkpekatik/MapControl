@@ -158,21 +158,31 @@ public class SettingsTabBuilder {
                 });
     }
 
+    /** Tema: Otomatik (sistemi izler) / Aydınlık / Karanlık. */
     private void createDarkModeSection(FeatureGridLayout grid) {
-        int nightModeSetting = prefs.getInt("nightModeSetting", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-        boolean isDark = (nightModeSetting == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
-        UiStyles.addBinarySegmentedControl(context, grid,
-                context.getString(R.string.settings_dark_mode_title),
-                context.getString(R.string.common_on), context.getString(R.string.common_off),
-                context.getString(R.string.settings_dark_mode_help_on),
-                context.getString(R.string.settings_dark_mode_help_off),
-                isDark,
-                enabled -> {
-                    int mode = enabled ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO;
+        final int auto = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+        final int light = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO;
+        final int dark = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
+        int saved = prefs.getInt("nightModeSetting", auto);
+        if (saved != light && saved != dark) {
+            saved = auto;
+        }
+        UiStyles.addTernarySegmentedControl(context, createSettingsCard(grid),
+                context.getString(R.string.settings_theme_title),
+                new String[]{
+                        context.getString(R.string.settings_theme_auto),
+                        context.getString(R.string.settings_theme_light),
+                        context.getString(R.string.settings_theme_dark)},
+                new String[]{
+                        context.getString(R.string.settings_theme_help_auto),
+                        context.getString(R.string.settings_dark_mode_help_off),
+                        context.getString(R.string.settings_dark_mode_help_on)},
+                new int[]{auto, light, dark},
+                saved,
+                mode -> {
                     prefs.edit().putInt("nightModeSetting", mode).apply();
                     androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(mode);
-                    callback.log("Karanlık Mod: " + (enabled ? "Açık" : "Kapalı"));
+                    callback.log("Tema: " + (mode == auto ? "Otomatik" : mode == dark ? "Karanlık" : "Aydınlık"));
                     callback.onNightModeChanged(mode);
                 });
     }

@@ -85,7 +85,7 @@ public class FileUploadTabBuilder {
         btnSegmentPair.setText(R.string.phone_pair_tab);
         for (Button b : new Button[]{btnSegmentWeb, btnSegmentPair}) {
             b.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            b.setTextSize(15);
+            UiStyles.setTextSize(b, R.dimen.text_size_normal);
             b.setTypeface(null, Typeface.BOLD);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             lp.setMargins(0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium) / 2, UiStyles.dimenPx(context, R.dimen.spacing_medium));
@@ -143,18 +143,14 @@ public class FileUploadTabBuilder {
         webServerToggleParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
         leftCol.addView(btnWebServerToggle, webServerToggleParams);
 
-        android.widget.Switch autoStart = new android.widget.Switch(context);
-        autoStart.setText(R.string.web_server_auto_start);
-        autoStart.setTextSize(15);
-        autoStart.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        autoStart.setPadding(16, 8, 16, 8);
         android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
-        autoStart.setChecked(prefs.getBoolean(KEY_WEB_SERVER_AUTO_START, false));
-        autoStart.setOnCheckedChangeListener((b, on) ->
-                prefs.edit().putBoolean(KEY_WEB_SERVER_AUTO_START, on).apply());
-        leftCol.addView(autoStart, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        UiStyles.addBinarySegmentedControl(context, leftCol,
+                context.getString(R.string.web_server_auto_start),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.web_server_auto_start_help_on),
+                context.getString(R.string.web_server_auto_start_help_off),
+                prefs.getBoolean(KEY_WEB_SERVER_AUTO_START, false),
+                on -> prefs.edit().putBoolean(KEY_WEB_SERVER_AUTO_START, on).apply());
 
         row.addView(leftCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.32f));
 
@@ -203,13 +199,13 @@ public class FileUploadTabBuilder {
         betaBanner.setBackgroundColor(UiStyles.color(context, R.color.surfaceColor));
         TextView betaBannerTitle = new TextView(context);
         betaBannerTitle.setText(R.string.phone_pair_banner_title);
-        betaBannerTitle.setTextSize(13);
+        UiStyles.setTextSize(betaBannerTitle, R.dimen.text_size_small);
         betaBannerTitle.setTypeface(null, Typeface.BOLD);
         betaBannerTitle.setTextColor(UiStyles.color(context, R.color.statusWarning));
         betaBanner.addView(betaBannerTitle);
         TextView betaBannerText = new TextView(context);
         betaBannerText.setText(R.string.phone_pair_banner);
-        betaBannerText.setTextSize(13);
+        UiStyles.setTextSize(betaBannerText, R.dimen.text_size_small);
         betaBannerText.setTextColor(UiStyles.color(context, R.color.textHint));
         betaBannerText.setPadding(0, 4, 0, 0);
         betaBanner.addView(betaBannerText);
@@ -221,7 +217,7 @@ public class FileUploadTabBuilder {
 
         TextView pairTitle = new TextView(context);
         pairTitle.setText(R.string.phone_pair_title);
-        pairTitle.setTextSize(16);
+        UiStyles.setTextSize(pairTitle, R.dimen.text_size_normal);
         pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         pairTitle.setTypeface(null, Typeface.BOLD);
         pairTitle.setPadding(16, 16, 16, 4);
@@ -231,7 +227,7 @@ public class FileUploadTabBuilder {
 
         TextView pairDesc = new TextView(context);
         pairDesc.setText(R.string.phone_pair_desc);
-        pairDesc.setTextSize(13);
+        UiStyles.setTextSize(pairDesc, R.dimen.text_size_small);
         pairDesc.setTextColor(UiStyles.color(context, R.color.textHint));
         pairDesc.setPadding(16, 0, 16, 8);
         pairPanel.addView(pairDesc, new LinearLayout.LayoutParams(
@@ -240,7 +236,7 @@ public class FileUploadTabBuilder {
 
         TextView pairKey = new TextView(context);
         pairKey.setText(PhoneAccess.token(context));
-        pairKey.setTextSize(15);
+        UiStyles.setTextSize(pairKey, R.dimen.text_size_normal);
         pairKey.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         pairKey.setTextIsSelectable(true);
         pairKey.setTextColor(UiStyles.color(context, R.color.accentHighlight));
@@ -252,7 +248,7 @@ public class FileUploadTabBuilder {
         Button btnPairRegenerate = new Button(context);
         btnPairRegenerate.setText(R.string.phone_pair_regenerate);
         btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        btnPairRegenerate.setTextSize(14);
+        UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_small);
         UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonPrimary));
         btnPairRegenerate.setOnClickListener(v -> {
             pairKey.setText(PhoneAccess.regenerate(context));

@@ -31,6 +31,11 @@
     <string name="settings_dark_mode_title">Dark Mode</string>
     <string name="settings_dark_mode_help_on">Dark theme enabled. Easier on the eyes at night.</string>
     <string name="settings_dark_mode_help_off">Light theme enabled.</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_auto">Auto</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_help_auto">Follows the system: the app turns dark when the vehicle switches to night mode.</string>
     <string name="overlay_permission_toast">Please enable \'Display over other apps\' permission</string>
     <string name="settings_app_about_title">About</string>
     <string name="settings_version_title">Version</string>
@@ -968,6 +973,8 @@
     <string name="profile_badge_premium_only">Membership required</string>
     <string name="profile_badge_free">Free</string>
     <string name="web_server_auto_start">Start automatically when the app opens or the ignition turns on</string>
+    <string name="web_server_auto_start_help_on">The server starts by itself when the app opens or the ignition turns on.</string>
+    <string name="web_server_auto_start_help_off">You start the server yourself.</string>
     <string name="phone_pair_beta_title">Testing phase</string>
     <string name="phone_pair_beta_subtitle">Phone app</string>
     <string name="phone_pair_beta_message">The MapControl phone app is currently in testing (beta) and only invited testers can join.\n\nIf you do not have access to the app, you cannot pair your phone with the key and QR on this page. Some features may be missing or behave unexpectedly in the test version.\n\nWe will release it to everyone on the App Store and Google Play very soon.</string>

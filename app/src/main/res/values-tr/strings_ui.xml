@@ -41,6 +41,11 @@
     <string name="settings_dark_mode_title">Karanlık Mod</string>
     <string name="settings_dark_mode_help_on">Karanlık tema etkin. Gece sürüşü için göz yormaz.</string>
     <string name="settings_dark_mode_help_off">Aydınlık tema etkin.</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_auto">Otomatik</string>
+    <string name="settings_theme_light">Aydınlık</string>
+    <string name="settings_theme_dark">Karanlık</string>
+    <string name="settings_theme_help_auto">Tema sistem ayarını izler: araç gece moduna geçince uygulama da karanlık olur.</string>
     <string name="overlay_permission_toast">Lütfen \'Diğer uygulamaların üzerinde görüntüleme\' iznini açın</string>
 
     <string name="settings_app_about_title">Uygulama Hakkında</string>
@@ -996,6 +1001,8 @@
     <string name="profile_badge_premium_only">Üyelik gerekli</string>
     <string name="profile_badge_free">Ücretsiz</string>
     <string name="web_server_auto_start">Uygulama açılınca ve kontak açılınca otomatik başlat</string>
+    <string name="web_server_auto_start_help_on">Sunucu uygulama ve kontak açılınca kendiliğinden başlar.</string>
+    <string name="web_server_auto_start_help_off">Sunucuyu kendiniz başlatırsınız.</string>
     <string name="phone_pair_beta_title">Test aşamasında</string>
     <string name="phone_pair_beta_subtitle">Telefon uygulaması</string>
     <string name="phone_pair_beta_message">MapControl telefon uygulaması şu anda test (beta) aşamasındadır ve yalnızca davet edilen test kullanıcıları (tester) katılabilir.\n\nUygulamaya erişiminiz yoksa bu sayfadaki anahtar ve QR ile telefonunuzu eşleyemezsiniz. Test sürümünde bazı özellikler eksik olabilir veya beklenmedik davranabilir.\n\nEn yakın zamanda App Store ve Google Play üzerinden herkese açık olarak yayınlayacağız.</string>

@@ -24,6 +24,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.welcome.WelcomeAudioFiles;
 import com.mapcontrol.ui.welcome.WelcomeDesignCatalog;
@@ -301,7 +302,7 @@ public class WelcomeSoundTabBuilder {
         if (files == null || files.isEmpty()) {
             TextView empty = new TextView(activity);
             empty.setText(R.string.welcome_downloads_empty);
-            empty.setTextSize(15);
+            UiStyles.setTextSize(empty, R.dimen.text_size_normal);
             list.addView(empty);
             return;
         }
@@ -321,13 +322,13 @@ public class WelcomeSoundTabBuilder {
 
         TextView mark = new TextView(activity);
         mark.setText(selected ? "✓" : "");
-        mark.setTextSize(18);
+        UiStyles.setTextSize(mark, R.dimen.text_size_medium);
         mark.setMinWidth(Math.round(28 * density));
         row.addView(mark);
 
         TextView name = new TextView(activity);
         name.setText(file.getName());
-        name.setTextSize(15);
+        UiStyles.setTextSize(name, R.dimen.text_size_normal);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         row.addView(name, new LinearLayout.LayoutParams(0,
@@ -346,7 +347,7 @@ public class WelcomeSoundTabBuilder {
         Button button = new Button(activity);
         button.setText(textRes);
         button.setAllCaps(false);
-        button.setTextSize(13);
+        UiStyles.setTextSize(button, R.dimen.text_size_small);
         button.setMinWidth(0);
         button.setMinimumWidth(0);
         button.setOnClickListener(click);
@@ -453,7 +454,7 @@ public class WelcomeSoundTabBuilder {
             row.setPadding(0, gap, 0, gap);
             TextView name = new TextView(activity);
             name.setText(file.getName());
-            name.setTextSize(15);
+            UiStyles.setTextSize(name, R.dimen.text_size_normal);
             name.setSingleLine(true);
             name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             row.addView(name, new LinearLayout.LayoutParams(0,

@@ -216,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
-    private final boolean[] tabNeedsUiModeRebuild = new boolean[16];
+    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_SUNROOF_AUTOMATION + 1];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
     private int lastNormalTab = 0;
@@ -1407,6 +1407,9 @@ public class MainActivity extends AppCompatActivity {
             case TAB_EQUALIZER: return R.string.side_rail_equalizer;
             case TAB_CAMERA_360: return R.string.camera360_title;
             case TAB_SPLIT_SCREEN: return R.string.side_rail_split_screen;
+            case TAB_CLIMATE_AUTOMATION: return R.string.side_rail_climate_automation;
+            case TAB_FACE_RECOGNITION: return R.string.side_rail_face_recognition;
+            case TAB_SUNROOF_AUTOMATION: return R.string.side_rail_sunroof_automation;
             default: return R.string.topbar_vehicle_home;
         }
     }
@@ -1822,9 +1825,16 @@ public class MainActivity extends AppCompatActivity {
      * temayı dinamik ve anında uygular.
      */
     public void applyNightModeDynamically(int mode) {
-        int targetNightBits = (mode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES)
-                ? Configuration.UI_MODE_NIGHT_YES
-                : Configuration.UI_MODE_NIGHT_NO;
+        int targetNightBits;
+        if (mode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES) {
+            targetNightBits = Configuration.UI_MODE_NIGHT_YES;
+        } else if (mode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO) {
+            targetNightBits = Configuration.UI_MODE_NIGHT_NO;
+        } else {
+            // Otomatik: sistemin gerçek gündüz/gece durumunu izle.
+            targetNightBits = android.content.res.Resources.getSystem().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK;
+        }
         Configuration currentConfig = getResources().getConfiguration();
         Configuration newConfig = new Configuration(currentConfig);
         newConfig.uiMode = (currentConfig.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | targetNightBits;
@@ -2125,6 +2135,11 @@ public class MainActivity extends AppCompatActivity {
             case TAB_SPLIT_SCREEN:
                 if (splitScreenTabBuilder != null) {
                     splitScreenTabBuilder.rebuild();
+                }
+                break;
+            case TAB_SUNROOF_AUTOMATION:
+                if (sunroofAutomationTabBuilder != null) {
+                    rebuildSunroofAutomationTab();
                 }
                 break;
             case TAB_LAUNCHER:
