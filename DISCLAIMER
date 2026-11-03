@@ -1,0 +1,35 @@
+MapControl sorumluluk reddi / Disclaimer
+Copyright 2026 Berk Pekatik
+
+Bu metin Apache License 2.0 koşullarını değiştirmez. Lisansın garanti reddi ve
+sorumluluk sınırı (bölüm 7 ve 8) yürürlüktedir. Aşağıdaki açıklama, yazılımın
+ne yaptığını ve yasanın izin verdiği azami ölçüde sorumluluğun kullanıcıda
+olduğunu açıklar.
+
+Türkçe
+------
+
+Bu yazılım, aracın ana ünitesinde çalışan deneysel bir Android uygulamasıdır
+ve olduğu gibi sunulur. Motor veya fren yazılımını doğrudan programlamaz. Ana
+ünitenin araç arayüzü üzerinden sürüş modunu, sürücü destek ayarlarını, kilidi,
+koltuk hafızasını, cam tavanı ve klimayı değiştirebilir; ekran, uygulama ve ses
+gibi Android işlevlerini de yönetir. Bu komutlar aracın davranışını
+değiştirebilir. Çalışır durumda olma, belirli bir amaca uygunluk veya hasar
+oluşmayacağı konusunda garanti verilmez. Yazılımın kullanımından doğan araç
+hasarı, veri kaybı ve diğer zararlardan, yürürlükteki kanunun izin verdiği
+azami ölçüde, yazar sorumlu değildir. Yazılımı çalıştıran kişi tüm riski kabul
+eder.
+
+English
+-------
+
+This software is an experimental Android application that runs on the vehicle
+head unit and is provided as is. It does not directly program the engine or
+brake software. Through the head unit's vehicle interface it can change the
+drive mode, driver-assistance settings, locks, seat memory, the sunroof, and
+climate control. It also manages Android functions such as the display, apps,
+and audio. These commands can change how the vehicle behaves. There is no
+warranty of operability, fitness for a particular purpose, or that no damage
+will occur. To the maximum extent permitted by applicable law, the author is
+not liable for vehicle damage, data loss, or other harm arising from use of
+the software. The person who runs the software accepts all risk.
