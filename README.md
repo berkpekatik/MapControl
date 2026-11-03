@@ -6,7 +6,7 @@
 >
 > Lisans: [Apache License 2.0](LICENSE). Tam metin: [DISCLAIMER](DISCLAIMER).
 
-> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. UI tasarım sistemi ve fiziksel IVI kabul hedefleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
+> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). UI tasarım sistemi ve fiziksel IVI kabul hedefleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
 
  ⚠️ **Bilinen sorunlar / Known issues**
 
@@ -24,79 +24,47 @@
  **Sorun mu buldunuz?** Kod hatası, kullanım hatası veya yukarıdakiler dışında bir şey olsun — [GitHub Issues](https://github.com/berkpekatik/MapControl/issues) üzerinden bildirmekten çekinmeyin.  
 **Found a problem?** Whether it’s a bug, usage question, or something not listed above — please don’t hesitate to open a [GitHub Issue](https://github.com/berkpekatik/MapControl/issues).
 
-> ⚠️ **v1.1.4 — Performans raporu (DesaySV, Android 11)**  
-> Launcher modu (3D araç modeli) en büyük kaynak tüketicisidir. Optimizasyon sonrası ölçümler (cihaz `29115210`):
->
-> | Durum | CPU | Bellek (PSS) |
-> |-------|-----|--------------|
-> | Launcher **açık** (önce → sonra) | %70 → **%25–58** | 449 MB → **~370 MB** |
-> | Launcher **kapalı** | **%7** | **111 MB** |
-> | GPU gecikme (90. yüzdelik) | 4950 ms → **17 ms** | — |
->
-> **Özet:** Yandex scrape yalnızca navigasyon aktifken çalışır; 3D model post-processing kapatıldı (Saf GLB + FXAA). Launcher'ı kapatmak bellekte **~%70**, CPU'da **~%87** kazanç sağlar. Detaylar aşağıda.
-
 Araç ana ünitesinde (IVI) çalışan bir kontrol merkezi uygulaması. Desay SV tabanlı sistemlerde hem araçla entegre çalışır hem de aynı ağdaki cihazlardan yönetim sağlar.
 
 Bu proje **eğlence ve kişisel ihtiyaç** amacıyla geliştirilmiştir.
 
 ---
 
-## v1.1.4 — Performans optimizasyonu
-
-**Cihaz:** DesaySV (Android 11) — `29115210` · **Tarih:** 26–27 Temmuz 2026
-
-### Yapılan değişiklikler
-
-**Yandex navigasyon scrape (`GlobalBackService`)**
-- Nav **aktif:** 750 ms throttle + içerik değişimi dinlenir
-- Nav **pasif:** yalnızca pencere değişimi, 2000 ms throttle
-- Nav bitince cluster overlay otomatik kapanır
-- *Önce:* 350 ms throttle, tüm Yandex içerik değişimlerinde scrape
-
-**3D araç modeli (`VehicleGlbView`)**
-- Post-processing kapatıldı (SSAO, bloom, HDR grading yok)
-- DRS kapalı — tam çözünürlük, net görüntü
-- Yalnızca hafif FXAA + GLB materyalleri
-
-### Ölçüm sonuçları
-
-| Metrik | Launcher açık (önce → sonra) | Launcher kapalı |
-|--------|-------------------------------|-----------------|
-| CPU | %70 → **%25–58** | **%7** |
-| PSS | 449 MB → **~370 MB** | **111 MB** |
-| Render thread (`FEngine::loop`) | 2556 → **1259 jiffies** (~%51 ↓) | Durdu |
-| GPU 90. yüzdelik | 4950 ms → **17 ms** | — |
-| GPU medyan | 14 ms → **6 ms** | — |
-
-### Bulgular
-
-1. **3D model (Filament)** launcher açıkken CPU ve belleğin büyük kısmını tüketir.
-2. **Saf GLB modu** hem performansı artırdı hem görüntüyü netleştirdi.
-3. **Launcher'ı kapatmak** en büyük kazanç: bellek **−%70**, CPU **−%87**.
-4. Launcher kapalıyken kalan yük (~111 MB, %7 CPU): ana UI + floating overlay'ler + arka plan servisleri.
-5. UI jank büyük ölçüde floating overlay'lerden (`ViewRootImpl`); 3D GPU süreleri iyi (medyan 6 ms).
-
----
-
 ## Özellikler
 
-**Yerel HTTP sunucu (7462):** Cihazla aynı ağdaki telefon veya bilgisayardan tarayıcı ile dosya yükleme, APK kurma, uygulama listeleme/silme/başlatma. Ana ekrandaki QR kod ile sunucu adresine hızlı erişim.
+**Ana sayfa:** Tam ekran launcher. Saat, hava durumu, araç ölçümleri, müzik ve kısayollar. Orta kart Lite paneldir.
 
-**Wi-Fi:** Ağ aç/kapat, tarama ve bağlanma.
+**Wi-Fi:** Ağ açma, kapatma, tarama ve bağlanma.
 
-**Profil / bulut:** Harici API (api.vnoisy.dev) ile giriş, araç token’ı; isteğe bağlı araç kapanırken konum kaydetme.
+**Uygulamalar:** Yüklü uygulamaları görüntüleme, kurma, güncelleme, açma ve kaldırma.
 
-**Uygulamalar:** Sunucudan veya yerel listeden uygulama görüntüleme, kurma, güncelleme, açma ve kaldırma.
+**Aktar:** Aynı ağdaki telefon veya bilgisayardan, 7462 portundaki sayfa ile dosya yükleme ve APK kurma. QR kod ile adrese erişim.
 
-**Yansıtma:** Telefon veya harici ekran yansıtma ile ilgili yönetim.
+**Sürüş hafızası:** Seçilen sürüş modu (Eco, Normal, Sport, Snow, Mud, Offroad, Sand) ve kapatılan sürücü yardımları araç açıldığında uygulanır.
 
-**Hafıza modu:** Kayıtlı sürüş modu (Snow, Mud, Offroad, Sand) seçimi; araç açıldığında bu mod otomatik uygulanır.
+**Karşılama:** Araç açılışında karşılama sesi ve ekranı.
 
-**Ayarlar:** Araç kapanınca navigasyonu otomatik kapatma, otomatik konum kaydetme, güç modu davranışı (motor çalışınca / araç hazırken / elle) vb.
+**Ses ayarları:** Ekolayzer.
 
-**Floating back butonu:** Başka uygulama (örn. navigasyon) öndeyken geri tuşu simülasyonu (erişilebilirlik servisi).
+**Otomasyon:** Dış sıcaklığa göre klima, koltuk ısıtma veya havalandırma ve direksiyon ısıtması.
 
-**Kamera ve ses testi:** Test ekranları.
+**Cam tavan:** Cam tavanın açılması, perde konumu ve hız veya yağmurda kapanması.
+
+**Yüz tanıma:** DMS kamerası ile sürücüyü tanıma ve kayıtlı koltuk hafızasını uygulama.
+
+**Kamera 360:** Çevre kameralarını izleme ve kayıtları görüntüleme.
+
+**Bölünmüş ekran:** İki uygulamayı yan yana açma.
+
+**Gösterge ekranı:** Navigasyonu gösterge ekranına alma. Yandex ve Google Maps yol bilgisi bu ekranda kart olarak gösterilebilir.
+
+**Araç bilgileri:** Anlık araç ölçümleri.
+
+**Telefon eşleme:** Yolculuk ve araç verisini MapControl telefon uygulamasına vermek için eşleşme anahtarı. Telefon uygulaması şu an yalnızca test kullanıcılarına açıktır.
+
+**Ayarlar:** Açılışta arka planda çalışma, uygulamayı ekranda açma, tema, dil ve tam ekran ana sayfa.
+
+**Yüzen geri tuşu:** Başka bir uygulama öndeyken geri gitmek için sürüklenebilir tuş.
 
 ---
 
