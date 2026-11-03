@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+{{FONT_FACE}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #07080b; }
+body {
+  font-family: 'Outfit', sans-serif; color: #fff; position: relative;
+  --g1: #d7dfee; --g2: #7f93bd;
+}
+body.p-morning { --g1: #f7e0ad; --g2: #c79a4f; }
+body.p-day     { --g1: #efeadf; --g2: #a9a08c; }
+body.p-evening { --g1: #f4bb86; --g2: #b8602f; }
+body.p-night   { --g1: #d7dfee; --g2: #7f93bd; }
+
+.layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.base { background: radial-gradient(ellipse at 50% 46%, #1b1d24 0%, #0d0e13 58%, #050608 100%); }
+.carbon {
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0, rgba(255,255,255,.028) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 5px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.02) 0, rgba(255,255,255,.02) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 5px);
+  opacity: 0; animation: fadeIn 1.4s ease-out .1s forwards;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.halo {
+  position: absolute; left: 50%; top: 46%; width: 100vmin; height: 100vmin; margin: -50vmin 0 0 -50vmin; border-radius: 50%;
+  background: radial-gradient(circle, var(--g2) 0%, rgba(0,0,0,0) 62%);
+  opacity: 0; will-change: opacity, transform;
+  animation: haloIn 1.8s ease-out .2s forwards, breathe 3.4s ease-in-out 2s infinite alternate;
+}
+@keyframes haloIn { from { opacity: 0; transform: scale(.8); } to { opacity: .22; transform: scale(1); } }
+@keyframes breathe { from { opacity: .22; } to { opacity: .32; } }
+
+.beam {
+  position: absolute; top: -10%; height: 120%; width: 34vmin; left: -45vmin;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.14) 46%, rgba(255,246,222,.3) 50%, rgba(255,255,255,.14) 54%, rgba(255,255,255,0) 100%);
+  transform: skewX(-18deg); opacity: 0; will-change: transform, opacity;
+}
+.beam.b1 { animation: sweep 1.7s cubic-bezier(.45,.05,.3,1) .35s forwards; }
+.beam.b2 { animation: sweep 1.7s cubic-bezier(.45,.05,.3,1) 2.7s forwards; }
+@keyframes sweep {
+  0%   { opacity: 0; transform: translate3d(0, 0, 0) skewX(-18deg); }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(190vw, 0, 0) skewX(-18deg); }
+}
+
+.dust i {
+  position: absolute; left: var(--x); top: var(--y); width: .5vmin; height: .5vmin; border-radius: 50%;
+  background: var(--g1); opacity: 0; will-change: transform, opacity;
+  animation: float var(--d) ease-in-out var(--l) infinite;
+}
+@keyframes float {
+  0%   { opacity: 0;  transform: translate3d(0, 0, 0); }
+  30%  { opacity: .8; }
+  100% { opacity: 0;  transform: translate3d(1.5vmin, -16vmin, 0); }
+}
+
+.frame { position: absolute; top: 5vmin; left: 5vmin; right: 5vmin; bottom: 5vmin; }
+.corner {
+  position: absolute; width: 7vmin; height: 7vmin; opacity: 0;
+  border: 0 solid var(--g2); animation: cornerIn 1.1s cubic-bezier(.2,.7,.2,1) .5s forwards;
+}
+.corner.tl { top: 0; left: 0; border-top-width: .28vmin; border-left-width: .28vmin; }
+.corner.tr { top: 0; right: 0; border-top-width: .28vmin; border-right-width: .28vmin; }
+.corner.bl { bottom: 0; left: 0; border-bottom-width: .28vmin; border-left-width: .28vmin; }
+.corner.br { bottom: 0; right: 0; border-bottom-width: .28vmin; border-right-width: .28vmin; }
+@keyframes cornerIn { from { opacity: 0; transform: scale(1.5); } to { opacity: .8; transform: scale(1); } }
+
+.vignette { background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 40%, rgba(0,0,0,.7) 100%); }
+
+.stage {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 0 9vmin;
+}
+.in { opacity: 0; animation: rise 1s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 3vmin, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+
+.greeting {
+  font-size: 3vmin; font-weight: 400; letter-spacing: .5em; text-transform: uppercase;
+  color: var(--g1); padding-left: .5em; animation-delay: .5s;
+}
+.clock {
+  margin-top: 2vmin; font-size: 25vmin; line-height: 1; font-weight: 240; letter-spacing: -.02em;
+  color: var(--g1); animation-delay: .7s;
+}
+@supports (-webkit-background-clip: text) {
+  .clock {
+    background-image: linear-gradient(100deg, var(--g2) 0%, var(--g1) 30%, #ffffff 46%, var(--g1) 58%, var(--g2) 100%);
+    background-size: 260% 100%; background-position: 100% 0;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    animation: rise 1s cubic-bezier(.2,.7,.2,1) .7s forwards, sheen 2.8s cubic-bezier(.4,0,.2,1) 1.2s forwards;
+  }
+}
+@keyframes sheen { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+
+.date {
+  margin-top: 2.2vmin; font-size: 2.6vmin; font-weight: 400; letter-spacing: .3em; text-transform: uppercase;
+  color: rgba(255,255,255,.62); padding-left: .3em; animation-delay: .95s;
+}
+.name {
+  display: none; margin-top: 4.6vmin; align-items: center; justify-content: center;
+  font-size: 4.8vmin; font-weight: 300; letter-spacing: .12em; color: #fff; animation-delay: 1.2s;
+}
+.has-name .name { display: flex; }
+.name::before, .name::after {
+  content: ""; display: block; width: 8vmin; height: 1px; flex: none;
+}
+.name::before { margin-right: 3vmin; background: linear-gradient(90deg, rgba(0,0,0,0), var(--g2)); }
+.name::after  { margin-left: 3vmin;  background: linear-gradient(90deg, var(--g2), rgba(0,0,0,0)); }
+</style>
+</head>
+<body class="{{BODY_CLASS}}">
+  <div class="layer base"></div>
+  <div class="layer carbon"></div>
+  <div class="halo"></div>
+  <div class="dust">
+    <i style="--x:18%; --y:70%; --d:4.8s; --l:-.4s"></i>
+    <i style="--x:27%; --y:48%; --d:5.6s; --l:-2.1s"></i>
+    <i style="--x:35%; --y:78%; --d:5.0s; --l:-3.3s"></i>
+    <i style="--x:44%; --y:60%; --d:6.2s; --l:-1.2s"></i>
+    <i style="--x:52%; --y:82%; --d:4.6s; --l:-2.8s"></i>
+    <i style="--x:60%; --y:55%; --d:5.8s; --l:-.9s"></i>
+    <i style="--x:68%; --y:74%; --d:5.2s; --l:-3.9s"></i>
+    <i style="--x:76%; --y:50%; --d:6.0s; --l:-1.7s"></i>
+    <i style="--x:83%; --y:68%; --d:4.9s; --l:-2.5s"></i>
+    <i style="--x:12%; --y:56%; --d:5.4s; --l:-4.2s"></i>
+  </div>
+  <div class="beam b1"></div>
+  <div class="beam b2"></div>
+  <div class="frame">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
+  <div class="layer vignette"></div>
+  <div class="stage">
+    <div class="greeting in">{{GREETING}}</div>
+    <div class="clock in">{{TIME}}</div>
+    <div class="date in">{{DAY}} &middot; {{DATE}}</div>
+    <div class="name in">{{NAME}}</div>
+  </div>
+</body>
+</html>

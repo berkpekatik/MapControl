@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+{{FONT_FACE}}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #160d2b; }
+body { font-family: 'Outfit', sans-serif; color: #fff; position: relative; }
+
+.layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.sky { background: linear-gradient(180deg, #140b29 0%, #2f1749 48%, #6a2a66 100%); }
+.floor {
+  background: radial-gradient(ellipse at 50% 112%, rgba(255,140,190,.55) 0%, rgba(255,140,190,0) 58%);
+  opacity: 0; animation: fadeIn 1.6s ease-out .1s forwards;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.moon {
+  position: absolute; right: 12vmin; top: 9vmin; width: 15vmin; height: 15vmin; border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #fff6fb 0%, #ffd8ea 60%, #f6b5d4 100%);
+  box-shadow: 0 0 5vmin 1.5vmin rgba(255,190,225,.45), 0 0 18vmin 6vmin rgba(255,150,210,.25);
+  opacity: 0; animation: moonIn 1.8s ease-out .2s forwards;
+}
+@keyframes moonIn { from { opacity: 0; transform: translate3d(0, 4vmin, 0); } to { opacity: .95; transform: translate3d(0, 0, 0); } }
+
+.bokeh {
+  position: absolute; border-radius: 50%; opacity: 0; will-change: opacity;
+  background: radial-gradient(circle, rgba(255,170,215,.55) 0%, rgba(255,170,215,0) 68%);
+  animation: bokeh 3.4s ease-in-out infinite alternate;
+}
+.bokeh.b1 { left: 8%;  top: 58%; width: 26vmin; height: 26vmin; animation-delay: 0s; }
+.bokeh.b2 { left: 70%; top: 52%; width: 34vmin; height: 34vmin; animation-delay: .8s; }
+.bokeh.b3 { left: 38%; top: 74%; width: 22vmin; height: 22vmin; animation-delay: 1.5s; }
+.bokeh.b4 { left: 82%; top: 12%; width: 18vmin; height: 18vmin; animation-delay: 2.2s; }
+@keyframes bokeh { from { opacity: .08; } to { opacity: .6; } }
+
+.petals { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.petal {
+  position: absolute; top: 0; left: var(--x);
+  width: calc(var(--s) * 2.6vmin); height: calc(var(--s) * 1.8vmin);
+  background: linear-gradient(135deg, #ffd0e4 0%, #ff8fbf 100%);
+  border-radius: 150% 0 150% 0; opacity: .88; will-change: transform;
+  animation: fall var(--d) linear var(--l) infinite;
+}
+@keyframes fall {
+  0%   { transform: translate3d(0, -12vh, 0) rotate(0deg); }
+  25%  { transform: translate3d(5vw, 24vh, 0) rotate(150deg); }
+  50%  { transform: translate3d(-2vw, 56vh, 0) rotate(300deg); }
+  75%  { transform: translate3d(4vw, 86vh, 0) rotate(430deg); }
+  100% { transform: translate3d(-1vw, 114vh, 0) rotate(560deg); }
+}
+
+.vignette { background: radial-gradient(ellipse at 50% 44%, rgba(0,0,0,0) 36%, rgba(8,2,20,.62) 100%); }
+
+.stage {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 0 6vmin;
+}
+.in { opacity: 0; animation: rise .95s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 3.2vmin, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+
+.greeting {
+  font-size: 3.4vmin; font-weight: 400; letter-spacing: .42em; text-transform: uppercase;
+  color: #ffc4e0; padding-left: .42em; animation-delay: .15s;
+}
+.clock {
+  margin-top: 1.6vmin; font-size: 25vmin; line-height: 1; font-weight: 200; letter-spacing: -.03em;
+  text-shadow: 0 0 5vmin rgba(60,10,70,.55), 0 0 12vmin rgba(255,140,200,.25);
+  animation-delay: .35s;
+}
+.date {
+  margin-top: 1.8vmin; font-size: 2.7vmin; font-weight: 400; letter-spacing: .24em; text-transform: uppercase;
+  color: rgba(255,230,242,.72); padding-left: .24em; animation-delay: .55s;
+}
+.rule {
+  margin-top: 4.2vmin; width: 9vmin; height: .4vmin; border-radius: .2vmin;
+  background: linear-gradient(90deg, #ff9fc9, #c79bff);
+  opacity: 0; animation: draw .8s cubic-bezier(.2,.7,.2,1) .75s forwards;
+}
+@keyframes draw { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+.name {
+  display: none; margin-top: 4.2vmin; font-size: 5.4vmin; font-weight: 300; letter-spacing: .08em;
+  animation-delay: .95s;
+}
+.has-name .name { display: block; }
+</style>
+</head>
+<body class="{{BODY_CLASS}}">
+  <div class="layer sky"></div>
+  <div class="layer floor"></div>
+  <div class="moon"></div>
+  <div class="bokeh b1"></div>
+  <div class="bokeh b2"></div>
+  <div class="bokeh b3"></div>
+  <div class="bokeh b4"></div>
+  <div class="petals">
+    <i class="petal" style="--x:3%;  --d:6.4s; --l:-1.2s; --s:1.0"></i>
+    <i class="petal" style="--x:10%; --d:5.6s; --l:-3.8s; --s:1.3"></i>
+    <i class="petal" style="--x:17%; --d:7.0s; --l:-0.4s; --s:0.8"></i>
+    <i class="petal" style="--x:25%; --d:6.0s; --l:-4.6s; --s:1.1"></i>
+    <i class="petal" style="--x:33%; --d:5.2s; --l:-2.2s; --s:0.9"></i>
+    <i class="petal" style="--x:41%; --d:6.8s; --l:-5.5s; --s:1.4"></i>
+    <i class="petal" style="--x:49%; --d:5.8s; --l:-0.9s; --s:0.8"></i>
+    <i class="petal" style="--x:57%; --d:6.6s; --l:-3.1s; --s:1.2"></i>
+    <i class="petal" style="--x:64%; --d:5.4s; --l:-4.9s; --s:1.0"></i>
+    <i class="petal" style="--x:72%; --d:7.2s; --l:-1.8s; --s:1.3"></i>
+    <i class="petal" style="--x:79%; --d:6.2s; --l:-5.9s; --s:0.9"></i>
+    <i class="petal" style="--x:86%; --d:5.5s; --l:-2.7s; --s:1.1"></i>
+    <i class="petal" style="--x:92%; --d:6.9s; --l:-0.1s; --s:1.0"></i>
+    <i class="petal" style="--x:97%; --d:5.9s; --l:-3.5s; --s:0.8"></i>
+  </div>
+  <div class="layer vignette"></div>
+  <div class="stage">
+    <div class="greeting in">{{GREETING}}</div>
+    <div class="clock in">{{TIME}}</div>
+    <div class="date in">{{DAY}} &middot; {{DATE}}</div>
+    <div class="rule"></div>
+    <div class="name in">{{NAME}}</div>
+  </div>
+</body>
+</html>

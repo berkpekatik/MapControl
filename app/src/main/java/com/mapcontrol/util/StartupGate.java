@@ -2,8 +2,9 @@ package com.mapcontrol.util;
 
 /**
  * Güç örneğinden karşılama ve ana ekran kararını üretir.
- * Mod 1'in altı karşılama kaydını siler. Ana ekran, bekleyen açılış isteği varken
- * mod 1 veya üzerindeyken açılır; kenarın tekrarını beklemez.
+ * Mod 1'in altı karşılama ve ana ekran kaydını siler. Ana ekran, ayar açıkken ve bu güç
+ * döngüsünde henüz görünmediyse mod 1 veya üzerindeyken açılır. Güç yükselişi (kenar) kaçsa
+ * da, bekleyen istek ya da açılmamış ekran yüzünden tekrar denenir.
  */
 public final class StartupGate {
 
@@ -18,11 +19,12 @@ public final class StartupGate {
     }
 
     public static StartupGate decide(int previousMode, int mode, boolean welcomeShown,
-            boolean designEnabled, boolean uiPending) {
+            boolean designEnabled, boolean uiPending, boolean uiEnabled, boolean uiLaunched) {
         if (mode < 1) {
             return new StartupGate(true, false, false);
         }
         boolean show = previousMode < 1 && designEnabled && !welcomeShown;
-        return new StartupGate(false, show, uiPending);
+        boolean launch = uiEnabled && !uiLaunched && (uiPending || previousMode < 1);
+        return new StartupGate(false, show, launch);
     }
 }

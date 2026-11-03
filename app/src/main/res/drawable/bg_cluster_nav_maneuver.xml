@@ -1,10 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:angle="135"
-        android:endColor="@color/cluster_nav_maneuver_end"
-        android:startColor="@color/cluster_nav_maneuver_start"
-        android:type="linear" />
-    <corners android:radius="18dp" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ana zemin: derin mavi gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:endColor="@color/cluster_nav_maneuver_end"
+                android:startColor="@color/cluster_nav_maneuver_start"
+                android:type="linear" />
+            <corners android:radius="@dimen/cluster_nav_card_radius" />
+        </shape>
+    </item>
+    <!-- Üstten alta yumuşak ışık yansıması -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/cluster_nav_card_highlight"
+                android:type="linear" />
+            <corners android:radius="@dimen/cluster_nav_card_radius" />
+        </shape>
+    </item>
+    <!-- İnce cam kenar çizgisi -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/cluster_nav_card_radius" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/cluster_nav_maneuver_stroke" />
+        </shape>
+    </item>
+</layer-list>

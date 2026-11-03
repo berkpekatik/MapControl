@@ -43,6 +43,22 @@ public final class VehicleMetricsSnapshot {
      * OEM: 1 kapalı, 2–11 açık kademe, 12 tilt.
      */
     public final int sunroofPosi;
+    /**
+     * Güneşlik / Perde ({@link CarSettingID#ID_CAR_SUNSHADE}).
+     * 1 = kapalı, 2 = açık.
+     */
+    public final int sunshade;
+
+    /**
+     * Yağmur sensörü durumları.
+     */
+    public final int rainfall;
+    public final int rainDetected;
+
+    /**
+     * VDBus IHU ışık algısı.
+     */
+    public final int lightDetectedIhu;
 
     /**
      * Sürüş modu ({@link NewEnergyID#ID_DRIVE_MODE}).
@@ -67,6 +83,10 @@ public final class VehicleMetricsSnapshot {
             int trunk,
             int sunroofOperate,
             int sunroofPosi,
+            int sunshade,
+            int rainfall,
+            int rainDetected,
+            int lightDetectedIhu,
             int driveMode) {
         this.connected = connected;
         this.displaySpeed = displaySpeed;
@@ -84,6 +104,10 @@ public final class VehicleMetricsSnapshot {
         this.trunk = trunk;
         this.sunroofOperate = sunroofOperate;
         this.sunroofPosi = sunroofPosi;
+        this.sunshade = sunshade;
+        this.rainfall = rainfall;
+        this.rainDetected = rainDetected;
+        this.lightDetectedIhu = lightDetectedIhu;
         this.driveMode = driveMode;
     }
 
@@ -187,6 +211,17 @@ public final class VehicleMetricsSnapshot {
         return open != null && open;
     }
 
+    public boolean isSunshadeOpen() {
+        return isValid(sunshade) && sunshade == 2;
+    }
+
+    public boolean isRaining() {
+        if (isValid(rainDetected) && rainDetected > 0) {
+            return true;
+        }
+        return isValid(rainfall) && rainfall > 0;
+    }
+
     public boolean hasDriveMode() {
         return isValid(driveMode) && driveMode >= 0;
     }
@@ -197,7 +232,7 @@ public final class VehicleMetricsSnapshot {
                 connected,
                 invalid, invalid, invalid, invalid, invalid, invalid, invalid, invalid,
                 invalid, invalid, invalid, invalid, invalid,
-                invalid, invalid,
+                invalid, invalid, invalid, invalid, invalid, invalid,
                 invalid);
     }
 
@@ -219,6 +254,10 @@ public final class VehicleMetricsSnapshot {
                 cache.getCombined(ReadOnlyID.ID_TRUNK_STATE),
                 cache.getCombined(VehicleMetricsCache.MODULE_SETTING, CarSettingID.ID_CAR_SPF_OPERATE),
                 cache.getCombined(VehicleMetricsCache.MODULE_SETTING, CarSettingID.ID_CAR_SPF_POSI),
+                cache.getCombined(VehicleMetricsCache.MODULE_SETTING, CarSettingID.ID_CAR_SUNSHADE),
+                cache.getCombined(ReadOnlyID.ID_RAINFALL),
+                cache.getCombined(ReadOnlyID.ID_RAIN_DETECTED),
+                cache.getCombined(ReadOnlyID.ID_LIGHT_DETECTED_IHU),
                 cache.getCombined(VehicleMetricsCache.MODULE_NEW_ENERGY, NewEnergyID.ID_DRIVE_MODE));
     }
 }

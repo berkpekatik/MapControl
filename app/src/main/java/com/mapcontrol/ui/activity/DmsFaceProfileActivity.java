@@ -89,6 +89,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private final Button[] memoryButtons = new Button[FaceProfileStore.MAX_PROFILES];
     private TextView memoryLabel;
     private LinearLayout memoryRow;
+    private Button modeButton;
+    private LinearLayout doorSlotsCard;
+    private LinearLayout doorSlotsContainer;
     private boolean seatMemoryAvailable;
     private int selectedMemory = 1;
     private Button enrollButton;
@@ -180,6 +183,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         refreshProfilesListUi();
         updateMemoryButtonsUi();
 
+        if (!CarSeatMemoryManager.getInstance(this).hasExplicitModePreference()) {
+            uiHandler.postDelayed(this::showModeSelectionDialog, 400L);
+        }
+
         preview.setSurfaceTextureListener(this);
         cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -211,35 +218,50 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
         Button backBtn = new Button(this);
         backBtn.setText(R.string.dms_face_back);
-        backBtn.setTextColor(0xFFFFFFFF);
-        backBtn.setTextSize(14);
+        backBtn.setTextColor(textPrimary);
+        UiStyles.setTextSize(backBtn, R.dimen.text_size_small);
         backBtn.setAllCaps(false);
         backBtn.setPadding(dp(18), dp(8), dp(18), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(backBtn, 0xFF263244, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(backBtn,
+                UiStyles.color(this, R.color.buttonSecondaryMuted), 12f);
         backBtn.setOnClickListener(v -> finish());
         topBar.addView(backBtn, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(42)));
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView titleView = new TextView(this);
         titleView.setText(R.string.dms_face_title);
         titleView.setTextColor(textPrimary);
-        titleView.setTextSize(20);
+        UiStyles.setTextSize(titleView, R.dimen.text_size_medium);
         titleView.setTypeface(null, Typeface.BOLD);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleLp.leftMargin = dp(16);
         topBar.addView(titleView, titleLp);
 
+        modeButton = new Button(this);
+        updateModeButtonText();
+        modeButton.setTextColor(0xFFFFFFFF);
+        UiStyles.setTextSize(modeButton, R.dimen.text_size_small);
+        modeButton.setAllCaps(false);
+        modeButton.setPadding(dp(12), dp(6), dp(12), dp(6));
+        UiStyles.applySolidRoundedBackgroundDp(modeButton, 0xFF1E3A8A, 10f);
+        modeButton.setOnClickListener(v -> showModeSelectionDialog());
+        LinearLayout.LayoutParams modeLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        modeLp.rightMargin = dp(10);
+        topBar.addView(modeButton, modeLp);
+
         clearButton = new Button(this);
         clearButton.setText(R.string.dms_face_clear);
         clearButton.setTextColor(0xFFFFFFFF);
-        clearButton.setTextSize(13);
+        UiStyles.setTextSize(clearButton, R.dimen.text_size_small);
         clearButton.setAllCaps(false);
         clearButton.setPadding(dp(16), dp(8), dp(16), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(clearButton, 0xFFB91C1C, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(clearButton,
+                UiStyles.color(this, R.color.buttonDanger), 12f);
         clearButton.setOnClickListener(v -> confirmClearProfiles());
         topBar.addView(clearButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)));
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         boolean portrait = getResources().getConfiguration().orientation
                 == Configuration.ORIENTATION_PORTRAIT;
@@ -299,7 +321,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
         status = new TextView(this);
         status.setTextColor(textPrimary);
-        status.setTextSize(15);
+        UiStyles.setTextSize(status, R.dimen.text_size_normal);
         status.setTypeface(null, Typeface.BOLD);
         status.setGravity(Gravity.CENTER);
         status.setPadding(dp(10), dp(10), dp(10), dp(6));
@@ -334,7 +356,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         TextView enrollHeader = new TextView(this);
         enrollHeader.setText("Yeni Kişi Tanımla (Maks. 3 Kişi)");
         enrollHeader.setTextColor(textPrimary);
-        enrollHeader.setTextSize(16);
+        UiStyles.setTextSize(enrollHeader, R.dimen.text_size_normal);
         enrollHeader.setTypeface(null, Typeface.BOLD);
         enrollCard.addView(enrollHeader);
 
@@ -343,7 +365,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 ? R.string.dms_face_local_notice
                 : R.string.dms_face_local_notice_no_memory);
         enrollSub.setTextColor(textSecondary);
-        enrollSub.setTextSize(13);
+        UiStyles.setTextSize(enrollSub, R.dimen.text_size_small);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = dp(4);
@@ -353,18 +375,19 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         nameInput = new EditText(this);
         nameInput.setSingleLine(true);
         nameInput.setHint(R.string.dms_face_name_hint);
-        nameInput.setHintTextColor(0xFF94A3B8);
-        nameInput.setTextColor(0xFFFFFFFF);
-        nameInput.setTextSize(15);
+        nameInput.setHintTextColor(UiStyles.color(this, R.color.textMuted));
+        nameInput.setTextColor(textPrimary);
+        UiStyles.setTextSize(nameInput, R.dimen.text_size_normal);
         nameInput.setPadding(dp(14), dp(8), dp(14), dp(8));
-        UiStyles.applySolidRoundedBackgroundDp(nameInput, 0xFF1E293B, 10f);
+        UiStyles.applySolidRoundedBackgroundDp(nameInput,
+                UiStyles.color(this, R.color.surfaceCardInner), 10f);
         enrollCard.addView(nameInput, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)));
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         memoryLabel = new TextView(this);
         memoryLabel.setText("Koltuk Hafızası Seçin:");
         memoryLabel.setTextColor(textPrimary);
-        memoryLabel.setTextSize(13);
+        UiStyles.setTextSize(memoryLabel, R.dimen.text_size_small);
         memoryLabel.setTypeface(null, Typeface.BOLD);
         LinearLayout.LayoutParams memLabelLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -375,7 +398,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         memoryRow = new LinearLayout(this);
         memoryRow.setOrientation(LinearLayout.HORIZONTAL);
         enrollCard.addView(memoryRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         if (!seatMemoryAvailable) {
             memoryLabel.setVisibility(View.GONE);
             memoryRow.setVisibility(View.GONE);
@@ -386,7 +409,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             Button btn = new Button(this);
             btn.setText("Hafıza " + memNum);
             btn.setAllCaps(false);
-            btn.setTextSize(13);
+            UiStyles.setTextSize(btn, R.dimen.text_size_small);
             btn.setOnClickListener(v -> {
                 selectedMemory = memNum;
                 enrollmentMemory = memNum;
@@ -404,14 +427,15 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollButton = new Button(this);
         enrollButton.setText(R.string.dms_face_enroll);
         enrollButton.setTextColor(0xFFFFFFFF);
-        enrollButton.setTextSize(15);
+        UiStyles.setTextSize(enrollButton, R.dimen.text_size_normal);
         enrollButton.setTypeface(null, Typeface.BOLD);
         enrollButton.setAllCaps(false);
         enrollButton.setEnabled(false);
-        UiStyles.applySolidRoundedBackgroundDp(enrollButton, 0xFF2563EB, 12f);
+        UiStyles.applySolidRoundedBackgroundDp(enrollButton,
+                UiStyles.color(this, R.color.buttonPrimary), 12f);
         enrollButton.setOnClickListener(v -> onEnrollButtonClicked());
         LinearLayout.LayoutParams enrollBtnLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         enrollBtnLp.topMargin = dp(12);
         enrollCard.addView(enrollButton, enrollBtnLp);
 
@@ -426,7 +450,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         TextView listHeader = new TextView(this);
         listHeader.setText("Kayıtlı Profiller");
         listHeader.setTextColor(textPrimary);
-        listHeader.setTextSize(16);
+        UiStyles.setTextSize(listHeader, R.dimen.text_size_normal);
         listHeader.setTypeface(null, Typeface.BOLD);
         listCard.addView(listHeader);
 
@@ -436,6 +460,38 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         listContainerLp.topMargin = dp(8);
         listCard.addView(profilesListContainer, listContainerLp);
+
+        doorSlotsCard = new LinearLayout(this);
+        doorSlotsCard.setOrientation(LinearLayout.VERTICAL);
+        doorSlotsCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        UiStyles.setGlassCardBackground(doorSlotsCard);
+        LinearLayout.LayoutParams doorCardLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        doorCardLp.topMargin = dp(12);
+        doorCardLp.bottomMargin = dp(14);
+        rightColumn.addView(doorSlotsCard, doorCardLp);
+
+        TextView doorCardHeader = new TextView(this);
+        doorCardHeader.setText("Araç Kapısı Üzerinde Hafıza Konumları");
+        doorCardHeader.setTextColor(textPrimary);
+        UiStyles.setTextSize(doorCardHeader, R.dimen.text_size_normal);
+        doorCardHeader.setTypeface(null, Typeface.BOLD);
+        doorSlotsCard.addView(doorCardHeader);
+
+        TextView doorCardSub = new TextView(this);
+        doorCardSub.setText("Kapıdaki 1, 2 veya 3 tuşuna basarak istediğiniz yuvanın konumunu MapControl'e aktarabilir ve güncelleyebilirsiniz.");
+        doorCardSub.setTextColor(textSecondary);
+        UiStyles.setTextSize(doorCardSub, R.dimen.text_size_small);
+        LinearLayout.LayoutParams doorSubLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        doorSubLp.topMargin = dp(2);
+        doorSubLp.bottomMargin = dp(8);
+        doorSlotsCard.addView(doorCardSub, doorSubLp);
+
+        doorSlotsContainer = new LinearLayout(this);
+        doorSlotsContainer.setOrientation(LinearLayout.VERTICAL);
+        doorSlotsCard.addView(doorSlotsContainer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         setContentView(root);
     }
@@ -448,10 +504,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             }
             int memNum = i + 1;
             boolean isSelected = (selectedMemory == memNum);
-            btn.setTextColor(0xFFFFFFFF);
+            btn.setTextColor(isSelected ? 0xFFFFFFFF : UiStyles.color(this, R.color.textPrimary));
             btn.setTypeface(null, isSelected ? Typeface.BOLD : Typeface.NORMAL);
-            UiStyles.applySolidRoundedBackgroundDp(
-                    btn, isSelected ? 0xFF2563EB : 0xFF334155, 10f);
+            UiStyles.applySolidRoundedBackgroundDp(btn, UiStyles.color(this,
+                    isSelected ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 10f);
         }
     }
 
@@ -475,6 +531,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         if (profilesListContainer == null) {
             return;
         }
+        updateModeButtonText();
         int textSecondary = UiStyles.color(this, R.color.textSecondaryCool);
         profilesListContainer.removeAllViews();
         if (clearButton != null) {
@@ -484,11 +541,13 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             TextView empty = new TextView(this);
             empty.setText("Henüz kayıtlı kişi bulunmuyor.");
             empty.setTextColor(textSecondary);
-            empty.setTextSize(14);
+            UiStyles.setTextSize(empty, R.dimen.text_size_small);
             empty.setPadding(0, dp(6), 0, dp(4));
             profilesListContainer.addView(empty);
+            updateDoorSlotsCard();
             return;
         }
+        boolean isDoorMode = CarSeatMemoryManager.getInstance(this).isDoorMode();
         for (int i = 0; i < profiles.size(); i++) {
             final int index = i;
             final FaceProfileStore.Profile p = profiles.get(i);
@@ -496,7 +555,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(12), dp(10), dp(12), dp(10));
-            UiStyles.applySolidRoundedBackgroundDp(row, 0xFF1E293B, 10f);
+            UiStyles.applySolidRoundedBackgroundDp(row,
+                    UiStyles.color(this, R.color.surfaceCardInner), 10f);
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             if (i > 0) {
@@ -507,21 +567,42 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             infoCol.setOrientation(LinearLayout.VERTICAL);
             TextView nameTv = new TextView(this);
             nameTv.setText((i + 1) + ". " + p.name);
-            nameTv.setTextColor(0xFFFFFFFF);
-            nameTv.setTextSize(15);
+            nameTv.setTextColor(UiStyles.color(this, R.color.textPrimary));
+            UiStyles.setTextSize(nameTv, R.dimen.text_size_normal);
             nameTv.setTypeface(null, Typeface.BOLD);
             infoCol.addView(nameTv);
 
             if (seatMemoryAvailable) {
                 TextView subTv = new TextView(this);
-                subTv.setText("Koltuk Hafızası " + p.seatMemory);
-                subTv.setTextColor(0xFF60A5FA);
-                subTv.setTextSize(13);
+                if (isDoorMode) {
+                    String summary = CarSeatMemoryManager.getInstance(this).getCachedSlotSummary(p.seatMemory);
+                    subTv.setText("Koltuk Hafızası " + p.seatMemory + " · " + summary);
+                } else {
+                    subTv.setText("Koltuk Hafızası " + p.seatMemory);
+                }
+                subTv.setTextColor(UiStyles.color(this, R.color.textAccent));
+                UiStyles.setTextSize(subTv, R.dimen.text_size_small);
                 infoCol.addView(subTv);
             }
 
             row.addView(infoCol, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            if (seatMemoryAvailable && isDoorMode) {
+                Button updateBtn = new Button(this);
+                updateBtn.setText("Hafıza " + p.seatMemory + " Güncelle");
+                updateBtn.setAllCaps(false);
+                updateBtn.setTextColor(0xFFFFFFFF);
+                UiStyles.setTextSize(updateBtn, R.dimen.text_size_tiny);
+                updateBtn.setPadding(dp(8), dp(4), dp(8), dp(4));
+                UiStyles.applySolidRoundedBackgroundDp(updateBtn, 0xFF0284C7, 8f);
+                final int slotToUpdate = p.seatMemory;
+                updateBtn.setOnClickListener(v -> showSeatCalibrationDialog(slotToUpdate, this::refreshProfilesListUi));
+                LinearLayout.LayoutParams updateLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                updateLp.rightMargin = dp(6);
+                row.addView(updateBtn, updateLp);
+            }
 
             if (seatMemoryAvailable) {
             for (int m = 1; m <= FaceProfileStore.MAX_PROFILES; m++) {
@@ -529,15 +610,17 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 Button memBtn = new Button(this);
                 memBtn.setText(String.valueOf(m));
                 memBtn.setAllCaps(false);
-                memBtn.setTextColor(0xFFFFFFFF);
-                memBtn.setTextSize(12);
+                UiStyles.setTextSize(memBtn, R.dimen.text_size_small);
                 memBtn.setPadding(0, 0, 0, 0);
                 boolean active = (p.seatMemory == m);
+                memBtn.setTextColor(active
+                        ? 0xFFFFFFFF
+                        : UiStyles.color(this, R.color.textPrimary));
                 memBtn.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
-                UiStyles.applySolidRoundedBackgroundDp(
-                        memBtn, active ? 0xFF2563EB : 0xFF334155, 8f);
+                UiStyles.applySolidRoundedBackgroundDp(memBtn, UiStyles.color(this,
+                        active ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 8f);
                 memBtn.setOnClickListener(v -> updateProfileSeatMemory(index, targetMem));
-                LinearLayout.LayoutParams memLp = new LinearLayout.LayoutParams(dp(34), dp(34));
+                LinearLayout.LayoutParams memLp = new LinearLayout.LayoutParams(dp(48), dp(48));
                 memLp.rightMargin = dp(6);
                 row.addView(memBtn, memLp);
             }
@@ -547,15 +630,17 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             delBtn.setText(R.string.dms_face_delete_single);
             delBtn.setAllCaps(false);
             delBtn.setTextColor(0xFFFFFFFF);
-            delBtn.setTextSize(12);
+            UiStyles.setTextSize(delBtn, R.dimen.text_size_small);
             delBtn.setPadding(dp(12), dp(4), dp(12), dp(4));
-            UiStyles.applySolidRoundedBackgroundDp(delBtn, 0xFFB91C1C, 8f);
+            UiStyles.applySolidRoundedBackgroundDp(delBtn,
+                    UiStyles.color(this, R.color.buttonDanger), 8f);
             delBtn.setOnClickListener(v -> deleteSingleProfile(index));
             row.addView(delBtn, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, dp(34)));
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
             profilesListContainer.addView(row, rowLp);
         }
+        updateDoorSlotsCard();
     }
 
     private void updateProfileSeatMemory(int index, int newSeatMemory) {
@@ -603,6 +688,204 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             Toast.makeText(this, getString(R.string.dms_face_save_error, e.getMessage()),
                     Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void updateModeButtonText() {
+        if (modeButton == null) return;
+        boolean door = CarSeatMemoryManager.getInstance(this).isDoorMode();
+        modeButton.setText(door ? "Araç Kapısı Üzerinde" : "Multimedya Ekranı Üzerinde");
+        UiStyles.applySolidRoundedBackgroundDp(modeButton, door ? 0xFF0D9488 : 0xFF2563EB, 10f);
+    }
+
+    private void showModeSelectionDialog() {
+        String[] options = new String[]{
+                "Multimedya Ekranı Üzerinde",
+                "Araç Kapısı Üzerinde"
+        };
+        int current = CarSeatMemoryManager.getInstance(this).getMemoryMode();
+        new AlertDialog.Builder(this)
+                .setTitle("Koltuk Hafıza Tipi")
+                .setSingleChoiceItems(options, current, (dialog, which) -> {
+                    CarSeatMemoryManager.getInstance(this).setMemoryMode(which);
+                    updateModeButtonText();
+                    refreshProfilesListUi();
+                    dialog.dismiss();
+                    Toast.makeText(this, which == CarSeatMemoryManager.MODE_DOOR
+                            ? "Araç Kapısı Üzerinde modu seçildi."
+                            : "Multimedya Ekranı Üzerinde modu seçildi.", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Kapat", null)
+                .show();
+    }
+
+    private void updateDoorSlotsCard() {
+        if (doorSlotsCard == null || doorSlotsContainer == null) return;
+        boolean isDoor = CarSeatMemoryManager.getInstance(this).isDoorMode();
+        doorSlotsCard.setVisibility(isDoor ? View.VISIBLE : View.GONE);
+        if (!isDoor) return;
+
+        doorSlotsContainer.removeAllViews();
+        CarSeatMemoryManager mgr = CarSeatMemoryManager.getInstance(this);
+        for (int m = 1; m <= FaceProfileStore.MAX_PROFILES; m++) {
+            final int slot = m;
+            LinearLayout slotRow = new LinearLayout(this);
+            slotRow.setOrientation(LinearLayout.HORIZONTAL);
+            slotRow.setGravity(Gravity.CENTER_VERTICAL);
+            slotRow.setPadding(dp(10), dp(8), dp(10), dp(8));
+            UiStyles.applySolidRoundedBackgroundDp(slotRow, 0xFF1E293B, 8f);
+            LinearLayout.LayoutParams slotRowLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (m > 1) slotRowLp.topMargin = dp(6);
+
+            LinearLayout textCol = new LinearLayout(this);
+            textCol.setOrientation(LinearLayout.VERTICAL);
+
+            TextView slotNameTv = new TextView(this);
+            slotNameTv.setText("Hafıza " + slot);
+            slotNameTv.setTextColor(0xFFFFFFFF);
+            UiStyles.setTextSize(slotNameTv, R.dimen.text_size_small);
+            slotNameTv.setTypeface(null, Typeface.BOLD);
+            textCol.addView(slotNameTv);
+
+            TextView slotSummaryTv = new TextView(this);
+            slotSummaryTv.setText(mgr.getCachedSlotSummary(slot));
+            slotSummaryTv.setTextColor(mgr.isSlotCalibrated(slot) ? 0xFF34D399 : 0xFF94A3B8);
+            UiStyles.setTextSize(slotSummaryTv, R.dimen.text_size_small);
+            textCol.addView(slotSummaryTv);
+
+            slotRow.addView(textCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            Button calBtn = new Button(this);
+            calBtn.setText("Kapıdan Güncelle");
+            calBtn.setAllCaps(false);
+            calBtn.setTextColor(0xFFFFFFFF);
+            UiStyles.setTextSize(calBtn, R.dimen.text_size_small);
+            calBtn.setPadding(dp(10), dp(4), dp(10), dp(4));
+            UiStyles.applySolidRoundedBackgroundDp(calBtn, 0xFF0284C7, 8f);
+            calBtn.setOnClickListener(v -> showSeatCalibrationDialog(slot, this::refreshProfilesListUi));
+            slotRow.addView(calBtn, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            doorSlotsContainer.addView(slotRow, slotRowLp);
+        }
+    }
+
+    private void showSeatCalibrationDialog(int targetSlot, @Nullable Runnable onComplete) {
+        CarSeatMemoryManager memoryMgr = CarSeatMemoryManager.getInstance(this);
+        memoryMgr.ensureInitialized();
+
+        LinearLayout dialogView = new LinearLayout(this);
+        dialogView.setOrientation(LinearLayout.VERTICAL);
+        dialogView.setPadding(dp(20), dp(16), dp(20), dp(16));
+
+        TextView promptTv = new TextView(this);
+        promptTv.setText("Lütfen aracınızın kapısındaki (veya koltuğundaki) " + targetSlot
+                + " numaralı hafıza tuşuna basın.\n\nKoltuk durduğunda milimetrik koordinatlar otomatik kaydedilecektir.");
+        promptTv.setTextColor(0xFFE2E8F0);
+        UiStyles.setTextSize(promptTv, R.dimen.text_size_small);
+        promptTv.setLineSpacing(dp(2), 1f);
+        dialogView.addView(promptTv);
+
+        TextView statusTv = new TextView(this);
+        statusTv.setText("⏳ Durum: Kapıdaki tuşa basılması bekleniyor...");
+        statusTv.setTextColor(0xFF38BDF8);
+        UiStyles.setTextSize(statusTv, R.dimen.text_size_small);
+        statusTv.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        statusLp.topMargin = dp(14);
+        dialogView.addView(statusTv, statusLp);
+
+        TextView coordsTv = new TextView(this);
+        coordsTv.setText(memoryMgr.getCachedSlotSummary(targetSlot));
+        coordsTv.setTextColor(0xFF94A3B8);
+        UiStyles.setTextSize(coordsTv, R.dimen.text_size_small);
+        LinearLayout.LayoutParams coordsLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        coordsLp.topMargin = dp(6);
+        dialogView.addView(coordsTv, coordsLp);
+
+        ProgressBar spinner = new ProgressBar(this);
+        spinner.setIndeterminate(true);
+        LinearLayout.LayoutParams spinnerLp = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
+        spinnerLp.gravity = Gravity.CENTER_HORIZONTAL;
+        spinnerLp.topMargin = dp(14);
+        dialogView.addView(spinner, spinnerLp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("🚪 Kapı Hafıza " + targetSlot + " Eşitleme")
+                .setView(dialogView)
+                .setPositiveButton("⚡ Şu Anki Konumu Kaydet", null)
+                .setNegativeButton("İptal", (d, w) -> {
+                    memoryMgr.stopDoorCalibration();
+                })
+                .setCancelable(false)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            Button saveNowBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (saveNowBtn != null) {
+                saveNowBtn.setOnClickListener(v -> {
+                    memoryMgr.saveCurrentPositionToSlot(targetSlot);
+                });
+            }
+        });
+
+        memoryMgr.startDoorCalibration(targetSlot, new CarSeatMemoryManager.SeatCalibrationListener() {
+            @Override
+            public void onSeatPositionUpdate(int slot, int frPosi, int height, int backRest, boolean isMoving) {
+                runOnUiThread(() -> {
+                    if (isMoving) {
+                        statusTv.setText("🔄 Koltuk hareket ediyor... Konum okunuyor...");
+                        statusTv.setTextColor(0xFFFBBF24);
+                    }
+                    coordsTv.setText("Canlı Konum -> Ön/Arka: " + frPosi + ", Yükseklik: " + height + ", Sırtlık: " + backRest);
+                });
+            }
+
+            @Override
+            public void onCalibrationComplete(int slot, int frPosi, int height, int backRest) {
+                runOnUiThread(() -> {
+                    spinner.setVisibility(View.GONE);
+                    statusTv.setText("✅ Konum başarıyla kaydedildi!");
+                    statusTv.setTextColor(0xFF34D399);
+                    coordsTv.setText("Kaydedilen -> Ön/Arka: " + frPosi + ", Yükseklik: " + height + ", Sırtlık: " + backRest);
+                    uiHandler.postDelayed(() -> {
+                        try {
+                            if (dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    }, 1000L);
+                });
+            }
+
+            @Override
+            public void onCalibrationFailed(String reason) {
+                runOnUiThread(() -> {
+                    spinner.setVisibility(View.GONE);
+                    statusTv.setText("⚠️ " + reason);
+                    statusTv.setTextColor(0xFFF87171);
+                    uiHandler.postDelayed(() -> {
+                        try {
+                            if (dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    }, 2200L);
+                });
+            }
+        });
+
+        dialog.show();
     }
 
     private void onEnrollButtonClicked() {
@@ -797,6 +1080,13 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                     : getString(R.string.dms_face_saved_name, savedName);
             showFaceStatus(msg);
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+
+            if (seatMemoryAvailable && CarSeatMemoryManager.getInstance(this).isDoorMode()) {
+                showSeatCalibrationDialog(savedMemory, () -> {
+                    refreshProfilesListUi();
+                    Toast.makeText(this, "Yüz profili ve Kapı Hafıza " + savedMemory + " başarıyla eşitlendi!", Toast.LENGTH_LONG).show();
+                });
+            }
         } catch (IllegalStateException e) {
             status.setText(getString(R.string.dms_face_save_error, e.getMessage()));
         }
@@ -1266,8 +1556,15 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
     @Override
     protected void onPause() {
+        CarSeatMemoryManager.getInstance(this).stopDoorCalibration();
         clusterPreview.hide();
         super.onPause();
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        recreate();
     }
 
     @Override

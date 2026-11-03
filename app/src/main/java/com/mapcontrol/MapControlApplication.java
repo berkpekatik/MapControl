@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
+import com.mapcontrol.media.ClusterTrackRelay;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.AppLocaleManager;
 import com.mapcontrol.util.DisplayHelper;
@@ -21,7 +22,10 @@ public final class MapControlApplication extends Application {
         GlitchTip.start(this);
         AppLocaleManager.applyStoredLocale(this);
         LauncherLegacyPrefs.applyMigrations(this);
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        ClusterTrackRelay.install(this);
+        int nightPref = getSharedPreferences("MapControlPrefs", MODE_PRIVATE)
+                .getInt("nightModeSetting", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightPref);
         lastNightModeUiBits = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         UiStyles.setUiModeOverride(getResources().getConfiguration());
         registerComponentCallbacks(new ComponentCallbacks() {

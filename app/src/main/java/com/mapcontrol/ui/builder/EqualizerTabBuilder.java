@@ -6,6 +6,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -13,10 +15,12 @@ import android.widget.TextView;
 
 import com.mapcontrol.R;
 import com.mapcontrol.audio.AudioEqualizerController;
+import com.mapcontrol.ui.theme.FeatureGridLayout;
 import com.mapcontrol.ui.theme.UiStyles;
 
 /**
- * Ekolayzer sekmesi. Cam kart, parçalı anahtar ve kaydırıcılar diğer sekmelerle aynı dili kullanır.
+ * Gelişmiş Ses ve Ekolayzer Sekmesi.
+ * İki sütunlu modüler cam kart yapısıyla (FeatureGridLayout) araç içi ses kontrolleri ve 5-bant grafik ekolayzer sunar.
  */
 public class EqualizerTabBuilder {
 
@@ -25,6 +29,14 @@ public class EqualizerTabBuilder {
             AudioEqualizerController.PRESET_BASS,
             AudioEqualizerController.PRESET_VOCAL,
             AudioEqualizerController.PRESET_TREBLE
+    };
+
+    private static final int[] BAND_NAME_RES = {
+            R.string.equalizer_band_name_0,
+            R.string.equalizer_band_name_1,
+            R.string.equalizer_band_name_2,
+            R.string.equalizer_band_name_3,
+            R.string.equalizer_band_name_4
     };
 
     private final Context context;
@@ -40,6 +52,7 @@ public class EqualizerTabBuilder {
     private TextView gainValue;
     private SeekBar gainBar;
     private TextView[] presetChips;
+    private TextView presetStatusBadge;
     private TextView[] bandValues;
     private SeekBar[] bandBars;
 
@@ -75,29 +88,50 @@ public class EqualizerTabBuilder {
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
         outer.setPadding(margin, margin, margin, margin);
 
+        scrollView.addView(outer, new ScrollView.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        if (!state.supported) {
+            LinearLayout unsupportedCard = createGlassCard();
+            addSectionTitle(unsupportedCard, R.string.equalizer_title);
+            addSectionDesc(unsupportedCard, R.string.equalizer_unsupported);
+            outer.addView(unsupportedCard, matchWrap());
+            return scrollView;
+        }
+
+        FeatureGridLayout grid = new FeatureGridLayout(context);
+        outer.addView(grid, matchWrap());
+
+        // Sol Kart: Genel Ses ve Ekolayzer Kontrolleri, Ses Yükseltme ve Hazır Profiller
+        LinearLayout mainCard = createGlassCard();
+        grid.addCard(mainCard);
+        buildMainControlsCard(mainCard);
+
+        // Sağ Kart: 5-Bant Grafik Ekolayzer
+        LinearLayout bandsCard = createGlassCard();
+        grid.addCard(bandsCard);
+        buildBandsCard(bandsCard);
+
+        return scrollView;
+    }
+
+    private LinearLayout createGlassCard() {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
         int inner = UiStyles.dimenPx(context, R.dimen.oem_card_inner_padding);
         card.setPadding(inner, inner, inner, inner);
         UiStyles.setGlassCardBackground(card);
+        return card;
+    }
 
-        outer.addView(card, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        scrollView.addView(outer, new ScrollView.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+    private void buildMainControlsCard(LinearLayout card) {
+        addSectionTitle(card, R.string.equalizer_main_card_title);
+        addSectionDesc(card, R.string.equalizer_main_card_desc);
 
-        addSectionTitle(card, R.string.equalizer_title);
-        addSectionDesc(card, R.string.equalizer_desc);
-
-        if (!state.supported) {
-            addSectionDesc(card, R.string.equalizer_unsupported);
-            return scrollView;
-        }
-
+        // Master Açık/Kapalı Switch
         UiStyles.addBinarySegmentedControl(context, card,
-                null,
+                context.getString(R.string.equalizer_title),
                 context.getString(R.string.common_on),
                 context.getString(R.string.common_off),
                 context.getString(R.string.equalizer_help_on),
@@ -105,8 +139,30 @@ public class EqualizerTabBuilder {
                 enabled,
                 this::onEnabledChanged);
 
-        addSectionTitle(card, R.string.equalizer_gain_title);
-        gainValue = addValueLabel(card, formatDb(gainMb, false));
+        addDivider(card);
+
+        // Ses Yükseltme (Gain / Loudness Boost)
+        LinearLayout gainHeader = new LinearLayout(context);
+        gainHeader.setOrientation(LinearLayout.HORIZONTAL);
+        gainHeader.setGravity(Gravity.CENTER_VERTICAL);
+        int hPad = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        gainHeader.setPadding(hPad, UiStyles.dimenPx(context, R.dimen.spacing_small), hPad, 0);
+
+        TextView gainTitle = new TextView(context);
+        gainTitle.setText(R.string.equalizer_gain_title);
+        UiStyles.setTextSize(gainTitle, R.dimen.text_size_medium);
+        gainTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        gainTitle.setTypeface(null, Typeface.BOLD);
+        gainHeader.addView(gainTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        gainValue = new TextView(context);
+        gainValue.setText(formatDb(gainMb, false));
+        UiStyles.setTextSize(gainValue, R.dimen.text_size_medium);
+        gainValue.setTextColor(UiStyles.color(context, R.color.oemAccent));
+        gainValue.setTypeface(null, Typeface.BOLD);
+        gainHeader.addView(gainValue);
+        card.addView(gainHeader, matchWrap());
+
         gainBar = addSeekBar(card, AudioEqualizerController.MAX_GAIN_MB, gainMb, new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -128,12 +184,56 @@ public class EqualizerTabBuilder {
             }
         });
 
-        addSectionTitle(card, R.string.equalizer_presets_title);
+        TextView limiterNote = new TextView(context);
+        limiterNote.setText(R.string.equalizer_limiter_note);
+        UiStyles.setTextSize(limiterNote, R.dimen.text_size_small);
+        limiterNote.setTextColor(UiStyles.color(context, R.color.textHint));
+        limiterNote.setPadding(hPad, 0, hPad, UiStyles.dimenPx(context, R.dimen.spacing_small));
+        card.addView(limiterNote, matchWrap());
+
+        addDivider(card);
+
+        // Hazır Ekolayzer Profilleri (Presets)
+        LinearLayout presetsHeader = new LinearLayout(context);
+        presetsHeader.setOrientation(LinearLayout.HORIZONTAL);
+        presetsHeader.setGravity(Gravity.CENTER_VERTICAL);
+        presetsHeader.setPadding(hPad, UiStyles.dimenPx(context, R.dimen.spacing_small), hPad, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
+
+        TextView presetsTitle = new TextView(context);
+        presetsTitle.setText(R.string.equalizer_presets_title);
+        UiStyles.setTextSize(presetsTitle, R.dimen.text_size_medium);
+        presetsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        presetsTitle.setTypeface(null, Typeface.BOLD);
+        presetsHeader.addView(presetsTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        presetStatusBadge = new TextView(context);
+        UiStyles.setTextSize(presetStatusBadge, R.dimen.text_size_small);
+        presetStatusBadge.setTextColor(UiStyles.color(context, R.color.oemAccent));
+        presetStatusBadge.setTypeface(null, Typeface.BOLD);
+        presetsHeader.addView(presetStatusBadge);
+        card.addView(presetsHeader, matchWrap());
+
         addPresetRow(card);
 
-        addSectionTitle(card, R.string.equalizer_bands_title);
+        // Ayarları Sıfırla (Düz) Butonu
+        Button btnReset = new Button(context);
+        btnReset.setText(R.string.equalizer_reset_to_flat);
+        UiStyles.setTextSize(btnReset, R.dimen.text_size_small);
+        UiStyles.styleOemButton(btnReset, UiStyles.color(context, R.color.buttonSecondaryMuted));
+        btnReset.setOnClickListener(v -> resetToFlat());
+
+        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        resetLp.setMargins(hPad, UiStyles.dimenPx(context, R.dimen.spacing_medium), hPad, UiStyles.dimenPx(context, R.dimen.spacing_small));
+        card.addView(btnReset, resetLp);
+    }
+
+    private void buildBandsCard(LinearLayout card) {
+        addSectionTitle(card, R.string.equalizer_bands_card_title);
+        addSectionDesc(card, R.string.equalizer_bands_card_desc);
+
         addBandRows(card);
-        return scrollView;
     }
 
     private void onEnabledChanged(boolean nowEnabled) {
@@ -151,6 +251,11 @@ public class EqualizerTabBuilder {
         pushSliders();
         stylePresetChips();
         commit(presetId);
+    }
+
+    private void resetToFlat() {
+        gainMb = 0;
+        onPresetSelected(AudioEqualizerController.PRESET_FLAT);
     }
 
     private void commit(String presetId) {
@@ -176,7 +281,7 @@ public class EqualizerTabBuilder {
         for (int i = 0; i < PRESET_IDS.length; i++) {
             TextView chip = new TextView(context);
             chip.setText(labels[i]);
-            chip.setTextSize(15);
+            UiStyles.setTextSize(chip, R.dimen.text_size_normal);
             chip.setGravity(Gravity.CENTER);
             chip.setMinHeight(UiStyles.dimenPx(context, R.dimen.button_height));
             chip.setPadding(pad, pad, pad, pad);
@@ -191,8 +296,8 @@ public class EqualizerTabBuilder {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        int h = UiStyles.dimenPx(context, R.dimen.spacing_medium);
-        lp.setMargins(h, 0, h, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        lp.setMargins(h, UiStyles.dimenPx(context, R.dimen.spacing_small), h, UiStyles.dimenPx(context, R.dimen.spacing_small));
         parent.addView(track, lp);
     }
 
@@ -200,6 +305,7 @@ public class EqualizerTabBuilder {
         if (presetChips == null) {
             return;
         }
+        boolean isCustom = AudioEqualizerController.PRESET_CUSTOM.equals(preset);
         for (int i = 0; i < presetChips.length; i++) {
             boolean selected = PRESET_IDS[i].equals(preset);
             TextView chip = presetChips[i];
@@ -213,26 +319,54 @@ public class EqualizerTabBuilder {
                 chip.setTypeface(null, Typeface.NORMAL);
             }
         }
+        if (presetStatusBadge != null) {
+            if (isCustom) {
+                presetStatusBadge.setText(context.getString(R.string.equalizer_preset_custom));
+            } else {
+                presetStatusBadge.setText("");
+            }
+        }
     }
 
     private void addBandRows(LinearLayout parent) {
         bandValues = new TextView[bandLevels.length];
         bandBars = new SeekBar[bandLevels.length];
         int span = Math.max(1, maxLevelMb - minLevelMb);
+
         for (int i = 0; i < bandLevels.length; i++) {
             final int index = i;
+
+            LinearLayout bandContainer = new LinearLayout(context);
+            bandContainer.setOrientation(LinearLayout.VERTICAL);
+            int vPad = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
+            bandContainer.setPadding(0, vPad, 0, vPad);
+
+            LinearLayout bandHeader = new LinearLayout(context);
+            bandHeader.setOrientation(LinearLayout.HORIZONTAL);
+            bandHeader.setGravity(Gravity.CENTER_VERTICAL);
+            int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
+            bandHeader.setPadding(h, 0, h, 0);
+
+            String hzText = formatHz(i < centerHz.length ? centerHz[i] : 0);
+            String subName = i < BAND_NAME_RES.length ? " • " + context.getString(BAND_NAME_RES[i]) : "";
             TextView hz = new TextView(context);
-            hz.setText(formatHz(i < centerHz.length ? centerHz[i] : 0));
-            hz.setTextSize(15);
+            hz.setText(hzText + subName);
+            UiStyles.setTextSize(hz, R.dimen.text_size_normal);
             hz.setTextColor(UiStyles.color(context, R.color.textPrimary));
             hz.setTypeface(null, Typeface.BOLD);
-            int h = UiStyles.dimenPx(context, R.dimen.spacing_medium);
-            hz.setPadding(h, UiStyles.dimenPx(context, R.dimen.spacing_small), h, 0);
-            parent.addView(hz, matchWrap());
+            bandHeader.addView(hz, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-            bandValues[i] = addValueLabel(parent, formatDb(bandLevels[i], true));
+            bandValues[i] = new TextView(context);
+            bandValues[i].setText(formatDb(bandLevels[i], true));
+            UiStyles.setTextSize(bandValues[i], R.dimen.text_size_normal);
+            bandValues[i].setTextColor(UiStyles.color(context, R.color.oemAccent));
+            bandValues[i].setTypeface(null, Typeface.BOLD);
+            bandHeader.addView(bandValues[i]);
+
+            bandContainer.addView(bandHeader, matchWrap());
+
             int progress = bandLevels[i] - minLevelMb;
-            bandBars[i] = addSeekBar(parent, span, progress, new SeekBar.OnSeekBarChangeListener() {
+            bandBars[i] = addSeekBar(bandContainer, span, progress, new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
                     if (!fromUser || updatingSliders) {
@@ -256,6 +390,8 @@ public class EqualizerTabBuilder {
                     commit(preset);
                 }
             });
+
+            parent.addView(bandContainer, matchWrap());
         }
     }
 
@@ -302,42 +438,43 @@ public class EqualizerTabBuilder {
         int side = thumbPx / 2;
         bar.setPadding(side, 0, side, 0);
         bar.setOnSeekBarChangeListener(listener);
-        int h = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 UiStyles.dimenPx(context, R.dimen.equalizer_slider_height));
-        lp.setMargins(h, 0, h, UiStyles.dimenPx(context, R.dimen.spacing_small));
+        lp.setMargins(h, 0, h, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
         parent.addView(bar, lp);
         return bar;
     }
 
-    private TextView addValueLabel(LinearLayout parent, String text) {
-        TextView value = new TextView(context);
-        value.setText(text);
-        value.setTextSize(14);
-        value.setTextColor(UiStyles.color(context, R.color.textSecondary));
-        int h = UiStyles.dimenPx(context, R.dimen.spacing_medium);
-        value.setPadding(h, 0, h, 0);
-        parent.addView(value, matchWrap());
-        return value;
+    private void addDivider(LinearLayout parent) {
+        View divider = new View(context);
+        divider.setBackgroundColor(UiStyles.color(context, R.color.dividerWhite12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        int m = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        lp.setMargins(m, m, m, m);
+        parent.addView(divider, lp);
     }
 
     private void addSectionTitle(LinearLayout parent, int textRes) {
         TextView title = new TextView(context);
         title.setText(textRes);
-        title.setTextSize(18);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(16, 24, 16, 8);
+        int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        title.setPadding(h, UiStyles.dimenPx(context, R.dimen.spacing_medium), h, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
         parent.addView(title, matchWrap());
     }
 
     private void addSectionDesc(LinearLayout parent, int textRes) {
         TextView desc = new TextView(context);
         desc.setText(textRes);
-        desc.setTextSize(13);
+        UiStyles.setTextSize(desc, R.dimen.text_size_small);
         desc.setTextColor(UiStyles.color(context, R.color.textHint));
-        desc.setPadding(16, 0, 16, 12);
+        int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        desc.setPadding(h, 0, h, UiStyles.dimenPx(context, R.dimen.spacing_medium));
         parent.addView(desc, matchWrap());
     }
 

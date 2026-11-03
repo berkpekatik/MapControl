@@ -32,8 +32,7 @@ import java.io.InputStreamReader;
 import java.io.File;
 import java.io.IOException;
 import android.media.MediaPlayer;
-import android.net.Uri;
-import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
@@ -44,26 +43,33 @@ import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.util.SplitScreenStore;
+import com.mapcontrol.manager.SplitScreenGestureController;
 import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.R;
 import com.mapcontrol.vehicle.ClimateAutomationEngine;
+import com.mapcontrol.vehicle.SunroofAutomationEngine;
+import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import android.content.pm.PackageManager;
 
 public class MapControlService extends Service {
     private static final String CHANNEL_ID = "MapControlServiceChannel";
     private static final int NOTIFICATION_ID = 1;
     private static final String TAG = "MapControlService";
-    private static final int UI_LAUNCH_ATTEMPTS = 8;
-    private static final long UI_LAUNCH_RETRY_MS = 1000L;
+    private static final int UI_LAUNCH_ATTEMPTS = 30;
+    private static final long UI_LAUNCH_RETRY_MS = 2000L;
 
     /** Bench: {@link com.mapcontrol.manager.ClusterVDBusBenchManager} — power modu olmadan cluster aç. */
     public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
     /** Bench: cluster kapat (servis içi yol). */
     public static final String ACTION_BENCH_CLOSE_CLUSTER = "com.mapcontrol.action.BENCH_CLOSE_CLUSTER";
-    /** Google Maps navigasyon bildirimi: hedef paket Maps ise cluster aç. */
+    /**
+     * Google Maps navigasyon bildirimi. Cluster yalnızca güç modu hazır (1)
+     * veya motor (2) iken açılır; kapalıyken VDBus çağrısı yapılmaz.
+     */
     public static final String ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION =
             "com.mapcontrol.action.OPEN_CLUSTER_FROM_MAPS_NOTIFICATION";
     /**
@@ -85,6 +91,8 @@ public class MapControlService extends Service {
     private long nextUiLaunchAt;
     private CarSystemGestureController carSystemGestureController;
     private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
+    private SplitScreenGestureController splitScreenGestureController;
+    private SharedPreferences.OnSharedPreferenceChangeListener splitGesturePrefListener;
     
     /**
      * Log mesajını MainActivity'ye gönder (sistem kayıtlarına)
@@ -110,8 +118,12 @@ public class MapControlService extends Service {
         scheduleEqualizerKeeper();
 
         // Power mode kontrolünü başlat
+        com.mapcontrol.dvr.DvrController.get(this).start();
+        com.mapcontrol.trip.TripRecorder.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
+        SunroofAutomationEngine.getInstance(this).start();
+        SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
         if (DmsFaceRecognitionManager.isEnabled(this)
                 && checkSelfPermission(android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -145,6 +157,15 @@ public class MapControlService extends Service {
         };
         TargetPackageStore.prefs(this).registerOnSharedPreferenceChangeListener(gesturePrefListener);
         carSystemGestureController.syncRegistration();
+
+        splitScreenGestureController = new SplitScreenGestureController(this);
+        splitGesturePrefListener = (sharedPreferences, key) -> {
+            if (splitScreenGestureController != null) {
+                splitScreenGestureController.syncRegistration();
+            }
+        };
+        SplitScreenStore.prefs(this).registerOnSharedPreferenceChangeListener(splitGesturePrefListener);
+        splitScreenGestureController.syncRegistration();
     }
 
     /**
@@ -235,8 +256,7 @@ public class MapControlService extends Service {
             return START_STICKY;
         }
         if (intent != null && ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION.equals(intent.getAction())) {
-            log("[Maps] Navigasyon bildirimi — cluster açılıyor");
-            openClusterDisplay();
+            openClusterFromMapsNotificationIfVehicleReady();
             return START_STICKY;
         }
 
@@ -283,8 +303,18 @@ public class MapControlService extends Service {
             carSystemGestureController.release();
             carSystemGestureController = null;
         }
+        if (splitGesturePrefListener != null) {
+            SplitScreenStore.prefs(this).unregisterOnSharedPreferenceChangeListener(splitGesturePrefListener);
+            splitGesturePrefListener = null;
+        }
+        if (splitScreenGestureController != null) {
+            splitScreenGestureController.release();
+            splitScreenGestureController = null;
+        }
         AudioEqualizerController.release();
         ClimateAutomationEngine.getInstance(this).stop();
+        SunroofAutomationEngine.getInstance(this).stop();
+        SunroofGestureOverlayManager.getInstance(this).stop();
         DmsFaceRecognitionManager.stop(this);
         super.onDestroy();
         if (scheduler != null) {
@@ -339,12 +369,17 @@ public class MapControlService extends Service {
                     } catch (Exception e) {
                         // Ignore
                     }
+                    com.mapcontrol.trip.TripRecorder.get(this).onPowerSample(-1);
                     return;
                 }
 
                 int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
                         VDEventCarInfo.MODULE_READONLY_INFO,
                         ReadOnlyID.ID_SYSTEM_POWER_MODE);
+
+                // Yolculuk kaydı her örneği görür; kısa okuma kayıpları 60 sn'lik bitiş beklemesine takılır.
+                com.mapcontrol.trip.TripRecorder.get(this).onPowerSample(
+                        pwrItems != null && pwrItems.length > 0 ? pwrItems[0] : -1);
 
                 if (pwrItems != null && pwrItems.length > 0) {
                     int currentPowerMode = pwrItems[0];
@@ -353,7 +388,9 @@ public class MapControlService extends Service {
                     if (lastPowerMode != currentPowerMode) {
                         int previousPowerMode = lastPowerMode;
                         lastPowerMode = currentPowerMode;
-                        
+                        com.mapcontrol.dvr.DvrController.get(MapControlService.this)
+                                .onPowerMode(currentPowerMode);
+
                         // Power mode 2 = Araç çalışıyor (ON)
                         // Power mode 1 = Araç power aldı (STANDBY)
                         // Power mode 0 = Araç kapalı (OFF)
@@ -364,11 +401,13 @@ public class MapControlService extends Service {
 
                         int powerModeSetting = getPowerModeSetting();
 
+                        boolean openedByPowerSetting = false;
                         if (currentPowerMode == 2) {
                             // Motor çalışınca - ayara göre kontrol et
                             if (powerModeSetting == 2) {
                                 log("✅ Araç power aldı! PowerMode: " + currentPowerMode);
                                 openClusterDisplay();
+                                openedByPowerSetting = true;
                             } else {
                                 log("⚠️ Araç power aldı ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
@@ -395,6 +434,9 @@ public class MapControlService extends Service {
                                                         applySpdLimitIfNeeded();
                                                         handler.postDelayed(() -> {
                                                             applyCpdIfNeeded();
+                                                            handler.postDelayed(() -> {
+                                                                applyChildWindowLockIfNeeded();
+                                                            }, 100);
                                                         }, 100);
                                                     }, 100);
                                                 }, 100);
@@ -410,6 +452,7 @@ public class MapControlService extends Service {
                             if (powerModeSetting == 1) {
                                 log("✅ Araç hazır durumda! PowerMode: " + currentPowerMode);
                                 openClusterDisplay();
+                                openedByPowerSetting = true;
                             } else {
                                 log("⚠️ Araç hazır durumda ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
@@ -427,24 +470,15 @@ public class MapControlService extends Service {
                             } else {
                                 log("Araç kapanınca otomatik kapatma devre dışı, navigasyon kapatılmıyor");
                             }
-                            
-                            // Otomatik konum kaydetme kontrolü
-                            boolean autoLocationSaveOnPowerOff = prefs.getBoolean("autoLocationSaveOnPowerOff", false);
-                            if (autoLocationSaveOnPowerOff) {
-                                // ProfileApiService ile giriş kontrolü yap
-                                ProfileApiService profileApiService = new ProfileApiService(MapControlService.this);
-                                if (profileApiService.isLoggedIn()) {
-                                    log("Otomatik konum kaydetme aktif, konum kaydediliyor...");
-                                    saveLocationAutomatically(profileApiService);
-                                } else {
-                                    log("Otomatik konum kaydetme aktif ama kullanıcı giriş yapmamış");
-                                }
-                            }
-                            
+
                             // Sürüş modu sıfırla (bir sonraki açılışta tekrar uygulanabilir)
                             lastAppliedDriveMode = -1;
                         } else {
                             log("ℹ️ Araç power durumu: " + currentPowerMode);
+                        }
+                        if (!openedByPowerSetting
+                                && (currentPowerMode == 1 || currentPowerMode == 2)) {
+                            openClusterFromMapsNotificationIfVehicleReady();
                         }
                     }
                 }
@@ -483,17 +517,23 @@ public class MapControlService extends Service {
             if (previous != mode) {
                 lastWelcomePowerMode = mode;
             }
-            SharedPreferences prefs = getSharedPreferences(WelcomeDesignCatalog.PREFS_NAME, MODE_PRIVATE);
-            boolean designEnabled = !WelcomeDesignCatalog.ID_OFF.equals(WelcomeDesignCatalog.savedId(prefs));
+            SharedPreferences welcomePrefs = getSharedPreferences(WelcomeDesignCatalog.PREFS_NAME, MODE_PRIVATE);
+            SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
+            boolean designEnabled = !WelcomeDesignCatalog.ID_OFF.equals(WelcomeDesignCatalog.savedId(welcomePrefs));
             StartupGate gate = StartupGate.decide(
                     previous,
                     mode,
                     BootSession.isWelcomeShown(this),
                     designEnabled,
-                    BootSession.isUiPending(this));
+                    BootSession.isUiPending(this),
+                    prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true),
+                    BootSession.isUiLaunched(this));
             if (gate.clearWelcome) {
                 BootSession.clearWelcomeShown(this);
+                BootSession.clearUiLaunched(this);
+                BootSession.setUiPending(this, false);
                 uiLaunchAttempts = 0;
+                nextUiLaunchAt = 0L;
             }
             if (gate.showWelcome) {
                 playWelcomeAudio();
@@ -501,6 +541,11 @@ public class MapControlService extends Service {
                 BootSession.markWelcomeShown(this);
             }
             if (gate.launchUi) {
+                if (!BootSession.isUiPending(this)) {
+                    BootSession.setUiPending(this, true);
+                    uiLaunchAttempts = 0;
+                    nextUiLaunchAt = 0L;
+                }
                 maybeLaunchHome();
             }
         } catch (Exception e) {
@@ -526,6 +571,10 @@ public class MapControlService extends Service {
     }
 
     private void maybeLaunchHome() {
+        if (BootSession.isUiLaunched(this)) {
+            BootSession.setUiPending(this, false);
+            return;
+        }
         if (!BootSession.isUiPending(this) || uiLaunchAttempts >= UI_LAUNCH_ATTEMPTS) {
             return;
         }
@@ -556,8 +605,8 @@ public class MapControlService extends Service {
                     | Intent.FLAG_ACTIVITY_CLEAR_TOP
                     | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(activityIntent);
-            BootSession.setUiPending(this, false);
-            uiLaunchAttempts = 0;
+            // Başarı MainActivity.onResume onayıyla sayılır; gelmezse sonraki turda tekrar denenir.
+            uiLaunchAttempts++;
         } catch (Exception e) {
             uiLaunchAttempts++;
         }
@@ -1017,6 +1066,32 @@ public class MapControlService extends Service {
     }
 
     /**
+     * Powermode 2 olunca kayıtlı çocuk cam kilidi ayarını araca otomatik uygula
+     */
+    private void applyChildWindowLockIfNeeded() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+            boolean enabled = prefs.getInt("childLockSetting", -1) == 1 || prefs.getBoolean("childWindowLockAutoEnable", false);
+            if (!enabled) {
+                return;
+            }
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                log("🔌 CarInfoProxy bağlı değil, çocuk cam kilidi uygulanamıyor");
+                return;
+            }
+            log("🔒 Çocuk cam kilidi otomatik kilitleniyor (ID_CAR_WINDOW_PROHIBIT=1)...");
+            CarInfoProxy.getInstance().sendItemValue(
+                    VDEventCarInfo.MODULE_CAR_SETTING,
+                    CarSettingID.ID_CAR_WINDOW_PROHIBIT,
+                    1);
+            log("✅ Çocuk cam kilidi otomatik aktif edildi.");
+        } catch (Exception e) {
+            log("❌ applyChildWindowLockIfNeeded hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * Ana ekrandaki Yansıtma sekmesiyle aynı uygulama: {@link ClusterDisplayManager#openClusterDisplay()}.
      */
     private ClusterDisplayManager getClusterDisplayHelper() {
@@ -1041,6 +1116,58 @@ public class MapControlService extends Service {
                     });
         }
         return clusterDisplayHelper;
+    }
+
+    /**
+     * Maps bildirimi yansıtmayı yalnızca Başlatma bölümündeki Hazır (1) veya
+     * motor (2) sinyali varken açar. Kapalı veya okunamayan güçte VDBus'a gitmez;
+     * sinyal sonradan gelince güç izleyicisi aynı kapıdan açar.
+     */
+    private void openClusterFromMapsNotificationIfVehicleReady() {
+        if (!mapsNotificationWantsCluster()) {
+            return;
+        }
+        int powerMode = readSystemPowerMode();
+        if (powerMode != 1 && powerMode != 2) {
+            log("[Maps] Bildirim duruyor; yansıtma bekliyor. PowerMode: " + powerMode);
+            return;
+        }
+        if (ClusterNavigationState.getLastKnownOpen()) {
+            return;
+        }
+        log("[Maps] Navigasyon bildirimi — cluster açılıyor (PowerMode: " + powerMode + ")");
+        openClusterDisplay();
+    }
+
+    private boolean mapsNotificationWantsCluster() {
+        try {
+            if (!GoogleMapsNavNotificationCoordinator.isAutoProjectionEnabled(this)) {
+                return false;
+            }
+            if (!AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(TargetPackageStore.read(this))) {
+                return false;
+            }
+            return GoogleMapsNavNotificationCoordinator.getLastSnapshot().active;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** 0 kapalı, 1 hazır, 2 motor. VDBus okunamazsa -1. */
+    private int readSystemPowerMode() {
+        try {
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                return -1;
+            }
+            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
+                    VDEventCarInfo.MODULE_READONLY_INFO,
+                    ReadOnlyID.ID_SYSTEM_POWER_MODE);
+            if (pwrItems != null && pwrItems.length > 0) {
+                return pwrItems[0];
+            }
+        } catch (Exception ignored) {
+        }
+        return -1;
     }
 
     private void openClusterDisplay() {
@@ -1099,64 +1226,6 @@ public class MapControlService extends Service {
                 log("❌ Cluster display kapatma hatası: " + e.getMessage());
             }
         });
-    }
-
-    /**
-     * Otomatik konum kaydetme (araç kapanınca)
-     */
-    private void saveLocationAutomatically(ProfileApiService profileApiService) {
-        new Thread(() -> {
-            try {
-                // LocationManager ile konum al
-                android.location.LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                if (locationManager == null) {
-                    log("❌ LocationManager bulunamadı");
-                    return;
-                }
-                
-                // Konum izni kontrolü
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                        checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        log("❌ Konum izni yok, otomatik konum kaydedilemedi");
-                        return;
-                    }
-                }
-                
-                // Mevcut konumu al
-                android.location.Location lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER);
-                if (lastLocation == null) {
-                    lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);
-                }
-                
-                if (lastLocation != null) {
-                    double latitude = lastLocation.getLatitude();
-                    double longitude = lastLocation.getLongitude();
-                    
-                    log("📍 Otomatik konum kaydediliyor: " + latitude + ", " + longitude);
-                    
-                    profileApiService.saveCoordinates(latitude, longitude, "Auto Location (Power Off)", "Araç kapanınca otomatik kaydedilen konum", new ProfileApiService.ApiCallback() {
-                        @Override
-                        public void onSuccess(String message, org.json.JSONObject data) {
-                            handler.post(() -> {
-                                log("✅ Otomatik konum başarıyla kaydedildi: " + message);
-                            });
-                        }
-                        
-                        @Override
-                        public void onError(String error) {
-                            handler.post(() -> {
-                                log("❌ Otomatik konum kaydetme hatası: " + error);
-                            });
-                        }
-                    });
-                } else {
-                    log("⚠️ Konum alınamadı, otomatik konum kaydedilemedi");
-                }
-            } catch (Exception e) {
-                log("❌ Otomatik konum kaydetme hatası: " + e.getMessage());
-            }
-        }).start();
     }
 
     /**

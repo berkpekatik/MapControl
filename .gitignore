@@ -8,6 +8,11 @@ build/
 *.ap_
 *.dex
 outputs/
+output/
+
+# Documentation & UI Previews
+/docs/*
+!/docs/ui/
 
 # Android Studio
 .idea/

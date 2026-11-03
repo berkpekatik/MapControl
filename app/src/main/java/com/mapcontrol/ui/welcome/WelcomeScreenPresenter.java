@@ -22,7 +22,7 @@ import android.widget.FrameLayout;
 public final class WelcomeScreenPresenter {
 
     private static final String TAG = "WelcomeScreen";
-    private static final long VISIBLE_MS = 8_000L;
+    private static final long VISIBLE_MS = 4_500L;
     private static final long DISMISS_MS = 620L;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -88,6 +88,7 @@ public final class WelcomeScreenPresenter {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_FULLSCREEN
+                        | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
                         | WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
                 PixelFormat.OPAQUE);
         params.gravity = Gravity.TOP | Gravity.START;

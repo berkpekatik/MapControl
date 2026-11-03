@@ -13,7 +13,14 @@ import java.io.InputStreamReader;
 import java.io.FileOutputStream;
 import java.io.File;
 import java.io.BufferedInputStream;
+import com.mapcontrol.trip.AutomationBackup;
+import com.mapcontrol.trip.PhoneAccess;
+import com.mapcontrol.trip.PhonePrefs;
+import com.mapcontrol.trip.TripRecorder;
+import com.mapcontrol.vehicle.SunroofAutomationEngine;
+
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -21,6 +28,8 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.os.Environment;
 
@@ -35,6 +44,9 @@ import com.mapcontrol.ui.theme.UiStyles;
  */
 public class WebServerManager {
     private static final int MAX_JSON_POST_BYTES = 65536;
+    /** {@code PUT /automation} gövdesi için üst sınır. */
+    private static final int MAX_AUTOMATION_BYTES = 32 * 1024;
+
     /** open-maps JSON içindeki url alanı: POST üst sınırına yakın; Yandex sctx gibi çok uzun paylaşım linklerine izin */
     private static final int MAX_OPEN_URL_CHARS = MAX_JSON_POST_BYTES - 200;
     private static final int MAX_KEYBOARD_TEXT_CHARS = 8000;
@@ -267,6 +279,18 @@ public class WebServerManager {
                     handleFileDelete(output, queryString);
                 } else if ("POST".equals(method) && "/install".equals(path)) {
                     handleInstallApk(output, queryString);
+                } else if ("GET".equals(method) && "/trips".equals(path)) {
+                    handlePhoneTrips(output, requestHeader, queryString);
+                } else if ("GET".equals(method) && "/prefs".equals(path)) {
+                    handlePhonePrefsGet(output, requestHeader);
+                } else if ("PUT".equals(method) && "/prefs".equals(path)) {
+                    handlePhonePrefsPut(input, output, requestHeader);
+                } else if ("GET".equals(method) && "/automation".equals(path)) {
+                    handleAutomationGet(output, requestHeader);
+                } else if ("PUT".equals(method) && "/automation".equals(path)) {
+                    handleAutomationPut(input, output, requestHeader);
+                } else if ("GET".equals(method) && "/vehicle/now".equals(path)) {
+                    handlePhoneVehicleNow(output, requestHeader);
                 } else if ("GET".equals(method) && "/apps".equals(path)) {
                     handleAppList(output);
                 } else if ("POST".equals(method) && "/app/delete".equals(path)) {
@@ -681,8 +705,8 @@ public class WebServerManager {
         try {
             String r = "HTTP/1.1 204 No Content\r\n" +
                     "Access-Control-Allow-Origin: *\r\n" +
-                    "Access-Control-Allow-Methods: GET, POST, DELETE, HEAD, OPTIONS\r\n" +
-                    "Access-Control-Allow-Headers: Content-Type\r\n" +
+                    "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, HEAD, OPTIONS\r\n" +
+                    "Access-Control-Allow-Headers: Content-Type, " + PhoneAccess.HEADER + "\r\n" +
                     "Access-Control-Max-Age: 86400\r\n" +
                     "Connection: close\r\n\r\n";
             output.write(r.getBytes(StandardCharsets.UTF_8));
@@ -852,6 +876,175 @@ public class WebServerManager {
                 listener.onLog("[ERROR] keyboard: " + e.getMessage());
             }
             sendErrorResponse(output, 400, "keyboard: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Telefon uçları: kişisel veri verir, yalnızca eşleşme anahtarını gösteren telefona açıktır.
+     * @return yetki yoksa 401 yazıp {@code false}
+     */
+    private boolean requirePairedPhone(OutputStream output, String requestHeader) {
+        if (PhoneAccess.isAuthorized(context, requestHeader)) {
+            return true;
+        }
+        sendErrorResponse(output, 401, "Eşleşmemiş telefon");
+        return false;
+    }
+
+    /** {@code GET /trips?since=<epoch ms>}: since sonrasında başlayan yolculuklar, eskiden yeniye. */
+    private void handlePhoneTrips(OutputStream output, String requestHeader, String queryString) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            long since = 0;
+            if (queryString != null) {
+                for (String param : queryString.split("&")) {
+                    String[] kv = param.split("=");
+                    if (kv.length == 2 && "since".equals(kv[0])) {
+                        since = Long.parseLong(kv[1]);
+                    }
+                }
+            }
+            sendJson200(output, TripRecorder.get(context).tripsJson(since));
+        } catch (NumberFormatException e) {
+            sendErrorResponse(output, 400, "since sayı olmalı (epoch ms)");
+        } catch (Exception e) {
+            if (listener != null) listener.onLog("[ERROR] /trips: " + e.getMessage());
+            sendErrorResponse(output, 500, "Yolculuk listesi hatası: " + e.getMessage());
+        }
+    }
+
+    /** {@code GET /prefs}: telefonun gördüğü boolean MapControl ayarları (aracın şu anki değerleri). */
+    private void handlePhonePrefsGet(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            sendJson200(output, PhonePrefs.toJson(readPhonePrefs()));
+        } catch (Exception e) {
+            sendErrorResponse(output, 500, "Ayarlar okunamadı: " + e.getMessage());
+        }
+    }
+
+    /**
+     * {@code PUT /prefs} gövde {@code {"prefs":{"bootAutoStart":true}}}: yalnızca yazılabilir anahtarlar,
+     * biri bile bilinmiyorsa hiçbiri yazılmaz. Yanıt güncel ayarlardır.
+     */
+    private void handlePhonePrefsPut(InputStream input, OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0) {
+                sendErrorResponse(output, 400, "Content-Length gerekli");
+                return;
+            }
+            JSONObject root = new JSONObject(new String(readFixedBodyFromStream(input, cl), StandardCharsets.UTF_8));
+            JSONObject prefs = root.optJSONObject("prefs");
+            Map<String, Boolean> incoming = new LinkedHashMap<>();
+            if (prefs != null) {
+                java.util.Iterator<String> keys = prefs.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    Object value = prefs.get(key);
+                    // Yalnızca gerçek boolean; "true" yazısı veya 1 kabul edilmez.
+                    incoming.put(key, value instanceof Boolean ? (Boolean) value : null);
+                }
+            }
+            Map<String, Boolean> accepted = PhonePrefs.acceptable(incoming);
+            if (accepted == null) {
+                sendErrorResponse(output, 400, "prefs_invalid");
+                return;
+            }
+            android.content.SharedPreferences.Editor edit =
+                    context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE).edit();
+            for (Map.Entry<String, Boolean> e : accepted.entrySet()) {
+                edit.putBoolean(e.getKey(), e.getValue());
+            }
+            edit.commit();
+            if (listener != null) listener.onLog("Telefondan ayar yazıldı: " + accepted.keySet());
+            sendJson200(output, PhonePrefs.toJson(readPhonePrefs()));
+        } catch (Exception e) {
+            sendErrorResponse(output, 400, "prefs: " + e.getMessage());
+        }
+    }
+
+    /** Cam tavan ve klima kurallarının yedek belgesi; bkz. {@link AutomationBackup}. */
+    private void handleAutomationGet(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            sendJson200(output, AutomationBackup.export(
+                    context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE),
+                    context.getSharedPreferences(SunroofAutomationEngine.PREFS_NAME, Context.MODE_PRIVATE)).toString());
+        } catch (Exception e) {
+            sendErrorResponse(output, 500, "Otomasyon okunamadı: " + e.getMessage());
+        }
+    }
+
+    /**
+     * {@code PUT /automation}: yedek belgesini doğrular ve yazar; tek alan geçersizse hiçbiri yazılmaz
+     * ({@code 422}, gövde geçersiz alanların listesi). Yanıt güncel belgedir.
+     */
+    private void handleAutomationPut(InputStream input, OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0) {
+                sendErrorResponse(output, 400, "Content-Length gerekli");
+                return;
+            }
+            if (cl > MAX_AUTOMATION_BYTES) {
+                sendErrorResponse(output, 413, "automation_too_large");
+                return;
+            }
+            JSONObject doc = new JSONObject(new String(readFixedBodyFromStream(input, cl), StandardCharsets.UTF_8));
+            android.content.SharedPreferences main = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+            android.content.SharedPreferences sunroof =
+                    context.getSharedPreferences(SunroofAutomationEngine.PREFS_NAME, Context.MODE_PRIVATE);
+            AutomationBackup.Result result = AutomationBackup.apply(doc, main, sunroof);
+            if (!result.ok()) {
+                sendErrorResponse(output, 422, "automation_invalid: " + android.text.TextUtils.join(",", result.errors));
+                return;
+            }
+            if (listener != null) listener.onLog("Telefondan otomasyon kuralları geri yüklendi");
+            sendJson200(output, AutomationBackup.export(main, sunroof).toString());
+        } catch (JSONException e) {
+            sendErrorResponse(output, 400, "automation: " + e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(output, 400, "automation: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Boolean> readPhonePrefs() {
+        android.content.SharedPreferences sp = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+        Map<String, Boolean> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Boolean> e : PhonePrefs.DEFAULTS.entrySet()) {
+            out.put(e.getKey(), sp.getBoolean(e.getKey(), e.getValue()));
+        }
+        return out;
+    }
+
+    /** {@code GET /vehicle/now}: son sayaçlar ve parça açılış saatleri. */
+    private void handlePhoneVehicleNow(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            String json = TripRecorder.get(context).vehicleNowJson();
+            if (json == null) {
+                sendErrorResponse(output, 503, "Araç verisi henüz okunmadı");
+                return;
+            }
+            sendJson200(output, json);
+        } catch (Exception e) {
+            if (listener != null) listener.onLog("[ERROR] /vehicle/now: " + e.getMessage());
+            sendErrorResponse(output, 500, "Araç verisi hatası: " + e.getMessage());
         }
     }
 
@@ -1324,12 +1517,53 @@ public class WebServerManager {
             if (listener != null) listener.onLog("[ERROR] IP adresi alma hatası: " + e.getMessage());
         }
 
+        // Araç Wi-Fi istemcisi değilse (kendi hotspot'u / AP) WifiManager 0 döner; arayüzlerdeki özel adresi ara.
+        String fromInterfaces = privateInterfaceAddress();
+        if (fromInterfaces != null) {
+            return fromInterfaces;
+        }
+
         // Fallback: localhost
         try {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
             return "127.0.0.1";
         }
+    }
+
+    /** Kablosuz/AP arayüzleri önce olmak üzere, loopback olmayan ilk özel IPv4 adresi; yoksa null. */
+    static String privateInterfaceAddress() {
+        String fallback = null;
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> ifaces = java.net.NetworkInterface.getNetworkInterfaces();
+            while (ifaces != null && ifaces.hasMoreElements()) {
+                java.net.NetworkInterface iface = ifaces.nextElement();
+                if (!iface.isUp() || iface.isLoopback()) {
+                    continue;
+                }
+                String name = iface.getName().toLowerCase(java.util.Locale.ROOT);
+                boolean wireless = name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan");
+                java.util.Enumeration<InetAddress> addrs = iface.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress a = addrs.nextElement();
+                    if (a instanceof java.net.Inet4Address && a.isSiteLocalAddress()) {
+                        if (wireless) {
+                            return a.getHostAddress();
+                        }
+                        if (fallback == null) {
+                            fallback = a.getHostAddress();
+                        }
+                    }
+                }
+            }
+        } catch (java.net.SocketException ignored) {
+        }
+        return fallback;
+    }
+
+    /** Telefonun bağlanacağı güncel adres; hotspot sunucudan sonra açılırsa değişmiş olabilir. */
+    public String currentHost() {
+        return getLocalIpAddress();
     }
 
     /**

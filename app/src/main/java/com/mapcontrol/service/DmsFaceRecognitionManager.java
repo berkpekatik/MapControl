@@ -245,6 +245,12 @@ public final class DmsFaceRecognitionManager {
                             selectedSize = sizes[0];
                             break;
                         }
+                        Size[] surfSizes = map.getOutputSizes(android.graphics.SurfaceTexture.class);
+                        if (surfSizes != null && surfSizes.length > 0) {
+                            selectedId = id;
+                            selectedSize = surfSizes[0];
+                            break;
+                        }
                     }
                 }
             }
@@ -414,8 +420,6 @@ public final class DmsFaceRecognitionManager {
                 FaceDetector.Face[] faces = new FaceDetector.Face[1];
                 int count = faceDetector.findFaces(rgb565, faces);
                 if (count != 1 || faces[0] == null || faces[0].confidence() < 0.35f) {
-                    candidateName = null;
-                    candidateHits = 0;
                     return;
                 }
                 List<FaceProfileStore.Profile> currentProfiles = profiles;
@@ -497,7 +501,7 @@ public final class DmsFaceRecognitionManager {
                     .applySeatMemory(seatMemory);
             if (applied) {
                 logOnly(context.getString(R.string.dms_recognition_memory_requested, seatMemory));
-            } else {
+            } else if (!CarSeatMemoryManager.getInstance(context).isDoorMode()) {
                 proxy.sendItemValues(VDEventCarInfo.MODULE_CAR_SETTING,
                         CarSettingID.ID_CAR_SELECT_SEAT_MIRROR_POSI,
                         new int[]{seatMemory, seatMemory});

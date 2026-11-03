@@ -1,371 +1,307 @@
 package com.mapcontrol.api;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+
+import com.mapcontrol.R;
+import com.mapcontrol.ui.welcome.WelcomeAudioFiles;
+
 import org.json.JSONObject;
+
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import com.mapcontrol.ui.activity.MainActivity;
+import java.util.Locale;
 
 /**
- * Profile API Service - API işlemleri için ayrı servis sınıfı
- * MainActivity'den bağımsız çalışır
+ * adbauth hesap, üyelik ve hoşgeldin sesi istekleri.
+ * API kökü yalnızca {@link #API_ROOT} içindedir.
  */
 public class ProfileApiService {
-    // Android emülatörden localhost:5000'e erişmek için 10.0.2.2 kullanılır
-    private static final String API_BASE_URL = "https://api.vnoisy.dev";
+
+    public static final String API_ROOT = "https://api.vnoisy.dev";
+
+    public static final String VOICE_FEMALE = "female";
+    public static final String VOICE_MALE = "male";
+
     private static final String PREFS_NAME = "MapControlPrefs";
-    private static final String KEY_CAR_TOKEN = "carToken";
-    private static final String KEY_USER_EMAIL = "userEmail";
-    
-    private Context context;
-    private Handler mainHandler;
-    
+    private static final String KEY_TOKEN = "adbauthToken";
+    private static final String KEY_USERNAME = "adbauthUsername";
+    private static final String KEY_PREMIUM = "adbauthIsPremium";
+    private static final String KEY_WELCOME_AUDIO = "welcomeAudioFilePath";
+
+    private final Context context;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
     public interface ApiCallback {
         void onSuccess(String message, JSONObject data);
+
         void onError(String error);
     }
-    
+
+    public interface AudioCallback {
+        void onSuccess(File file);
+
+        void onError(String error);
+
+        default void onDownloading() {
+        }
+    }
+
     public ProfileApiService(Context context) {
-        this.context = context;
-        this.mainHandler = new Handler(Looper.getMainLooper());
+        this.context = context.getApplicationContext();
     }
-    
-    /**
-     * Kaydedilmiş token'ı getir
-     */
-    public String getCarToken() {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getString(KEY_CAR_TOKEN, null);
+
+    public String getToken() {
+        return prefs().getString(KEY_TOKEN, null);
     }
-    
-    /**
-     * Token kaydet
-     */
-    private void saveCarToken(String token) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(KEY_CAR_TOKEN, token);
-        editor.apply();
+
+    public String getUsername() {
+        return prefs().getString(KEY_USERNAME, "");
     }
-    
-    /**
-     * Kullanıcı email'ini kaydet
-     */
-    public void saveUserEmail(String email) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(KEY_USER_EMAIL, email);
-        editor.apply();
+
+    public boolean isPremium() {
+        return prefs().getBoolean(KEY_PREMIUM, false);
     }
-    
-    /**
-     * Kaydedilmiş email'i getir
-     */
-    public String getUserEmail() {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getString(KEY_USER_EMAIL, null);
-    }
-    
-    /**
-     * Token'ı sil (çıkış yap)
-     */
-    public void clearToken() {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.remove(KEY_CAR_TOKEN);
-        editor.remove(KEY_USER_EMAIL);
-        editor.apply();
-    }
-    
-    /**
-     * Giriş yapılmış mı kontrol et
-     */
+
     public boolean isLoggedIn() {
-        return getCarToken() != null && !getCarToken().isEmpty();
+        String token = getToken();
+        return token != null && !token.isEmpty();
     }
-    
-    /**
-     * Doğrulama kodu gönder
-     */
-    public void sendVerificationCode(String email, ApiCallback callback) {
+
+    public void logout() {
+        prefs().edit()
+                .remove(KEY_TOKEN)
+                .remove(KEY_USERNAME)
+                .remove(KEY_PREMIUM)
+                .apply();
+    }
+
+    public void login(String username, String password, ApiCallback callback) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                URL url = new URL(API_BASE_URL + "/api/auth/send-code");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
+                JSONObject body = new JSONObject();
+                body.put("username", username);
+                body.put("password", password);
+                conn = open("POST", "/api/auth/login", false);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
-                
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("email", email);
-                
-                OutputStream os = conn.getOutputStream();
-                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
-                os.flush();
-                os.close();
-                
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode >= 200 && responseCode < 300) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                writeBody(conn, body);
+
+                int code = conn.getResponseCode();
+                JSONObject json = readJson(conn, code);
+                boolean success = json.optBoolean("success", false);
+                String token = json.optString("token", "");
+                if (code >= 200 && code < 300 && success && !token.isEmpty()) {
+                    String name = json.optString("username", username);
+                    boolean premium = json.optBoolean("isPremium", false);
+                    prefs().edit()
+                            .putString(KEY_TOKEN, token)
+                            .putString(KEY_USERNAME, name)
+                            .putBoolean(KEY_PREMIUM, premium)
+                            .apply();
+                    mainHandler.post(() -> callback.onSuccess(name, json));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
-                }
-                
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                conn.disconnect();
-                
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                
-                if (responseCode >= 200 && responseCode < 300) {
-                    String message = jsonResponse.optString("message", "Verification code sent");
-                    mainHandler.post(() -> callback.onSuccess(message, jsonResponse));
-                } else {
-                    String error = jsonResponse.optString("message", "Failed to send verification code");
+                    String error = messageOf(json, context.getString(R.string.profile_login_failed));
                     mainHandler.post(() -> callback.onError(error));
                 }
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+                postFailure(callback, e);
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
-        }).start();
+        }, "adbauth-login").start();
     }
-    
-    /**
-     * Kodu doğrula ve token al
-     */
-    public void verifyCode(String email, String code, ApiCallback callback) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(API_BASE_URL + "/api/auth/verify-code");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
-                
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("email", email);
-                requestBody.put("code", code);
-                
-                OutputStream os = conn.getOutputStream();
-                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
-                os.flush();
-                os.close();
-                
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode >= 200 && responseCode < 300) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
-                }
-                
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                conn.disconnect();
-                
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                
-                if (responseCode >= 200 && responseCode < 300) {
-                    String token = jsonResponse.optString("token", "");
-                    if (!token.isEmpty()) {
-                        saveCarToken(token);
-                        saveUserEmail(email);
-                    }
-                    String message = jsonResponse.optString("message", "Login successful");
-                    mainHandler.post(() -> callback.onSuccess(message, jsonResponse));
-                } else {
-                    String error = jsonResponse.optString("message", "Verification failed");
-                    mainHandler.post(() -> callback.onError(error));
-                }
-            } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
-            }
-        }).start();
-    }
-    
-    /**
-     * Kullanıcı verilerini kaydet
-     */
-    public void saveUserData(JSONObject data, ApiCallback callback) {
-        String token = getCarToken();
-        if (token == null || token.isEmpty()) {
-            mainHandler.post(() -> callback.onError("Giriş yapılmamış. Lütfen önce giriş yapın."));
+
+    public void refreshMe(ApiCallback callback) {
+        if (!isLoggedIn()) {
+            mainHandler.post(() -> callback.onError(context.getString(R.string.profile_login_required)));
             return;
         }
-        
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                URL url = new URL(API_BASE_URL + "/api/userdata/save");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + token);
-                conn.setDoOutput(true);
-                
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("data", data);
-                
-                OutputStream os = conn.getOutputStream();
-                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
-                os.flush();
-                os.close();
-                
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode >= 200 && responseCode < 300) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                conn = open("GET", "/api/auth/me", true);
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    logout();
+                    mainHandler.post(() -> callback.onError(context.getString(R.string.profile_login_required)));
+                    return;
                 }
-                
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                conn.disconnect();
-                
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                
-                if (responseCode >= 200 && responseCode < 300) {
-                    String message = jsonResponse.optString("message", "Data saved successfully");
-                    mainHandler.post(() -> callback.onSuccess(message, jsonResponse));
+                JSONObject json = readJson(conn, code);
+                if (code >= 200 && code < 300) {
+                    String name = json.optString("username", getUsername());
+                    boolean premium = json.optBoolean("isPremium", false);
+                    prefs().edit()
+                            .putString(KEY_USERNAME, name)
+                            .putBoolean(KEY_PREMIUM, premium)
+                            .apply();
+                    mainHandler.post(() -> callback.onSuccess(name, json));
                 } else {
-                    String error = jsonResponse.optString("message", "Failed to save data");
+                    String error = messageOf(json, context.getString(R.string.profile_login_failed));
                     mainHandler.post(() -> callback.onError(error));
                 }
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+                postFailure(callback, e);
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
-        }).start();
+        }, "adbauth-me").start();
     }
-    
+
     /**
-     * Kullanıcı verilerini getir
+     * Premium üye için mp3 üretir, {@code filesDir/welcome-audio} altına yazar,
+     * önceki hoşgeldin dosyasını siler ve {@code welcomeAudioFilePath} değerini günceller.
      */
-    public void getUserData(ApiCallback callback) {
-        String token = getCarToken();
-        if (token == null || token.isEmpty()) {
-            mainHandler.post(() -> callback.onError("Giriş yapılmamış. Lütfen önce giriş yapın."));
+    public void generateWelcomeAudio(String text, String voice, AudioCallback callback) {
+        if (!isLoggedIn()) {
+            mainHandler.post(() -> callback.onError(context.getString(R.string.welcome_tts_need_login)));
             return;
         }
-        
-        new Thread(() -> {
-            try {
-                URL url = new URL(API_BASE_URL + "/api/userdata/get");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Authorization", "Bearer " + token);
-                
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode >= 200 && responseCode < 300) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
-                }
-                
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                conn.disconnect();
-                
-                if (responseCode >= 200 && responseCode < 300) {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    mainHandler.post(() -> callback.onSuccess("Data retrieved successfully", jsonResponse));
-                } else {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    String error = jsonResponse.optString("message", "Failed to get data");
-                    mainHandler.post(() -> callback.onError(error));
-                }
-            } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
-            }
-        }).start();
-    }
-    
-    /**
-     * Mevcut konumu kaydet/güncelle
-     */
-    public void saveCoordinates(double latitude, double longitude, String label, String description, ApiCallback callback) {
-        String token = getCarToken();
-        if (token == null || token.isEmpty()) {
-            mainHandler.post(() -> callback.onError("Giriş yapılmamış. Lütfen önce giriş yapın."));
+        if (!isPremium()) {
+            mainHandler.post(() -> callback.onError(context.getString(R.string.welcome_tts_need_premium)));
             return;
         }
-        
+        if (!VOICE_FEMALE.equals(voice) && !VOICE_MALE.equals(voice)) {
+            mainHandler.post(() -> callback.onError(context.getString(R.string.welcome_tts_failed)));
+            return;
+        }
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
-                URL url = new URL(API_BASE_URL + "/api/coordinates/save");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
+                JSONObject body = new JSONObject();
+                body.put("text", text);
+                body.put("voice", voice);
+                conn = open("POST", "/api/tts", true);
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + token);
+                conn.setRequestProperty("Accept", "audio/mpeg");
                 conn.setDoOutput(true);
-                
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("latitude", latitude);
-                requestBody.put("longitude", longitude);
-                if (label != null && !label.isEmpty()) {
-                    requestBody.put("label", label);
+                writeBody(conn, body);
+
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    logout();
+                    mainHandler.post(() -> callback.onError(context.getString(R.string.welcome_tts_need_login)));
+                    return;
                 }
-                if (description != null && !description.isEmpty()) {
-                    requestBody.put("description", description);
+                if (code == HttpURLConnection.HTTP_FORBIDDEN) {
+                    prefs().edit().putBoolean(KEY_PREMIUM, false).apply();
+                    mainHandler.post(() -> callback.onError(context.getString(R.string.welcome_tts_need_premium)));
+                    return;
                 }
-                
-                OutputStream os = conn.getOutputStream();
-                os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
-                os.flush();
-                os.close();
-                
-                int responseCode = conn.getResponseCode();
-                BufferedReader reader;
-                if (responseCode >= 200 && responseCode < 300) {
-                    reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-                } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
-                }
-                
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                conn.disconnect();
-                
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                
-                if (responseCode >= 200 && responseCode < 300) {
-                    String message = jsonResponse.optString("message", "Current location saved successfully");
-                    mainHandler.post(() -> callback.onSuccess(message, jsonResponse));
-                } else {
-                    String error = jsonResponse.optString("message", "Failed to save location");
+                String type = conn.getContentType() == null ? "" : conn.getContentType().toLowerCase(Locale.US);
+                if (code < 200 || code >= 300 || type.contains("json") || type.startsWith("text/")) {
+                    JSONObject json = readJson(conn, code);
+                    String error = messageOf(json, context.getString(R.string.welcome_tts_failed));
                     mainHandler.post(() -> callback.onError(error));
+                    return;
                 }
+                mainHandler.post(callback::onDownloading);
+                File file;
+                try (InputStream in = conn.getInputStream()) {
+                    file = WelcomeAudioFiles.writeGenerated(context, in);
+                }
+                mainHandler.post(() -> callback.onSuccess(file));
             } catch (Exception e) {
-                mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+                postAudioFailure(callback, e);
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
-        }).start();
+        }, "adbauth-tts").start();
+    }
+
+    private SharedPreferences prefs() {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private HttpURLConnection open(String method, String path, boolean authorize) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(API_ROOT + path).openConnection();
+        conn.setRequestMethod(method);
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(90000);
+        if (authorize) {
+            conn.setRequestProperty("Authorization", "Bearer " + getToken());
+        }
+        return conn;
+    }
+
+    private static void writeBody(HttpURLConnection conn, JSONObject body) throws Exception {
+        byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+        try (OutputStream out = conn.getOutputStream()) {
+            out.write(bytes);
+        }
+    }
+
+    private static JSONObject readJson(HttpURLConnection conn, int code) {
+        InputStream stream;
+        try {
+            stream = code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream();
+        } catch (Exception e) {
+            stream = conn.getErrorStream();
+        }
+        String text = readText(stream);
+        if (text.isEmpty()) {
+            return new JSONObject();
+        }
+        try {
+            return new JSONObject(text);
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    private static String readText(InputStream stream) {
+        if (stream == null) {
+            return "";
+        }
+        StringBuilder response = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+        } catch (Exception ignored) {
+            return "";
+        }
+        return response.toString();
+    }
+
+    private static String messageOf(JSONObject json, String fallback) {
+        String message = json.optString("message", "");
+        if (message.isEmpty()) {
+            message = json.optString("error", "");
+        }
+        return message.isEmpty() ? fallback : message;
+    }
+
+    private void postFailure(ApiCallback callback, Exception error) {
+        String message = error instanceof java.io.IOException
+                ? context.getString(R.string.profile_no_internet)
+                : context.getString(R.string.profile_login_failed);
+        mainHandler.post(() -> callback.onError(message));
+    }
+
+    private void postAudioFailure(AudioCallback callback, Exception error) {
+        String detail = error.getMessage() == null ? "" : error.getMessage();
+        boolean fileError = "empty".equals(detail) || "replace".equals(detail)
+                || "rename".equals(detail) || "store".equals(detail);
+        String message = !fileError && error instanceof java.io.IOException
+                ? context.getString(R.string.profile_no_internet)
+                : context.getString(R.string.welcome_tts_failed);
+        mainHandler.post(() -> callback.onError(message));
     }
 }
-

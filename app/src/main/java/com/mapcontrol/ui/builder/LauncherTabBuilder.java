@@ -1,18 +1,15 @@
 package com.mapcontrol.ui.builder;
 
 import android.content.Context;
-import android.content.res.Configuration;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-
-import androidx.core.content.ContextCompat;
+import android.view.View;
+import android.widget.FrameLayout;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 
 /**
- * Araç Launcher Modu ana ekranı — üstteki 3 dashboard kartı viewport yüksekliğini doldurur.
+ * Araç Launcher Modu ana ekranı — tam ekran, kaydırmasız 3 dashboard kartı.
  */
 public class LauncherTabBuilder {
 
@@ -27,7 +24,7 @@ public class LauncherTabBuilder {
     private final LauncherCallback callback;
     private final VehicleMetricsRepository vehicleMetricsRepository;
     private LauncherDashboardBuilder dashboardBuilder;
-    private ScrollView scrollView;
+    private FrameLayout rootView;
 
     public LauncherTabBuilder(
             Context context,
@@ -38,39 +35,27 @@ public class LauncherTabBuilder {
         this.callback = callback;
     }
 
-    public ScrollView build() {
-        scrollView = new ScrollView(context);
-        scrollView.setBackgroundColor(UiStyles.color(context, R.color.transparent));
-        scrollView.setFillViewport(true);
-        scrollView.setVerticalScrollBarEnabled(false);
-
-        LinearLayout root = new LinearLayout(context);
-        root.setOrientation(LinearLayout.VERTICAL);
+    public View build() {
+        FrameLayout root = new FrameLayout(context);
+        root.setBackgroundColor(UiStyles.color(context, R.color.transparent));
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
         root.setPadding(margin, margin, margin, margin);
 
         dashboardBuilder = new LauncherDashboardBuilder(
                 context, vehicleMetricsRepository, callback);
-        boolean portrait = context.getResources().getConfiguration().orientation
-                == Configuration.ORIENTATION_PORTRAIT;
-        // Yatay: fillViewport + weight ile kart satırı viewport'u doldurur.
-        // Dikey: kartlar alt alta, yükseklikleri içeriğe göre kayar.
-        LinearLayout.LayoutParams heroLp = portrait
-                ? new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT)
-                : new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        0,
-                        1f);
-        root.addView(dashboardBuilder.build(), heroLp);
+        root.addView(dashboardBuilder.build(), new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        rootView = root;
+        return root;
+    }
 
-        scrollView.addView(root, new ScrollView.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                portrait
-                        ? LinearLayout.LayoutParams.WRAP_CONTENT
-                        : LinearLayout.LayoutParams.MATCH_PARENT));
-        return scrollView;
+    public LauncherDashboardBuilder getDashboardBuilder() {
+        return dashboardBuilder;
+    }
+
+    public View getRootView() {
+        return rootView;
     }
 
     public void refreshInstalledApps() {
@@ -98,9 +83,5 @@ public class LauncherTabBuilder {
         if (dashboardBuilder != null) {
             dashboardBuilder.reapplyTheme();
         }
-    }
-
-    public ScrollView getScrollView() {
-        return scrollView;
     }
 }

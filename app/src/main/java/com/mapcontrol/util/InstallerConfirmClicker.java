@@ -22,6 +22,9 @@ import com.mapcontrol.service.GlobalBackService;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Paket yükleyici onay penceresinde 5 sn bekler, sonra INSTALL düğmesine basar.
@@ -47,6 +50,14 @@ public final class InstallerConfirmClicker {
     };
 
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
+    // Window root sorgulari senkron binder cagrisidir; hedef uygulama mesgulse
+    // saniyelerce bloklar. Main thread'de yapilirsa ANR olur -> arka thread sart.
+    private static final ExecutorService SCAN_EXEC = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "installer-scan");
+        t.setDaemon(true);
+        return t;
+    });
+    private static final AtomicBoolean SCAN_IN_FLIGHT = new AtomicBoolean(false);
     private static long lastScanMs;
     private static long cooldownUntil;
     private static boolean pendingArm;
@@ -65,13 +76,17 @@ public final class InstallerConfirmClicker {
                 return;
             }
             if (secondsLeft <= 1) {
-                AccessibilityService service = GlobalBackService.getInstance();
-                boolean clicked = service != null && clickInstall(service);
-                if (clicked) {
-                    cooldownUntil = SystemClock.uptimeMillis() + COOLDOWN_MS;
-                }
-                Log.i(TAG, "INSTALL onayına basıldı click=" + clicked);
                 dismissStrip();
+                AccessibilityService service = GlobalBackService.getInstance();
+                if (service != null) {
+                    SCAN_EXEC.execute(() -> {
+                        boolean clicked = clickInstall(service);
+                        if (clicked) {
+                            cooldownUntil = SystemClock.uptimeMillis() + COOLDOWN_MS;
+                        }
+                        Log.i(TAG, "INSTALL click=" + clicked);
+                    });
+                }
                 return;
             }
             secondsLeft--;
@@ -108,12 +123,32 @@ public final class InstallerConfirmClicker {
             return;
         }
         long now = SystemClock.uptimeMillis();
-        if (!pendingArm && now - lastScanMs < RETRY_MS) {
+        // Throttle pendingArm dahil her durumda gecerli: armed iken her window
+        // event'inde taramak sistemi kilitliyordu.
+        if (now - lastScanMs < RETRY_MS) {
+            return;
+        }
+        if (!SCAN_IN_FLIGHT.compareAndSet(false, true)) {
             return;
         }
         lastScanMs = now;
+        SCAN_EXEC.execute(() -> {
+            boolean confirm;
+            try {
+                confirm = hasInstallerConfirm(service);
+            } catch (Exception ignored) {
+                confirm = false;
+            }
+            SCAN_IN_FLIGHT.set(false);
+            boolean found = confirm;
+            HANDLER.post(() -> handleScanResult(service, found));
+        });
+    }
 
-        boolean confirm = hasInstallerConfirm(service);
+    private static void handleScanResult(AccessibilityService service, boolean confirm) {
+        if (SystemClock.uptimeMillis() < cooldownUntil) {
+            return;
+        }
         if (userDismissed) {
             if (!confirm) {
                 userDismissed = false;
@@ -202,7 +237,7 @@ public final class InstallerConfirmClicker {
             windowManager.addView(bar, params);
             stripView = bar;
             stripShowing = true;
-            sawInstallerWhileStrip = hasInstallerConfirm(service);
+            sawInstallerWhileStrip = false; // arka plan taramasi gunceller
             HANDLER.removeCallbacks(TICK);
             HANDLER.postDelayed(TICK, 1000L);
         } catch (Exception e) {
@@ -224,11 +259,11 @@ public final class InstallerConfirmClicker {
 
     private static void cancelInstall() {
         AccessibilityService service = GlobalBackService.getInstance();
-        if (service != null) {
-            clickViewId(service, "android:id/button2", false);
-        }
         userDismissed = true;
         dismissStrip();
+        if (service != null) {
+            SCAN_EXEC.execute(() -> clickViewId(service, "android:id/button2", false));
+        }
     }
 
     private static void dismissStrip() {

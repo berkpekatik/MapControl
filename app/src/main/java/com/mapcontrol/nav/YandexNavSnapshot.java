@@ -78,6 +78,72 @@ public final class YandexNavSnapshot {
         sb.append(part);
     }
 
+    /** Boş alanları diğer penceredeki dolu değerlerle tamamlar. Dolu alan yerinde kalır. */
+    public YandexNavSnapshot withFilledGaps(@Nullable YandexNavSnapshot other) {
+        if (other == null) {
+            return this;
+        }
+        return new YandexNavSnapshot(
+                guidanceActive || other.guidanceActive,
+                prefer(maneuverDistance, other.maneuverDistance),
+                prefer(maneuverUnit, other.maneuverUnit),
+                prefer(nextStreet, other.nextStreet),
+                prefer(etaDistance, other.etaDistance),
+                prefer(etaArrival, other.etaArrival),
+                prefer(etaTime, other.etaTime),
+                prefer(speed, other.speed),
+                prefer(speedLimit, other.speedLimit),
+                prefer(statusPanel, other.statusPanel));
+    }
+
+    public boolean hasManeuverDistance() {
+        return maneuverDistance != null && !maneuverDistance.isEmpty();
+    }
+
+    public boolean hasEta() {
+        return (etaDistance != null && !etaDistance.isEmpty())
+                || (etaArrival != null && !etaArrival.isEmpty())
+                || (etaTime != null && !etaTime.isEmpty());
+    }
+
+    @Nullable
+    private static String prefer(@Nullable String primary, @Nullable String fallback) {
+        if (primary != null && !primary.isEmpty()) {
+            return primary;
+        }
+        return fallback;
+    }
+
+    /** Pencere seçerken hangi okumanın daha dolu olduğunu ayırt eder. */
+    public int populatedFieldCount() {
+        int n = 0;
+        if (maneuverDistance != null && !maneuverDistance.isEmpty()) {
+            n += 2;
+        }
+        if (maneuverUnit != null && !maneuverUnit.isEmpty()) {
+            n++;
+        }
+        if (nextStreet != null && !nextStreet.isEmpty()) {
+            n += 2;
+        }
+        if (etaDistance != null && !etaDistance.isEmpty()) {
+            n += 2;
+        }
+        if (etaArrival != null && !etaArrival.isEmpty()) {
+            n++;
+        }
+        if (etaTime != null && !etaTime.isEmpty()) {
+            n++;
+        }
+        if (statusPanel != null && !statusPanel.isEmpty()) {
+            n++;
+        }
+        if (speed != null && !speed.isEmpty()) {
+            n++;
+        }
+        return n;
+    }
+
     public boolean contentEquals(@Nullable YandexNavSnapshot other) {
         if (other == null) {
             return false;

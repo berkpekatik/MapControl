@@ -14,7 +14,7 @@ public final class LauncherQuickAppsStore {
 
     public static final int MAX_SLOT_COUNT = 35;
     public static final int GRID_COLUMNS = 5;
-    public static final int DEFAULT_VISIBLE_COUNT = 10;
+    public static final int DEFAULT_VISIBLE_COUNT = 5;
     public static final int[] SLOT_COUNT_OPTIONS = {5, 10, 15, 20, 25, 30, 35};
 
     /** @deprecated Yerine {@link #MAX_SLOT_COUNT} / {@link #getVisibleSlotCount(Context)} kullan. */

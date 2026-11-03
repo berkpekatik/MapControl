@@ -4,7 +4,7 @@
     android:accessibilityEventTypes="typeAllMask"
     android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagReportViewIds|flagRetrieveInteractiveWindows"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:notificationTimeout="100"
+    android:notificationTimeout="50"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:settingsActivity="com.mapcontrol.MainActivity" />

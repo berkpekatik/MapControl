@@ -146,7 +146,9 @@
         
         <activity
             android:name=".ui.activity.DmsFaceProfileActivity"
-            android:label="@string/dms_face_title" />
+            android:label="@string/dms_face_title"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|smallestScreenSize|screenLayout" />
 
         <activity
             android:name=".ui.activity.CameraActivity"
@@ -193,6 +195,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".service.RecordingService"
+            android:enabled="true"
+            android:exported="false" />
 
         <service
             android:name=".service.MapControlService"

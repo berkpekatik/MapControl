@@ -3,13 +3,11 @@ package com.mapcontrol.nav;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
-import android.graphics.Typeface;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
@@ -19,10 +17,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 
-import com.mapcontrol.R;
-import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.AppLaunchHelper;
 
 /**
@@ -146,7 +141,6 @@ public final class YandexClusterNavOverlay {
             return;
         }
         lastApplied = snapshot;
-        raiseToTopOnMain(false);
     }
 
     /**
@@ -166,11 +160,24 @@ public final class YandexClusterNavOverlay {
         if (throttle && now - lastZOrderRaiseUptimeMs < Z_ORDER_RAISE_MIN_INTERVAL_MS) {
             return;
         }
-        lastZOrderRaiseUptimeMs = now;
+        View root = overlayRoot;
+        WindowManager wm = windowManager;
+        WindowManager.LayoutParams params = overlayLayoutParams;
         try {
-            windowManager.removeView(overlayRoot);
-            windowManager.addView(overlayRoot, overlayLayoutParams);
+            wm.removeView(root);
         } catch (Exception ignored) {
+        }
+        try {
+            wm.addView(root, params);
+            lastZOrderRaiseUptimeMs = now;
+        } catch (Exception ignored) {
+            overlayRoot = null;
+            windowManager = null;
+            displayContext = null;
+            overlayLayoutParams = null;
+            clearViewRefs();
+            appliedLayoutVersion = -1;
+            lastApplied = null;
         }
     }
 
@@ -378,50 +385,51 @@ public final class YandexClusterNavOverlay {
         topRow.setClipChildren(false);
         topRow.setClipToPadding(false);
 
-        maneuverCard = createManeuverCard(ctx);
-        maneuverDistanceView = createManeuverText(ctx, 30, true);
-        maneuverCard.addView(maneuverDistanceView, wrapLp());
+        maneuverCard = ClusterNavCardStyle.createManeuverCard(ctx);
+        maneuverDistanceView = ClusterNavCardStyle.createManeuverText(ctx, 30, true);
+        maneuverCard.addView(maneuverDistanceView, ClusterNavCardStyle.wrapLp());
 
-        nextStreetView = createManeuverText(ctx, 14, false);
+        nextStreetView = ClusterNavCardStyle.createManeuverText(ctx, 14, false);
         nextStreetView.setMaxLines(2);
-        LinearLayout.LayoutParams streetLp = wrapLp();
+        LinearLayout.LayoutParams streetLp = ClusterNavCardStyle.wrapLp();
         streetLp.topMargin = dp(ctx, 4);
         maneuverCard.addView(nextStreetView, streetLp);
 
-        maneuverStatusView = createManeuverText(ctx, 12, false);
+        maneuverStatusView = ClusterNavCardStyle.createManeuverText(ctx, 12, false);
         maneuverStatusView.setMaxLines(2);
-        LinearLayout.LayoutParams statusLp = wrapLp();
+        LinearLayout.LayoutParams statusLp = ClusterNavCardStyle.wrapLp();
         statusLp.topMargin = dp(ctx, 2);
         maneuverCard.addView(maneuverStatusView, statusLp);
 
-        topRow.addView(maneuverCard, cardLp(ctx));
+        topRow.addView(maneuverCard, ClusterNavCardStyle.cardLp(ctx));
 
         View centerGap = new View(ctx);
         topRow.addView(centerGap, new LinearLayout.LayoutParams(
                 dp(ctx, CENTER_GAP_DP),
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        etaCard = createEtaCard(ctx);
-        MetricRow distanceRow = addMetricRow(etaCard, ctx, "Kalan", 0);
+        etaCard = ClusterNavCardStyle.createEtaCard(ctx);
+        ClusterNavCardStyle.MetricRow distanceRow =
+                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Kalan", true);
         etaDistanceRow = distanceRow.row;
         etaDistanceValue = distanceRow.value;
 
-        MetricRow arrivalRow = addMetricRow(etaCard, ctx, "Varış", dp(ctx, 6));
+        ClusterNavCardStyle.MetricRow arrivalRow =
+                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Varış", false);
         etaArrivalRow = arrivalRow.row;
         etaArrivalValue = arrivalRow.value;
 
-        MetricRow timeRow = addMetricRow(etaCard, ctx, "Süre", dp(ctx, 6));
+        ClusterNavCardStyle.MetricRow timeRow =
+                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Süre", false);
         etaTimeRow = timeRow.row;
         etaTimeValue = timeRow.value;
 
-        etaStatusView = createEtaText(ctx, 12, false);
-        etaStatusView.setTextColor(UiStyles.color(ctx, R.color.textMuted));
-        etaStatusView.setMaxLines(2);
-        LinearLayout.LayoutParams etaStatusLp = wrapLp();
+        etaStatusView = ClusterNavCardStyle.createEtaStatusText(ctx);
+        LinearLayout.LayoutParams etaStatusLp = ClusterNavCardStyle.wrapLp();
         etaStatusLp.topMargin = dp(ctx, 6);
         etaCard.addView(etaStatusView, etaStatusLp);
 
-        topRow.addView(etaCard, cardLp(ctx));
+        topRow.addView(etaCard, ClusterNavCardStyle.cardLp(ctx));
 
         layoutTopMargin = dp(ctx, TOP_MARGIN_DP);
         topRowLp = new FrameLayout.LayoutParams(
@@ -433,94 +441,6 @@ public final class YandexClusterNavOverlay {
 
         applyStoredOffsetsOnMain();
         return root;
-    }
-
-    private static final class MetricRow {
-        final LinearLayout row;
-        final TextView value;
-
-        MetricRow(LinearLayout row, TextView value) {
-            this.row = row;
-            this.value = value;
-        }
-    }
-
-    private static MetricRow addMetricRow(LinearLayout parent, Context ctx,
-            String label, int topMargin) {
-        LinearLayout row = new LinearLayout(ctx);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView labelView = createEtaText(ctx, 13, false);
-        labelView.setText(label);
-        labelView.setTextColor(UiStyles.color(ctx, R.color.textMuted));
-        row.addView(labelView, new LinearLayout.LayoutParams(
-                dp(ctx, 52),
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView valueView = createEtaText(ctx, 16, true);
-        row.addView(valueView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout.LayoutParams rowLp = wrapLp();
-        rowLp.topMargin = topMargin;
-        parent.addView(row, rowLp);
-        return new MetricRow(row, valueView);
-    }
-
-    private static TextView createManeuverText(Context ctx, int sp, boolean bold) {
-        TextView tv = new TextView(ctx);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        if (bold) {
-            tv.setTypeface(null, Typeface.BOLD);
-            tv.setTextColor(UiStyles.color(ctx, R.color.cluster_nav_maneuver_text));
-        } else {
-            tv.setTextColor(UiStyles.color(ctx, R.color.cluster_nav_maneuver_subtext));
-        }
-        return tv;
-    }
-
-    private static TextView createEtaText(Context ctx, int sp, boolean bold) {
-        TextView tv = new TextView(ctx);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        if (bold) {
-            tv.setTypeface(null, Typeface.BOLD);
-        }
-        tv.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        return tv;
-    }
-
-    private static LinearLayout.LayoutParams wrapLp() {
-        return new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-    }
-
-    private static LinearLayout.LayoutParams cardLp(Context ctx) {
-        return new LinearLayout.LayoutParams(
-                dp(ctx, 136),
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-    }
-
-    private static LinearLayout createManeuverCard(Context ctx) {
-        LinearLayout card = new LinearLayout(ctx);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setBackground(ContextCompat.getDrawable(ctx, R.drawable.bg_cluster_nav_maneuver));
-        int padH = dp(ctx, 16);
-        int padV = dp(ctx, 12);
-        card.setPadding(padH, padV, padH, padV);
-        return card;
-    }
-
-    private static LinearLayout createEtaCard(Context ctx) {
-        LinearLayout card = new LinearLayout(ctx);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(ContextCompat.getDrawable(ctx, R.drawable.bg_cluster_nav_eta));
-        int pad = dp(ctx, 14);
-        card.setPadding(pad, pad, pad, pad);
-        return card;
     }
 
     private static int dp(Context ctx, int value) {
