@@ -68,6 +68,7 @@ public class GoogleMapsNavNotificationParserTest {
                 true);
         assertTrue(snap.active);
         assertEquals("152 m", snap.formatManeuverDistanceLine());
+        assertEquals(152, snap.segmentRemainMeters());
         assertEquals("Head south-west", snap.formatManeuverDirectionLine());
         assertEquals("143,2 km", snap.etaDistanceLabel());
         assertEquals("1 hr 34 min", snap.etaDurationLabel());

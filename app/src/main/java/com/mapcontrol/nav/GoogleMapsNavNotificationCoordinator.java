@@ -90,7 +90,7 @@ public final class GoogleMapsNavNotificationCoordinator {
         if (!isGoogleMapsNotification(sbn)) {
             return;
         }
-        GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(sbn);
+        GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(context, sbn);
         if (snapshot.active) {
             int score = score(sbn, snapshot);
             if (!shouldAdopt(sbn.getKey(), score)) {
@@ -137,7 +137,7 @@ public final class GoogleMapsNavNotificationCoordinator {
             if (active == null) {
                 return;
             }
-            NavPick pick = pickBest(active);
+            NavPick pick = pickBest(service, active);
             if (pick != null) {
                 cancelInactiveCheck();
                 activeNavKey = pick.key;
@@ -193,7 +193,7 @@ public final class GoogleMapsNavNotificationCoordinator {
             return;
         }
         try {
-            NavPick pick = pickBest(service.getActiveNotifications());
+            NavPick pick = pickBest(app, service.getActiveNotifications());
             if (pick != null) {
                 activeNavKey = pick.key;
                 activeScore = pick.score;
@@ -260,7 +260,8 @@ public final class GoogleMapsNavNotificationCoordinator {
     }
 
     @Nullable
-    private static NavPick pickBest(@Nullable StatusBarNotification[] active) {
+    private static NavPick pickBest(
+            Context context, @Nullable StatusBarNotification[] active) {
         if (active == null) {
             return null;
         }
@@ -269,7 +270,7 @@ public final class GoogleMapsNavNotificationCoordinator {
             if (!isGoogleMapsNotification(sbn)) {
                 continue;
             }
-            GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(sbn);
+            GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parse(context, sbn);
             int value = score(sbn, snapshot);
             if (value < 0) {
                 continue;

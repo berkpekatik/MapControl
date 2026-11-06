@@ -40,7 +40,7 @@ public class DriveModeBadgeTest {
 
     private VehicleMetricsSnapshot snapshot(boolean connected, int mode) {
         return new VehicleMetricsSnapshot(connected, 0, 0, 12000, 50, 300, 1, 2, 12600,
-                0, 0, 0, 0, 0, 2, 1, mode);
+                0, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, mode);
     }
 
     @Test public void liveModeOverridesStartupPreferenceAndDisconnectClearsItsColor() {

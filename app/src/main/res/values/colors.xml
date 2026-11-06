@@ -184,4 +184,16 @@
     <color name="drive_mode_mud">#8C6545</color>
     <color name="drive_mode_offroad">#6D7D40</color>
     <color name="drive_mode_sand">#C69D54</color>
+
+    <!-- Cluster/HUD tasarım varyantları -->
+    <color name="ck_bg_recessed">#161B22</color>
+    <color name="ck_surface_1">#1D242C</color>
+    <color name="ck_surface_2">#252E38</color>
+    <color name="ck_stroke">#2D3748</color>
+    <color name="ck_accent">#00B4D8</color>
+    <color name="ck_accent_stroke_30">#4D00B4D8</color>
+    <color name="ck_nominal">#10B981</color>
+    <color name="ck_text_high">#F8FAFC</color>
+    <color name="ck_text_medium">#94A3B8</color>
+    <color name="ck_on_accent">#0F1216</color>
 </resources>
