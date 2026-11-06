@@ -70,6 +70,7 @@ public class ProjectionTabBuilder {
     private TextView targetAppLabel;
     private TextView projectionStatusText;
     private TextView googleMapsNavSummaryText;
+    private Runnable googleClusterLayoutSync;
 
     public ProjectionTabBuilder(Context context, SharedPreferences prefs, ProjectionCallback callback) {
         this.context = context;
@@ -462,7 +463,9 @@ public class ProjectionTabBuilder {
                             : "Google Maps cluster kartları kapatıldı");
                 });
 
-        addClusterOverlayLayoutSection(
+        addGoogleClusterStyleSection(card);
+        addGoogleClusterOpacitySection(card);
+        googleClusterLayoutSync = addClusterOverlayLayoutSection(
                 card,
                 R.string.projection_google_cluster_position_title,
                 ClusterNavOverlayOffsets.Provider.GOOGLE,
@@ -568,7 +571,370 @@ public class ProjectionTabBuilder {
         return googleMapsNavSummaryText.getContext().getText(resId);
     }
 
-    private void addClusterOverlayLayoutSection(LinearLayout parent, int titleResId,
+    private void addGoogleClusterStyleSection(LinearLayout parent) {
+        TextView title = new TextView(context);
+        title.setText(R.string.projection_google_cluster_design_title);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(20, 18, 20, 6);
+        parent.addView(title);
+
+        String[] styles = {
+                GoogleMapsClusterNavOverlay.STYLE_HUD,
+                GoogleMapsClusterNavOverlay.STYLE_DUAL,
+                GoogleMapsClusterNavOverlay.STYLE_RADIAL,
+                GoogleMapsClusterNavOverlay.STYLE_TRAFFIC
+        };
+        String selected = GoogleMapsClusterNavOverlay.getStyle(context);
+        final java.util.List<LinearLayout> cards = new java.util.ArrayList<>();
+        float density = context.getResources().getDisplayMetrics().density;
+        for (int row = 0; row < 2; row++) {
+            LinearLayout line = new LinearLayout(context);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setBaselineAligned(false);
+            for (int col = 0; col < 2; col++) {
+                final int index = row * 2 + col;
+                final String style = styles[index];
+                LinearLayout card = new LinearLayout(context);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(10, 10, 10, 10);
+                card.setClickable(true);
+                card.setFocusable(true);
+
+                TextView variant = new TextView(context);
+                variant.setText(context.getString(
+                        R.string.projection_cluster_variant_label, index + 1));
+                variant.setTextSize(11);
+                variant.setTypeface(null, Typeface.BOLD);
+                variant.setTextColor(UiStyles.color(context, R.color.ck_accent));
+                variant.setPadding(8, 3, 8, 3);
+                GradientDrawable variantBg = new GradientDrawable();
+                variantBg.setColor(0x3325D9E8);
+                variantBg.setStroke(1, UiStyles.color(context, R.color.ck_accent));
+                variantBg.setCornerRadius(8);
+                variant.setBackground(variantBg);
+                card.addView(variant, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+
+                View preview = buildClusterStylePreview(style);
+                card.addView(preview, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, Math.round(96 * density)));
+
+                card.setOnClickListener(v -> {
+                    GoogleMapsClusterNavOverlay.setStyle(context, style);
+                    GoogleMapsClusterNavOverlay.getInstance(context).apply(
+                            GoogleMapsNavNotificationCoordinator.getLastSnapshot());
+                    applyClusterStyleSelection(cards, styles,
+                            GoogleMapsClusterNavOverlay.getStyle(context));
+                    if (googleClusterLayoutSync != null) {
+                        googleClusterLayoutSync.run();
+                    }
+                    callback.log("Google Maps cluster kart tasarımı: " + style);
+                });
+                cards.add(card);
+                LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+                if (col == 0) cardLp.setMarginEnd(4); else cardLp.setMarginStart(4);
+                line.addView(card, cardLp);
+            }
+            LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            lineLp.topMargin = 8;
+            parent.addView(line, lineLp);
+        }
+        applyClusterStyleSelection(cards, styles, selected);
+    }
+
+    private void addGoogleClusterOpacitySection(LinearLayout parent) {
+        TextView title = new TextView(context);
+        title.setText(R.string.projection_cluster_bg_opacity);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(20, 18, 20, 6);
+        parent.addView(title);
+
+        TextView desc = new TextView(context);
+        desc.setText(R.string.projection_cluster_opacity_desc);
+        UiStyles.setTextSize(desc, R.dimen.text_size_small);
+        desc.setTextColor(UiStyles.color(context, R.color.textHint));
+        desc.setPadding(20, 0, 20, 8);
+        parent.addView(desc);
+
+        LinearLayout block = new LinearLayout(context);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(20, 0, 20, 8);
+        parent.addView(block, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        SeekBar maneuverBar = addClusterOpacityRow(
+                block, R.string.projection_cluster_maneuver_card, false);
+        SeekBar etaBar = addClusterOpacityRow(
+                block, R.string.projection_cluster_eta_card, true);
+
+        Button reset = new Button(context);
+        reset.setText(R.string.projection_cluster_opacity_reset);
+        reset.setTextColor(UiStyles.color(context, R.color.textPrimary80));
+        UiStyles.setTextSize(reset, R.dimen.text_size_small);
+        UiStyles.styleOemButton(reset, UiStyles.color(context, R.color.surfaceCardInner));
+        reset.setPadding(16, 14, 16, 14);
+        LinearLayout.LayoutParams resetLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        resetLp.topMargin = 8;
+        block.addView(reset, resetLp);
+        reset.setOnClickListener(v -> {
+            GoogleMapsClusterNavOverlay.setCardOpacity(context, false, 100);
+            GoogleMapsClusterNavOverlay.setCardOpacity(context, true, 100);
+            maneuverBar.setProgress(90);
+            etaBar.setProgress(90);
+        });
+    }
+
+    private SeekBar addClusterOpacityRow(LinearLayout parent, int labelResId, boolean eta) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, 6, 0, 0);
+
+        LinearLayout top = new LinearLayout(context);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView label = new TextView(context);
+        label.setText(labelResId);
+        UiStyles.setTextSize(label, R.dimen.text_size_small);
+        label.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        top.addView(label, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        int opacity = GoogleMapsClusterNavOverlay.getCardOpacity(context, eta);
+        TextView value = new TextView(context);
+        value.setText(opacity + "%");
+        UiStyles.setTextSize(value, R.dimen.text_size_small);
+        value.setTextColor(UiStyles.color(context, R.color.accentHighlight));
+        top.addView(value);
+        row.addView(top, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        SeekBar bar = new SeekBar(context);
+        bar.setMax(90);
+        bar.setProgress(Math.max(0, Math.min(90, opacity - 10)));
+        int tint = UiStyles.color(context, R.color.accentHighlight);
+        bar.setProgressTintList(ColorStateList.valueOf(tint));
+        bar.setThumbTintList(ColorStateList.valueOf(tint));
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                value.setText((progress + 10) + "%");
+                if (fromUser) {
+                    GoogleMapsClusterNavOverlay.setCardOpacity(context, eta, progress + 10);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                GoogleMapsClusterNavOverlay.setCardOpacity(
+                        context, eta, seekBar.getProgress() + 10);
+            }
+        });
+        row.addView(bar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        parent.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        return bar;
+    }
+
+    private View buildClusterStylePreview(String style) {
+        LinearLayout preview = new LinearLayout(context);
+        preview.setOrientation(LinearLayout.HORIZONTAL);
+        preview.setGravity(Gravity.CENTER_VERTICAL);
+        preview.setPadding(12, 8, 12, 8);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(UiStyles.color(context, R.color.ck_bg_recessed));
+        bg.setCornerRadius(12);
+        bg.setStroke(1, UiStyles.color(context, R.color.ck_stroke));
+        preview.setBackground(bg);
+        if (GoogleMapsClusterNavOverlay.STYLE_DUAL.equals(style)) {
+            preview.addView(miniCard("350 m", "Amphitheatre Pkwy"));
+            preview.addView(miniCard("11:15", "13 dk · 8.5 km"));
+        } else if (GoogleMapsClusterNavOverlay.STYLE_HUD.equals(style)) {
+            TextView arrow = new TextView(context);
+            arrow.setText("←");
+            arrow.setTextSize(24);
+            arrow.setGravity(Gravity.CENTER);
+            arrow.setTextColor(UiStyles.color(context, R.color.ck_accent));
+            GradientDrawable arrowBg = new GradientDrawable();
+            arrowBg.setColor(UiStyles.color(context, R.color.ck_surface_1));
+            arrowBg.setCornerRadius(10);
+            arrowBg.setStroke(1, UiStyles.color(context, R.color.ck_accent_stroke_30));
+            arrow.setBackground(arrowBg);
+            preview.addView(arrow, new LinearLayout.LayoutParams(36, 36));
+
+            LinearLayout left = new LinearLayout(context);
+            left.setOrientation(LinearLayout.VERTICAL);
+            left.setPadding(10, 0, 8, 0);
+            TextView distance = new TextView(context);
+            android.text.SpannableStringBuilder distanceText =
+                    new android.text.SpannableStringBuilder("150");
+            distanceText.append("  M");
+            distanceText.setSpan(new android.text.style.ForegroundColorSpan(
+                            UiStyles.color(context, R.color.ck_accent)),
+                    5, distanceText.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            distanceText.setSpan(new android.text.style.RelativeSizeSpan(0.62f),
+                    5, distanceText.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            distance.setText(distanceText);
+            distance.setTextSize(21);
+            distance.setTypeface(null, Typeface.BOLD);
+            distance.setTextColor(UiStyles.color(context, R.color.ck_text_high));
+            left.addView(distance);
+            TextView street = new TextView(context);
+            street.setText("Amphitheatre Pkwy");
+            street.setTextSize(9);
+            street.setSingleLine(true);
+            street.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            street.setTextColor(UiStyles.color(context, R.color.ck_text_medium));
+            left.addView(street);
+            preview.addView(left, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1.35f));
+
+            View hudDivider = new View(context);
+            hudDivider.setBackgroundColor(UiStyles.color(context, R.color.ck_stroke));
+            preview.addView(hudDivider, new LinearLayout.LayoutParams(1, 48));
+
+            LinearLayout right = new LinearLayout(context);
+            right.setOrientation(LinearLayout.VERTICAL);
+            right.setGravity(Gravity.END);
+            right.setPadding(10, 0, 0, 0);
+            TextView eta = new TextView(context);
+            eta.setText("13 dk  ●");
+            eta.setTextSize(16);
+            eta.setSingleLine(true);
+            eta.setTypeface(null, Typeface.BOLD);
+            eta.setTextColor(UiStyles.color(context, R.color.ck_text_high));
+            right.addView(eta);
+            TextView detail = new TextView(context);
+            detail.setText("8.5 km · 11:15");
+            detail.setTextSize(9);
+            detail.setSingleLine(true);
+            detail.setTextColor(UiStyles.color(context, R.color.ck_text_medium));
+            right.addView(detail);
+            preview.addView(right, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        } else if (GoogleMapsClusterNavOverlay.STYLE_RADIAL.equals(style)) {
+            TextView ring = new TextView(context);
+            ring.setText("13\ndk");
+            ring.setTextSize(15);
+            ring.setGravity(Gravity.CENTER);
+            ring.setTextColor(UiStyles.color(context, R.color.ck_accent));
+            GradientDrawable ringBg = new GradientDrawable();
+            ringBg.setShape(GradientDrawable.OVAL);
+            ringBg.setColor(UiStyles.color(context, R.color.ck_surface_1));
+            ringBg.setStroke(3, UiStyles.color(context, R.color.ck_accent));
+            ring.setBackground(ringBg);
+            preview.addView(ring, new LinearLayout.LayoutParams(56, 56));
+
+            LinearLayout col = new LinearLayout(context);
+            col.setOrientation(LinearLayout.VERTICAL);
+            TextView route = new TextView(context);
+            route.setText("Rota ilerlemesi                    %68");
+            route.setTextSize(12);
+            route.setTextColor(UiStyles.color(context, R.color.ck_text_medium));
+            col.addView(route);
+            android.widget.ProgressBar bar = new android.widget.ProgressBar(context,
+                    null, android.R.attr.progressBarStyleHorizontal);
+            bar.setMax(100);
+            bar.setProgress(68);
+            bar.setPadding(8, 4, 8, 0);
+            col.addView(bar, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 12));
+            TextView info = new TextView(context);
+            info.setText("8.5 km  ·  11:15");
+            info.setTextSize(12);
+            info.setTextColor(UiStyles.color(context, R.color.ck_text_medium));
+            info.setPadding(8, 4, 0, 0);
+            col.addView(info);
+            preview.addView(col, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        } else {
+            LinearLayout col = new LinearLayout(context);
+            col.setOrientation(LinearLayout.VERTICAL);
+            TextView route = new TextView(context);
+            route.setText("200 m  ·  Amphitheatre Pkwy");
+            route.setTextSize(12);
+            route.setTextColor(UiStyles.color(context, R.color.ck_text_high));
+            col.addView(route);
+            android.widget.ProgressBar progress = new android.widget.ProgressBar(context,
+                    null, android.R.attr.progressBarStyleHorizontal);
+            progress.setMax(100);
+            progress.setProgress(68);
+            progress.setPadding(0, 5, 0, 3);
+            col.addView(progress, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 12));
+            TextView eta = new TextView(context);
+            eta.setText("11:15  ·  13 dk  ·  8.5 km");
+            eta.setTextSize(12);
+            eta.setTextColor(UiStyles.color(context, R.color.ck_accent));
+            col.addView(eta);
+            preview.addView(col, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        return preview;
+    }
+
+    private View miniCard(String value, String text) {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(10, 7, 10, 7);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(UiStyles.color(context, R.color.ck_surface_1));
+        bg.setCornerRadius(10);
+        bg.setStroke(1, UiStyles.color(context, R.color.ck_stroke));
+        card.setBackground(bg);
+        TextView v = new TextView(context);
+        v.setText(value);
+        v.setTextSize(18);
+        v.setTypeface(null, Typeface.BOLD);
+        v.setTextColor(UiStyles.color(context, R.color.ck_accent));
+        card.addView(v);
+        TextView t = new TextView(context);
+        t.setText(text);
+        t.setTextSize(11);
+        t.setTextColor(UiStyles.color(context, R.color.ck_text_medium));
+        card.addView(t);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMarginEnd(6);
+        card.setLayoutParams(lp);
+        return card;
+    }
+
+    private void applyClusterStyleSelection(java.util.List<LinearLayout> cards,
+            String[] styles, String selected) {
+        for (int i = 0; i < cards.size(); i++) {
+            boolean active = styles[i].equals(selected);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(UiStyles.color(context,
+                    active ? R.color.ck_surface_2 : R.color.ck_surface_1));
+            bg.setCornerRadius(12);
+            bg.setStroke(Math.max(1, Math.round(context.getResources()
+                            .getDisplayMetrics().density * (active ? 2 : 1))),
+                    UiStyles.color(context, active ? R.color.ck_accent : R.color.ck_stroke));
+            cards.get(i).setBackground(bg);
+        }
+    }
+
+    private Runnable addClusterOverlayLayoutSection(LinearLayout parent, int titleResId,
             ClusterNavOverlayOffsets.Provider provider, Runnable applyOverlay) {
         Button layoutToggle = new Button(context);
         layoutToggle.setText(context.getString(titleResId) + " ↓");
@@ -635,6 +1001,11 @@ public class ProjectionTabBuilder {
                     : "Yandex cluster kart düzeni sıfırlandı");
             Toast.makeText(context, R.string.projection_cluster_layout_reset_done, Toast.LENGTH_SHORT).show();
         });
+        return () -> {
+            for (ClusterCardSliderUi ui : sliderUis) {
+                ui.syncFromPrefs();
+            }
+        };
     }
 
     private static final class ClusterCardSliderUi {

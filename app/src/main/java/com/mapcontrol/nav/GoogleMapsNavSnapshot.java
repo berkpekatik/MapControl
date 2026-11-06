@@ -1,5 +1,7 @@
 package com.mapcontrol.nav;
 
+import android.graphics.Bitmap;
+
 import androidx.annotation.Nullable;
 
 import java.util.Locale;
@@ -19,6 +21,7 @@ public final class GoogleMapsNavSnapshot {
     @Nullable public final String distanceTitle;
     @Nullable public final String routeSummary;
     public final boolean hadIcon;
+    @Nullable public final Bitmap maneuverIcon;
 
     public GoogleMapsNavSnapshot(
             boolean active,
@@ -26,11 +29,22 @@ public final class GoogleMapsNavSnapshot {
             @Nullable String distanceTitle,
             @Nullable String routeSummary,
             boolean hadIcon) {
+        this(active, maneuverHint, distanceTitle, routeSummary, hadIcon, null);
+    }
+
+    public GoogleMapsNavSnapshot(
+            boolean active,
+            @Nullable String maneuverHint,
+            @Nullable String distanceTitle,
+            @Nullable String routeSummary,
+            boolean hadIcon,
+            @Nullable Bitmap maneuverIcon) {
         this.active = active;
         this.maneuverHint = emptyToNull(maneuverHint);
         this.distanceTitle = emptyToNull(distanceTitle);
         this.routeSummary = emptyToNull(routeSummary);
         this.hadIcon = hadIcon;
+        this.maneuverIcon = maneuverIcon;
     }
 
     public static GoogleMapsNavSnapshot inactive() {
@@ -90,6 +104,13 @@ public final class GoogleMapsNavSnapshot {
     /** Manevra kartı üst satırı: bildirim başlığındaki mesafe bölümü. */
     @Nullable
     public String formatManeuverDistanceLine() {
+        String fromTitle = maneuverDistanceFromTitle();
+        return fromTitle != null ? fromTitle : etaDistanceLabel();
+    }
+
+    /** Başlıkta gerçek manevra mesafesi var mı; yoksa kalan rota mesafesine düşülür. */
+    @Nullable
+    public String maneuverDistanceFromTitle() {
         return splitTitleDistancePart(distanceTitle);
     }
 
@@ -101,6 +122,36 @@ public final class GoogleMapsNavSnapshot {
             return fromTitle;
         }
         return maneuverHint;
+    }
+
+    /** Manevraya kalan mesafe (metre); ayrıştırılamazsa 0. */
+    public int segmentRemainMeters() {
+        String distance = formatManeuverDistanceLine();
+        if (distance == null) {
+            return 0;
+        }
+        String lower = distance.toLowerCase(Locale.US);
+        try {
+            if (lower.contains(" km")) {
+                String num = lower.split(" km", 2)[0].trim().replace(',', '.');
+                return (int) (Double.parseDouble(num) * 1000.0d);
+            }
+            if (lower.contains(" mi")) {
+                String num = lower.split(" mi", 2)[0].trim().replace(',', '.');
+                return (int) (Double.parseDouble(num) * 1609.344d);
+            }
+            if (lower.contains(" ft")) {
+                String num = lower.split(" ft", 2)[0].trim().replace(',', '.');
+                return (int) (Double.parseDouble(num) * 0.3048d);
+            }
+            if (lower.contains(" m")) {
+                String num = lower.split(" m", 2)[0].trim().replace(',', '.');
+                return (int) Double.parseDouble(num);
+            }
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+        return 0;
     }
 
     @Nullable
@@ -156,7 +207,10 @@ public final class GoogleMapsNavSnapshot {
                 continue;
             }
             String lower = trimmed.toLowerCase(Locale.US);
-            boolean isDistance = lower.contains(" km") || lower.contains(" mi") || lower.contains(" m ");
+            boolean isDistance = java.util.regex.Pattern
+                    .compile("\\d+(?:[.,]\\d+)?\\s*(?:km|mi|m|ft)\\b",
+                            java.util.regex.Pattern.CASE_INSENSITIVE)
+                    .matcher(trimmed).find();
             boolean isDuration = lower.contains("min") || lower.contains("dk")
                     || lower.contains("hr") || lower.contains("sa");
             boolean isArrival = ARRIVAL_TIME.matcher(trimmed).find();
@@ -167,7 +221,8 @@ public final class GoogleMapsNavSnapshot {
                 return trimmed;
             }
             if (wantArrival && isArrival) {
-                return trimmed;
+                Matcher matcher = ARRIVAL_TIME.matcher(trimmed);
+                return matcher.find() ? matcher.group() : trimmed;
             }
         }
         if (wantArrival) {

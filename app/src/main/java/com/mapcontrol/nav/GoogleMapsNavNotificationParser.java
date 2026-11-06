@@ -1,6 +1,11 @@
 package com.mapcontrol.nav;
 
 import android.app.Notification;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 
@@ -42,6 +47,11 @@ public final class GoogleMapsNavNotificationParser {
     }
 
     public static GoogleMapsNavSnapshot parse(@Nullable StatusBarNotification sbn) {
+        return parse(null, sbn);
+    }
+
+    public static GoogleMapsNavSnapshot parse(
+            @Nullable Context context, @Nullable StatusBarNotification sbn) {
         if (sbn == null || !PACKAGE_GOOGLE_MAPS.equals(sbn.getPackageName())) {
             return GoogleMapsNavSnapshot.inactive();
         }
@@ -54,7 +64,8 @@ public final class GoogleMapsNavNotificationParser {
                 extraText(extras, Notification.EXTRA_TITLE),
                 extraText(extras, Notification.EXTRA_TEXT),
                 extraText(extras, Notification.EXTRA_SUB_TEXT),
-                notification.getLargeIcon() != null);
+                notification.getLargeIcon() != null,
+                largeIconBitmap(notification, context));
     }
 
     /**
@@ -86,6 +97,15 @@ public final class GoogleMapsNavNotificationParser {
             @Nullable String text,
             @Nullable String subText,
             boolean hadIcon) {
+        return parseFields(title, text, subText, hadIcon, null);
+    }
+
+    public static GoogleMapsNavSnapshot parseFields(
+            @Nullable String title,
+            @Nullable String text,
+            @Nullable String subText,
+            boolean hadIcon,
+            @Nullable Bitmap maneuverIcon) {
         if (subText == null || !looksLikeNavigation(title, text, subText)) {
             return GoogleMapsNavSnapshot.inactive();
         }
@@ -94,7 +114,24 @@ public final class GoogleMapsNavNotificationParser {
                 maneuverFrom(text),
                 toMetric(stripClockLabels(title)),
                 toMetric(stripClockLabels(subText)),
-                hadIcon);
+                hadIcon,
+                maneuverIcon);
+    }
+
+    @Nullable
+    private static Bitmap largeIconBitmap(Notification notification, @Nullable Context context) {
+        Icon icon = notification.getLargeIcon();
+        if (icon == null || context == null) {
+            return null;
+        }
+        try {
+            Drawable drawable = icon.loadDrawable(context);
+            if (drawable instanceof BitmapDrawable) {
+                return ((BitmapDrawable) drawable).getBitmap();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     static boolean looksLikeNavigation(
@@ -112,10 +149,9 @@ public final class GoogleMapsNavNotificationParser {
         }
         String cleaned = stripClockLabels(text);
         int split = cleaned.indexOf(" - ");
-        if (split < 0) {
-            return "";
-        }
-        return cleaned.substring(0, split).trim();
+        String direction = split < 0 ? cleaned : cleaned.substring(0, split);
+        direction = direction.replaceAll("(?i)\\s+yönüne\\s+doğru\\s*$", "").trim();
+        return direction;
     }
 
     static String stripClockLabels(@Nullable String value) {

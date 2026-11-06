@@ -17,6 +17,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
+import com.mapcontrol.nav.ClusterNavZOrder;
 import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.util.InstallerConfirmClicker;
 import com.mapcontrol.nav.YandexNavScraper;
@@ -120,7 +121,7 @@ public class GlobalBackService extends AccessibilityService {
         }
         ensureYandexPoll();
         if (event != null && isYandexOverlayZOrderEvent(event)) {
-            YandexClusterNavOverlay.getInstance(this).raiseToTopIfShowing();
+            ClusterNavZOrder.raiseIfShowing(this);
         }
         if (event != null && !shouldHandleYandexEvent(event)) {
             return;
