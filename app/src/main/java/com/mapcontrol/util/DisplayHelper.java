@@ -574,7 +574,7 @@ public final class DisplayHelper {
 
         TextView wordmark = new TextView(ctx);
         wordmark.setId(R.id.boot_splash_wordmark);
-        wordmark.setText("Map Control");
+        wordmark.setText("MapControl");
         wordmark.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         wordmark.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32);
         wordmark.setTypeface(null, Typeface.BOLD);

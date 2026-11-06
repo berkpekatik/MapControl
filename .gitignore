@@ -33,3 +33,6 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Silent installer dex asset (uygulama içinde gerekli)
+!app/src/main/assets/*.dex

@@ -72,6 +72,7 @@ import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.util.AlertSoundHelper;
 import com.mapcontrol.util.ApkSessionInstaller;
+import com.mapcontrol.manager.WebServerHost;
 import com.mapcontrol.manager.WebServerManager;
 import com.mapcontrol.service.GlobalBackService;
 import com.mapcontrol.service.ServiceInitializer;
@@ -109,11 +110,11 @@ import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
-import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import com.mapcontrol.vehicle.SunroofGestureStore;
 import com.mapcontrol.util.MapsLink;
+import com.mapcontrol.util.YouTubeLink;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.HeaderStatusMonitor;
@@ -194,10 +195,9 @@ public class MainActivity extends AppCompatActivity {
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
     private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
-    private WebServerManager webServerManager; // HTTP Server Manager
-    /** Kullanıcı seçtiyse kontak açılınca (güç modu 1/2) sunucuyu açar. */
-    private VehicleMetricsRepository.Listener webServerPowerListener;
-    private boolean webServerPowerOn;
+    private WebServerManager webServerManager; // HTTP Server Manager (sahibi WebServerHost; activity kapanınca kapanmaz)
+    private WebServerHost webServerHost;
+    private WebServerManager.WebServerListener webServerListener;
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
     private android.widget.ImageView qrCodeImageView;
@@ -540,9 +540,10 @@ public class MainActivity extends AppCompatActivity {
         mainContent.addView(tabContentArea, tabContentParams);
         mountShell(isPortraitConfiguration());
         
-        // WebServerManager'ı başlat
-        webServerManager = new WebServerManager(this);
-        webServerManager.setListener(new WebServerManager.WebServerListener() {
+        // Sunucu activity'ye bağlı değildir: WebServerHost uygulama genelinde tek örnektir (MapControlService de kullanır).
+        webServerHost = WebServerHost.get(this);
+        webServerManager = webServerHost.manager();
+        webServerListener = new WebServerManager.WebServerListener() {
             @Override
             public void onServerStarted(int port, String localIp) {
                 handler.post(() -> {
@@ -634,6 +635,12 @@ public class MainActivity extends AppCompatActivity {
                         if (MapsLink.isGoogleMaps(u) && openGoogleMapsLink(u)) {
                             return;
                         }
+                        if (MapsLink.isYandex(u) && openYandexLink(u)) {
+                            return;
+                        }
+                        if (YouTubeLink.isYouTube(u) && openYouTubeLink(u)) {
+                            return;
+                        }
                         openLinkViaSystem(u);
                     } catch (Exception e) {
                         Toast.makeText(MainActivity.this,
@@ -667,7 +674,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-        });
+        };
 
         // Web Yönetimi tab içeriği
         fileUploadTabBuilder = new FileUploadTabBuilder(this, webServerManager);
@@ -914,19 +921,9 @@ public class MainActivity extends AppCompatActivity {
         // Onbellek yalnizca dinleyici varken doluyordu; hiz overlay'i (ve launcher)
         // icin izlemeyi bastan acik tut (VDBus olay gudumlu, hafif).
         vehicleMetricsRepository.startMonitoring();
-        // Elle kapatılan sunucu aynı kontakta tekrar açılmasın: yalnızca kapalıdan açığa geçişte başlar.
-        webServerPowerListener = snapshot -> {
-            boolean on = VehicleMetricsSnapshot.isValid(snapshot.powerMode)
-                    && (snapshot.powerMode == 1 || snapshot.powerMode == 2);
-            if (on && !webServerPowerOn) {
-                startWebServerIfPreferred();
-            }
-            if (VehicleMetricsSnapshot.isValid(snapshot.powerMode)) {
-                webServerPowerOn = on;
-            }
-        };
-        vehicleMetricsRepository.addListener(webServerPowerListener);
-        startWebServerIfPreferred();
+        // Kontak, ağ ve bekçi tetikleyicileri WebServerHost'ta (servis de başlatır); burada yalnızca arayüz bağlanır.
+        // Sunucunun şu anki durumu ve activity yokken kuyruğa alınan komutlar bağlanınca iletilir.
+        webServerHost.attachUi(webServerListener);
 
         vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
                 msg -> MainActivity.this.log(msg));
@@ -1722,15 +1719,6 @@ public class MainActivity extends AppCompatActivity {
         return new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
     }
 
-    /** Kullanıcı Web Yönetimi'nde otomatik başlatmayı seçtiyse sunucuyu açar; varsayılan kapalı. */
-    private void startWebServerIfPreferred() {
-        if (webServerManager != null && !webServerManager.isRunning()
-                && getSharedPreferences("MapControlPrefs", MODE_PRIVATE)
-                        .getBoolean(FileUploadTabBuilder.KEY_WEB_SERVER_AUTO_START, false)) {
-            webServerManager.startServer();
-        }
-    }
-
     // QR üretimi `FileUploadTabBuilder.generateQRCode()` içine taşındı.
 
     @Override
@@ -2518,6 +2506,8 @@ public class MainActivity extends AppCompatActivity {
         String detail = message != null && !message.isEmpty() ? message : ("status " + status);
         Toast.makeText(this, getString(R.string.apps_install_error, detail), Toast.LENGTH_LONG).show();
         log("[ERROR] APK kurulum sonucu: " + detail);
+        // Kendi kurulumu icin kapatilan kameralar varsa geri acilir; yoksa etkisizdir.
+        com.mapcontrol.dvr.DvrController.get(this).cancelSelfInstallPrepare();
         if (appsTabBuilder != null) {
             appsTabBuilder.clearInstallingProgress();
         }
@@ -2554,12 +2544,9 @@ public class MainActivity extends AppCompatActivity {
         pendingTtsText = null;
         VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
-        // WebServerManager'ı durdur
-        if (vehicleMetricsRepository != null && webServerPowerListener != null) {
-            vehicleMetricsRepository.removeListener(webServerPowerListener);
-        }
-        if (webServerManager != null) {
-            webServerManager.stopServer();
+        // Sunucu kapanmaz (WebServerHost'ta yaşar); yalnızca bu activity'nin arayüz bağlantısı bırakılır.
+        if (webServerHost != null) {
+            webServerHost.detachUi(webServerListener);
         }
         // KeyEvent logcat thread'ini temizle
         keyEventLogcatRunning = false;
@@ -2746,6 +2733,42 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    /**
+     * Yandex bağlantısı (Navi/Haritalar ayrımı yok): kurulu Yandex uygulaması açar; hiçbiri yoksa hedef
+     * koordinatı varsa Google Haritalar rotasına düşer.
+     *
+     * @return açıldıysa true; false ise çağıran sistemin yoluna döner
+     */
+    private boolean openYandexLink(String u) {
+        for (String pkg : AppLaunchHelper.YANDEX_PACKAGES) {
+            if (!isPackageInstalled(pkg)) {
+                continue;
+            }
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(u));
+            i.setPackage(pkg);
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (getPackageManager().queryIntentActivities(i, 0).isEmpty()) {
+                log("Yandex (" + pkg + ") bu bağlantıyı açmıyor");
+                continue;
+            }
+            try {
+                startActivity(i);
+                log("Yandex'e verildi (" + pkg + "): " + u);
+                return true;
+            } catch (Exception e) {
+                log("Yandex açılamadı (" + pkg + "): " + e.getMessage());
+            }
+        }
+        log("Yandex yok; Google Haritalar deneniyor");
+        double[] dest = MapsLink.yandexDestination(u);
+        if (dest != null && isPackageInstalled(AppLaunchHelper.GOOGLE_MAPS_PACKAGE)) {
+            return startGoogleMaps(Uri.parse(MapsLink.navigationUri(dest[0], dest[1])), "Yandex rotası")
+                    || startGoogleMaps(Uri.parse(MapsLink.geoUri(dest[0], dest[1])), "Yandex konumu");
+        }
+        return false;
+    }
+
     /** Bağlantıdan koordinat ya da yer adı çıkarıp Google Haritalar'ın anladığı bir adresle açar. */
     private boolean openGoogleMapsTarget(String url) {
         double[] c = MapsLink.coordinates(url);
@@ -2779,6 +2802,40 @@ public class MainActivity extends AppCompatActivity {
             log("Google Haritalar açılamadı (" + what + "): " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * YouTube bağlantısını doğrudan YouTube uygulamasına verir (açık paket adıyla, seçici ve tarayıcı yok).
+     * {@link YouTubeLink#PACKAGES} sırasıyla denenir: resmî YouTube, sonra ReVanced. Paket kurulu ama bağlantıyı
+     * kabul etmiyorsa (ReVanced'da bağlantı açma izni verilmemiş olabilir) sıradakine geçilir; her deneme Günlük
+     * sekmesine yazılır.
+     *
+     * @return Hiçbiri açmadıysa false; çağıran sistemin yoluna (tarayıcı) döner
+     */
+    private boolean openYouTubeLink(String u) {
+        Uri uri = Uri.parse(u);
+        for (String pkg : YouTubeLink.PACKAGES) {
+            if (!isPackageInstalled(pkg)) {
+                continue;
+            }
+            Intent i = new Intent(Intent.ACTION_VIEW, uri);
+            i.setPackage(pkg);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            if (getPackageManager().queryIntentActivities(i, 0).isEmpty()) {
+                log("YouTube bağlantısı bu uygulamada açılmıyor: " + pkg);
+                continue;
+            }
+            try {
+                startActivity(i);
+                log("YouTube'a verildi (" + pkg + "): " + uri);
+                return true;
+            } catch (Exception e) {
+                log("YouTube açılamadı (" + pkg + "): " + e.getMessage());
+            }
+        }
+        log("YouTube uygulaması bağlantıyı açmadı; sistem yoluyla açılıyor");
+        return false;
     }
 
     private boolean isPackageInstalled(String packageName) {

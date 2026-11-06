@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Kaldırma süreci öldürür: önce kamera ve kayıt kapatılır.
+echo "📷 Kamera ve kayıt kapatılıyor..."
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stop-cameras.sh"
+
 # Uygulamayı kaldır
 echo "📱 Uygulama kaldırılıyor..."
 echo "pm uninstall com.mapcontrol" | adb shell

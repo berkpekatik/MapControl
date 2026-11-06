@@ -22,6 +22,10 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.mapcontrol.R;
+import com.mapcontrol.gps.GpsLinkManager;
+import com.mapcontrol.gps.LinkState;
+import com.mapcontrol.gps.LinkStatus;
+import com.mapcontrol.gps.Wire;
 import com.mapcontrol.manager.WebServerManager;
 import com.mapcontrol.trip.PairingUri;
 import com.mapcontrol.trip.PhoneAccess;
@@ -49,6 +53,19 @@ public class FileUploadTabBuilder {
     private LinearLayout webPanelView;
     private LinearLayout pairPanel;
     private boolean pairPageShown;
+    private TextView pairStatusText;
+    private TextView gpsStatusText;
+    private TextView gpsHintText;
+    private final Runnable gpsRefresh = new Runnable() {
+        @Override
+        public void run() {
+            if (!pairPageShown) {
+                return;
+            }
+            renderGpsStatus();
+            handler.postDelayed(this, 1000);
+        }
+    };
     /** Sunucu çalışırken adresi; eşleşme QR'ı buradan ana makine ve portu alır. */
     private String serverUrl;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -215,24 +232,30 @@ public class FileUploadTabBuilder {
         bannerParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
         pairPanel.addView(betaBanner, bannerParams);
 
+        // Web Yönetimi ile aynı yerleşim: solda başlık ve kontroller, ortada ince çizgi, sağda durum ve büyük QR.
+        LinearLayout pairRow = new LinearLayout(context);
+        pairRow.setOrientation(LinearLayout.HORIZONTAL);
+        pairRow.setGravity(Gravity.TOP);
+
+        // --- SOL KOLON (%32) ---
+        LinearLayout pairLeft = new LinearLayout(context);
+        pairLeft.setOrientation(LinearLayout.VERTICAL);
+        pairLeft.setGravity(Gravity.TOP);
+        pairLeft.setPadding(dp(8), dp(8), dp(16), dp(8));
+
         TextView pairTitle = new TextView(context);
         pairTitle.setText(R.string.phone_pair_title);
-        UiStyles.setTextSize(pairTitle, R.dimen.text_size_normal);
+        UiStyles.setTextSize(pairTitle, R.dimen.text_size_large);
         pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         pairTitle.setTypeface(null, Typeface.BOLD);
-        pairTitle.setPadding(16, 16, 16, 4);
-        pairPanel.addView(pairTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        pairLeft.addView(pairTitle);
 
         TextView pairDesc = new TextView(context);
         pairDesc.setText(R.string.phone_pair_desc);
         UiStyles.setTextSize(pairDesc, R.dimen.text_size_small);
         pairDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        pairDesc.setPadding(16, 0, 16, 8);
-        pairPanel.addView(pairDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        pairDesc.setPadding(0, dp(6), 0, dp(16));
+        pairLeft.addView(pairDesc);
 
         TextView pairKey = new TextView(context);
         pairKey.setText(PhoneAccess.token(context));
@@ -240,32 +263,95 @@ public class FileUploadTabBuilder {
         pairKey.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         pairKey.setTextIsSelectable(true);
         pairKey.setTextColor(UiStyles.color(context, R.color.accentHighlight));
-        pairKey.setPadding(16, 8, 16, 8);
-        pairPanel.addView(pairKey, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        pairKey.setPadding(0, 0, 0, dp(16));
+        pairLeft.addView(pairKey);
 
         Button btnPairRegenerate = new Button(context);
         btnPairRegenerate.setText(R.string.phone_pair_regenerate);
         btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_small);
+        UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_normal);
+        btnPairRegenerate.setTypeface(null, Typeface.BOLD);
         UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonPrimary));
+        btnPairRegenerate.setPadding(dp(16), dp(16), dp(16), dp(16));
         btnPairRegenerate.setOnClickListener(v -> {
             pairKey.setText(PhoneAccess.regenerate(context));
+            // GPS Link anahtarı eşleşme anahtarından türetilir: eski anahtarla çalışan alıcı kapanıp yenisi açılır.
+            new Thread(() -> GpsLinkManager.get(context).restart(), "MapControlGPS-rekey").start();
             renderPairQr();
         });
-        pairPanel.addView(btnPairRegenerate, new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams regenerateParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        regenerateParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        pairLeft.addView(btnPairRegenerate, regenerateParams);
+
+        // GPS Link: telefonun GPS'i aynı eşleşmeyle araca gelir; ayrı QR veya anahtar yok.
+        View gpsDivider = new View(context);
+        gpsDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
+        LinearLayout.LayoutParams gpsDividerParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, dp(1)));
+        gpsDividerParams.setMargins(0, dp(8), 0, dp(12));
+        pairLeft.addView(gpsDivider, gpsDividerParams);
+
+        TextView gpsTitle = new TextView(context);
+        gpsTitle.setText(R.string.gps_link_title);
+        UiStyles.setTextSize(gpsTitle, R.dimen.text_size_normal);
+        gpsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        gpsTitle.setTypeface(null, Typeface.BOLD);
+        pairLeft.addView(gpsTitle);
+
+        gpsStatusText = new TextView(context);
+        UiStyles.setTextSize(gpsStatusText, R.dimen.text_size_normal);
+        gpsStatusText.setTypeface(null, Typeface.BOLD);
+        gpsStatusText.setPadding(0, dp(4), 0, 0);
+        pairLeft.addView(gpsStatusText);
+
+        gpsHintText = new TextView(context);
+        UiStyles.setTextSize(gpsHintText, R.dimen.text_size_small);
+        gpsHintText.setTextColor(UiStyles.color(context, R.color.textHint));
+        gpsHintText.setPadding(0, dp(2), 0, 0);
+        pairLeft.addView(gpsHintText);
+        renderGpsStatus();
+
+        pairRow.addView(pairLeft, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.32f));
+
+        // --- AYIRICI DİKEY ÇİZGİ ---
+        View pairDivider = new View(context);
+        pairDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
+        LinearLayout.LayoutParams pairDividerParams = new LinearLayout.LayoutParams(
+                Math.max(1, dp(1)), LinearLayout.LayoutParams.MATCH_PARENT);
+        pairDividerParams.setMargins(dp(8), dp(8), dp(8), dp(8));
+        pairRow.addView(pairDivider, pairDividerParams);
+
+        // --- SAĞ KOLON (%68) ---
+        LinearLayout pairRight = new LinearLayout(context);
+        pairRight.setOrientation(LinearLayout.VERTICAL);
+        pairRight.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        pairRight.setPadding(dp(16), dp(8), dp(16), dp(8));
+
+        pairStatusText = new TextView(context);
+        pairStatusText.setText(R.string.phone_pair_server_off);
+        UiStyles.setTextSize(pairStatusText, R.dimen.text_size_medium);
+        pairStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
+        pairStatusText.setGravity(Gravity.CENTER);
+        pairStatusText.setPadding(dp(8), dp(4), dp(8), dp(4));
+        pairStatusText.setTypeface(null, Typeface.BOLD);
+        pairRight.addView(pairStatusText, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         pairQrImageView = new ImageView(context);
         pairQrImageView.setVisibility(View.GONE);
-        pairQrImageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        pairQrImageView.setPadding(16, 16, 16, 16);
-        int pairQrSize = (int) (200 * context.getResources().getDisplayMetrics().density);
-        LinearLayout.LayoutParams pairQrParams = new LinearLayout.LayoutParams(pairQrSize, pairQrSize);
-        pairQrParams.gravity = Gravity.CENTER;
-        pairPanel.addView(pairQrImageView, pairQrParams);
+        pairQrImageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        pairQrImageView.setAdjustViewBounds(true);
+        LinearLayout.LayoutParams pairQrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
+        pairQrParams.gravity = Gravity.CENTER_HORIZONTAL;
+        pairQrParams.topMargin = dp(6);
+        pairRight.addView(pairQrImageView, pairQrParams);
+
+        pairRow.addView(pairRight, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.68f));
+        pairPanel.addView(pairRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         btnWebServerToggle.setOnClickListener(v -> {
             if (webServerManager.isRunning()) {
@@ -308,8 +394,12 @@ public class FileUploadTabBuilder {
 
     private void showPairPage(boolean pair) {
         pairPageShown = pair;
+        handler.removeCallbacks(gpsRefresh);
         if (pair && pairQrImageView != null) {
             renderPairQr();
+        }
+        if (pair) {
+            handler.post(gpsRefresh);
         }
         webPanelView.setVisibility(pair ? View.GONE : View.VISIBLE);
         pairPanel.setVisibility(pair ? View.VISIBLE : View.GONE);
@@ -353,8 +443,16 @@ public class FileUploadTabBuilder {
     /** Sunucu durunca eski adresli QR ekranda kalmasın. */
     public void hidePairQr() {
         serverUrl = null;
+        showPairQrOff();
+    }
+
+    /** QR yok: görsel gizlenir, durum satırı sunucunun önce başlatılması gerektiğini söyler. */
+    private void showPairQrOff() {
         if (pairQrImageView != null) {
             pairQrImageView.setVisibility(View.GONE);
+        }
+        if (pairStatusText != null) {
+            pairStatusText.setText(R.string.phone_pair_server_off);
         }
     }
 
@@ -362,17 +460,51 @@ public class FileUploadTabBuilder {
     private void renderPairQr() {
         String[] hostPort = serverUrl == null ? null : PairingUri.hostAndPort(serverUrl);
         if (hostPort == null) {
+            showPairQrOff();
             return;
         }
         // Adres sunucu açıldığından beri değişmiş olabilir (hotspot sonradan açıldı); QR her çizimde güncel adresi alır.
         String host = webServerManager.currentHost();
         if (host.startsWith("127.")) {
-            pairQrImageView.setVisibility(View.GONE);
+            showPairQrOff();
             return;
         }
+        pairStatusText.setText(R.string.phone_pair_scan);
         String uri = PairingUri.build(host, Integer.parseInt(hostPort[1]),
-                PhoneAccess.token(context), TripRecorder.get(context).vinOrEmpty());
+                PhoneAccess.token(context), TripRecorder.get(context).vinOrEmpty(),
+                Wire.PORT, PhoneAccess.carId(context));
         renderQr(uri, pairQrImageView);
+    }
+
+    /** GPS Link durumunu ve nedenini gösterir; canlıyken son konumun yaşı ve doğruluğu eklenir. */
+    private void renderGpsStatus() {
+        if (gpsStatusText == null || gpsHintText == null) {
+            return;
+        }
+        LinkStatus status = LinkState.status();
+        int color;
+        switch (status.tone) {
+            case OK:
+                color = R.color.statusSuccess;
+                break;
+            case ERROR:
+                color = R.color.statusErrorBright;
+                break;
+            case WARN:
+                color = R.color.statusWarning;
+                break;
+            default:
+                color = R.color.textHint;
+                break;
+        }
+        gpsStatusText.setText(status.labelRes);
+        gpsStatusText.setTextColor(UiStyles.color(context, color));
+        long ageMs = LinkState.fixAgeMs();
+        if (status == LinkStatus.LIVE && ageMs >= 0) {
+            gpsHintText.setText(context.getString(status.hintRes, ageMs / 1000f, LinkState.accuracy()));
+        } else {
+            gpsHintText.setText(status.hintRes);
+        }
     }
 
     private void renderQr(String content, ImageView target) {

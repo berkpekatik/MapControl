@@ -47,6 +47,10 @@ public final class HabNative {
 
     private static native void nativeSetIonCached(boolean enabled);
 
+    private static native boolean nativeInstallStopSignalHandler();
+
+    private static native int nativeAwaitStopSignal();
+
     private static native void nativeZcShutdown();
 
     private static native int[] nativeHubDescriptor(int cam);
@@ -90,6 +94,28 @@ public final class HabNative {
             return nativeHubStart();
         } catch (Throwable t) {
             Log.w(TAG, "hub baslatma hata", t);
+            return -1;
+        }
+    }
+
+    /** SIGINT/SIGTERM yakalanir; surec olmez, {@link #awaitStopSignal} haber verir. */
+    public static boolean installStopSignalHandler() {
+        if (!LOADED) return false;
+        try {
+            return nativeInstallStopSignalHandler();
+        } catch (Throwable t) {
+            Log.w(TAG, "sinyal yakalayici hata", t);
+            return false;
+        }
+    }
+
+    /** Sinyal gelene kadar bloklar. Donus: sinyal numarasi, hata olursa -1. */
+    public static int awaitStopSignal() {
+        if (!LOADED) return -1;
+        try {
+            return nativeAwaitStopSignal();
+        } catch (Throwable t) {
+            Log.w(TAG, "sinyal bekleme hata", t);
             return -1;
         }
     }

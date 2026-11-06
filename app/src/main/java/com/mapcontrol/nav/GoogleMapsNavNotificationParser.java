@@ -113,7 +113,8 @@ public final class GoogleMapsNavNotificationParser {
         String cleaned = stripClockLabels(text);
         int split = cleaned.indexOf(" - ");
         if (split < 0) {
-            return "";
+            // "Talimat - Sokak" biçimi yoksa (ör. başlık boşken) metnin tamamı talimattır.
+            return cleaned;
         }
         return cleaned.substring(0, split).trim();
     }

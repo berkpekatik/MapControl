@@ -25,7 +25,7 @@
     <string name="settings_language_en">English</string>
 
     <string name="settings_boot_section_title">Araç açıldığında</string>
-    <string name="settings_boot_section_desc">MapControl’ün otomatik başlama seçenekleri.</string>
+    <string name="settings_boot_section_desc">MapControl’ın otomatik başlama seçenekleri.</string>
     <string name="settings_boot_service_title">Arka planda çalış</string>
     <string name="settings_boot_service_help_on">Araç açıldığında MapControl arka planda çalışır.</string>
     <string name="settings_boot_service_help_off">MapControl siz açana kadar başlamaz.</string>
@@ -185,8 +185,7 @@
     <string name="projection_cluster_offset_desc">Kartın konumunu ve boyutunu ayarlayın.</string>
     <string name="projection_cluster_layout_reset">Sıfırla</string>
     <string name="projection_cluster_layout_reset_done">Kart konumu ve boyutu varsayılana döndü.</string>
-    <string name="projection_cluster_maneuver_card">Manevra kartı</string>
-    <string name="projection_cluster_eta_card">ETA kartı</string>
+    <string name="projection_cluster_nav_card">Navigasyon kartı</string>
     <string name="projection_cluster_offset_x">Yatay (X)</string>
     <string name="projection_cluster_offset_y">Dikey (Y)</string>
     <string name="projection_cluster_offset_scale">Boyut</string>
@@ -414,12 +413,7 @@
     <string name="camera360_res_help_mid">Dengeli kalite ve boyut</string>
     <string name="camera360_res_help_low">En küçük dosya boyutu</string>
     <string name="camera360_resolution">Çözünürlük</string>
-    <string name="camera360_separate_help_on">Her açı ayrı MP4 dosyası olur</string>
-    <string name="camera360_separate_help_off">4 açı tek mozaik MP4 olur</string>
-    <string name="camera360_separate_short">4 Açıyı Ayrı Kaydet</string>
-    <string name="camera360_separate">4 açıyı ayrı dosyalar halinde kaydet</string>
     <string name="camera360_estimate">≈ %1$s/dk • 1 sa ≈ %2$s</string>
-    <string name="camera360_estimate_separate">4 dosya • ≈ %1$s/dk • 1 sa ≈ %2$s</string>
     <string name="camera360_rec_start">Kaydı Başlat</string>
     <string name="camera360_rec_stop">Kaydı Durdur</string>
     <string name="camera360_rec_active">Kaydediliyor: %1$s - %2$s</string>
@@ -499,11 +493,7 @@
     <string name="camera360_auto_reserve_note">2 GB her zaman boş bırakılır. Kayıt alanı = boş alan + klipler − 2 GB.</string>
     <string name="camera360_auto_title">Otomatik Kayıt</string>
     <string name="camera360_auto_toggle">Kontakla otomatik kaydet</string>
-    <string name="camera360_auto_mode">Kayıt modu</string>
-    <string name="camera360_auto_mode_quality">Kalite</string>
-    <string name="camera360_auto_mode_perf">Performans</string>
-    <string name="camera360_auto_mode_quality_desc">4 açı ayrı dosya (f_m, r_m, l_m, b_m) · 640×400 · 3 dk klip · ≈%1$s/dk</string>
-    <string name="camera360_auto_mode_perf_desc">Tek mozaik dosya (s_) · 960×600 · 3 dk klip · ≈%1$s/dk · daha az yük</string>
+    <string name="camera360_auto_mode_perf_desc">Tek mozaik dosya (s_) · 960×600 · 3 dk klip · ≈%1$s/dk</string>
     <string name="camera360_auto_retention">Klipleri sakla</string>
     <string name="camera360_auto_retention_note">Klipler tarihe göre silinmez. Her klip sıra numarasıyla (_id_1, _id_2, …) kaydedilir; yeni klip her zaman son klibin numarasından devam eder, hiç klip yoksa _id_1 ile başlar. Boş alan 2 GB rezerve yaklaşınca, sonraki klip kaydedilirken boyutu hesaba katılır ve yeterli yer açılana kadar en küçük numaralı (en eski) klipten başlanarak klipler silinir; yer açılınca silme durur. ≈ %1$s kayıt sığar.</string>
     <string name="camera360_auto_blocked_usb">USB otomatik kayıt açık. Önce USB Kayıt ekranından kapatın.</string>
@@ -513,6 +503,12 @@
     <string name="camera360_auto_consent_title">Araç içi otomatik kayıt</string>
     <string name="camera360_auto_consent_msg">Kontak açıkken (powermode 2) kameralar seçilen kayıt moduyla %1$s klasörüne 3 dakikalık klipler halinde kaydedilir.\n\n• Klipler tarih/saat ve sıra numarasıyla (_id_N) kaydedilir; tarihe göre silme yoktur.\n• Boş alan 2 GB rezerve yaklaşınca en küçük numaralı (en eski) klip silinir, yer açılınca silme durur.\n• Cihazda her zaman en az 2 GB boş alan bırakılır.\n• Bu mod açıkken USB kaydı kullanılamaz.\n\nOnaylıyor musunuz?</string>
     <string name="camera360_auto_consent_ok">Onayla</string>
+    <string name="camera360_kill_warning_title">Önemli: kameralar açıkken</string>
+    <string name="camera360_kill_warning_msg">Kameralar veya kayıt açıkken MapControl\'ı son uygulamalar ekranından kaydırarak kapatmayın.\n\nKameralar açıkken uygulama aniden kapanırsa ekranda bozulma olabilir veya ekran kararabilir, multimedya ünitesini yeniden başlatmanız gerekebilir.\n\nKaydı durdurmak için uygulama içindeki Durdur düğmesini kullanın veya otomatik kaydı kapatın.</string>
+    <string name="camera360_kill_warning_ok">Anladım</string>
+    <string name="apps_self_update_rec_title">Kamera 360 durdurulacak</string>
+    <string name="apps_self_update_rec_msg">MapControl güncellenirken uygulama kapanır, bu yüzden kameralar ve açık Kamera 360 kaydı güncellemeden önce otomatik durdurulur.\n\nDevam edilsin mi?</string>
+    <string name="camera360_kill_warning_banner">⚠️ Kayıt açıkken MapControl\'ı son uygulamalardan kaydırarak kapatmayın, güncellemeden önce kaydı durdurun. Aksi halde ekran kararabilir ve multimedya ünitesini yeniden başlatmanız gerekebilir.</string>
     <string name="camera360_cancel">Vazgeç</string>
     <string name="camera360_auto_recording_line">Kaydediyor · %1$s · %2$s</string>
     <string name="camera360_usb_auto">Kontakla otomatik kaydet</string>
@@ -602,7 +598,7 @@
     <string name="equalizer_band_name_2">Orta Sesler (Mid)</string>
     <string name="equalizer_band_name_3">Üst Orta (Netlik)</string>
     <string name="equalizer_band_name_4">Tiz (Treble)</string>
-    <string name="onboarding_title">Map Control</string>
+    <string name="onboarding_title">MapControl</string>
     <string name="onboarding_subtitle">Başlamak için dilinizi seçin</string>
     <string name="onboarding_continue">Devam Et</string>
     <string name="installer_confirm_countdown">Kurulum onayı %1$d saniye sonra</string>
@@ -1011,6 +1007,29 @@
     <string name="phone_pair_beta_ok">Tamam</string>
     <string name="phone_pair_tab">Telefon eşleme</string>
     <string name="phone_pair_title">Telefon eşleşme anahtarı</string>
-    <string name="phone_pair_desc">Bu anahtarı MapControl telefon uygulamasına gir. Yolculuk ve araç verisi yalnızca bu anahtarı gösteren telefona verilir.</string>
+    <string name="phone_pair_desc">QR’ı MapControl telefon uygulamasıyla okut veya bu anahtarı gir. Yolculuk ve araç verisi yalnızca bu anahtarı gösteren telefona verilir; GPS Link de aynı eşleşmeyi kullanır.</string>
     <string name="phone_pair_regenerate">Yeni anahtar üret</string>
+    <!-- GPS Link: telefonun GPS'i araca (alıcı MapControlService içinde çalışır) -->
+    <string name="gps_link_title">GPS Link (telefon konumu)</string>
+    <string name="gps_status_ready">KAPALI</string>
+    <string name="gps_status_ready_hint">Alıcı çalışmıyor</string>
+    <string name="gps_status_waiting_phone">TELEFON BEKLENİYOR</string>
+    <string name="gps_status_waiting_phone_hint">Aynı ağdaki MapControl telefon uygulamasından GPS Link\'i açın</string>
+    <string name="gps_status_live">CANLI</string>
+    <string name="gps_status_live_hint">%1$.1f sn önce güncellendi, doğruluk %2$.0f m</string>
+    <string name="gps_status_lost">SİNYAL KOPTU</string>
+    <string name="gps_status_lost_hint">Telefon yeniden bekleniyor</string>
+    <string name="gps_status_needs_mock">İZİN GEREKLİ</string>
+    <string name="gps_status_needs_mock_hint">Geliştirici seçenekleri \u2192 Sahte konum uygulamasını seç \u2192 MapControl</string>
+    <string name="gps_status_location_off">KONUM KAPALI</string>
+    <string name="gps_status_location_off_hint">Sistem konumunu açın</string>
+    <string name="gps_status_network_error">AĞ YOK</string>
+    <string name="gps_status_network_error_hint">Wi-Fi veya hotspot\'a bağlanın</string>
+    <string name="phone_pair_scan">Telefon uygulamasından bu QR’ı okutun</string>
+    <string name="phone_pair_server_off">QR için önce Web Yönetimi sekmesinden sunucuyu başlatın</string>
+    <string name="projection_cluster_style_title">Kart tasarımı</string>
+    <string name="projection_cluster_style_detail">Detay kartı</string>
+    <string name="projection_cluster_style_slim">İnce çizgi</string>
+    <string name="projection_cluster_style_detail_help">Üstte manevra, altta kalan / varış / süre.</string>
+    <string name="projection_cluster_style_slim_help">Manevra ve ETA tek ince satırda.</string>
 </resources>

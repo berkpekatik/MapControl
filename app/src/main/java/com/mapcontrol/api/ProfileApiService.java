@@ -26,7 +26,7 @@ import java.util.Locale;
  */
 public class ProfileApiService {
 
-    public static final String API_ROOT = "https://api.vnoisy.dev";
+    public static final String API_ROOT = "https://adbauth.vnoisy.dev";
 
     public static final String VOICE_FEMALE = "female";
     public static final String VOICE_MALE = "male";

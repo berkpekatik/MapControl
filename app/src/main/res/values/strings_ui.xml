@@ -175,8 +175,7 @@
     <string name="projection_cluster_offset_desc">Adjust card position and size.</string>
     <string name="projection_cluster_layout_reset">Reset layout</string>
     <string name="projection_cluster_layout_reset_done">Card position and size reset to default.</string>
-    <string name="projection_cluster_maneuver_card">Maneuver card</string>
-    <string name="projection_cluster_eta_card">ETA card</string>
+    <string name="projection_cluster_nav_card">Navigation card</string>
     <string name="projection_cluster_offset_x">Horizontal (X)</string>
     <string name="projection_cluster_offset_y">Vertical (Y)</string>
     <string name="projection_cluster_offset_scale">Size</string>
@@ -395,12 +394,7 @@
     <string name="camera360_res_help_mid">Balanced quality and size</string>
     <string name="camera360_res_help_low">Smallest file size</string>
     <string name="camera360_resolution">Resolution</string>
-    <string name="camera360_separate_help_on">Each angle is saved as its own MP4 file</string>
-    <string name="camera360_separate_help_off">All 4 angles are saved as one mosaic MP4</string>
-    <string name="camera360_separate_short">Record 4 angles separately</string>
-    <string name="camera360_separate">Record 4 angles as separate files</string>
     <string name="camera360_estimate">≈ %1$s/min • 1 h ≈ %2$s</string>
-    <string name="camera360_estimate_separate">4 files • ≈ %1$s/min • 1 h ≈ %2$s</string>
     <string name="camera360_rec_start">Start Recording</string>
     <string name="camera360_rec_stop">Stop Recording</string>
     <string name="camera360_rec_active">Recording: %1$s - %2$s</string>
@@ -480,11 +474,7 @@
     <string name="camera360_auto_reserve_note">2 GB is always left free. Recording space = free + clips − 2 GB.</string>
     <string name="camera360_auto_title">Automatic Recording</string>
     <string name="camera360_auto_toggle">Record automatically with ignition</string>
-    <string name="camera360_auto_mode">Recording mode</string>
-    <string name="camera360_auto_mode_quality">Quality</string>
-    <string name="camera360_auto_mode_perf">Performance</string>
-    <string name="camera360_auto_mode_quality_desc">4 angles in separate files (f_m, r_m, l_m, b_m) · 640×400 · 3 min clips · ≈%1$s/min</string>
-    <string name="camera360_auto_mode_perf_desc">Single mosaic file (s_) · 960×600 · 3 min clips · ≈%1$s/min · lighter load</string>
+    <string name="camera360_auto_mode_perf_desc">Single mosaic file (s_) · 960×600 · 3 min clips · ≈%1$s/min</string>
     <string name="camera360_auto_retention">Clip storage</string>
     <string name="camera360_auto_retention_note">Clips are not deleted by date. Each clip is saved with a sequence number (_id_1, _id_2, …); a new clip always continues from the last clip\'s number, or starts at _id_1 if there are none. When free space nears the 2 GB reserve, the size of the next clip is taken into account and clips are deleted starting from the lowest number (oldest) until enough space is freed; deletion stops once there is room. ≈ %1$s of recording fits.</string>
     <string name="camera360_auto_blocked_usb">USB auto-recording is on. Turn it off in USB Recording first.</string>
@@ -494,6 +484,12 @@
     <string name="camera360_auto_consent_title">In-car automatic recording</string>
     <string name="camera360_auto_consent_msg">When the ignition is on (power mode 2), the cameras are recorded to %1$s in the selected mode as 3-minute clips.\n\n• Clips are saved with date/time and a sequence number (_id_N); there is no deletion by date.\n• When free space nears the 2 GB reserve, the lowest-numbered (oldest) clip is deleted; deletion stops once there is room.\n• At least 2 GB is always left free on the device.\n• USB recording can\'t be used while this mode is on.\n\nDo you confirm?</string>
     <string name="camera360_auto_consent_ok">Confirm</string>
+    <string name="camera360_kill_warning_title">Important: while the cameras are on</string>
+    <string name="camera360_kill_warning_msg">Do not close MapControl by swiping it away in the recent apps screen while the cameras or recording are on.\n\nClosing the app suddenly while the cameras are on can disturb the screen or turn it black, and you may need to restart the head unit.\n\nTo stop recording, use the Stop button in the app or turn off automatic recording.</string>
+    <string name="camera360_kill_warning_ok">Got it</string>
+    <string name="apps_self_update_rec_title">Camera 360 will stop</string>
+    <string name="apps_self_update_rec_msg">Updating MapControl closes the app, so the cameras and any running Camera 360 recording are stopped automatically before the update.\n\nContinue?</string>
+    <string name="camera360_kill_warning_banner">⚠️ While recording, do not close MapControl by swiping it away in recent apps, and stop recording before updating. Otherwise the screen may turn black and the head unit may need a restart.</string>
     <string name="camera360_cancel">Cancel</string>
     <string name="camera360_auto_recording_line">Recording · %1$s · %2$s</string>
     <string name="camera360_usb_auto">Auto-record with ignition</string>
@@ -583,7 +579,7 @@
     <string name="equalizer_band_name_2">Midrange</string>
     <string name="equalizer_band_name_3">Upper Mid</string>
     <string name="equalizer_band_name_4">Treble</string>
-    <string name="onboarding_title">Map Control</string>
+    <string name="onboarding_title">MapControl</string>
     <string name="onboarding_subtitle">Choose your language to get started</string>
     <string name="onboarding_continue">Continue</string>
     <string name="installer_confirm_countdown">Installing automatically in %1$d s</string>
@@ -992,6 +988,29 @@
     <string name="phone_pair_beta_ok">OK</string>
     <string name="phone_pair_tab">Phone pairing</string>
     <string name="phone_pair_title">Phone pairing key</string>
-    <string name="phone_pair_desc">Enter this key in the MapControl phone app. Trips and vehicle data are only sent to a phone that presents it.</string>
+    <string name="phone_pair_desc">Scan the QR with the MapControl phone app or enter this key. Trips and vehicle data are only sent to a phone that presents it; GPS Link uses the same pairing.</string>
     <string name="phone_pair_regenerate">Generate new key</string>
+    <!-- GPS Link: phone GPS to the car (receiver runs inside MapControlService) -->
+    <string name="gps_link_title">GPS Link (phone location)</string>
+    <string name="gps_status_ready">OFF</string>
+    <string name="gps_status_ready_hint">The receiver is not running</string>
+    <string name="gps_status_waiting_phone">WAITING FOR PHONE</string>
+    <string name="gps_status_waiting_phone_hint">Turn on GPS Link in the MapControl phone app on the same network</string>
+    <string name="gps_status_live">LIVE</string>
+    <string name="gps_status_live_hint">Updated %1$.1f s ago, accuracy %2$.0f m</string>
+    <string name="gps_status_lost">SIGNAL LOST</string>
+    <string name="gps_status_lost_hint">Waiting for the phone again</string>
+    <string name="gps_status_needs_mock">PERMISSION NEEDED</string>
+    <string name="gps_status_needs_mock_hint">Developer options \u2192 Select mock location app \u2192 MapControl</string>
+    <string name="gps_status_location_off">LOCATION OFF</string>
+    <string name="gps_status_location_off_hint">Turn on system location</string>
+    <string name="gps_status_network_error">NO NETWORK</string>
+    <string name="gps_status_network_error_hint">Connect to Wi-Fi or a hotspot</string>
+    <string name="phone_pair_scan">Scan this QR in the phone app</string>
+    <string name="phone_pair_server_off">Start the server in the Web management tab to show the QR</string>
+    <string name="projection_cluster_style_title">Card style</string>
+    <string name="projection_cluster_style_detail">Detail card</string>
+    <string name="projection_cluster_style_slim">Thin line</string>
+    <string name="projection_cluster_style_detail_help">Maneuver on top, remaining / arrival / duration below.</string>
+    <string name="projection_cluster_style_slim_help">Single slim line with maneuver and ETA.</string>
 </resources>

@@ -49,6 +49,45 @@ public final class MapsLink {
         return (host.startsWith("www.google.") || host.startsWith("google.")) && path.startsWith("/maps");
     }
 
+    /** Yandex kümesi: Navi, Haritalar ve tüm yandex.&lt;alan&gt; bağlantıları ayrım yapılmadan tek grup. */
+    public static boolean isYandex(String url) {
+        String host = host(url);
+        return host != null && (host.equals("yandex.com") || host.contains("yandex."));
+    }
+
+    /**
+     * Yandex bağlantısındaki hedef {enlem, boylam}: {@code rtext=enlem,boylam~enlem,boylam} (son nokta),
+     * yoksa {@code pt}/{@code ll} (boylam,enlem sırası). Bulunamazsa null.
+     */
+    public static double[] yandexDestination(String url) {
+        String query = url == null ? null : query(url);
+        if (query == null) {
+            return null;
+        }
+        String rtext = param(query, "rtext");
+        if (rtext != null) {
+            String[] points = rtext.split("~");
+            Matcher m = PAIR.matcher(points[points.length - 1]);
+            if (m.matches()) {
+                double[] c = valid(Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)));
+                if (c != null) {
+                    return c;
+                }
+            }
+        }
+        for (String key : new String[]{"pt", "ll"}) {
+            String value = param(query, key);
+            Matcher m = value == null ? null : PAIR.matcher(value);
+            if (m != null && m.matches()) {
+                double[] c = valid(Double.parseDouble(m.group(2)), Double.parseDouble(m.group(1)));
+                if (c != null) {
+                    return c;
+                }
+            }
+        }
+        return null;
+    }
+
     /** Yönlendirmesi çözülmeden koordinat vermeyen kısa bağlantı. */
     public static boolean isShortLink(String url) {
         String host = host(url);

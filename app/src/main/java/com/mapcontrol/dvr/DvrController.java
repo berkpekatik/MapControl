@@ -1,12 +1,15 @@
 package com.mapcontrol.dvr;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.net.Uri;
 import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
 import android.util.Log;
@@ -27,8 +30,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -36,9 +41,9 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>Elle USB kaydi (Kamera 360 &gt; USB Kayit)</li>
  *   <li>Kontakla USB'ye otomatik kayit (powermode 2 + USB takili)</li>
- *   <li>Arac ici otomatik kayit: {@link #getInternalDir()}, 3 dk klipler; Kalite modu 4 ayri
- *   aci 640x400, Performans modu tek mozaik 960x600</li>
+ *   <li>Arac ici otomatik kayit: {@link #getInternalDir()}, 3 dk klipler, 960x600</li>
  * </ul>
+ * Kayit her zaman tek mozaik dosyadir (tek encoder).
  * Arac ici mod acikken USB kaydi ve USB otomatik kayit kullanilamaz; USB otomatik
  * kayit acikken arac ici mod kullanilamaz. Arac ici modda bos alan her zaman en az
  * {@link #RESERVE_BYTES} kalir. Klipler zaman damgasi + artan "_id_N" ile adlandirilir
@@ -52,27 +57,9 @@ public final class DvrController {
 
     public enum Source { NONE, MANUAL_USB, AUTO_USB, AUTO_INTERNAL }
 
-    /** Arac ici kayit bicimi. */
-    public enum InternalMode {
-        /** 4 aci ayri dosya (f_m_, r_m_, l_m_, b_m_). */
-        QUALITY(640, 400, true),
-        /** Tek mozaik dosya (s_); tek encoder, daha az yuk ve alan. */
-        PERFORMANCE(960, 600, false);
-
-        public final int width;
-        public final int height;
-        public final boolean separate;
-
-        InternalMode(int width, int height, boolean separate) {
-            this.width = width;
-            this.height = height;
-            this.separate = separate;
-        }
-
-        public long bytesPerMinute() {
-            return CameraRecorder.bytesPerMinute(width, height, separate);
-        }
-    }
+    /** Arac ici kayit boyutu: tek mozaik dosya (s_), tek encoder. */
+    private static final int INTERNAL_WIDTH = 960;
+    private static final int INTERNAL_HEIGHT = 600;
 
     public enum AutoStatus {
         OFF, WAITING_IGNITION, STARTING, RECORDING, SUSPENDED,
@@ -97,10 +84,28 @@ public final class DvrController {
     private static final String KEY_AUTO_INTERNAL = "autoInternal";
     private static final String KEY_AUTO_USB = "autoUsb";
     private static final String KEY_RES_INDEX = "resIndex";
-    private static final String KEY_SEPARATE = "separate";
-    private static final String KEY_INTERNAL_MODE = "internalMode";
     /** Kamera tamponlari onbellekli ("hizli okuma"); gizli ayar, varsayilan acik. */
     private static final String KEY_ION_CACHED = "ionCached";
+    /**
+     * Kayit (encoder'lar) acikken true. Surec kayit sirasinda olurse (or. son uygulamalardan
+     * kaydirma: bu ROM on plan servisine ragmen sureci oldurur) true kalir; sonraki acilista
+     * okunur ve otomatik kayit {@link #UNCLEAN_EXIT_HOLD_MS} ertelenir.
+     */
+    private static final String KEY_REC_ACTIVE = "recActive";
+    /**
+     * Kirli cikistan sonra otomatik kayit beklemesi. Qualcomm media.hwcodec cokup yeniden
+     * baslarken hemen yeni encoder acmak cokmeyi zincirleme hale getiriyordu (aracta: HAL ikinci
+     * kez coktu, ardindan surfaceflinger dongusu ve siyah ekran).
+     */
+    private static final long UNCLEAN_EXIT_HOLD_MS = 20_000;
+    /** Kurulum oncesi kaydin ve kameralarin kapanmasi icin en fazla bekleme. */
+    private static final long PREPARE_INSTALL_TIMEOUT_MS = 20_000;
+    /** USB ayrilirken otomatik kayit ve kameralar bu sure kapali kalir (vold isi bitsin). */
+    private static final long VOLUME_STOP_HOLD_MS = 15_000;
+    /** Sinyal geldiginde kameralarin kapanmasi icin en fazla bekleme. */
+    private static final long VOLUME_STOP_WAIT_MS = 5_000;
+    /** Kayit uyarisi (kaydirarak kapatma / guncelleme) bir kez gosterildi. */
+    private static final String KEY_KILL_WARNING_SHOWN = "killWarningShown";
 
     private static final long TICK_MS = 10_000;
     private static final long RETRY_MS = 30_000;
@@ -130,7 +135,7 @@ public final class DvrController {
         public int clipCount;
         public long oldestClipMs;
         /** Hesaplandigi andaki kayit modunun dakikalik boyutu. */
-        public long bytesPerMinute = InternalMode.QUALITY.bytesPerMinute();
+        public long bytesPerMinute = internalBytesPerMinute();
 
         /** Klipler icin kullanilabilecek toplam alan: bos + mevcut klipler - rezerv. */
         public long recordBudgetBytes() {
@@ -172,6 +177,8 @@ public final class DvrController {
     private boolean suspended;
     private boolean starting;
     private long retryAfterMs;
+    /** Bu zamandan once otomatik kayit baslatilmaz (kirli cikis / acil durdurma sonrasi). */
+    private long holdUntilMs;
     private AutoStatus autoStatus = AutoStatus.OFF;
     private String lastError;
     private volatile StorageInfo storage = new StorageInfo();
@@ -199,6 +206,108 @@ public final class DvrController {
             // Kameralar acilmadan once native tarafa iletilir (hub ilk acilista bunu okur).
             HabNative.setIonCached(isCameraFastReadEnabled());
         }
+        if (prefs.getBoolean(KEY_REC_ACTIVE, false)) {
+            // Onceki surec kayit sirasinda oldu: codec HAL'inin toparlanmasina zaman tani.
+            // Bayrak hemen temizlenir; bekleme sirasinda yine olursek kayit acik degildi.
+            prefs.edit().putBoolean(KEY_REC_ACTIVE, false).apply();
+            holdUntil(UNCLEAN_EXIT_HOLD_MS);
+            Log.w(TAG, "onceki kayit temiz kapanmadi; otomatik kayit "
+                    + (UNCLEAN_EXIT_HOLD_MS / 1000) + " sn ertelendi");
+        }
+        if (cameraSupported) {
+            installVolumeGuards();
+        }
+    }
+
+    // ---------- USB ayrilmasi ----------
+
+    /**
+     * USB ayrilirken vold, volume'de acik dosyasi olan sureci SIGINT ile kapatir; akislar acikken
+     * olmek sistemi cokertebilir. Iki kat onlem: MEDIA_EJECT sinyalden once gelir ve kaydi
+     * durdurur (acik dosya kalmaz, sinyal hic gelmez); yine de gelirse yakalanip kameralar kapatilir.
+     */
+    private void installVolumeGuards() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_MEDIA_EJECT);
+        filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_BAD_REMOVAL);
+        filter.addDataScheme("file");
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                onVolumeLeaving(intent.getData());
+            }
+        };
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            app.registerReceiver(receiver, filter);
+        }
+        if (!HabNative.installStopSignalHandler()) {
+            Log.w(TAG, "sinyal yakalayici kurulamadi");
+            return;
+        }
+        Thread watcher = new Thread(() -> {
+            int signal;
+            while ((signal = HabNative.awaitStopSignal()) > 0) {
+                stopCamerasForSignal(signal);
+            }
+        }, "dvr-signal");
+        watcher.setDaemon(true);
+        watcher.start();
+    }
+
+    /** Ana thread. Yalnizca ayrilan volume'e yazan kaydi durdurur. */
+    private void onVolumeLeaving(Uri volume) {
+        String path = volume != null ? volume.getPath() : null;
+        if (path == null || !recorder.isRecording()) return;
+        for (File file : recorder.getOutFiles()) {
+            if (file.getPath().startsWith(path + "/")) {
+                Log.i(TAG, "USB ayriliyor, kayit durduruluyor: " + path);
+                holdUntil(VOLUME_STOP_HOLD_MS);
+                stopRecording(false);
+                return;
+            }
+        }
+    }
+
+    /** dvr-signal thread'i. Kayit kapanisi takilabilir; once kameralar kapatilir. */
+    private void stopCamerasForSignal(int signal) {
+        Log.w(TAG, "sinyal " + signal + " yakalandi, kameralar kapatiliyor");
+        main.post(() -> {
+            holdUntil(VOLUME_STOP_HOLD_MS);
+            stopRecording(false);
+        });
+        try {
+            boolean stopped = CameraHub.get().suspendForInstall(VOLUME_STOP_WAIT_MS, VOLUME_STOP_HOLD_MS);
+            Log.i(TAG, "sinyal sonrasi kameralar: " + (stopped ? "kapali" : "zaman asimi"));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Otomatik kaydi en az ms kadar erteler; sure dolunca bir denetim calistirir. */
+    private void holdUntil(long ms) {
+        holdUntilMs = Math.max(holdUntilMs, SystemClock.elapsedRealtime() + ms);
+        main.postDelayed(() -> {
+            if (ticking) tick();
+        }, ms + 50);
+    }
+
+    /**
+     * true: "kayit acikken kaydirarak kapatmayin / guncellemeden once durdurun" uyarisi henuz
+     * gosterilmedi. UI ilk kez gosterince {@link #markKillWarningShown()} cagirir.
+     */
+    public boolean shouldShowKillWarning() {
+        return !prefs.getBoolean(KEY_KILL_WARNING_SHOWN, false);
+    }
+
+    public void markKillWarningShown() {
+        prefs.edit().putBoolean(KEY_KILL_WARNING_SHOWN, true).apply();
+    }
+
+    private void setRecordingActiveFlag(boolean active) {
+        prefs.edit().putBoolean(KEY_REC_ACTIVE, active).apply();
     }
 
     /** Kamera "hizli okuma" (onbellekli ION tampon) acik mi. */
@@ -207,8 +316,9 @@ public final class DvrController {
     }
 
     /**
-     * Hizli okumayi acar/kapatir ve kameralari yeni modla yeniden acar. Gizli ayar: sorun
-     * cikan bir aracta yeniden derlemeden eski (onbelleksiz) davranisa donmek icin.
+     * Hizli okumayi acar/kapatir ve kameralari yeni modla yeniden acar. Gizli ayar, varsayilan
+     * acik. Akislar acikken surecin olmesiyle gelen sistem cokmesi aracta iki modda da goruldu,
+     * bu ayara bagli degil; kurulum icin onlem {@link #prepareForSelfInstall}.
      */
     public void setCameraFastReadEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_ION_CACHED, enabled).apply();
@@ -325,31 +435,8 @@ public final class DvrController {
         return true;
     }
 
-    public InternalMode getInternalMode() {
-        try {
-            return InternalMode.valueOf(prefs.getString(KEY_INTERNAL_MODE, InternalMode.QUALITY.name()));
-        } catch (IllegalArgumentException e) {
-            return InternalMode.QUALITY;
-        }
-    }
-
-    /** Kayit suruyorsa klip kapatilir; yeni bicimle hemen yeniden baslar. */
-    public void setInternalMode(InternalMode mode) {
-        if (mode == null || mode == getInternalMode()) return;
-        prefs.edit().putString(KEY_INTERNAL_MODE, mode.name()).apply();
-        if (source == Source.AUTO_INTERNAL && recorder.isRecording()) {
-            stopRecording(false);
-        }
-        refreshStorageAsync();
-        notifyState();
-    }
-
     public int getUsbResIndex() {
         return Math.max(0, Math.min(CameraRecorder.RESOLUTIONS.length - 1, prefs.getInt(KEY_RES_INDEX, 0)));
-    }
-
-    public boolean getUsbSeparate() {
-        return prefs.getBoolean(KEY_SEPARATE, false);
     }
 
     // ---------- Durum ----------
@@ -403,17 +490,21 @@ public final class DvrController {
     }
 
     public long autoBytesPerMinute() {
-        return getInternalMode().bytesPerMinute();
+        return internalBytesPerMinute();
+    }
+
+    private static long internalBytesPerMinute() {
+        return CameraRecorder.bytesPerMinute(INTERNAL_WIDTH, INTERNAL_HEIGHT, false);
     }
 
     // ---------- Elle kayit ----------
 
     /** Elle USB kaydi. Arac ici otomatik mod acikken reddedilir. */
-    public boolean startManualUsb(File usbRoot, int width, int height, boolean separate) {
+    public boolean startManualUsb(File usbRoot, int width, int height) {
         if (isAutoInternalEnabled() || recorder.isBusy() || usbRoot == null) {
             return false;
         }
-        startRecorder(Source.MANUAL_USB, new File(usbRoot, USB_DIR_NAME), width, height, separate, 0);
+        startRecorder(Source.MANUAL_USB, new File(usbRoot, USB_DIR_NAME), width, height, 0);
         return true;
     }
 
@@ -430,6 +521,59 @@ public final class DvrController {
         recorder.stop(new RecorderCallbacks(src));
         updateAutoStatus();
         notifyState();
+    }
+
+    // ---------- Kurulum oncesi hazirlik ----------
+
+    /**
+     * MapControl'in kurulumu sureci oldurmeden once kaydi ve kameralari duzgunce kapatir. Kurulum
+     * olmazsa {@link #cancelSelfInstallPrepare} veya autoResumeMs sonunda her sey geri acilir.
+     *
+     * Bloklar: ana thread'den cagirma.
+     *
+     * @return kayit ve kameralar sure icinde kapandiysa true
+     */
+    public boolean prepareForSelfInstall(long autoResumeMs) {
+        if (!cameraSupported) {
+            return true;
+        }
+        long deadline = SystemClock.elapsedRealtime() + PREPARE_INSTALL_TIMEOUT_MS;
+        try {
+            // Once kayit (son kareler dosyaya yazilsin), sonra akislar.
+            stopRecordingAndWait(autoResumeMs, deadline);
+            long left = Math.max(1, deadline - SystemClock.elapsedRealtime());
+            boolean stopped = CameraHub.get().suspendForInstall(left, autoResumeMs);
+            // Arada baslamis otomatik kayit varsa onu da kapat.
+            stopRecordingAndWait(autoResumeMs, deadline);
+            boolean ok = stopped && !recorder.isBusy();
+            Log.i(TAG, "kurulum hazirligi: " + (ok ? "kameralar kapali" : "zaman asimi"));
+            return ok;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /** Kurulum basarisiz: kameralari ve otomatik kaydi hemen geri acar. */
+    public void cancelSelfInstallPrepare() {
+        CameraHub.get().resumeAfterInstall();
+        main.post(() -> {
+            holdUntilMs = 0;
+            if (ticking) tick();
+        });
+    }
+
+    private void stopRecordingAndWait(long holdMs, long deadline) throws InterruptedException {
+        CountDownLatch posted = new CountDownLatch(1);
+        main.post(() -> {
+            holdUntil(holdMs);
+            stopRecording(false);
+            posted.countDown();
+        });
+        posted.await(Math.max(1, deadline - SystemClock.elapsedRealtime()), TimeUnit.MILLISECONDS);
+        while (recorder.isBusy() && SystemClock.elapsedRealtime() < deadline) {
+            Thread.sleep(100);
+        }
     }
 
     /** Kullanicinin durdurdugu otomatik kaydi bu kontak dongusunde yeniden etkinlestirir. */
@@ -461,7 +605,8 @@ public final class DvrController {
                 }
             }
         } else if (!starting && ignition && !suspended && cameraSupported
-                && SystemClock.elapsedRealtime() >= retryAfterMs) {
+                && SystemClock.elapsedRealtime() >= retryAfterMs
+                && SystemClock.elapsedRealtime() >= holdUntilMs) {
             if (isAutoInternalEnabled()) {
                 tryStartInternal();
             } else if (isAutoUsbEnabled()) {
@@ -518,11 +663,8 @@ public final class DvrController {
                 main.post(() -> setFailure(AutoStatus.LOW_SPACE, null));
                 return;
             }
-            main.post(() -> {
-                InternalMode mode = getInternalMode();
-                startWhenCamerasReady(Source.AUTO_INTERNAL, internalDir,
-                        mode.width, mode.height, mode.separate);
-            });
+            main.post(() -> startWhenCamerasReady(Source.AUTO_INTERNAL, internalDir,
+                    INTERNAL_WIDTH, INTERNAL_HEIGHT));
         });
     }
 
@@ -534,19 +676,18 @@ public final class DvrController {
             return;
         }
         int[] wh = CameraRecorder.RESOLUTIONS[getUsbResIndex()];
-        boolean sep = getUsbSeparate();
         long free = DvrClipStore.freeBytes(usb);
-        if (CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], sep) < MIN_USB_FIT_MINUTES) {
+        if (CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], false) < MIN_USB_FIT_MINUTES) {
             setFailure(AutoStatus.USB_FULL, null);
             return;
         }
         starting = true;
         updateAutoStatus();
-        startWhenCamerasReady(Source.AUTO_USB, new File(usb, USB_DIR_NAME), wh[0], wh[1], sep);
+        startWhenCamerasReady(Source.AUTO_USB, new File(usb, USB_DIR_NAME), wh[0], wh[1]);
     }
 
     /** Hic kamera canli degilse otomatik kayit baslatilmaz (acilista kameralar gec gelebilir). */
-    private void startWhenCamerasReady(Source src, File dir, int w, int h, boolean sep) {
+    private void startWhenCamerasReady(Source src, File dir, int w, int h) {
         CameraHub hub = CameraHub.get();
         hub.acquire(HUB_TAG_PROBE, mask -> {
             boolean stillWanted = isIgnitionOn() && !suspended && !recorder.isBusy()
@@ -562,31 +703,31 @@ public final class DvrController {
                 setFailure(AutoStatus.NO_CAMERA, null);
                 return;
             }
-            startRecorder(src, dir, w, h, sep, SEGMENT_MS, src == Source.AUTO_INTERNAL);
+            startRecorder(src, dir, w, h, SEGMENT_MS, src == Source.AUTO_INTERNAL);
             hub.release(HUB_TAG_PROBE);
         });
     }
 
-    private void startRecorder(Source src, File dir, int w, int h, boolean sep, long segmentMs) {
-        startRecorder(src, dir, w, h, sep, segmentMs, false);
+    private void startRecorder(Source src, File dir, int w, int h, long segmentMs) {
+        startRecorder(src, dir, w, h, segmentMs, false);
     }
 
-    private void startRecorder(Source src, File dir, int w, int h, boolean sep, long segmentMs,
+    private void startRecorder(Source src, File dir, int w, int h, long segmentMs,
                                boolean sequentialIds) {
         source = src;
         lastError = null;
-        recorder.start(dir, new RecorderCallbacks(src), w, h, sep, segmentMs, sequentialIds);
-        Log.i(TAG, "kayit istendi: " + src + " -> " + dir + " " + w + "x" + h + (sep ? " ayri" : " mozaik"));
+        recorder.start(dir, new RecorderCallbacks(src), w, h, false, segmentMs, sequentialIds);
+        Log.i(TAG, "kayit istendi: " + src + " -> " + dir + " " + w + "x" + h + " mozaik");
     }
 
     private void checkUsbWhileRecording() {
         File usb = findUsbRoot(app);
         if (usb == null) {
-            return; // yazma hatasi kaydi zaten bitirir
+            return; // MEDIA_EJECT kaydi zaten durdurur
         }
         long free = DvrClipStore.freeBytes(usb);
         int[] wh = CameraRecorder.RESOLUTIONS[getUsbResIndex()];
-        if (free >= 0 && CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], getUsbSeparate()) < 1) {
+        if (free >= 0 && CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], false) < 1) {
             Log.w(TAG, "USB doldu, otomatik kayit durduruluyor");
             stopRecording(false);
             setFailure(AutoStatus.USB_FULL, null);
@@ -846,6 +987,7 @@ public final class DvrController {
         @Override
         public void onStarted(File file) {
             starting = false;
+            setRecordingActiveFlag(true);
             setRecordingService(true);
             updateAutoStatus();
             for (Listener l : listeners) l.onStarted(src, file);
@@ -854,7 +996,10 @@ public final class DvrController {
 
         @Override
         public void onStopped(File file, long elapsedMs) {
-            if (!recorder.isBusy()) source = Source.NONE;
+            if (!recorder.isBusy()) {
+                source = Source.NONE;
+                setRecordingActiveFlag(false);
+            }
             setRecordingService(false);
             updateAutoStatus();
             for (Listener l : listeners) l.onStopped(src, file, elapsedMs);
@@ -867,7 +1012,10 @@ public final class DvrController {
         @Override
         public void onError(String message) {
             starting = false;
-            if (!recorder.isBusy()) source = Source.NONE;
+            if (!recorder.isBusy()) {
+                source = Source.NONE;
+                setRecordingActiveFlag(false);
+            }
             setRecordingService(false);
             if (src == Source.AUTO_INTERNAL || src == Source.AUTO_USB) {
                 setFailure(AutoStatus.ERROR, message);

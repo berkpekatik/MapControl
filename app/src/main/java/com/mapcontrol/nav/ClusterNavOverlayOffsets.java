@@ -12,14 +12,13 @@ import androidx.annotation.Nullable;
 import com.mapcontrol.util.AppLaunchHelper;
 
 /**
- * Cluster navigasyon kartları: kart bazlı konum (dp) ve boyut (%).
+ * Cluster navigasyon kartı: konum (dp) ve boyut (%).
  * Konum aralığı cluster ekran boyutuna göre hesaplanır.
  */
 public final class ClusterNavOverlayOffsets {
 
     public static final String PREFS = "MapControlPrefs";
-    private static final int OFFSET_RANGE_FALLBACK_DP = 80;
-    public static final int SCALE_MIN_PERCENT = 50;
+        public static final int SCALE_MIN_PERCENT = 50;
     public static final int SCALE_MAX_PERCENT = 150;
     public static final int SCALE_DEFAULT_PERCENT = 100;
 
@@ -29,28 +28,48 @@ public final class ClusterNavOverlayOffsets {
     private static final String LEGACY_YANDEX_OFFSET_X_DP = "yandex_cluster_nav_overlay_offset_x_dp";
     private static final String LEGACY_YANDEX_OFFSET_Y_DP = "yandex_cluster_nav_overlay_offset_y_dp";
 
-    private static final String GOOGLE_MANEUVER_X = "google_cluster_nav_maneuver_offset_x_dp";
-    private static final String GOOGLE_MANEUVER_Y = "google_cluster_nav_maneuver_offset_y_dp";
-    private static final String GOOGLE_MANEUVER_SCALE = "google_cluster_nav_maneuver_scale_pct";
-    private static final String GOOGLE_ETA_X = "google_cluster_nav_eta_offset_x_dp";
-    private static final String GOOGLE_ETA_Y = "google_cluster_nav_eta_offset_y_dp";
-    private static final String GOOGLE_ETA_SCALE = "google_cluster_nav_eta_scale_pct";
+    private static final String GOOGLE_CARD_X = "google_cluster_nav_card_offset_x_dp";
+    private static final String GOOGLE_CARD_Y = "google_cluster_nav_card_offset_y_dp";
+    private static final String GOOGLE_CARD_SCALE = "google_cluster_nav_card_scale_pct";
 
-    private static final String YANDEX_MANEUVER_X = "yandex_cluster_nav_maneuver_offset_x_dp";
-    private static final String YANDEX_MANEUVER_Y = "yandex_cluster_nav_maneuver_offset_y_dp";
-    private static final String YANDEX_MANEUVER_SCALE = "yandex_cluster_nav_maneuver_scale_pct";
-    private static final String YANDEX_ETA_X = "yandex_cluster_nav_eta_offset_x_dp";
-    private static final String YANDEX_ETA_Y = "yandex_cluster_nav_eta_offset_y_dp";
-    private static final String YANDEX_ETA_SCALE = "yandex_cluster_nav_eta_scale_pct";
+    private static final String YANDEX_CARD_X = "yandex_cluster_nav_card_offset_x_dp";
+    private static final String YANDEX_CARD_Y = "yandex_cluster_nav_card_offset_y_dp";
+    private static final String YANDEX_CARD_SCALE = "yandex_cluster_nav_card_scale_pct";
 
     public enum Provider {
         GOOGLE,
         YANDEX
     }
 
+    /** Kart görünümü: ayrıntılı kart veya ince çizgi. */
+    public enum Style {
+        DETAIL,
+        SLIM
+    }
+
+    private static final String GOOGLE_STYLE = "google_cluster_nav_card_style";
+    private static final String YANDEX_STYLE = "yandex_cluster_nav_card_style";
+
+    public static Style getStyle(Context context, Provider provider) {
+        String v = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(provider == Provider.GOOGLE ? GOOGLE_STYLE : YANDEX_STYLE,
+                        Style.DETAIL.name());
+        try {
+            return Style.valueOf(v);
+        } catch (IllegalArgumentException e) {
+            return Style.DETAIL;
+        }
+    }
+
+    public static void setStyle(Context context, Provider provider, Style style) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString(provider == Provider.GOOGLE ? GOOGLE_STYLE : YANDEX_STYLE, style.name())
+                .apply();
+    }
+
+    /** Tek birleşik kart (manevra + ETA). */
     public enum Card {
-        MANEUVER,
-        ETA
+        NAV
     }
 
     public static final class CardLayout {
@@ -72,46 +91,59 @@ public final class ClusterNavOverlayOffsets {
         return new CardLayout(0, 0, SCALE_DEFAULT_PERCENT);
     }
 
-    /** Yatay slider: ± (cluster genişliği / 2) dp. */
-    public static int getOffsetRangeXDp(Context context) {
-        DisplayMetrics metrics = getClusterDisplayMetrics(context);
-        int widthDp = Math.round(metrics.widthPixels / metrics.density);
-        return Math.max(widthDp / 2, OFFSET_RANGE_FALLBACK_DP);
+    /** Kartın ekran içinde kalacağı X/Y kaydırma aralığı (dp, varsayılan konuma göre). */
+    public static final class Bounds {
+        public final int minX;
+        public final int maxX;
+        public final int minY;
+        public final int maxY;
+
+        Bounds(int minX, int maxX, int minY, int maxY) {
+            this.minX = minX;
+            this.maxX = Math.max(minX, maxX);
+            this.minY = minY;
+            this.maxY = Math.max(minY, maxY);
+        }
     }
 
-    /** Dikey slider: ± (cluster yüksekliği / 2) dp. */
-    public static int getOffsetRangeYDp(Context context) {
-        DisplayMetrics metrics = getClusterDisplayMetrics(context);
-        int heightDp = Math.round(metrics.heightPixels / metrics.density);
-        return Math.max(heightDp / 2, OFFSET_RANGE_FALLBACK_DP);
+    /**
+     * Kart yatayda ortalı, dikeyde üstten sabit boşlukla başlar; sol üst köşe etrafında ölçeklenir.
+     * Sınırlar kartı cluster ekranının dışına taşmayacak şekilde hesaplanır.
+     */
+    public static Bounds getBounds(Context context, Provider provider, int scalePercent) {
+        Style style = getStyle(context, provider);
+        DisplayMetrics m = getClusterDisplayMetrics(context);
+        float screenW = m.widthPixels / m.density;
+        float screenH = m.heightPixels / m.density;
+        float scale = clampScale(scalePercent) / 100f;
+        float cardW = ClusterNavCardStyle.widthDp(style);
+        float cardH = ClusterNavCardStyle.heightDp(style);
+        float top = ClusterNavCardStyle.topMarginDp(provider);
+        int minX = -Math.round((screenW - cardW) / 2f);
+        int maxX = Math.round((screenW + cardW) / 2f - cardW * scale);
+        int minY = -Math.round(top);
+        int maxY = Math.round(screenH - top - cardH * scale);
+        return new Bounds(minX, maxX, minY, maxY);
     }
 
-    public static int clampOffsetX(Context context, int offsetDp) {
-        return clampOffset(offsetDp, getOffsetRangeXDp(context));
-    }
-
-    public static int clampOffsetY(Context context, int offsetDp) {
-        return clampOffset(offsetDp, getOffsetRangeYDp(context));
-    }
-
-    public static int clampOffset(int offsetDp, int rangeDp) {
-        return Math.max(-rangeDp, Math.min(rangeDp, offsetDp));
+    public static int clampOffset(int offsetDp, int min, int max) {
+        return Math.max(min, Math.min(max, offsetDp));
     }
 
     public static int clampScale(int scalePercent) {
         return Math.max(SCALE_MIN_PERCENT, Math.min(SCALE_MAX_PERCENT, scalePercent));
     }
 
-    public static int offsetSeekMax(int rangeDp) {
-        return rangeDp * 2;
+    public static int offsetSeekMax(int min, int max) {
+        return max - min;
     }
 
-    public static int toOffsetSeekProgress(int offsetDp, int rangeDp) {
-        return clampOffset(offsetDp, rangeDp) + rangeDp;
+    public static int toOffsetSeekProgress(int offsetDp, int min, int max) {
+        return clampOffset(offsetDp, min, max) - min;
     }
 
-    public static int fromOffsetSeekProgress(int progress, int rangeDp) {
-        return clampOffset(progress - rangeDp, rangeDp);
+    public static int fromOffsetSeekProgress(int progress, int min, int max) {
+        return clampOffset(progress + min, min, max);
     }
 
     public static int scaleSeekMax() {
@@ -128,83 +160,42 @@ public final class ClusterNavOverlayOffsets {
 
     public static CardLayout getCardLayout(Context context, Provider provider, Card card) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        switch (provider) {
-            case GOOGLE:
-                if (card == Card.MANEUVER) {
-                    return readCardLayout(context, prefs, GOOGLE_MANEUVER_X, GOOGLE_MANEUVER_Y,
-                            GOOGLE_MANEUVER_SCALE, LEGACY_GOOGLE_OFFSET_X_DP, LEGACY_GOOGLE_OFFSET_Y_DP);
-                }
-                return readCardLayout(context, prefs, GOOGLE_ETA_X, GOOGLE_ETA_Y, GOOGLE_ETA_SCALE,
-                        LEGACY_GOOGLE_OFFSET_X_DP, LEGACY_GOOGLE_OFFSET_Y_DP);
-            case YANDEX:
-            default:
-                if (card == Card.MANEUVER) {
-                    return readCardLayout(context, prefs, YANDEX_MANEUVER_X, YANDEX_MANEUVER_Y,
-                            YANDEX_MANEUVER_SCALE, LEGACY_YANDEX_OFFSET_X_DP, LEGACY_YANDEX_OFFSET_Y_DP);
-                }
-                return readCardLayout(context, prefs, YANDEX_ETA_X, YANDEX_ETA_Y, YANDEX_ETA_SCALE,
-                        LEGACY_YANDEX_OFFSET_X_DP, LEGACY_YANDEX_OFFSET_Y_DP);
+        if (provider == Provider.GOOGLE) {
+            return readCardLayout(context, provider, prefs, GOOGLE_CARD_X, GOOGLE_CARD_Y,
+                    GOOGLE_CARD_SCALE, LEGACY_GOOGLE_OFFSET_X_DP, LEGACY_GOOGLE_OFFSET_Y_DP);
         }
+        return readCardLayout(context, provider, prefs, YANDEX_CARD_X, YANDEX_CARD_Y,
+                YANDEX_CARD_SCALE, LEGACY_YANDEX_OFFSET_X_DP, LEGACY_YANDEX_OFFSET_Y_DP);
     }
 
     public static void setCardLayout(Context context, Provider provider, Card card, CardLayout layout) {
         if (layout == null) {
             return;
         }
-        String xKey;
-        String yKey;
-        String scaleKey;
-        switch (provider) {
-            case GOOGLE:
-                if (card == Card.MANEUVER) {
-                    xKey = GOOGLE_MANEUVER_X;
-                    yKey = GOOGLE_MANEUVER_Y;
-                    scaleKey = GOOGLE_MANEUVER_SCALE;
-                } else {
-                    xKey = GOOGLE_ETA_X;
-                    yKey = GOOGLE_ETA_Y;
-                    scaleKey = GOOGLE_ETA_SCALE;
-                }
-                break;
-            case YANDEX:
-            default:
-                if (card == Card.MANEUVER) {
-                    xKey = YANDEX_MANEUVER_X;
-                    yKey = YANDEX_MANEUVER_Y;
-                    scaleKey = YANDEX_MANEUVER_SCALE;
-                } else {
-                    xKey = YANDEX_ETA_X;
-                    yKey = YANDEX_ETA_Y;
-                    scaleKey = YANDEX_ETA_SCALE;
-                }
-                break;
-        }
+        boolean google = provider == Provider.GOOGLE;
+        int scale = clampScale(layout.scalePercent);
+        Bounds b = getBounds(context, provider, scale);
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit()
-                .putInt(xKey, clampOffsetX(context, layout.offsetXDp))
-                .putInt(yKey, clampOffsetY(context, layout.offsetYDp))
-                .putInt(scaleKey, clampScale(layout.scalePercent))
+                .putInt(google ? GOOGLE_CARD_X : YANDEX_CARD_X,
+                        clampOffset(layout.offsetXDp, b.minX, b.maxX))
+                .putInt(google ? GOOGLE_CARD_Y : YANDEX_CARD_Y,
+                        clampOffset(layout.offsetYDp, b.minY, b.maxY))
+                .putInt(google ? GOOGLE_CARD_SCALE : YANDEX_CARD_SCALE, scale)
                 .apply();
     }
 
-    /** Manevra + ETA kartlarını varsayılan konum ve %100 boyuta döndürür. */
+    /** Kartı varsayılan konum ve %100 boyuta döndürür. */
     public static void resetProvider(Context context, Provider provider) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        switch (provider) {
-            case GOOGLE:
-                putDefaults(editor, GOOGLE_MANEUVER_X, GOOGLE_MANEUVER_Y, GOOGLE_MANEUVER_SCALE);
-                putDefaults(editor, GOOGLE_ETA_X, GOOGLE_ETA_Y, GOOGLE_ETA_SCALE);
-                editor.remove(LEGACY_GOOGLE_OFFSET_X_DP);
-                editor.remove(LEGACY_GOOGLE_OFFSET_Y_DP);
-                break;
-            case YANDEX:
-            default:
-                putDefaults(editor, YANDEX_MANEUVER_X, YANDEX_MANEUVER_Y, YANDEX_MANEUVER_SCALE);
-                putDefaults(editor, YANDEX_ETA_X, YANDEX_ETA_Y, YANDEX_ETA_SCALE);
-                editor.remove(LEGACY_YANDEX_OFFSET_X_DP);
-                editor.remove(LEGACY_YANDEX_OFFSET_Y_DP);
-                break;
+        SharedPreferences.Editor editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
+        if (provider == Provider.GOOGLE) {
+            putDefaults(editor, GOOGLE_CARD_X, GOOGLE_CARD_Y, GOOGLE_CARD_SCALE);
+            editor.remove(LEGACY_GOOGLE_OFFSET_X_DP);
+            editor.remove(LEGACY_GOOGLE_OFFSET_Y_DP);
+        } else {
+            putDefaults(editor, YANDEX_CARD_X, YANDEX_CARD_Y, YANDEX_CARD_SCALE);
+            editor.remove(LEGACY_YANDEX_OFFSET_X_DP);
+            editor.remove(LEGACY_YANDEX_OFFSET_Y_DP);
         }
         editor.apply();
     }
@@ -230,28 +221,30 @@ public final class ClusterNavOverlayOffsets {
         card.setTranslationY(Math.round(offsetYDp * density));
     }
 
-    private static CardLayout readCardLayout(Context context, SharedPreferences prefs,
-            String xKey, String yKey, String scaleKey,
+    private static CardLayout readCardLayout(Context context, Provider provider,
+            SharedPreferences prefs, String xKey, String yKey, String scaleKey,
             String legacyXKey, String legacyYKey) {
+        int scale = clampScale(prefs.getInt(scaleKey, SCALE_DEFAULT_PERCENT));
+        Bounds b = getBounds(context, provider, scale);
         int defaultX = 0;
         int defaultY = 0;
         if (!prefs.contains(xKey) && prefs.contains(legacyXKey)) {
-            defaultX = clampOffsetX(context, prefs.getInt(legacyXKey, 0));
+            defaultX = prefs.getInt(legacyXKey, 0);
         }
         if (!prefs.contains(yKey) && prefs.contains(legacyYKey)) {
-            defaultY = clampOffsetY(context, prefs.getInt(legacyYKey, 0));
+            defaultY = prefs.getInt(legacyYKey, 0);
         }
-        int x = clampOffsetX(context, prefs.getInt(xKey, defaultX));
-        int y = clampOffsetY(context, prefs.getInt(yKey, defaultY));
-        int scale = clampScale(prefs.getInt(scaleKey, SCALE_DEFAULT_PERCENT));
+        int x = clampOffset(prefs.getInt(xKey, defaultX), b.minX, b.maxX);
+        int y = clampOffset(prefs.getInt(yKey, defaultY), b.minY, b.maxY);
         return new CardLayout(x, y, scale);
     }
 
     private static DisplayMetrics getClusterDisplayMetrics(Context context) {
         Display cluster = findClusterDisplay(context);
         if (cluster != null) {
+            // getMetrics: sistem çubuklarını (gezinme çubuğu vb.) düşer; overlay bu alana çizilir.
             DisplayMetrics metrics = new DisplayMetrics();
-            cluster.getRealMetrics(metrics);
+            cluster.getMetrics(metrics);
             return metrics;
         }
         return context.getResources().getDisplayMetrics();

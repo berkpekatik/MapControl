@@ -59,6 +59,8 @@ import com.mapcontrol.util.NetworkWifiHelper;
 public class AppsTabBuilder {
 
     private static final String SERVER_LIST_URL = ProfileApiService.API_ROOT + "/api/catalog";
+    /** Kurulum sonuc vermezse kameralar bu sure sonunda geri acilir (onay ekrani icin genis). */
+    private static final long SELF_INSTALL_AUTO_RESUME_MS = 120_000L;
     private static final long SERVER_RETRY_INITIAL_MS = 2_000L;
     private static final long SERVER_RETRY_MAX_MS = 15_000L;
     public interface AppsCallback {
@@ -1006,6 +1008,13 @@ public class AppsTabBuilder {
             actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
             UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
             actionButton.setOnClickListener(v -> {
+                if (isLocked) {
+                    confirmSelfUpdate(() -> {
+                        callback.log(displayName + " güncelleniyor...");
+                        requestInstall(packageName, displayName, downloadUrl, null);
+                    });
+                    return;
+                }
                 callback.log(displayName + " güncelleniyor...");
                 requestInstall(packageName, displayName, downloadUrl, null);
             });
@@ -1053,6 +1062,27 @@ public class AppsTabBuilder {
 
         appCard.addView(rightContainer);
         container.addView(appCard, cardParams);
+    }
+
+    /**
+     * MapControl kendini guncellerken kurulum sureci oldurur; kamera ve kayit kurulumdan hemen once
+     * {@link #installApkFile(File, int)} icinde durdurulur. Kullaniciya bu yuzden sorulur.
+     */
+    private void confirmSelfUpdate(Runnable proceed) {
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.apps_self_update_rec_title)
+                .setMessage(R.string.apps_self_update_rec_msg)
+                .setPositiveButton(R.string.common_yes, (d, w) -> proceed.run())
+                .setNegativeButton(R.string.common_no, null)
+                .show();
+    }
+
+    /** APK MapControl'in kendisi mi. Dosya okunamazsa dosya adina bakar (paket.apk). */
+    private boolean isSelfApk(File apkFile, String nameFromFile) {
+        PackageInfo info = context.getPackageManager()
+                .getPackageArchiveInfo(apkFile.getAbsolutePath(), 0);
+        String packageName = info != null ? info.packageName : nameFromFile;
+        return context.getPackageName().equals(packageName);
     }
 
     private void rebuildCatalog(JSONArray listArray) {
@@ -1969,6 +1999,13 @@ public class AppsTabBuilder {
 
         new Thread(() -> {
             handler.post(() -> Toast.makeText(context, R.string.apps_install_starting, Toast.LENGTH_SHORT).show());
+            final boolean selfInstall = isSelfApk(apkFile, trackedPackage);
+            if (selfInstall) {
+                boolean stopped = com.mapcontrol.dvr.DvrController.get(context)
+                        .prepareForSelfInstall(SELF_INSTALL_AUTO_RESUME_MS);
+                callback.log(stopped ? "Kurulum öncesi kamera ve kayıt kapatıldı"
+                        : "[WARN] Kamera zamanında kapanmadı, kurulum yine de başlıyor");
+            }
             callback.log("Sessiz dex kurulumu başlıyor: " + apkFile.getAbsolutePath());
             SilentDexInstaller.Result dexResult = SilentDexInstaller.install(context, apkFile);
             if (dexResult.success) {
@@ -2010,6 +2047,9 @@ public class AppsTabBuilder {
                             context.getString(R.string.apps_install_start_failed, detail), Toast.LENGTH_LONG).show();
                     if (trackedPackage != null) releaseInstallUi(trackedPackage);
                 });
+                if (selfInstall) {
+                    com.mapcontrol.dvr.DvrController.get(context).cancelSelfInstallPrepare();
+                }
                 callback.log("[ERROR] APK session kurulum hatası: " + detail);
             }
         }).start();

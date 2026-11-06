@@ -24,6 +24,9 @@ import java.util.List;
  *  "memory":{"driveMode":-1,"assistsOff":{"iss":false,"spdLimit":false,"ldw":false,"ldp":false,"fcw":false,"aeb":false,"cpd":false},"childLock":false}}
  * </pre>
  *
+ * Belgeye isteğe bağlı bir {@code "app"} bölümü de girer (MapControl tercihleri, bkz. {@link AppBackup}); {@code version}
+ * 1 kalır, bilmeyen eski araç bölümü yok sayar.
+ *
  * {@code assistsOff.x = true}: o yardım her kontak açılışında kapatılır (Hafıza Modu ekranındaki "Kapalı" kartı).
  * FCW ve AEB gibi güvenlik özelliklerinin yeni kapatılması aracın kendi ekranında sorumluluk onayı ister;
  * burada karşılığı belgedeki {@code safetyAck: true}tur, yoksa reddedilir ({@code safety.ack_required}).
@@ -70,8 +73,16 @@ public final class AutomationBackup {
     public static final class Result {
         public final List<String> errors;
 
+        /** Doğrulanan ama bu araçta uygulanmayan {@code app} alanları (yüklü olmayan uygulama, farklı ekran). */
+        public final List<String> skipped;
+
         Result(List<String> errors) {
+            this(errors, new ArrayList<>());
+        }
+
+        Result(List<String> errors, List<String> skipped) {
             this.errors = errors;
+            this.skipped = skipped;
         }
 
         public boolean ok() {
@@ -80,6 +91,15 @@ public final class AutomationBackup {
     }
 
     public static JSONObject export(SharedPreferences main, SharedPreferences sunroof) throws JSONException {
+        return export(main, sunroof, null);
+    }
+
+    /**
+     * [env] verilirse belgeye {@code app} bölümü (MapControl tercihleri, bkz. {@link AppBackup}) de girer.
+     * Bölüm ekleyici olduğu için {@code version} 1 kalır: bilmeyen eski araç ve telefon onu yok sayar.
+     */
+    public static JSONObject export(SharedPreferences main, SharedPreferences sunroof, AppBackup.Env env)
+            throws JSONException {
         JSONObject sun = new JSONObject()
                 .put("enabled", sunroof.getBoolean(SunroofAutomationEngine.KEY_ENABLED, false))
                 .put("mode", sunroof.getInt(SunroofAutomationEngine.KEY_MODE, SunroofAutomationEngine.MODE_SMART_COMFORT))
@@ -115,7 +135,38 @@ public final class AutomationBackup {
                 .put("driveMode", main.getInt("driveModeSetting", -1))
                 .put("assistsOff", off)
                 .put("childLock", isChildLockOn(main));
-        return new JSONObject().put("version", VERSION).put("sunroof", sun).put("climate", climate).put("memory", memory);
+        JSONObject doc = new JSONObject().put("version", VERSION).put("sunroof", sun).put("climate", climate)
+                .put("memory", memory);
+        if (env != null) {
+            doc.put("app", AppBackup.export(env));
+        }
+        return doc;
+    }
+
+    /**
+     * Araçta yedeğe girecek hiçbir ayar yazılı değil mi (fabrika durumu veya yeni kurulum)? Telefon bunu, hesapta
+     * yedek varsa "geri yükleyeyim mi?" diye sormak için kullanır. Tek bir ayar bile yazılıysa false: yanlış
+     * olumsuz, yanlış olumludan iyidir (sorulmaz, ama dolu bir aracın üzerine de yazılmaz).
+     */
+    public static boolean isPristine(SharedPreferences main, SharedPreferences sunroof, AppBackup.Env env) {
+        for (String key : main.getAll().keySet()) {
+            if (key.startsWith("climateAuto") || key.equals("driveModeSetting") || key.equals("childLockSetting")
+                    || key.equals("childWindowLockAutoEnable")) {
+                return false;
+            }
+        }
+        for (String[] a : ASSISTS) {
+            if (main.contains(a[1])) {
+                return false;
+            }
+        }
+        for (String key : sunroof.getAll().keySet()) {
+            if (key.startsWith("sunroof_auto_") && !key.equals("sunroof_auto_simulated_rain")
+                    && !key.equals("sunroof_auto_cooldown_sec") && !key.equals("sunroof_auto_speed_limit")) {
+                return false;
+            }
+        }
+        return env == null || AppBackup.configuredCount(env) == 0;
     }
 
     /**
@@ -123,6 +174,11 @@ public final class AutomationBackup {
      * Isıtma ile havalandırma aynı koltukta aynı anda tetiklenecek biçimde çakışırsa reddedilir.
      */
     public static Result apply(JSONObject doc, SharedPreferences main, SharedPreferences sunroof) {
+        return apply(doc, main, sunroof, null);
+    }
+
+    /** [env] verilirse belgedeki {@code app} bölümü de doğrulanır ve yazılır; verilmezse yok sayılır. */
+    public static Result apply(JSONObject doc, SharedPreferences main, SharedPreferences sunroof, AppBackup.Env env) {
         List<String> errors = new ArrayList<>();
         if (doc.optInt("version", -1) != VERSION) {
             errors.add("version");
@@ -234,6 +290,16 @@ public final class AutomationBackup {
                 }
             }
         }
+        AppBackup.Plan appPlan = null;
+        if (env != null && doc.has("app")) {
+            JSONObject app = doc.optJSONObject("app");
+            if (app == null) {
+                errors.add("app");
+            } else {
+                appPlan = AppBackup.plan(app, env);
+                errors.addAll(appPlan.errors);
+            }
+        }
         if (!errors.isEmpty()) {
             return new Result(errors);
         }
@@ -260,6 +326,10 @@ public final class AutomationBackup {
                 memEdit.putInt(a[1], assistOff.get(i) ? Integer.parseInt(a[2]) : -1);
             }
             memEdit.commit();
+        }
+        if (appPlan != null) {
+            appPlan.commit();
+            return new Result(errors, appPlan.skipped);
         }
         return new Result(errors);
     }

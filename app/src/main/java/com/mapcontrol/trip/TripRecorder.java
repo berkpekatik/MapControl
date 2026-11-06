@@ -51,6 +51,12 @@ public final class TripRecorder implements TripTracker.Listener {
     private volatile boolean started;
     private volatile String vin;
 
+    /** Kontak kapalıyken araç menzil için 0xF000 (61440) gibi geçersiz değer yollar; son geçerli değer burada tutulur. */
+    private static final int MAX_PLAUSIBLE_RANGE_KM = 2000;
+    private static final String RANGE_PREFS = "trip_recorder";
+    private static final String RANGE_KEY = "lastRangeKm";
+    private volatile int lastGoodRangeKm = -1;
+
     private volatile Location lastFix;
     private boolean locating;
     private final LocationListener locationListener = new LocationListener() {
@@ -74,6 +80,7 @@ public final class TripRecorder implements TripTracker.Listener {
 
     private TripRecorder(Context context) {
         this.context = context;
+        this.lastGoodRangeKm = context.getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE).getInt(RANGE_KEY, -1);
         this.store = new TripStore(context);
     }
 
@@ -111,10 +118,29 @@ public final class TripRecorder implements TripTracker.Listener {
     }
 
     @Override
+    public void onTripCheckpoint(TripRecord trip) {
+        // io iş parçacığında çağrılır. Aynı id ile üzerine yazılır; sessizdir (her 15 sn'de bir gelir).
+        try {
+            store.insertTrip(trip);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Yolculuk denetim noktası yazılamadı", e);
+        }
+    }
+
+    @Override
+    public void onIgnitionOff(TripRecord trip) {
+        // io iş parçacığında çağrılır; çekim kendi iş parçacığında yapılır, burayı bekletmez.
+        com.mapcontrol.dvr.ParkPhoto.captureAfterIgnitionOff(context, trip.id);
+        // Yolculuk bu noktada yerel olarak yazıldı; telefon araçta değilse sunucu kutusundan alsın.
+        TripBoxUploader.enqueue(context, trip);
+    }
+
+    @Override
     public void onTripClosed(TripRecord trip) {
         // io iş parçacığında çağrılır.
         try {
             store.insertTrip(trip);
+            TripBoxUploader.enqueue(context, trip); // kapanıştaki son hâli (kontak kapandıktan sonraki blip dahil)
             Log.i(TAG, "Yolculuk kaydedildi: " + trip.id + " " + trip.distanceKm + " km, " + trip.fuelUsedMl + " ml");
             // Ölçeği doğrulamak için aracın kendi ortalamasıyla yan yana: ham sayılar birimi ele verir.
             VehicleMetricsRepository repo = VehicleMetricsRepository.getInstance(context);
@@ -134,10 +160,37 @@ public final class TripRecorder implements TripTracker.Listener {
                 s.odoKm,
                 repo.getCombined(ReadOnlyID.ID_SUM_FUEL),
                 s.fuelPercent,
-                s.rangeKm,
+                stableRangeKm(s),
                 s.preferredSpeed(),
                 fix == null ? Double.NaN : fix.getLatitude(),
                 fix == null ? Double.NaN : fix.getLongitude());
+    }
+
+    /**
+     * Menzil yalnızca powerMode 2'de (kontak açık) yenilenir; 0/1'de araç geçersiz sayı (61440) verdiği için
+     * son geçerli değer döner. Hiç geçerli değer yoksa -1.
+     */
+    private int stableRangeKm(VehicleMetricsSnapshot s) {
+        if (s.powerMode == 2 && s.rangeKm >= 0 && s.rangeKm <= MAX_PLAUSIBLE_RANGE_KM
+                && s.rangeKm != lastGoodRangeKm) {
+            lastGoodRangeKm = s.rangeKm;
+            context.getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE)
+                    .edit().putInt(RANGE_KEY, s.rangeKm).apply();
+        }
+        return lastGoodRangeKm;
+    }
+
+    /**
+     * Rota noktalarının konum kaynağı: GPS Link'in yazdığı sahte konum "phone", aracın kendi GPS'i "car",
+     * taze konum yoksa "none" (rota çizilemez).
+     */
+    @SuppressWarnings("deprecation")
+    private String locationSource() {
+        Location fix = freshFix();
+        if (fix == null) {
+            return PhoneApiJson.LOCATION_NONE;
+        }
+        return fix.isFromMockProvider() ? PhoneApiJson.LOCATION_PHONE : PhoneApiJson.LOCATION_CAR;
     }
 
     private Location freshFix() {
@@ -179,7 +232,12 @@ public final class TripRecorder implements TripTracker.Listener {
 
     /** {@code GET /trips?since=} gövdesi. */
     public String tripsJson(long since) {
-        return PhoneApiJson.trips(store.tripsSince(since, TRIPS_PAGE));
+        // Sürmekte olan yolculuk telefona verilmez: yarım halini alırsa güncel halini görmez. Kontak kapandıktan sonra
+        // (kapanış beklemesi) kayıt kesinleşmiş sayılır ve verilir; telefon park yerini hemen görsün. Güç bu sürede
+        // dönerse telefon son yolculuğu her eşitlemede yeniden sorduğu için güncel halini yine alır.
+        TripTracker.Status running = tracker.status();
+        String open = running.active && !running.ending ? "t" + running.startedAt : null;
+        return PhoneApiJson.trips(store.tripsSince(since, TRIPS_PAGE, open));
     }
 
     /**
@@ -191,8 +249,32 @@ public final class TripRecorder implements TripTracker.Listener {
             return null;
         }
         int fuel = TripReading.percent(s.fuelPercent);
+        TripTracker.Status trip = tracker.status();
+        String json = PhoneApiJson.vehicleNow(vin(), System.currentTimeMillis(), s.odoKm,
+                fuel == TripReading.INVALID ? 0 : fuel, Math.max(0, stableRangeKm(s)),
+                trip.active, trip.startedAt, trip.routePoints, trip.active ? locationSource() : null);
+        return PhoneApiJson.withGps(json, com.mapcontrol.gps.LinkState.status().wireName(),
+                com.mapcontrol.gps.LinkState.fixAgeMs());
+    }
+
+    /**
+     * Kontak kapanırken sunucu kutusuna konan sayaçlar (odometre, yakıt, menzil); araç verisi okunmadıysa {@code null}.
+     * {@code /vehicle/now}'un yolculuk ve GPS alanları olmadan hâli.
+     */
+    public String snapshotJson() {
+        VehicleMetricsSnapshot s = VehicleMetricsRepository.getInstance(context).currentSnapshot();
+        if (!s.connected || !TripReading.validOdo(s.odoKm)) {
+            return null;
+        }
+        int fuel = TripReading.percent(s.fuelPercent);
         return PhoneApiJson.vehicleNow(vin(), System.currentTimeMillis(), s.odoKm,
-                fuel == TripReading.INVALID ? 0 : fuel, Math.max(0, s.rangeKm));
+                fuel == TripReading.INVALID ? 0 : fuel, Math.max(0, stableRangeKm(s)));
+    }
+
+    /** {@code GET /parking} gövdesi. */
+    public String parkingJson() {
+        com.mapcontrol.dvr.ParkPhoto.Meta m = com.mapcontrol.dvr.ParkPhoto.meta(context);
+        return PhoneApiJson.parking(m == null ? 0L : m.capturedAt, m == null ? "" : m.tripId);
     }
 
     /** Şase numarası; araçtan okunamadıysa boş. QR eşleşmesi bunu telefona taşır. */

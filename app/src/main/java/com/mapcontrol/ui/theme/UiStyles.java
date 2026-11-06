@@ -211,6 +211,16 @@ public final class UiStyles {
             return state[0];
         }
 
+        /**
+         * Hides only the help line. The toggle card (title + choice control) stays visible.
+         * Callers must not hide the parent's last child: it is the whole toggle card.
+         */
+        public void hideHelp() {
+            if (helpSeg != null) {
+                helpSeg.setVisibility(View.GONE);
+            }
+        }
+
         /** Light/dark sonrası segment thumb/metin renklerini yeniler. */
         public void reapplyTheme() {
             refresh.run();

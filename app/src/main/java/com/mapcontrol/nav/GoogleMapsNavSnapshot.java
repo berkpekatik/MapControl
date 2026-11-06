@@ -11,6 +11,9 @@ import java.util.regex.Pattern;
  */
 public final class GoogleMapsNavSnapshot {
 
+    /** Sayıdan sonra km / mi / m (satır sonunda da olabilir; "min" ile karışmaz). */
+    private static final Pattern DISTANCE_UNIT = Pattern.compile(
+            "\\d\\s*(?:km|mi|m)\\b");
     private static final Pattern ARRIVAL_TIME = Pattern.compile(
             "\\b([01]?\\d|2[0-3]):[0-5]\\d\\b");
 
@@ -156,7 +159,7 @@ public final class GoogleMapsNavSnapshot {
                 continue;
             }
             String lower = trimmed.toLowerCase(Locale.US);
-            boolean isDistance = lower.contains(" km") || lower.contains(" mi") || lower.contains(" m ");
+            boolean isDistance = DISTANCE_UNIT.matcher(lower).find();
             boolean isDuration = lower.contains("min") || lower.contains("dk")
                     || lower.contains("hr") || lower.contains("sa");
             boolean isArrival = ARRIVAL_TIME.matcher(trimmed).find();

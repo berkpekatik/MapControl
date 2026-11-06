@@ -25,6 +25,10 @@ adb push "$APK" /data/local/tmp/mapcontrol.apk || {
     exit 1
 }
 
+# Kurulum süreci öldürür. Kamera akışları açıkken ölmek ekranı karartıp sistemi çökertebilir.
+echo "📷 Kamera ve kayıt kapatılıyor..."
+"$SCRIPT_DIR/stop-cameras.sh"
+
 # APK'yı yükle
 echo "📱 APK'yı yüklüyorum..."
 echo "pm install -r /data/local/tmp/mapcontrol.apk" | adb shell
@@ -53,6 +57,9 @@ grant_permission "appops set com.mapcontrol GET_USAGE_STATS allow" "GET_USAGE_ST
 grant_permission "appops set com.mapcontrol REQUEST_INSTALL_PACKAGES allow" "REQUEST_INSTALL_PACKAGES"
 grant_permission "appops set com.mapcontrol MANAGE_EXTERNAL_STORAGE allow" "MANAGE_EXTERNAL_STORAGE"
 grant_permission "appops set com.mapcontrol WRITE_SETTINGS allow" "WRITE_SETTINGS (AppOps)"
+
+# MapControl telefon konumunu aracın gps sağlayıcısına yazar (com.mapcontrol.gps.MockGpsProvider).
+grant_permission "appops set com.mapcontrol android:mock_location allow" "mock_location"
 
 # Sistem geneli overlay (web kurulumu ile aynı)
 grant_permission "settings put global overlay_show_system_window 1" "Global overlay_show_system_window"

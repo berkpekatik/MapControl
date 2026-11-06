@@ -77,7 +77,7 @@ public class GlobalBackService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         maybeScrapeYandexNav(event);
-        InstallerConfirmClicker.onWindowEvent(this);
+        InstallerConfirmClicker.onWindowEvent(this, event);
     }
     
     @Override

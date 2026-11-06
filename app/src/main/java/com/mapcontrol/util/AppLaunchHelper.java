@@ -15,6 +15,8 @@ public final class AppLaunchHelper {
     private static final String TAG = "AppLaunchHelper";
 
     public static final String GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps";
+    /** Yandex kümesi: sırayla denenir, hangisi kuruluysa o açar. */
+    public static final String[] YANDEX_PACKAGES = {"ru.yandex.yandexmaps", "ru.yandex.yandexnavi"};
     /**
      * Google Maps car/cluster surface.
      */

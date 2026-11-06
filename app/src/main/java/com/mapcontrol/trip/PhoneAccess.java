@@ -14,10 +14,11 @@ import java.security.SecureRandom;
  */
 public final class PhoneAccess {
 
-    public static final String HEADER = "X-MapControl-Token";
+    public static final String HEADER = "X-FrostNav-Token";
 
     private static final String PREFS = "MapControlPrefs";
     private static final String KEY_TOKEN = "phoneToken";
+    private static final String KEY_CAR_ID = "carId";
 
     private PhoneAccess() {
     }
@@ -31,6 +32,20 @@ public final class PhoneAccess {
             prefs.edit().putString(KEY_TOKEN, token).commit();
         }
         return token;
+    }
+
+    /**
+     * Araca özgü kalıcı kimlik (16 onaltılık karakter). Araç adresi değişse de telefon aynı aracı bununla tanır
+     * (`/ping`, eşleşme QR'ı). Sır değildir; yetki vermez. "Yeni anahtar üret" bunu değiştirmez.
+     */
+    public static synchronized String carId(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String id = prefs.getString(KEY_CAR_ID, null);
+        if (id == null || !id.matches("[0-9a-f]{16}")) {
+            id = generate().substring(0, 16);
+            prefs.edit().putString(KEY_CAR_ID, id).commit();
+        }
+        return id;
     }
 
     /** Yeni anahtar üretir; eşleşmiş telefon yeniden eşleşmeli. */

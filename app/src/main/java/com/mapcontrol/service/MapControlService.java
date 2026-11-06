@@ -120,6 +120,9 @@ public class MapControlService extends Service {
         // Power mode kontrolünü başlat
         com.mapcontrol.dvr.DvrController.get(this).start();
         com.mapcontrol.trip.TripRecorder.get(this).start();
+        startGpsLink();
+        // Telefon sunucusu (7462): kontak, ağ ve bekçi izlemesi burada başlar; sunucu activity kapansa da ayakta kalır.
+        com.mapcontrol.manager.WebServerHost.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
         SunroofAutomationEngine.getInstance(this).start();
@@ -221,6 +224,16 @@ public class MapControlService extends Service {
         }
     }
 
+    /**
+     * Telefonun GPS'ini alan GPS Link alıcısı. Konum kapalıysa veya sahte konum uygulaması seçilmediyse hemen
+     * başlamaz; Aktar > Telefon eşleme sayfası nedenini gösterir ve engel kalkınca burada kendiliğinden başlar.
+     */
+    private void startGpsLink() {
+        com.mapcontrol.gps.GpsLinkManager gps = com.mapcontrol.gps.GpsLinkManager.get(this);
+        gps.start();
+        scheduler.scheduleWithFixedDelay(gps::ensureRunning, 15, 15, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Foreground service için notification oluştur
@@ -316,6 +329,7 @@ public class MapControlService extends Service {
         SunroofAutomationEngine.getInstance(this).stop();
         SunroofGestureOverlayManager.getInstance(this).stop();
         DmsFaceRecognitionManager.stop(this);
+        com.mapcontrol.gps.GpsLinkManager.get(this).stop();
         super.onDestroy();
         if (scheduler != null) {
             scheduler.shutdown();

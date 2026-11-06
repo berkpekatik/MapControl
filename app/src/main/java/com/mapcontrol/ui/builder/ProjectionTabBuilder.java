@@ -570,6 +570,30 @@ public class ProjectionTabBuilder {
 
     private void addClusterOverlayLayoutSection(LinearLayout parent, int titleResId,
             ClusterNavOverlayOffsets.Provider provider, Runnable applyOverlay) {
+        final java.util.List<ClusterCardSliderUi> sliderUis = new java.util.ArrayList<>();
+        UiStyles.addBinarySegmentedControl(context, parent,
+                context.getString(R.string.projection_cluster_style_title),
+                context.getString(R.string.projection_cluster_style_detail),
+                context.getString(R.string.projection_cluster_style_slim),
+                context.getString(R.string.projection_cluster_style_detail_help),
+                context.getString(R.string.projection_cluster_style_slim_help),
+                ClusterNavOverlayOffsets.getStyle(context, provider)
+                        == ClusterNavOverlayOffsets.Style.DETAIL,
+                detail -> {
+                    ClusterNavOverlayOffsets.setStyle(context, provider, detail
+                            ? ClusterNavOverlayOffsets.Style.DETAIL
+                            : ClusterNavOverlayOffsets.Style.SLIM);
+                    if (provider == ClusterNavOverlayOffsets.Provider.GOOGLE) {
+                        GoogleMapsClusterNavOverlay.getInstance(context).restyle();
+                    } else {
+                        YandexClusterNavOverlay.getInstance(context).restyle();
+                    }
+                    // Kart boyutu değişti: kaydırıcı sınırlarını güncelle.
+                    for (ClusterCardSliderUi ui : sliderUis) {
+                        ui.syncFromPrefs();
+                    }
+                    applyOverlay.run();
+                });
         Button layoutToggle = new Button(context);
         layoutToggle.setText(context.getString(titleResId) + " ↓");
         UiStyles.styleOemButton(layoutToggle, UiStyles.color(context, R.color.surfaceCardInner));
@@ -602,16 +626,9 @@ public class ProjectionTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        final int offsetRangeXDp = ClusterNavOverlayOffsets.getOffsetRangeXDp(context);
-        final int offsetRangeYDp = ClusterNavOverlayOffsets.getOffsetRangeYDp(context);
-        final java.util.List<ClusterCardSliderUi> sliderUis = new java.util.ArrayList<>();
-
         sliderUis.add(addSingleClusterCardLayoutSliders(
-                block, provider, ClusterNavOverlayOffsets.Card.MANEUVER,
-                R.string.projection_cluster_maneuver_card, offsetRangeXDp, offsetRangeYDp, applyOverlay));
-        sliderUis.add(addSingleClusterCardLayoutSliders(
-                block, provider, ClusterNavOverlayOffsets.Card.ETA,
-                R.string.projection_cluster_eta_card, offsetRangeXDp, offsetRangeYDp, applyOverlay));
+                block, provider, ClusterNavOverlayOffsets.Card.NAV,
+                R.string.projection_cluster_nav_card, applyOverlay, sliderUis));
 
         Button btnResetLayout = new Button(context);
         btnResetLayout.setText(R.string.projection_cluster_layout_reset);
@@ -640,54 +657,41 @@ public class ProjectionTabBuilder {
     private static final class ClusterCardSliderUi {
         final ClusterNavOverlayOffsets.Provider provider;
         final ClusterNavOverlayOffsets.Card card;
-        final int offsetRangeXDp;
-        final int offsetRangeYDp;
         final ClusterNavOverlayOffsets.CardLayout layout;
-        final SeekBar xBar;
-        final SeekBar yBar;
+        final ClusterOffsetSliderRow xRow;
+        final ClusterOffsetSliderRow yRow;
         final SeekBar scaleBar;
-        final TextView xValue;
-        final TextView yValue;
         final TextView scaleValue;
         final ProjectionTabBuilder owner;
 
         ClusterCardSliderUi(ProjectionTabBuilder owner,
                 ClusterNavOverlayOffsets.Provider provider,
                 ClusterNavOverlayOffsets.Card card,
-                int offsetRangeXDp,
-                int offsetRangeYDp,
                 ClusterNavOverlayOffsets.CardLayout layout,
-                SeekBar xBar, SeekBar yBar, SeekBar scaleBar,
-                TextView xValue, TextView yValue, TextView scaleValue) {
+                ClusterOffsetSliderRow xRow, ClusterOffsetSliderRow yRow,
+                SeekBar scaleBar, TextView scaleValue) {
             this.owner = owner;
             this.provider = provider;
             this.card = card;
-            this.offsetRangeXDp = offsetRangeXDp;
-            this.offsetRangeYDp = offsetRangeYDp;
             this.layout = layout;
-            this.xBar = xBar;
-            this.yBar = yBar;
+            this.xRow = xRow;
+            this.yRow = yRow;
             this.scaleBar = scaleBar;
-            this.xValue = xValue;
-            this.yValue = yValue;
             this.scaleValue = scaleValue;
         }
 
+        /** Kayıtlı değerleri okur; tasarım/boyut değiştiyse kaydırıcı sınırlarını yeniler. */
         void syncFromPrefs() {
             ClusterNavOverlayOffsets.CardLayout fresh =
                     ClusterNavOverlayOffsets.getCardLayout(owner.context, provider, card);
             layout.offsetXDp = fresh.offsetXDp;
             layout.offsetYDp = fresh.offsetYDp;
             layout.scalePercent = fresh.scalePercent;
-            xBar.setProgress(ClusterNavOverlayOffsets.toOffsetSeekProgress(
-                    layout.offsetXDp, offsetRangeXDp));
-            yBar.setProgress(ClusterNavOverlayOffsets.toOffsetSeekProgress(
-                    layout.offsetYDp, offsetRangeYDp));
+            ClusterNavOverlayOffsets.Bounds b = ClusterNavOverlayOffsets.getBounds(
+                    owner.context, provider, layout.scalePercent);
+            xRow.setRange(b.minX, b.maxX, layout.offsetXDp, owner.context);
+            yRow.setRange(b.minY, b.maxY, layout.offsetYDp, owner.context);
             scaleBar.setProgress(ClusterNavOverlayOffsets.toScaleSeekProgress(layout.scalePercent));
-            xValue.setText(owner.context.getString(
-                    R.string.projection_cluster_offset_value, layout.offsetXDp));
-            yValue.setText(owner.context.getString(
-                    R.string.projection_cluster_offset_value, layout.offsetYDp));
             scaleValue.setText(owner.context.getString(
                     R.string.projection_cluster_offset_scale_value, layout.scalePercent));
         }
@@ -697,9 +701,8 @@ public class ProjectionTabBuilder {
             ClusterNavOverlayOffsets.Provider provider,
             ClusterNavOverlayOffsets.Card card,
             int cardTitleResId,
-            int offsetRangeXDp,
-            int offsetRangeYDp,
-            Runnable applyOverlay) {
+            Runnable applyOverlay,
+            java.util.List<ClusterCardSliderUi> allUis) {
         TextView cardTitle = new TextView(context);
         cardTitle.setText(cardTitleResId);
         UiStyles.setTextSize(cardTitle, R.dimen.text_size_small);
@@ -712,6 +715,8 @@ public class ProjectionTabBuilder {
 
         final ClusterNavOverlayOffsets.CardLayout layout =
                 ClusterNavOverlayOffsets.getCardLayout(context, provider, card);
+        final ClusterNavOverlayOffsets.Bounds bounds =
+                ClusterNavOverlayOffsets.getBounds(context, provider, layout.scalePercent);
 
         Runnable persistAndApply = () -> {
             ClusterNavOverlayOffsets.setCardLayout(context, provider, card, layout);
@@ -722,7 +727,7 @@ public class ProjectionTabBuilder {
                 parent,
                 R.string.projection_cluster_offset_x,
                 layout.offsetXDp,
-                offsetRangeXDp,
+                bounds.minX, bounds.maxX,
                 value -> {
                     layout.offsetXDp = value;
                     persistAndApply.run();
@@ -731,35 +736,56 @@ public class ProjectionTabBuilder {
                 parent,
                 R.string.projection_cluster_offset_y,
                 layout.offsetYDp,
-                offsetRangeYDp,
+                bounds.minY, bounds.maxY,
                 value -> {
                     layout.offsetYDp = value;
                     persistAndApply.run();
                 });
+        final ClusterCardSliderUi[] holder = new ClusterCardSliderUi[1];
         ClusterOffsetSliderRow scaleRow = addClusterScaleSliderRow(
                 parent,
                 layout.scalePercent,
                 value -> {
                     layout.scalePercent = value;
                     persistAndApply.run();
+                    // Ölçek değişince ekranda kalabilecek aralık da değişir.
+                    if (holder[0] != null) {
+                        holder[0].syncFromPrefs();
+                    }
                 });
-        return new ClusterCardSliderUi(this, provider, card, offsetRangeXDp, offsetRangeYDp, layout,
-                xRow.bar, yRow.bar, scaleRow.bar,
-                xRow.value, yRow.value, scaleRow.value);
+        holder[0] = new ClusterCardSliderUi(this, provider, card, layout,
+                xRow, yRow, scaleRow.bar, scaleRow.value);
+        return holder[0];
     }
 
     private static final class ClusterOffsetSliderRow {
         final SeekBar bar;
         final TextView value;
+        /** {min, max} dp; kaydırıcı dinleyicisi güncel aralığı buradan okur. */
+        final int[] range;
 
         ClusterOffsetSliderRow(SeekBar bar, TextView value) {
+            this(bar, value, new int[]{0, 0});
+        }
+
+        ClusterOffsetSliderRow(SeekBar bar, TextView value, int[] range) {
             this.bar = bar;
             this.value = value;
+            this.range = range;
+        }
+
+        void setRange(int min, int max, int offsetDp, Context context) {
+            range[0] = min;
+            range[1] = max;
+            bar.setMax(ClusterNavOverlayOffsets.offsetSeekMax(min, max));
+            int clamped = ClusterNavOverlayOffsets.clampOffset(offsetDp, min, max);
+            bar.setProgress(ClusterNavOverlayOffsets.toOffsetSeekProgress(clamped, min, max));
+            value.setText(context.getString(R.string.projection_cluster_offset_value, clamped));
         }
     }
 
     private ClusterOffsetSliderRow addClusterOffsetSliderRow(LinearLayout parent, int labelResId,
-            int initialOffsetDp, int offsetRangeDp, java.util.function.IntConsumer onChanged) {
+            int initialOffsetDp, int minDp, int maxDp, java.util.function.IntConsumer onChanged) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -786,12 +812,13 @@ public class ProjectionTabBuilder {
 
         value.setText(context.getString(R.string.projection_cluster_offset_value, initialOffsetDp));
 
-        SeekBar bar = createClusterSeekBar(ClusterNavOverlayOffsets.offsetSeekMax(offsetRangeDp));
-        bar.setProgress(ClusterNavOverlayOffsets.toOffsetSeekProgress(initialOffsetDp, offsetRangeDp));
+        final int[] range = new int[]{minDp, maxDp};
+        SeekBar bar = createClusterSeekBar(ClusterNavOverlayOffsets.offsetSeekMax(minDp, maxDp));
+        bar.setProgress(ClusterNavOverlayOffsets.toOffsetSeekProgress(initialOffsetDp, minDp, maxDp));
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                int offset = ClusterNavOverlayOffsets.fromOffsetSeekProgress(progress, offsetRangeDp);
+                int offset = ClusterNavOverlayOffsets.fromOffsetSeekProgress(progress, range[0], range[1]);
                 value.setText(context.getString(R.string.projection_cluster_offset_value, offset));
                 if (fromUser) {
                     onChanged.accept(offset);
@@ -807,7 +834,7 @@ public class ProjectionTabBuilder {
             }
         });
         parent.addView(bar, clusterOffsetSeekBarLayoutParams());
-        return new ClusterOffsetSliderRow(bar, value);
+        return new ClusterOffsetSliderRow(bar, value, range);
     }
 
     private ClusterOffsetSliderRow addClusterScaleSliderRow(LinearLayout parent, int initialScalePercent,

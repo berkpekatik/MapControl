@@ -73,4 +73,34 @@ public class GoogleMapsNavNotificationParserTest {
         assertEquals("1 hr 34 min", snap.etaDurationLabel());
         assertEquals("12:26", snap.etaArrivalLabel());
     }
+
+    @Test
+    public void metersAtEndOfSummaryAreReadAsRemainingDistance() {
+        GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
+                null, "Salkım Söğüt Sk. yönüne doğru", "1 dk. · 260 m · TVS: 23:01", false);
+        assertTrue(snap.active);
+        assertEquals("260 m", snap.etaDistanceLabel());
+        assertEquals("1 dk.", snap.etaDurationLabel());
+        assertEquals("23:01", snap.etaArrivalLabel());
+    }
+
+    @Test
+    public void kilometersAndMinutesStillSeparated() {
+        GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
+                "0 m", null, "12 dk. · 2,3 km · TVS: 23:10", false);
+        assertEquals("2,3 km", snap.etaDistanceLabel());
+        assertEquals("12 dk.", snap.etaDurationLabel());
+        GoogleMapsNavSnapshot minutes = GoogleMapsNavNotificationParser.parseFields(
+                "0 m", null, "5 min · 800 m", false);
+        assertEquals("800 m", minutes.etaDistanceLabel());
+        assertEquals("5 min", minutes.etaDurationLabel());
+    }
+
+    @Test
+    public void textWithoutSeparatorIsUsedAsInstruction() {
+        GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
+                null, "Salkım Söğüt Sk. yönüne doğru", "1 dk. · 240 m · TVS: 23:04", false);
+        assertEquals("Salkım Söğüt Sk. yönüne doğru", snap.formatManeuverDirectionLine());
+        assertNull(snap.formatManeuverDistanceLine());
+    }
 }

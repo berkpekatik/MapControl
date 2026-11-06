@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <time.h>
@@ -1658,6 +1659,51 @@ Java_com_mapcontrol_dvr_HabNative_nativeZcAcquire(JNIEnv* /*env*/, jclass /*claz
 extern "C" JNIEXPORT void JNICALL
 Java_com_mapcontrol_dvr_HabNative_nativeZcDetach(JNIEnv* /*env*/, jclass /*clazz*/, jint cam) {
     ZcDetach((int)cam);
+}
+
+// USB ayrilirken vold, volume'de acik dosyasi olan sureci once SIGINT ile kapatir (aracta
+// goruldu). Akislar acikken olmek sistemi cokertebildigi icin sinyal yakalanir; Java tarafi
+// kamerayi duzgunce kapatir. Handler'da yalnizca async-signal-safe write yapilir.
+static int gStopSignalPipe[2] = {-1, -1};
+
+static void OnStopSignal(int sig) {
+    int savedErrno = errno;
+    uint8_t value = (uint8_t)sig;
+    ssize_t ignored = write(gStopSignalPipe[1], &value, 1);
+    (void)ignored;
+    errno = savedErrno;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_mapcontrol_dvr_HabNative_nativeInstallStopSignalHandler(JNIEnv* /*env*/, jclass /*clazz*/) {
+    if (gStopSignalPipe[0] >= 0) return JNI_TRUE;
+    if (pipe2(gStopSignalPipe, O_CLOEXEC) != 0) {
+        NLOG("sinyal borusu acilamadi errno=%d", errno);
+        gStopSignalPipe[0] = gStopSignalPipe[1] = -1;
+        return JNI_FALSE;
+    }
+    fcntl(gStopSignalPipe[1], F_SETFL, O_NONBLOCK);
+    struct sigaction action{};
+    action.sa_handler = OnStopSignal;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_RESTART | SA_ONSTACK;
+    if (sigaction(SIGINT, &action, nullptr) != 0 || sigaction(SIGTERM, &action, nullptr) != 0) {
+        NLOG("sinyal yakalayici kurulamadi errno=%d", errno);
+        return JNI_FALSE;
+    }
+    return JNI_TRUE;
+}
+
+// Bloklar: yakalanan sinyalin numarasi, hata olursa -1.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_mapcontrol_dvr_HabNative_nativeAwaitStopSignal(JNIEnv* /*env*/, jclass /*clazz*/) {
+    uint8_t value = 0;
+    for (;;) {
+        ssize_t got = read(gStopSignalPipe[0], &value, 1);
+        if (got == 1) return value;
+        if (got < 0 && errno == EINTR) continue;
+        return -1;
+    }
 }
 
 // Onbellekli ION ("hizli okuma") acik/kapali. Kameralar bir sonraki acilista yeni modla

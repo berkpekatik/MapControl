@@ -33,8 +33,8 @@ android {
         applicationId "com.mapcontrol"
         minSdk 29
         targetSdk 28
-        versionCode 12
-        versionName "1.4.3"
+        versionCode 15
+        versionName "1.4.7"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'GLITCHTIP_DSN', groovy.json.JsonOutput.toJson(readSetting('GLITCHTIP_DSN') ?: '')
         ndk {
@@ -97,6 +97,7 @@ dependencies {
         exclude group: 'io.sentry', module: 'sentry-android-replay'
     }
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20180813'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
 

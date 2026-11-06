@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Map Control</string>
+    <string name="app_name">MapControl</string>
     <string name="launch_splash_loading">Loading…</string>
     <string name="accessibility_service_description">Floating Back (global BACK), typing into the focused field from web management, and reading Yandex Maps navigation cards for the cluster display. After changing settings, turn the service off and on again.</string>
     <string name="yandex_cluster_nav_section_title">Yandex → Cluster</string>
     <string name="yandex_cluster_nav_section_desc">Reads Yandex Maps guidance (maneuver, ETA) via accessibility and shows it on the cluster display. Does not cover the home screen left quadrant. Accessibility service must be enabled.</string>
-    <string name="yandex_cluster_nav_help_on">Show maneuver and ETA cards on the cluster during guidance.</string>
+    <string name="yandex_cluster_nav_help_on">Show a single maneuver + ETA card on the cluster during guidance.</string>
     <string name="yandex_cluster_nav_help_off">Turn off cluster navigation summary.</string>
     <string name="yandex_cluster_nav_toast_showing">Yandex guidance found; cluster cards updated.</string>
     <string name="yandex_cluster_nav_toast_yandex_closed">Yandex Maps is not open. Open the map and start guidance.</string>
@@ -297,4 +297,7 @@ Monitor — Foreground apps on display 2</string>
     <string name="launcher_quick_control_trunk_hint">Tap the vehicle to open/close trunk</string>
     <string name="launcher_quick_control_back">Back</string>
     <string name="header_selected_mode_description">Selected mode: %1$s</string>
+    <string name="cluster_nav_eta_remaining">Remaining</string>
+    <string name="cluster_nav_eta_arrival">Arrival</string>
+    <string name="cluster_nav_eta_duration">Duration</string>
 </resources>

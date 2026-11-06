@@ -47,13 +47,53 @@ public class PhoneApiJsonTest {
     }
 
     @Test
+    public void vehicleNowJsonCarriesRunningTripStatus() {
+        String json = PhoneApiJson.vehicleNow("V", 5, 14_870, 62, 520, true, 1_000L, 14, PhoneApiJson.LOCATION_PHONE);
+        assertEquals("{\"vin\":\"V\",\"updatedAt\":5,\"odometerKm\":14870,\"fuelPercent\":62,"
+                + "\"rangeKm\":520,\"trip\":{\"active\":true,\"startedAt\":1000,\"points\":14,"
+                + "\"location\":\"phone\"}}", json);
+    }
+
+    @Test
+    public void vehicleNowJsonMarksNoTripWhenIdle() {
+        String json = PhoneApiJson.vehicleNow("V", 5, 14_870, 62, 520, false, 0L, 0, null);
+        assertEquals("{\"vin\":\"V\",\"updatedAt\":5,\"odometerKm\":14870,\"fuelPercent\":62,"
+                + "\"rangeKm\":520,\"trip\":{\"active\":false}}", json);
+    }
+
+    @Test
+    public void tripWithoutFreshLocationReportsNone() {
+        String json = PhoneApiJson.vehicleNow("V", 5, 1, 1, 1, true, 7L, 0, null);
+        assertTrue(json.endsWith("\"location\":\"none\"}}"));
+    }
+
+    @Test
+    public void pingCarriesIdVersionAndGpsPort() {
+        assertEquals("{\"id\":\"a1b2c3d4e5f60718\",\"v\":1,\"gps\":45921}", PhoneApiJson.ping("a1b2c3d4e5f60718", 45921));
+        assertEquals("{\"id\":\"x\",\"v\":1,\"gps\":0}", PhoneApiJson.ping("x", 0));
+    }
+
+    @Test
+    public void vehicleNowAppendsGpsStatus() {
+        String base = PhoneApiJson.vehicleNow("V", 5, 1, 2, 3, false, 0L, 0, null);
+        assertEquals(base.substring(0, base.length() - 1) + ",\"gps\":{\"state\":\"live\",\"ageMs\":900}}",
+                PhoneApiJson.withGps(base, "live", 900));
+    }
+
+    @Test
+    public void gpsStatusOmitsAgeWithoutFix() {
+        String base = PhoneApiJson.vehicleNow("V", 5, 1, 2, 3);
+        assertTrue(PhoneApiJson.withGps(base, "waiting", -1).endsWith(",\"gps\":{\"state\":\"waiting\"}}"));
+    }
+
+    @Test
     public void quoteEscapesControlCharacters() {
         assertEquals("\"a\\n\\u0001\"", PhoneApiJson.quote("a\n\u0001"));
     }
 
     @Test
     public void tokenComparisonAndHeaderParsing() {
-        String header = "GET /trips HTTP/1.1\r\nHost: x\r\nx-mapcontrol-token:  abc123 \r\n\r\n";
+        String header = "GET /trips HTTP/1.1\r\nHost: x\r\nx-frostnav-token:  abc123 \r\n\r\n";
         assertEquals("abc123", PhoneAccess.headerValue(header, PhoneAccess.HEADER));
         assertTrue(PhoneAccess.matches("abc123", "abc123"));
         assertFalse(PhoneAccess.matches("abc123", "abc124"));
@@ -62,5 +102,12 @@ public class PhoneApiJsonTest {
         assertTrue(PhoneAccess.headerValue("GET / HTTP/1.1\r\n\r\n", PhoneAccess.HEADER) == null);
         assertTrue(PhoneAccess.isWellFormed("0123456789abcdef0123456789abcdef"));
         assertFalse(PhoneAccess.isWellFormed("XYZ"));
+    }
+
+    @Test
+    public void parkingIsNullWithoutPhotoAndCarriesTimeAndTripWithOne() {
+        assertEquals("{\"photo\":null}", PhoneApiJson.parking(0, ""));
+        assertEquals("{\"photo\":{\"capturedAt\":1700000000000,\"tripId\":\"t1699999000000\"}}",
+                PhoneApiJson.parking(1_700_000_000_000L, "t1699999000000"));
     }
 }

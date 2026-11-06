@@ -56,7 +56,10 @@ public final class TripStore extends SQLiteOpenHelper {
         }
     }
 
-    /** Aynı {@code id} ikinci kez yazılmaz. */
+    /**
+     * Yolculuğu yazar. Aynı {@code id} varsa satır ve rota noktaları yenisiyle değiştirilir: sürmekte olan yolculuk
+     * denetim noktalarıyla tekrar tekrar yazılır, sonuncusu kalır.
+     */
     public void insertTrip(TripRecord t) {
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
@@ -80,7 +83,8 @@ public final class TripStore extends SQLiteOpenHelper {
             putIfKnown(v, "lon_start", t.lonStart);
             putIfKnown(v, "lat_end", t.latEnd);
             putIfKnown(v, "lon_end", t.lonEnd);
-            if (db.insertWithOnConflict("trips", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1) {
+            if (db.insertWithOnConflict("trips", null, v, SQLiteDatabase.CONFLICT_REPLACE) != -1) {
+                // REPLACE eski satırı silerken rota noktalarını da (ON DELETE CASCADE) siler; yenisi yazılır.
                 for (int i = 0; i < t.route.size(); i++) {
                     TripRecord.Point p = t.route.get(i);
                     ContentValues pv = new ContentValues();
@@ -111,13 +115,19 @@ public final class TripStore extends SQLiteOpenHelper {
      * Telefon son aldığının başlangıcını tekrar {@code since} verir.
      */
     public List<TripRecord> tripsSince(long since, int limit) {
+        return tripsSince(since, limit, null);
+    }
+
+    /** {@code excludeId} verilirse o yolculuk dışarıda kalır (hâlâ süren yolculuk telefona yarım gitmesin). */
+    public List<TripRecord> tripsSince(long since, int limit, String excludeId) {
         SQLiteDatabase db = getReadableDatabase();
         List<TripRecord> out = new ArrayList<>();
         try (Cursor c = db.rawQuery("SELECT id, started_at, ended_at, odo_start_km, odo_end_km, distance_km,"
                 + " fuel_start_percent, fuel_end_percent, fuel_used_ml, range_start_km, range_end_km,"
                 + " avg_speed_kmh, max_speed_kmh, moving_ms, lat_start, lon_start, lat_end, lon_end"
-                + " FROM trips WHERE started_at > ? ORDER BY started_at ASC LIMIT ?",
-                new String[]{Long.toString(since), Integer.toString(limit)})) {
+                + " FROM trips WHERE started_at > ? AND id != ? ORDER BY started_at ASC LIMIT ?",
+                new String[]{Long.toString(since), excludeId == null ? "" : excludeId,
+                        Integer.toString(limit)})) {
             while (c.moveToNext()) {
                 String id = c.getString(0);
                 out.add(new TripRecord(id, c.getLong(1), c.getLong(2), c.getInt(3), c.getInt(4), c.getInt(5),

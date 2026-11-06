@@ -159,11 +159,9 @@ public class Camera360TabBuilder {
     // --- Kayit ayarlari (kayit baslamadan secilir, kayit suresince kilitli) ---
     private static final String PREFS = "camera360";
     private int selectedResIndex = 0;
-    private boolean separateRecording;
     private boolean recordStartPending;
     private LinearLayout settingsContainer;
     private UiStyles.TernarySegmentHandle resSegment;
-    private UiStyles.BinarySegmentHandle separateSegment;
     private TextView estimateView;
     private final Handler ticker = new Handler(Looper.getMainLooper());
     /** recTick kuyrukta veya calisiyor (startRecTicker tekrar kurmaz). */
@@ -199,7 +197,6 @@ public class Camera360TabBuilder {
         dvr.setOverlaySuppliers(speedSupplier, gearSupplier);
         dvr.start();
         selectedResIndex = dvr.getUsbResIndex();
-        separateRecording = dvr.getUsbSeparate();
         build();
     }
 
@@ -432,6 +429,23 @@ public class Camera360TabBuilder {
         menu.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         int side = dp(16);
         menu.setPadding(side, 0, side, 0);
+
+        // Kalici uyari: kayit acikken surecin aniden olmesi (son uygulamalardan kaydirma,
+        // guncelleme) Qualcomm codec HAL'ini cokertip ekrani karartiyor.
+        int warnColor = themeColor(R.color.statusWarning);
+        TextView killWarning = new TextView(context);
+        killWarning.setText(R.string.camera360_kill_warning_banner);
+        killWarning.setTextSize(14);
+        killWarning.setTextColor(themeColor(R.color.textPrimary));
+        killWarning.setGravity(Gravity.CENTER);
+        killWarning.setPadding(dp(18), dp(10), dp(18), dp(10));
+        GradientDrawable warnBg = roundRect(withAlpha(warnColor, 0x26), 14);
+        warnBg.setStroke(dp(1), withAlpha(warnColor, 0x66));
+        killWarning.setBackground(warnBg);
+        LinearLayout.LayoutParams warnP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        warnP.setMargins(0, 0, 0, dp(22));
+        menu.addView(killWarning, warnP);
 
         LinearLayout heading = new LinearLayout(context);
         heading.setOrientation(LinearLayout.HORIZONTAL);
@@ -933,7 +947,6 @@ public class Camera360TabBuilder {
         signalsRefresh.setContentDescription(context.getString(R.string.camera360_refresh));
         signalsRefresh.setOnClickListener(v -> recheckCameras());
         // Gizli ayar: uzun basinca kamera "hizli okuma" (onbellekli tampon) acilir/kapanir.
-        // Sorun cikan bir aracta yeniden derlemeden eski davranisa donmek icin.
         signalsRefresh.setOnLongClickListener(v -> {
             boolean enable = !dvr.isCameraFastReadEnabled();
             dvr.setCameraFastReadEnabled(enable);
@@ -1013,17 +1026,11 @@ public class Camera360TabBuilder {
 
         LinearLayout resColumn = new LinearLayout(context);
         resColumn.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout sepColumn = new LinearLayout(context);
-        sepColumn.setOrientation(LinearLayout.VERTICAL);
         if (wide) {
             settingsContainer.addView(resColumn, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-            settingsContainer.addView(sepColumn, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         } else {
             settingsContainer.addView(resColumn, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            settingsContainer.addView(sepColumn, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         }
 
@@ -1053,24 +1060,6 @@ public class Camera360TabBuilder {
                 });
         hideSegmentHelp(resColumn);
 
-        separateSegment = UiStyles.addBinarySegmentedControl(context, sepColumn,
-                context.getString(R.string.camera360_separate_short),
-                context.getString(R.string.common_yes), context.getString(R.string.common_no),
-                context.getString(R.string.camera360_separate_help_on),
-                context.getString(R.string.camera360_separate_help_off),
-                separateRecording,
-                enabled -> {
-                    if (usbActive() || recordStartPending) {
-                        separateSegment.syncVisualWithoutCommit(separateRecording);
-                        return;
-                    }
-                    separateRecording = enabled;
-                    saveRecordSettings();
-                    updateResolutionUi();
-                    refreshUsbInfo();
-                });
-        hideSegmentHelp(sepColumn);
-
         estimateView = new TextView(context);
         estimateView.setTextSize(13);
         estimateView.setTextColor(themeColor(R.color.textSecondaryCool));
@@ -1095,7 +1084,7 @@ public class Camera360TabBuilder {
                     refreshUsbAutoUi();
                     refreshUsbInfo();
                 });
-        hideSegmentHelp(usbAutoColumn);
+        usbAutoSegment.hideHelp();
         TextView autoNote = new TextView(context);
         autoNote.setText(R.string.camera360_usb_auto_note);
         autoNote.setTextSize(12);
@@ -1260,7 +1249,6 @@ public class Camera360TabBuilder {
         try {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                     .putInt("resIndex", selectedResIndex)
-                    .putBoolean("separate", separateRecording)
                     .apply();
         } catch (Throwable ignored) {
         }
@@ -1292,14 +1280,9 @@ public class Camera360TabBuilder {
         if (resSegment != null) {
             resSegment.syncVisualFromModeId(selectedResIndex);
         }
-        if (separateSegment != null) {
-            separateSegment.syncVisualWithoutCommit(separateRecording);
-        }
         if (estimateView != null) {
-            long bpm = CameraRecorder.bytesPerMinute(selectedWidth(), selectedHeight(), separateRecording);
-            estimateView.setText(context.getString(
-                    separateRecording ? R.string.camera360_estimate_separate
-                            : R.string.camera360_estimate,
+            long bpm = CameraRecorder.bytesPerMinute(selectedWidth(), selectedHeight(), false);
+            estimateView.setText(context.getString(R.string.camera360_estimate,
                     formatSize(bpm), formatSize(bpm * 60)));
         }
     }
@@ -1308,7 +1291,6 @@ public class Camera360TabBuilder {
     private void refreshSettingsState() {
         boolean locked = usbActive() || recordStartPending;
         if (resSegment != null) resSegment.setInteractionEnabled(!locked);
-        if (separateSegment != null) separateSegment.setInteractionEnabled(!locked);
         if (settingsContainer != null) settingsContainer.setAlpha(locked ? 0.6f : 1f);
     }
 
@@ -1636,7 +1618,7 @@ public class Camera360TabBuilder {
                 return;
             }
             long fit = CameraRecorder.estimateFitMinutes(free,
-                    selectedWidth(), selectedHeight(), separateRecording);
+                    selectedWidth(), selectedHeight(), false);
             if (fit < MIN_FIT_MINUTES) {
                 usbFitView.setText("< " + formatDuration(MIN_FIT_MINUTES));
                 usbFitView.setTextColor(COLOR_REC);
@@ -1688,6 +1670,7 @@ public class Camera360TabBuilder {
                         "00:00", file.getName()));
             }
             syncRecordingUi();
+            maybeShowKillWarning();
         }
 
         @Override
@@ -1924,11 +1907,10 @@ public class Camera360TabBuilder {
         refreshSettingsState();
         final int w = selectedWidth();
         final int h = selectedHeight();
-        final boolean sep = separateRecording;
         final File root = usbRoot;
         ensureStreams(() -> {
             if (!recordStartPending) return;
-            if (!dvr.startManualUsb(root, w, h, sep)) {
+            if (!dvr.startManualUsb(root, w, h)) {
                 recordStartPending = false;
                 syncRecordingUi();
                 refreshUsbInfo();
@@ -1938,10 +1920,31 @@ public class Camera360TabBuilder {
 
     // ---------- Sekme yasam dongusu ----------
 
+    /**
+     * Kayit acikken surecin aniden olmesi (son uygulamalardan kaydirma, guncelleme) Qualcomm
+     * codec HAL'ini cokertip ekrani karartiyor; kullaniciya bir kez anlatilir.
+     */
+    private void maybeShowKillWarning() {
+        if (!tabActive || !dvr.isRecording() || !dvr.shouldShowKillWarning()) {
+            return;
+        }
+        dvr.markKillWarningShown();
+        try {
+            new android.app.AlertDialog.Builder(context)
+                    .setTitle(R.string.camera360_kill_warning_title)
+                    .setMessage(R.string.camera360_kill_warning_msg)
+                    .setPositiveButton(R.string.camera360_kill_warning_ok, null)
+                    .show();
+        } catch (RuntimeException ignored) {
+            // Activity olmayan baglamda gosterilemezse bir sonraki seferde de denenmez.
+        }
+    }
+
     public void onTabVisible() {
         tabActive = true;
         hub.addStateListener(camStateListener);
         dvr.addListener(dvrListener);
+        maybeShowKillWarning();
         if (usbRecording()) {
             startRecTicker();
         }

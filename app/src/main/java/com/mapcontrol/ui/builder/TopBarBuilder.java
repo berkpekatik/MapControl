@@ -15,7 +15,6 @@ import android.widget.TextView;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.appcompat.widget.AppCompatImageView;
@@ -168,12 +167,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         // 3. Sağ: OEM Marka Rozeti
         brandView = new TextView(context);
         brandView.setTag("header_brand");
-        SpannableString brand = new SpannableString("MapControl by vNoisy (" + BuildConfig.VERSION_NAME + ")");
-        int author = brand.toString().indexOf("vNoisy");
-        if (author >= 0) {
-            brand.setSpan(new StyleSpan(Typeface.ITALIC), author, author + "vNoisy".length(),
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
+        SpannableString brand = new SpannableString("MapControl (" + BuildConfig.VERSION_NAME + ")");
         int version = brand.toString().indexOf('(');
         if (version >= 0) {
             brand.setSpan(new RelativeSizeSpan(.82f), version, brand.length(),

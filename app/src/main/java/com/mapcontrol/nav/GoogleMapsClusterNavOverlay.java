@@ -21,19 +21,16 @@ import androidx.annotation.Nullable;
 import com.mapcontrol.util.AppLaunchHelper;
 
 /**
- * Cluster ekranında Google Maps navigasyon özet kartları (bildirim verisi).
+ * Cluster ekranında Google Maps navigasyon özet kartı (manevra + ETA tek kart) (bildirim verisi).
  * FLAG_NOT_TOUCHABLE — kadranlara dokunuşu engellemez.
  */
 public final class GoogleMapsClusterNavOverlay {
 
     public static final String PREF_ENABLED = "google_maps_cluster_nav_overlay";
     private static final String PREFS = "MapControlPrefs";
-    private static final int LAYOUT_VERSION = 4;
-    private static final int CARD_WIDTH_DP = ClusterNavCardStyle.CARD_WIDTH_DP;
-    private static final int TOP_MARGIN_DP = 110;
-    private static final int CENTER_GAP_DP = 300;
-    /** Kartları ekran genişliğine göre dışa kaydırma (sol/sağ). */
-    private static final float CARD_OUTWARD_SHIFT_RATIO = 0.15f;
+    private static final int LAYOUT_VERSION = 6;
+    private static final int TOP_MARGIN_DP =
+            ClusterNavCardStyle.topMarginDp(ClusterNavOverlayOffsets.Provider.GOOGLE);
 
     private static GoogleMapsClusterNavOverlay instance;
 
@@ -53,17 +50,15 @@ public final class GoogleMapsClusterNavOverlay {
     private LinearLayout etaDistanceRow;
     private LinearLayout etaArrivalRow;
     private LinearLayout etaTimeRow;
-    private LinearLayout maneuverCard;
-    private LinearLayout etaCard;
-    private FrameLayout.LayoutParams maneuverCardLp;
-    private FrameLayout.LayoutParams etaCardLp;
-    private int layoutManeuverLeft;
-    private int layoutEtaLeft;
+    private LinearLayout navCard;
+    private LinearLayout maneuverSection;
+    private LinearLayout etaSection;
+    private View divider;
+    private FrameLayout.LayoutParams navCardLp;
     private int layoutTopMargin;
-    private int layoutCardWidthPx;
-    private int layoutScreenWidthPx;
     private WindowManager.LayoutParams overlayLayoutParams;
     private int appliedLayoutVersion = -1;
+    private ClusterNavOverlayOffsets.Style appliedStyle;
     private long lastZOrderRaiseUptimeMs = 0L;
     private static final long Z_ORDER_RAISE_MIN_INTERVAL_MS = 250L;
 
@@ -100,6 +95,31 @@ public final class GoogleMapsClusterNavOverlay {
     /** Aynı snapshot tekrar uygulanmasın diye önbelleği temizler (ayar açılınca). */
     public void invalidateCache() {
         mainHandler.post(() -> lastApplied = null);
+    }
+
+    private ClusterNavOverlayOffsets.Style currentStyle() {
+        return ClusterNavOverlayOffsets.getStyle(
+                appContext, ClusterNavOverlayOffsets.Provider.GOOGLE);
+    }
+
+    /** Kart görünümü (detay/ince çizgi) değişince: son veriyle yeniden çizer. */
+    public void restyle() {
+        mainHandler.post(() -> {
+            if (overlayRoot != null && windowManager != null) {
+                try {
+                    windowManager.removeView(overlayRoot);
+                } catch (Exception ignored) {
+                }
+                overlayRoot = null;
+                clearViewRefs();
+                appliedLayoutVersion = -1;
+            }
+            GoogleMapsNavSnapshot snap = lastApplied;
+            lastApplied = null;
+            if (snap != null) {
+                applyOnMain(snap);
+            }
+        });
     }
 
     /** Zorla yeniden çizim (layout sürümü değişince). */
@@ -141,8 +161,18 @@ public final class GoogleMapsClusterNavOverlay {
 
         boolean hasManeuver = bindManeuverCard(snapshot);
         boolean hasEta = bindEtaCard(snapshot);
-        setVisible(maneuverCard, hasManeuver);
-        setVisible(etaCard, hasEta);
+        setVisible(maneuverSection, hasManeuver);
+        setVisible(etaSection, hasEta);
+        setVisible(divider, hasManeuver && hasEta);
+        if (appliedStyle == ClusterNavOverlayOffsets.Style.SLIM && navCard != null && navCardLp != null) {
+            int slimWidth = (hasManeuver && hasEta)
+                    ? dp(navCard.getContext(), ClusterNavCardStyle.widthDp(appliedStyle))
+                    : FrameLayout.LayoutParams.WRAP_CONTENT;
+            if (navCardLp.width != slimWidth) {
+                navCardLp.width = slimWidth;
+                navCard.setLayoutParams(navCardLp);
+            }
+        }
         if (!hasManeuver && !hasEta) {
             hideInternal();
             return;
@@ -282,10 +312,11 @@ public final class GoogleMapsClusterNavOverlay {
         etaDistanceRow = null;
         etaArrivalRow = null;
         etaTimeRow = null;
-        maneuverCard = null;
-        etaCard = null;
-        maneuverCardLp = null;
-        etaCardLp = null;
+        navCard = null;
+        maneuverSection = null;
+        etaSection = null;
+        divider = null;
+        navCardLp = null;
     }
 
     /** Yansıtma sekmesindeki X/Y kaydırma; overlay açıksa anında uygulanır. */
@@ -294,38 +325,24 @@ public final class GoogleMapsClusterNavOverlay {
     }
 
     private void applyStoredOffsetsOnMain() {
-        if (maneuverCard == null || etaCard == null
-                || maneuverCardLp == null || etaCardLp == null) {
+        if (navCard == null || navCardLp == null) {
             return;
         }
         Context ctx = displayContext != null ? displayContext : appContext;
-        ClusterNavOverlayOffsets.CardLayout maneuver =
+        navCardLp.topMargin = layoutTopMargin;
+        navCard.setLayoutParams(navCardLp);
+        ClusterNavOverlayOffsets.CardLayout layout =
                 ClusterNavOverlayOffsets.getCardLayout(
                         appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
-                        ClusterNavOverlayOffsets.Card.MANEUVER);
-        ClusterNavOverlayOffsets.CardLayout eta =
-                ClusterNavOverlayOffsets.getCardLayout(
-                        appContext, ClusterNavOverlayOffsets.Provider.GOOGLE,
-                        ClusterNavOverlayOffsets.Card.ETA);
-
-        maneuverCardLp.leftMargin = layoutManeuverLeft;
-        maneuverCardLp.topMargin = layoutTopMargin;
-        maneuverCard.setLayoutParams(maneuverCardLp);
+                        ClusterNavOverlayOffsets.Card.NAV);
         ClusterNavOverlayOffsets.applyTranslationAndScale(
-                maneuverCard, ctx,
-                maneuver.offsetXDp, maneuver.offsetYDp, maneuver.scalePercent);
-
-        etaCardLp.leftMargin = layoutEtaLeft;
-        etaCardLp.topMargin = layoutTopMargin;
-        etaCard.setLayoutParams(etaCardLp);
-        ClusterNavOverlayOffsets.applyTranslationAndScale(
-                etaCard, ctx,
-                eta.offsetXDp, eta.offsetYDp, eta.scalePercent);
+                navCard, ctx, layout.offsetXDp, layout.offsetYDp, layout.scalePercent);
     }
 
     private void ensureOverlay() {
         if (overlayRoot != null && windowManager != null
-                && appliedLayoutVersion == LAYOUT_VERSION) {
+                && appliedLayoutVersion == LAYOUT_VERSION
+                && appliedStyle == currentStyle()) {
             return;
         }
         if (overlayRoot != null) {
@@ -365,6 +382,7 @@ public final class GoogleMapsClusterNavOverlay {
                 return;
             }
 
+            appliedStyle = currentStyle();
             overlayRoot = buildOverlay(displayContext);
             appliedLayoutVersion = LAYOUT_VERSION;
             overlayLayoutParams = new WindowManager.LayoutParams(
@@ -379,6 +397,7 @@ public final class GoogleMapsClusterNavOverlay {
             windowManager.addView(overlayRoot, overlayLayoutParams);
             lastZOrderRaiseUptimeMs = SystemClock.uptimeMillis();
         } catch (Exception e) {
+            android.util.Log.e("ClusterNavOverlay", "overlay oluşturulamadı", e);
             hideInternal();
         }
     }
@@ -388,74 +407,29 @@ public final class GoogleMapsClusterNavOverlay {
         root.setClipChildren(false);
         root.setClipToPadding(false);
 
-        int screenWidth = ctx.getResources().getDisplayMetrics().widthPixels;
-        int cardWidthPx = dp(ctx, CARD_WIDTH_DP);
-        int gapPx = dp(ctx, CENTER_GAP_DP);
-        int topMarginPx = dp(ctx, TOP_MARGIN_DP);
-        int outwardPx = (int) (screenWidth * CARD_OUTWARD_SHIFT_RATIO);
-        int pairWidth = cardWidthPx * 2 + gapPx;
-        int pairLeft = (screenWidth - pairWidth) / 2;
-        int maneuverLeft = pairLeft - outwardPx;
-        int etaLeft = pairLeft + cardWidthPx + gapPx + outwardPx;
+        ClusterNavCardStyle.NavCard c = ClusterNavCardStyle.createNavCard(ctx, appliedStyle);
+        navCard = c.card;
+        maneuverSection = c.maneuverSection;
+        etaSection = c.etaSection;
+        divider = c.divider;
+        maneuverDistanceView = c.distance;
+        nextStreetView = c.street;
+        maneuverStatusView = c.status;
+        etaDistanceRow = c.etaDistance.row;
+        etaDistanceValue = c.etaDistance.value;
+        etaArrivalRow = c.etaArrival.row;
+        etaArrivalValue = c.etaArrival.value;
+        etaTimeRow = c.etaTime.row;
+        etaTimeValue = c.etaTime.value;
+        etaStatusView = c.etaStatus;
 
-        maneuverCard = ClusterNavCardStyle.createManeuverCard(ctx);
-        maneuverDistanceView = ClusterNavCardStyle.createManeuverText(ctx, 30, true);
-        maneuverCard.addView(maneuverDistanceView, ClusterNavCardStyle.wrapLp());
-
-        nextStreetView = ClusterNavCardStyle.createManeuverText(ctx, 14, false);
-        nextStreetView.setMaxLines(2);
-        LinearLayout.LayoutParams streetLp = ClusterNavCardStyle.wrapLp();
-        streetLp.topMargin = dp(ctx, 4);
-        maneuverCard.addView(nextStreetView, streetLp);
-
-        maneuverStatusView = ClusterNavCardStyle.createManeuverText(ctx, 12, false);
-        maneuverStatusView.setMaxLines(2);
-        LinearLayout.LayoutParams statusLp = ClusterNavCardStyle.wrapLp();
-        statusLp.topMargin = dp(ctx, 2);
-        maneuverCard.addView(maneuverStatusView, statusLp);
-
-        etaCard = ClusterNavCardStyle.createEtaCard(ctx);
-        ClusterNavCardStyle.MetricRow distanceRow =
-                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Kalan", true);
-        etaDistanceRow = distanceRow.row;
-        etaDistanceValue = distanceRow.value;
-
-        ClusterNavCardStyle.MetricRow arrivalRow =
-                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Varış", false);
-        etaArrivalRow = arrivalRow.row;
-        etaArrivalValue = arrivalRow.value;
-
-        ClusterNavCardStyle.MetricRow timeRow =
-                ClusterNavCardStyle.addMetricRow(etaCard, ctx, "Süre", false);
-        etaTimeRow = timeRow.row;
-        etaTimeValue = timeRow.value;
-
-        etaStatusView = ClusterNavCardStyle.createEtaStatusText(ctx);
-        LinearLayout.LayoutParams etaStatusLp = ClusterNavCardStyle.wrapLp();
-        etaStatusLp.topMargin = dp(ctx, 6);
-        etaCard.addView(etaStatusView, etaStatusLp);
-
-        layoutScreenWidthPx = screenWidth;
-        layoutCardWidthPx = cardWidthPx;
-        layoutManeuverLeft = Math.max(0, maneuverLeft);
-        layoutEtaLeft = Math.min(screenWidth - cardWidthPx, etaLeft);
-        layoutTopMargin = topMarginPx;
-
-        maneuverCardLp = new FrameLayout.LayoutParams(
-                cardWidthPx,
+        layoutTopMargin = dp(ctx, TOP_MARGIN_DP);
+        navCardLp = new FrameLayout.LayoutParams(
+                dp(ctx, ClusterNavCardStyle.widthDp(appliedStyle)),
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        maneuverCardLp.gravity = Gravity.TOP | Gravity.START;
-        maneuverCardLp.leftMargin = layoutManeuverLeft;
-        maneuverCardLp.topMargin = layoutTopMargin;
-        root.addView(maneuverCard, maneuverCardLp);
-
-        etaCardLp = new FrameLayout.LayoutParams(
-                cardWidthPx,
-                FrameLayout.LayoutParams.WRAP_CONTENT);
-        etaCardLp.gravity = Gravity.TOP | Gravity.START;
-        etaCardLp.leftMargin = layoutEtaLeft;
-        etaCardLp.topMargin = layoutTopMargin;
-        root.addView(etaCard, etaCardLp);
+        navCardLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        navCardLp.topMargin = layoutTopMargin;
+        root.addView(navCard, navCardLp);
 
         applyStoredOffsetsOnMain();
         return root;

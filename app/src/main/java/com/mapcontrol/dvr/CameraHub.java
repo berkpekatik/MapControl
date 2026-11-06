@@ -12,8 +12,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.IntConsumer;
@@ -118,8 +120,11 @@ public final class CameraHub {
     private final Thread[] grabThreads = new Thread[CAM_COUNT];
     private boolean started;
     private boolean ready;
+    /** Kurulum bekleniyor: tuketiciler kayitli kalir ama akislar acilmaz. */
+    private boolean installHold;
 
     private final Runnable stopRunnable = this::stopIfIdle;
+    private final Runnable installHoldExpiry = this::resumeAfterInstall;
 
     private CameraHub() {
         for (int i = 0; i < CAM_COUNT; i++) {
@@ -141,11 +146,8 @@ public final class CameraHub {
             if (!consumers.containsKey(tag)) {
                 consumers.put(tag, new Demand());
             }
-            if (!started) {
-                started = true;
-                ready = false;
-                final int mySession = session.incrementAndGet();
-                control.execute(() -> doStart(mySession));
+            if (!started && !installHold) {
+                startLocked();
             }
             if (onReady != null) {
                 if (ready) {
@@ -167,6 +169,53 @@ public final class CameraHub {
                 mainHandler.removeCallbacks(stopRunnable);
                 mainHandler.postDelayed(stopRunnable, STOP_DELAY_MS);
             }
+        }
+    }
+
+    /**
+     * Sureci oldurecek bir olaydan (uygulama kurulumu, USB ayrilmasi) once akislari kapatir ve
+     * kapanana kadar bekler. Akislar acikken olursek kamera sunucusuna durdurma gitmez; aracta kamera karelerinin
+     * serbest kalan bellege yazilmaya devam ettigi ve grafik metadata'sini bozup surfaceflinger'i
+     * dusurdugu goruldu (siyah ekran). Tuketiciler kayitli kalir: kurulum olmazsa
+     * autoResumeMs sonunda (veya {@link #resumeAfterInstall}) akislar yeniden acilir.
+     *
+     * Bloklar: ana thread'den cagirma.
+     *
+     * @return akislar waitMs icinde kapandiysa true
+     */
+    public boolean suspendForInstall(long waitMs, long autoResumeMs) throws InterruptedException {
+        final Thread[] threads;
+        synchronized (this) {
+            installHold = true;
+            mainHandler.removeCallbacks(stopRunnable);
+            mainHandler.removeCallbacks(installHoldExpiry);
+            mainHandler.postDelayed(installHoldExpiry, autoResumeMs);
+            threads = started ? teardownLocked() : null;
+        }
+        CountDownLatch done = new CountDownLatch(1);
+        // Tek thread'li executor: kuyruktaki acma/kapama islemleri de bitmis olur.
+        control.execute(() -> {
+            if (threads != null) doStop(threads);
+            done.countDown();
+        });
+        return done.await(waitMs, TimeUnit.MILLISECONDS);
+    }
+
+    /** Kurulum (guncelleme) hazirligi suruyor: akislar kapali tutulur, yeni akis acilmamali. */
+    public synchronized boolean isInstallHold() {
+        return installHold;
+    }
+
+    /** Kurulum olmadiysa akislari tuketiciler icin yeniden acar. Bekleme yoksa bir sey yapmaz. */
+    public synchronized void resumeAfterInstall() {
+        if (!installHold) {
+            return;
+        }
+        installHold = false;
+        mainHandler.removeCallbacks(installHoldExpiry);
+        Log.i(TAG, "kurulum beklemesi bitti");
+        if (!started && !consumers.isEmpty()) {
+            startLocked();
         }
     }
 
@@ -314,15 +363,28 @@ public final class CameraHub {
             if (!consumers.isEmpty() || !started) {
                 return;
             }
-            started = false;
-            ready = false;
-            session.incrementAndGet();
-            threads = grabThreads.clone();
-            for (int i = 0; i < CAM_COUNT; i++) {
-                grabThreads[i] = null;
-            }
+            threads = teardownLocked();
         }
         control.execute(() -> doStop(threads));
+    }
+
+    private void startLocked() {
+        started = true;
+        ready = false;
+        final int mySession = session.incrementAndGet();
+        control.execute(() -> doStart(mySession));
+    }
+
+    /** Durumu kapaliya alir; donen thread'ler {@link #doStop} ile bitirilmeli. */
+    private Thread[] teardownLocked() {
+        started = false;
+        ready = false;
+        session.incrementAndGet();
+        Thread[] threads = grabThreads.clone();
+        for (int i = 0; i < CAM_COUNT; i++) {
+            grabThreads[i] = null;
+        }
+        return threads;
     }
 
     private void doStart(int mySession) {

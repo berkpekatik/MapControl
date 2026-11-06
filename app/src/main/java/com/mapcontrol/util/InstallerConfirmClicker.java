@@ -59,6 +59,8 @@ public final class InstallerConfirmClicker {
     });
     private static final AtomicBoolean SCAN_IN_FLIGHT = new AtomicBoolean(false);
     private static long lastScanMs;
+    private static volatile long scanStartedMs;
+    private static boolean lastConfirmLogged;
     private static long cooldownUntil;
     private static boolean pendingArm;
     private static boolean stripShowing;
@@ -118,6 +120,42 @@ public final class InstallerConfirmClicker {
         dismissStrip();
     }
 
+    private static long lastEventLogMs;
+
+    /** Teşhis: olay hangi paketten geliyor? (binder çağrısı yok, ucuz) */
+    public static void onWindowEvent(AccessibilityService service, android.view.accessibility.AccessibilityEvent event) {
+        if (event != null) {
+            CharSequence pkg = event.getPackageName();
+            long now = SystemClock.uptimeMillis();
+            if (isInstallerPackage(pkg) && now - lastEventLogMs > 3000L) {
+                lastEventLogMs = now;
+                Log.i(TAG, "yükleyici olayı type=" + event.getEventType() + " pkg=" + pkg
+                        + " inFlight=" + SCAN_IN_FLIGHT.get() + " strip=" + stripShowing);
+            }
+        }
+        if (event != null && event.getEventType() == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            CharSequence pkg = event.getPackageName();
+            CharSequence cls = event.getClassName();
+            if (isInstallerPackage(pkg)) {
+                // Pencere taraması (getWindows/getRoot) bazı head unit'lerde boş dönüyor;
+                // olayın kendi paket/sınıf bilgisi binder gerektirmez, doğrudan tetikle.
+                if (cls != null && cls.toString().contains("PackageInstallerActivity")
+                        && !userDismissed && !stripShowing
+                        && SystemClock.uptimeMillis() >= cooldownUntil) {
+                    Log.i(TAG, "olay ile onay ekranı algılandı: " + cls);
+                    HANDLER.post(() -> {
+                        if (!stripShowing && !userDismissed) {
+                            showStrip(service);
+                        }
+                    });
+                }
+            } else if (pkg != null && !pkg.toString().contains("com.mapcontrol")) {
+                userDismissed = false;
+            }
+        }
+        onWindowEvent(service);
+    }
+
     public static void onWindowEvent(AccessibilityService service) {
         if (service == null || SystemClock.uptimeMillis() < cooldownUntil) {
             return;
@@ -129,23 +167,42 @@ public final class InstallerConfirmClicker {
             return;
         }
         if (!SCAN_IN_FLIGHT.compareAndSet(false, true)) {
+            long stuckMs = now - scanStartedMs;
+            if (stuckMs > 5000L) {
+                Log.w(TAG, "tarama " + stuckMs + " ms'dir bitmedi (binder bloklu olabilir)");
+            }
             return;
         }
         lastScanMs = now;
+        scanStartedMs = now;
         SCAN_EXEC.execute(() -> {
             boolean confirm;
             try {
                 confirm = hasInstallerConfirm(service);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                Log.w(TAG, "tarama hatası", e);
                 confirm = false;
             }
+            long tookMs = SystemClock.uptimeMillis() - scanStartedMs;
+            if (tookMs > 1500L) {
+                Log.w(TAG, "tarama yavaş: " + tookMs + " ms");
+            }
             SCAN_IN_FLIGHT.set(false);
+            if (SystemClock.uptimeMillis() - lastEventLogMs < 1500L) {
+                Log.i(TAG, "tarama sonucu confirm=" + confirm + " sürdü=" + tookMs + "ms");
+            }
             boolean found = confirm;
             HANDLER.post(() -> handleScanResult(service, found));
         });
     }
 
     private static void handleScanResult(AccessibilityService service, boolean confirm) {
+        if (confirm != lastConfirmLogged) {
+            lastConfirmLogged = confirm;
+            Log.i(TAG, "onay ekranı=" + confirm + " strip=" + stripShowing
+                    + " userDismissed=" + userDismissed
+                    + " cooldown=" + (SystemClock.uptimeMillis() < cooldownUntil));
+        }
         if (SystemClock.uptimeMillis() < cooldownUntil) {
             return;
         }
@@ -312,7 +369,8 @@ public final class InstallerConfirmClicker {
     }
 
     private static boolean hasQuestion(AccessibilityNodeInfo root) {
-        return hasViewIdSuffix(root, QUESTION_SUFFIX);
+        // install_confirm_question, install_confirm_question_update vb.
+        return hasViewIdContaining(root, QUESTION_SUFFIX);
     }
 
     private static boolean hasViewId(AccessibilityNodeInfo root, String id) {
@@ -329,9 +387,9 @@ public final class InstallerConfirmClicker {
         }
     }
 
-    private static boolean hasViewIdSuffix(AccessibilityNodeInfo node, String suffix) {
+    private static boolean hasViewIdContaining(AccessibilityNodeInfo node, String part) {
         String viewId = node.getViewIdResourceName();
-        if (viewId != null && viewId.endsWith("/" + suffix)) {
+        if (viewId != null && viewId.contains("/" + part)) {
             return true;
         }
         for (int i = 0; i < node.getChildCount(); i++) {
@@ -339,7 +397,7 @@ public final class InstallerConfirmClicker {
             if (child == null) {
                 continue;
             }
-            boolean found = hasViewIdSuffix(child, suffix);
+            boolean found = hasViewIdContaining(child, part);
             child.recycle();
             if (found) {
                 return true;

@@ -71,4 +71,18 @@ public class MapsLinkTest {
         assertEquals("geo:40.760000,29.930000?q=40.760000,29.930000", MapsLink.geoUri(40.76, 29.93));
         assertEquals("geo:0,0?q=Gebze+Teknik+%C3%9Cniversitesi", MapsLink.searchUri("Gebze Teknik Üniversitesi"));
     }
+
+    @Test
+    public void yandexFamilyAndDestination() {
+        assertTrue(MapsLink.isYandex("https://yandex.com.tr/navi?rtext=40.862194,30.276076~40.860194,30.277296&rtt=auto"));
+        assertTrue(MapsLink.isYandex("https://yandex.com/maps/?ll=29.9,40.7"));
+        assertFalse(MapsLink.isYandex("https://www.google.com/maps"));
+        assertFalse(MapsLink.isYandex(null));
+        // rtext enlem,boylam; hedef son noktadır
+        assertArrayEquals(new double[]{40.860194, 30.277296}, MapsLink.yandexDestination(
+                "https://yandex.com.tr/navi?rtext=40.862194,30.276076~40.860194,30.277296&rtt=auto"), 1e-9);
+        // pt/ll boylam,enlem
+        assertArrayEquals(new double[]{40.76, 29.93}, MapsLink.yandexDestination("https://yandex.com/maps/?ll=29.93%2C40.76&z=16"), 1e-9);
+        assertNull(MapsLink.yandexDestination("https://yandex.com/maps/?text=Gebze"));
+    }
 }

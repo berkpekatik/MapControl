@@ -43,6 +43,7 @@ public final class PhonePrefs {
         d.put("floatingQuickActionsEnabled", false);
         d.put("floatingQuickBarPosSaved", false);
         d.put("launcherModeEnabled", false);
+        d.put("parkPhotoEnabled", false);
         DEFAULTS = Collections.unmodifiableMap(d);
 
         Set<String> w = new LinkedHashSet<>();
@@ -53,6 +54,7 @@ public final class PhonePrefs {
         w.add("bootAutoStart");
         w.add("bootAutoLaunchUi");
         w.add("welcomeAudioAutoPlay");
+        w.add("parkPhotoEnabled");
         WRITABLE = Collections.unmodifiableSet(w);
     }
 

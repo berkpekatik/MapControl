@@ -44,7 +44,6 @@ final class Camera360AutoView {
     private UiStyles.BinarySegmentHandle enableSegment;
     private LinearLayout enableColumn;
     private TextView blockedNote;
-    private Camera360Ui.Choice modeChoice;
     private TextView modeDesc;
     private TextView retentionNote;
     private TextView statusText;
@@ -297,7 +296,7 @@ final class Camera360AutoView {
                 ui.context.getString(R.string.camera360_auto_toggle),
                 ui.context.getString(R.string.common_yes), ui.context.getString(R.string.common_no),
                 "", "", dvr.isAutoInternalEnabled(), this::onToggle);
-        hideLastChild(enableColumn);
+        enableSegment.hideHelp();
 
         blockedNote = ui.text(13, R.color.textSecondaryCool, false);
         blockedNote.setText(R.string.camera360_auto_blocked_usb);
@@ -307,19 +306,6 @@ final class Camera360AutoView {
         bp.leftMargin = inset;
         bp.rightMargin = inset;
         card.addView(blockedNote, bp);
-
-        TextView modeTitle = ui.text(16, R.color.textPrimary, true);
-        modeTitle.setText(R.string.camera360_auto_mode);
-        modeTitle.setPadding(inset, ui.dp(16), inset, ui.dp(8));
-        card.addView(modeTitle);
-        modeChoice = ui.choice(new String[]{
-                ui.context.getString(R.string.camera360_auto_mode_quality),
-                ui.context.getString(R.string.camera360_auto_mode_perf)},
-                dvr.getInternalMode().ordinal(), this::onModePicked);
-        LinearLayout.LayoutParams mp = ui.matchWrap();
-        mp.leftMargin = inset;
-        mp.rightMargin = inset;
-        card.addView(modeChoice.view, mp);
 
         modeDesc = ui.text(13, R.color.textSecondaryCool, false);
         modeDesc.setPadding(ui.dp(12), ui.dp(8), ui.dp(12), ui.dp(8));
@@ -343,12 +329,6 @@ final class Camera360AutoView {
         np.rightMargin = inset;
         card.addView(retentionNote, np);
         return card;
-    }
-
-    private static void hideLastChild(LinearLayout column) {
-        if (column.getChildCount() > 0) {
-            column.getChildAt(column.getChildCount() - 1).setVisibility(View.GONE);
-        }
     }
 
     private void onToggle(boolean enabled) {
@@ -384,11 +364,6 @@ final class Camera360AutoView {
                 .show();
     }
 
-    private void onModePicked(int index) {
-        dvr.setInternalMode(DvrController.InternalMode.values()[index]);
-        refresh();
-    }
-
     // ---------- Durum guncelleme ----------
 
     void onShow() {
@@ -417,11 +392,8 @@ final class Camera360AutoView {
         enableSegment.setInteractionEnabled(!blocked);
         enableColumn.setAlpha(blocked ? 0.5f : 1f);
         blockedNote.setVisibility(blocked ? View.VISIBLE : View.GONE);
-        DvrController.InternalMode mode = dvr.getInternalMode();
-        modeChoice.setSelected(mode.ordinal());
-        modeDesc.setText(ui.context.getString(mode.separate
-                        ? R.string.camera360_auto_mode_quality_desc : R.string.camera360_auto_mode_perf_desc,
-                Camera360Ui.formatSize(mode.bytesPerMinute())));
+        modeDesc.setText(ui.context.getString(R.string.camera360_auto_mode_perf_desc,
+                Camera360Ui.formatSize(dvr.autoBytesPerMinute())));
 
         DvrController.StorageInfo s = dvr.getStorage();
         long total = Math.max(1, s.totalBytes);

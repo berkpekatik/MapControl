@@ -15,11 +15,11 @@ import java.util.Map;
 public class PhonePrefsTest {
 
     @Test
-    public void reportsAllSixteenKeysInStableOrder() {
-        assertEquals(16, PhonePrefs.DEFAULTS.size());
+    public void reportsAllSeventeenKeysInStableOrder() {
+        assertEquals(17, PhonePrefs.DEFAULTS.size());
         String json = PhonePrefs.toJson(PhonePrefs.DEFAULTS);
         assertTrue(json.startsWith("{\"prefs\":{\"disclaimerAccepted\":false,\"appManagementDisclaimerAccepted\":false,"));
-        assertTrue(json.endsWith("\"launcherModeEnabled\":false}}"));
+        assertTrue(json.endsWith("\"launcherModeEnabled\":false,\"parkPhotoEnabled\":false}}"));
     }
 
     @Test
@@ -52,5 +52,14 @@ public class PhonePrefsTest {
         assertNull(PhonePrefs.acceptable(mixed));
         assertNull(PhonePrefs.acceptable(Collections.emptyMap()));
         assertNull(PhonePrefs.acceptable(null));
+    }
+
+    @Test
+    public void parkPhotoSettingIsWritableFromPhone() {
+        assertTrue(PhonePrefs.WRITABLE.contains("parkPhotoEnabled"));
+        assertFalse(PhonePrefs.DEFAULTS.get("parkPhotoEnabled"));
+        Map<String, Boolean> m = new HashMap<>();
+        m.put("parkPhotoEnabled", true);
+        assertNotNull(PhonePrefs.acceptable(m));
     }
 }
