@@ -26,9 +26,6 @@
     <color name="accentPressed">#2B5582</color>
     <color name="accentHighlight">#4586C5</color>
 
-    <!-- Filament model clear — cam kart görünümüne opak eş (IVI şeffaf surface yok) -->
-    <color name="filament_scene_clear">#F0F3F8</color>
-
     <color name="backgroundColor">#E8ECF3</color>
     <color name="backgroundPage">#E2E8F0</color>
     <color name="surfaceColor">#FFFFFF</color>
