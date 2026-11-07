@@ -12,7 +12,6 @@ import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.IVDBusNotify;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.ui.builder.DriveModeTabBuilder;
-import com.mapcontrol.ui.builder.LauncherTabBuilder;
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.DriveModeStyle;
@@ -44,11 +43,8 @@ public class DriveModeSelectionWidgetsTest {
     }
     private void assertBoth(MainActivity activity, String expected) {
         View rail = ((TopBarBuilder) field(activity, "topBarBuilder")).getStatusWidgets();
-        View launcher = ((LauncherTabBuilder) field(activity, "launcherTabBuilder")).getRootView();
         assertEquals("Rail must reflect the app selection", expected,
                 ((TextView) rail.findViewWithTag("header_mode_value")).getText().toString());
-        assertEquals("Fullscreen must reflect the same app selection", expected,
-                ((TextView) launcher.findViewWithTag("launcher_status_mode_value")).getText().toString());
     }
     private MainActivity launch(Instrumentation instrumentation, Context context) throws Exception {
         MainActivity activity = (MainActivity) instrumentation.startActivitySync(
@@ -56,8 +52,7 @@ public class DriveModeSelectionWidgetsTest {
         long deadline = System.currentTimeMillis() + 15000;
         boolean[] ready = {false};
         while (!ready[0] && System.currentTimeMillis() < deadline) {
-            instrumentation.runOnMainSync(() -> ready[0] = field(activity, "headerStatusMonitor") != null
-                    && field(activity, "launcherTabBuilder") != null);
+            instrumentation.runOnMainSync(() -> ready[0] = field(activity, "headerStatusMonitor") != null);
             Thread.sleep(30);
         }
         assertTrue("MainActivity must finish constructing both widgets", ready[0]);
@@ -125,9 +120,6 @@ public class DriveModeSelectionWidgetsTest {
                 assertEquals(-1, prefs.getInt("driveModeSetting", 99));
                 assertEquals("Clearing a UI choice must not send a new command", commandCount, commands.size());
                 builder.getScrollView().findViewWithTag("drive_mode_card_2").performClick();
-                assertBoth(first, "SPORT");
-                call(first, "applyLauncherChrome", boolean.class, true);
-                call(first, "switchTab", int.class, (Integer) field(first, "TAB_LAUNCHER"));
                 assertBoth(first, "SPORT");
             });
             // A null OEM reply from the existing two-second timer must not erase the app choice.

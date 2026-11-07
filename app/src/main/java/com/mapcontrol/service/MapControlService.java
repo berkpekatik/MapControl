@@ -125,6 +125,10 @@ public class MapControlService extends Service {
         com.mapcontrol.manager.WebServerHost.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
+        // Klima tuşlarına kilit: süreç ana ekran etkinliği olmadan yeniden başlatıldığında da (START_STICKY) çalışsın.
+        if (com.mapcontrol.util.LauncherModeManager.isEnabled(this)) {
+            com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.start(this);
+        }
         SunroofAutomationEngine.getInstance(this).start();
         SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
         if (DmsFaceRecognitionManager.isEnabled(this)
@@ -611,6 +615,13 @@ public class MapControlService extends Service {
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
         if (!prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true)) {
             BootSession.setUiPending(this, false);
+            return;
+        }
+        // Launcher modu açıkken araç açılışında bizim ana ekranımız açılır (HomePolicy.bootScreen); başarı
+        // HomeLauncherActivity.onResume onayıyla sayılır (LauncherEdition.onLauncherShown).
+        if (com.mapcontrol.launcher.HomeKey.bootOpensLauncher(this)) {
+            com.mapcontrol.launcher.HomeKey.openLauncher(this);
+            uiLaunchAttempts++;
             return;
         }
         try {

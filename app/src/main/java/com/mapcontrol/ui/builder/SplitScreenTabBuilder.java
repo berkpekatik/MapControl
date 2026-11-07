@@ -27,6 +27,7 @@ import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.SplitScreenLauncher;
 import com.mapcontrol.util.SplitScreenMessages;
 import com.mapcontrol.util.SplitScreenStore;
+import com.mapcontrol.util.SplitSlot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -217,7 +218,7 @@ public class SplitScreenTabBuilder {
         if (icon == null || name == null) {
             return;
         }
-        if (pkg != null && !isUserApp(pkg)) {
+        if (pkg != null && !isSlotValid(pkg)) {
             clearSlot(slot);
             pkg = null;
         }
@@ -228,8 +229,9 @@ public class SplitScreenTabBuilder {
             name.setText(R.string.split_select_app);
             name.setTextColor(UiStyles.color(context, R.color.textSecondary));
         } else {
-            AppIconHelper.apply(icon, pkg);
-            name.setText(labelOf(pkg));
+            AppIconHelper.apply(icon, SplitSlot.packageOf(pkg));
+            name.setText(SplitSlot.isComponent(pkg)
+                    ? context.getString(R.string.launcher_mini_title) : labelOf(pkg));
             name.setTextColor(UiStyles.color(context, R.color.textPrimary));
         }
     }
@@ -240,6 +242,14 @@ public class SplitScreenTabBuilder {
         } else {
             SplitScreenStore.setPkg2(context, null);
         }
+    }
+
+    /** Kullanıcı uygulaması ya da kendi Mini göstergemiz. */
+    private boolean isSlotValid(String slot) {
+        if (SplitSlot.isComponent(slot)) {
+            return SplitSlot.isMiniDash(slot, context.getPackageName());
+        }
+        return isUserApp(slot);
     }
 
     private boolean isUserApp(String pkg) {
@@ -271,17 +281,19 @@ public class SplitScreenTabBuilder {
                 Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
-            String[] items = new String[rows.size()];
+            String[] items = new String[rows.size() + 1];
             List<String> packages = new ArrayList<>();
+            items[0] = context.getString(R.string.launcher_mini_title);
+            packages.add(SplitSlot.miniDash(context.getPackageName()));
             for (int i = 0; i < rows.size(); i++) {
                 ProjectionTargetApps.Row r = rows.get(i);
-                items[i] = r.label + " (" + r.packageName + ")";
+                items[i + 1] = r.label + " (" + r.packageName + ")";
                 packages.add(r.packageName);
             }
-            String title = context.getString(R.string.split_pick_title, slot + 1, items.length);
+            String title = context.getString(R.string.split_pick_title, slot + 1, rows.size());
             DialogHelper.showAppSelectionDialog(context, title, items, packages, null,
                     selected -> {
-                        if (!isUserApp(selected)) {
+                        if (!isSlotValid(selected)) {
                             return;
                         }
                         if (slot == 0) {
@@ -377,12 +389,12 @@ public class SplitScreenTabBuilder {
         }
         String pkg1 = SplitScreenStore.getPkg1(context);
         String pkg2 = SplitScreenStore.getPkg2(context);
-        if (pkg1 != null && !isUserApp(pkg1)) {
+        if (pkg1 != null && !isSlotValid(pkg1)) {
             SplitScreenStore.setPkg1(context, null);
             pkg1 = null;
             refreshAppRow(0);
         }
-        if (pkg2 != null && !isUserApp(pkg2)) {
+        if (pkg2 != null && !isSlotValid(pkg2)) {
             SplitScreenStore.setPkg2(context, null);
             pkg2 = null;
             refreshAppRow(1);
