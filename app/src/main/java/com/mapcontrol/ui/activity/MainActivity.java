@@ -649,7 +649,7 @@ public class MainActivity extends AppCompatActivity {
         };
 
         // Web Yönetimi tab içeriği
-        fileUploadTabBuilder = new FileUploadTabBuilder(this, webServerManager);
+        fileUploadTabBuilder = new FileUploadTabBuilder(this, webServerHost);
         fileUploadScrollView = fileUploadTabBuilder.getScrollView();
         btnWebServerToggle = fileUploadTabBuilder.getToggleButton();
         webServerStatusText = fileUploadTabBuilder.getStatusText();
