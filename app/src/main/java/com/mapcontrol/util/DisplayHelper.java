@@ -46,7 +46,16 @@ public final class DisplayHelper {
     private static Context bootSplashDisplayContext = null;
     /** {@link Display#INVALID_DISPLAY} when splash kapalı. */
     private static int bootSplashDisplayId = Display.INVALID_DISPLAY;
+    /** Cluster ekranındaki boot splash animasyonları. */
     private static final List<android.animation.Animator> bootSplashAnimators = new ArrayList<>();
+    /**
+     * Splash giriş animasyonunun oynayacağı süre; sonrasında tüm sonsuz animatörler iptal edilir ve
+     * overlay son karede sabit kalır. Cluster splash'i projeksiyon açılana kadar (araçta 23 dk görüldü)
+     * ekranda durabildiği için sürekli çizim RenderThread/GPU'yu boşuna meşgul ediyordu.
+     */
+    private static final long SPLASH_ANIMATION_MAX_MS = 4_000L;
+    /** Uygulama içi açılış/onboarding splash animasyonları (cluster'dan ayrı tutulur). */
+    private static final List<android.animation.Animator> appSplashAnimators = new ArrayList<>();
 
     private DisplayHelper() {}
 
@@ -205,7 +214,8 @@ public final class DisplayHelper {
     }
 
     private static void startPreparingAnimations(View root) {
-        preparingAnimators.clear();
+        // Önceki animasyonlar durdurulmadan liste temizlenirse sahipsiz kalıp sonsuza dek çalışırlar.
+        cancelPreparingAnimations();
 
         View card = root.findViewById(R.id.preparing_card);
         View spinner = root.findViewById(R.id.preparing_spinner);
@@ -280,33 +290,15 @@ public final class DisplayHelper {
     }
 
     public static void hidePreparingMessage() {
+        // Eski sürümde finally alanları hemen null'luyordu; solma sonundaki removeView null görüp hiçbir şey
+        // kaldırmıyordu: her "Göstergeye yansıt" display 2'de bir overlay sızdırıyordu. Görünüm yerel olarak
+        // tutulup alanlar hemen boşaltılır; solma biten görünümü kendisi kaldırır.
+        final View view = preparingMessageView;
+        final android.view.WindowManager wm = preparingWindowManager;
         try {
             cancelPreparingAnimations();
-            if (preparingMessageView != null && preparingWindowManager != null) {
-                try {
-                    preparingMessageView.animate()
-                            .alpha(0f)
-                            .setDuration(180)
-                            .withEndAction(() -> {
-                                try {
-                                    if (preparingWindowManager != null && preparingMessageView != null) {
-                                        preparingWindowManager.removeView(preparingMessageView);
-                                    }
-                                } catch (Exception ignored) {
-                                } finally {
-                                    preparingMessageView = null;
-                                    preparingWindowManager = null;
-                                    preparingParams = null;
-                                    displayContext = null;
-                                }
-                            })
-                            .start();
-                    return;
-                } catch (Exception ignored) {
-                }
-
-                preparingWindowManager.removeView(preparingMessageView);
-                preparingMessageView = null;
+            if (view != null && wm != null) {
+                fadeAndRemove(view, wm, 180);
             }
         } catch (Exception ignored) {
         } finally {
@@ -316,6 +308,30 @@ public final class DisplayHelper {
             preparingParams = null;
             displayContext = null;
         }
+    }
+
+    /**
+     * Görünümü soldurup kaldırır; solma sonu çalışmazsa (iptal, görünür değil) süre + 150 ms sonra yine kaldırılır.
+     */
+    private static void fadeAndRemove(final View view, final android.view.WindowManager wm, long ms) {
+        final boolean[] done = {false};
+        final Runnable remove = () -> {
+            if (done[0]) {
+                return;
+            }
+            done[0] = true;
+            try {
+                wm.removeViewImmediate(view);
+            } catch (Exception ignored) {
+            }
+        };
+        try {
+            view.animate().alpha(0f).setDuration(ms).withEndAction(remove).start();
+        } catch (Exception e) {
+            remove.run();
+            return;
+        }
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(remove, ms + 150);
     }
 
     private static void cancelPreparingAnimations() {
@@ -386,7 +402,7 @@ public final class DisplayHelper {
             bootSplashView = overlay;
             bootSplashWindowManager.addView(bootSplashView, bootSplashParams);
 
-            startBootSplashAnimations(overlay);
+            startBootSplashAnimations(overlay, bootSplashAnimators);
         } catch (Exception ignored) {
         }
     }
@@ -395,29 +411,9 @@ public final class DisplayHelper {
         try {
             cancelBootSplashAnimations();
             if (bootSplashView != null && bootSplashWindowManager != null) {
-                try {
-                    bootSplashView.animate()
-                            .alpha(0f)
-                            .setDuration(260)
-                            .withEndAction(() -> {
-                                try {
-                                    if (bootSplashWindowManager != null && bootSplashView != null) {
-                                        bootSplashWindowManager.removeView(bootSplashView);
-                                    }
-                                } catch (Exception ignored) {
-                                } finally {
-                                    bootSplashView = null;
-                                    bootSplashWindowManager = null;
-                                    bootSplashParams = null;
-                                    bootSplashDisplayContext = null;
-                                    bootSplashDisplayId = Display.INVALID_DISPLAY;
-                                }
-                            })
-                            .start();
-                    return;
-                } catch (Exception ignored) {
-                }
-                bootSplashWindowManager.removeView(bootSplashView);
+                // Görünüm yerelde soluyup kaldırılır; alanlar hemen boşalır (solma sırasında yeniden gösterme
+                // erken dönmesin, solma sonu yeni splash'i kaldırmasın).
+                fadeAndRemove(bootSplashView, bootSplashWindowManager, 260);
                 bootSplashView = null;
                 bootSplashWindowManager = null;
                 bootSplashParams = null;
@@ -484,7 +480,7 @@ public final class DisplayHelper {
             View overlay = buildBootSplashOverlay(bootSplashDisplayContext);
             bootSplashView = overlay;
             bootSplashWindowManager.addView(bootSplashView, bootSplashParams);
-            startBootSplashAnimations(overlay);
+            startBootSplashAnimations(overlay, bootSplashAnimators);
         } catch (Exception ignored) {
             bootSplashDisplayId = Display.INVALID_DISPLAY;
             bootSplashParams = null;
@@ -508,13 +504,13 @@ public final class DisplayHelper {
         if (tagline != null) {
             tagline.setText(R.string.launch_splash_loading);
         }
-        startBootSplashAnimations(overlay);
+        startBootSplashAnimations(overlay, appSplashAnimators);
         return overlay;
     }
 
     /** Uygulama splash animasyonlarını durdurur (cluster splash ayrı kalabilir). */
     public static void stopAppLaunchSplashAnimations() {
-        cancelBootSplashAnimations();
+        cancelAll(appSplashAnimators);
     }
 
     private static View buildBootSplashOverlay(Context ctx) {
@@ -623,8 +619,14 @@ public final class DisplayHelper {
         return root;
     }
 
-    private static void startBootSplashAnimations(View root) {
-        bootSplashAnimators.clear();
+    /**
+     * Splash animasyonlarını başlatır ve [out] listesine ekler. Listede önceki animasyonlar varsa önce
+     * durdurulur (eskiden yalnızca clear() yapılıyor, durdurulmamış animasyonlar sonsuza dek çalışıyordu).
+     * Ayrıca görünüm pencereden ayrılınca kendi animasyonları otomatik durur.
+     */
+    private static void startBootSplashAnimations(View root, List<android.animation.Animator> out) {
+        cancelAll(out);
+        final List<android.animation.Animator> own = new ArrayList<>();
 
         root.setAlpha(0f);
         root.animate().alpha(1f).setDuration(360).start();
@@ -645,7 +647,7 @@ public final class DisplayHelper {
             final AnimatedGradientView g = (AnimatedGradientView) gradient;
             flow.addUpdateListener(a -> g.setProgress((float) a.getAnimatedValue()));
             flow.start();
-            bootSplashAnimators.add(flow);
+            own.add(flow);
         }
 
         if (grid instanceof MapGridView) {
@@ -656,7 +658,7 @@ public final class DisplayHelper {
             final MapGridView g = (MapGridView) grid;
             scroll.addUpdateListener(a -> g.setProgress((float) a.getAnimatedValue()));
             scroll.start();
-            bootSplashAnimators.add(scroll);
+            own.add(scroll);
         }
 
         if (halo != null) {
@@ -665,7 +667,7 @@ public final class DisplayHelper {
             fadeIn.setDuration(900);
             fadeIn.setInterpolator(new AccelerateDecelerateInterpolator());
             fadeIn.start();
-            bootSplashAnimators.add(fadeIn);
+            own.add(fadeIn);
 
             ObjectAnimator pulseX = ObjectAnimator.ofFloat(halo, View.SCALE_X, 0.95f, 1.08f);
             ObjectAnimator pulseY = ObjectAnimator.ofFloat(halo, View.SCALE_Y, 0.95f, 1.08f);
@@ -680,7 +682,7 @@ public final class DisplayHelper {
             AnimatorSet pulse = new AnimatorSet();
             pulse.playTogether(pulseX, pulseY, pulseA);
             pulse.start();
-            bootSplashAnimators.add(pulse);
+            own.add(pulse);
         }
 
         if (center != null) {
@@ -702,7 +704,7 @@ public final class DisplayHelper {
             floatY.setRepeatCount(ValueAnimator.INFINITE);
             floatY.setInterpolator(new AccelerateDecelerateInterpolator());
             floatY.start();
-            bootSplashAnimators.add(floatY);
+            own.add(floatY);
         }
 
         if (tagline != null) {
@@ -712,7 +714,7 @@ public final class DisplayHelper {
             blink.setRepeatMode(ValueAnimator.REVERSE);
             blink.setInterpolator(new AccelerateDecelerateInterpolator());
             blink.start();
-            bootSplashAnimators.add(blink);
+            own.add(blink);
         }
 
         if (bar instanceof RadarPinView) {
@@ -723,7 +725,7 @@ public final class DisplayHelper {
             pulse.setInterpolator(new LinearInterpolator());
             pulse.addUpdateListener(a -> radar.setProgress((float) a.getAnimatedValue()));
             pulse.start();
-            bootSplashAnimators.add(pulse);
+            own.add(pulse);
 
             ObjectAnimator pinBounce = ObjectAnimator.ofFloat(radar, View.TRANSLATION_Y,
                     0f, -dp(root.getContext(), 3), 0f);
@@ -731,18 +733,43 @@ public final class DisplayHelper {
             pinBounce.setRepeatCount(ValueAnimator.INFINITE);
             pinBounce.setInterpolator(new AccelerateDecelerateInterpolator());
             pinBounce.start();
-            bootSplashAnimators.add(pinBounce);
+            own.add(pinBounce);
         }
+        out.addAll(own);
+        // Sonsuz animasyon sürekli çizim demek: cluster splash'i saatlerce ekranda kalabiliyor ve
+        // RenderThread ~%55 CPU harcıyordu. Giriş animasyonu kısa süre oynar, sonra son karede donar.
+        // View.postDelayed yerine ana Looper Handler'ı: görünümün pencereye bağlanma zamanından bağımsız
+        // olarak süre dolunca kesin çalışır (görünümün run-queue'su bağlanma olmazsa hiç boşalmaz).
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            cancelAll(own);
+            out.removeAll(own);
+        }, SPLASH_ANIMATION_MAX_MS);
+        root.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                cancelAll(own);
+                out.removeAll(own);
+                v.removeOnAttachStateChangeListener(this);
+            }
+        });
     }
 
     private static void cancelBootSplashAnimations() {
-        for (android.animation.Animator a : bootSplashAnimators) {
+        cancelAll(bootSplashAnimators);
+    }
+
+    private static void cancelAll(List<android.animation.Animator> animators) {
+        for (android.animation.Animator a : new ArrayList<>(animators)) {
             try {
                 a.cancel();
             } catch (Exception ignored) {
             }
         }
-        bootSplashAnimators.clear();
+        animators.clear();
     }
 
     /**
@@ -913,6 +940,8 @@ public final class DisplayHelper {
         private final int transparentOuter;
         private final int centerAlpha;
         private final int midAlpha;
+        private final android.graphics.Rect shaderBounds = new android.graphics.Rect();
+        private Shader shader;
 
         RadialHaloDrawable(int accent, int transparentOuter, int centerAlpha, int midAlpha) {
             this.accent = accent;
@@ -932,10 +961,15 @@ public final class DisplayHelper {
                     Color.red(accent), Color.green(accent), Color.blue(accent));
             int mid = Color.argb(midAlpha,
                     Color.red(accent), Color.green(accent), Color.blue(accent));
-            paint.setShader(new RadialGradient(cx, cy, r,
-                    new int[]{center, mid, transparentOuter},
-                    new float[]{0f, 0.55f, 1f},
-                    Shader.TileMode.CLAMP));
+            // Gölgelendirici yalnız sınırlar değişince kurulur (her karede yeni RadialGradient ayırmaz).
+            if (shader == null || !b.equals(shaderBounds)) {
+                shader = new RadialGradient(cx, cy, r,
+                        new int[]{center, mid, transparentOuter},
+                        new float[]{0f, 0.55f, 1f},
+                        Shader.TileMode.CLAMP);
+                shaderBounds.set(b);
+                paint.setShader(shader);
+            }
             canvas.drawCircle(cx, cy, r, paint);
         }
 
@@ -952,6 +986,7 @@ public final class DisplayHelper {
         private final Paint pinShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final int accent;
         private final int radarWaveAlphaMax;
+        private final android.graphics.Path pinPath = new android.graphics.Path();
         private float progress = 0f;
 
         RadarPinView(Context ctx, int accent) {
@@ -1008,7 +1043,9 @@ public final class DisplayHelper {
             float pinR = dp(getContext(), 13);
             float pinTipY = cy + pinR * 1.55f;
             float pinTopY = cy - pinR;
-            android.graphics.Path pin = new android.graphics.Path();
+            // Path her karede yeniden ayrılmaz; alan yeniden kullanılır (rewind).
+            final android.graphics.Path pin = pinPath;
+            pin.rewind();
             pin.addCircle(cx, cy, pinR, android.graphics.Path.Direction.CW);
             pin.moveTo(cx - pinR * 0.78f, cy + pinR * 0.55f);
             pin.lineTo(cx, pinTipY);
