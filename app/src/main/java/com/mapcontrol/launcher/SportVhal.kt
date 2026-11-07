@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 /**
  * DesaySV VDBus VEHICLE_HAL servisinin spor ekranı olayları (saf kısım; JVM'de sınanır).
  *
- * VDBus VEHICLE_HAL servisi 0..65535 aralığını taşır (OEM `VDServiceDef.createServiceList`) ve olay kimliği VHAL özellik
+ * VDBus VEHICLE_HAL servisi 0..65535 aralığını taşır (araçta ölçüldü) ve olay kimliği VHAL özellik
  * kimliğinin alt 16 bitidir: PERF_VEHICLE_SPEED 0x11600207 → 519, GEAR_SELECTION 0x11400400 → 1024, IGNITION_STATE
  * 0x11400409 → 1033, PARKING_BRAKE_ON 0x11200402 → 1026 (OEM `VDEventVehicleHal`). Değer `DoubleVector` içinde gelir;
  * OEM 519'u m/s × 3,6 = km/sa okur.

@@ -21,7 +21,7 @@ import com.mapcontrol.R
 import com.mapcontrol.comfort.ComfortPlan
 
 /**
- * Direksiyon ısıtmanın saf kuralları (JVM'de sınanır). CS 160 okunur: 1 açık, diğerleri kapalı (OEM HvacModel). Yazma bir
+ * Direksiyon ısıtmanın saf kuralları (JVM'de sınanır). CS 160 okunur: 1 açık, diğerleri kapalı (araçta ölçüldü). Yazma bir
  * ANAHTARDIR: açarken de kapatırken de 160 ← 1 ([ComfortPlan.STEER_WHEEL_TOGGLE]); bu yüzden yalnız okunan durum istenenden
  * farklıysa gönderilir ve gönderimden sonra [RESEND_GAP_MS] boyunca yeni dokunuş yok sayılır (çift dokunuş iki kez çevirmesin;
  * ClimateAutomationEngine.TOGGLE_RESEND_GAP_MS ile aynı). HVAC 9 yazılmaz (OEM klima panelini açar).

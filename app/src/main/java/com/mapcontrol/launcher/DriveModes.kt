@@ -8,7 +8,7 @@ import com.mapcontrol.vehicle.DriveModeStyle
  * Sürüş modlarının TEK kaynağı (saf; JVM'de sınanır): NewEnergy 4 (ID_DRIVE_MODE) için okunan ve yazılan değer AYNIDIR.
  *
  * 7 Kasım araç ölçümü (fiziksel düğmeyle, OEM Container driveModeValue): Eko 0, Normal 1, Spor 2, Kar 3, Çamur 4, Arazi 5, Kum 7;
- * 6 hiç görülmedi (bilinmeyen sayılır). FrostNav'ın yazması ve OEM QuickSettingFragment seçicisi (Item kimliği = gönderilen değer)
+ * 6 hiç görülmedi (bilinmeyen sayılır). FrostNav'ın yazması ve aracın sürüş modu ekranındaki seçici (öğe kimliği = gönderilen değer)
  * aynı tabloyu kullanır ([DriveModeStyle] sabitleri). 29 Ekim'deki ayrı okuma haritası (5 = Kum, 6 = Arazi) yanlıştı.
  *
  * [DriveAccent], [DriveModeTile] ve veri denetimi tablosu (DataCheckTable) değeri buradan çözer.
@@ -43,8 +43,8 @@ internal object DriveModes {
     val TIGGO7_DEFAULT: List<DriveMode> = listOf(DriveMode.ECO, DriveMode.NORMAL, DriveMode.SPORT)
 
     /**
-     * Araçta seçilebilen modlar, OEM sırasıyla: CarConfig 109 (configs4[5] & 31) → OEM QuickSettingFragment.initOfflineConfig.
-     * 0 ya da tanınmayan değer: OEM seçiciyi gizler → boş liste (kutucuk yalnız gösterir). Okunamadı (null): Tiggo 7 varsayılanı.
+     * Araçta seçilebilen modlar, aracın sürüş modu ekranıyla aynı liste: CarConfig 109 (configs4[5] & 31).
+     * 0 ya da tanınmayan değer: araç seçiciyi gizler → boş liste (kutucuk yalnız gösterir). Okunamadı (null): Tiggo 7 varsayılanı.
      */
     fun available(config109: Int?): List<DriveMode> = when (config109) {
         null -> TIGGO7_DEFAULT

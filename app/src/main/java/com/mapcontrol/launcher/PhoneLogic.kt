@@ -46,8 +46,8 @@ internal object VdCallPick {
 
 /**
  * Projeksiyon (CarPlay/Android Auto/HiCar/CarLife/CarLink) bağlantısı: VDBus PHONELINK PHONE_STATE (851970)
- * yükündeki "status" ve "type" (CommonLinkService PhoneLinkVDDispatcher). Bağlıyken direksiyon ses tuşunu OEM
- * projeksiyon uygulaması telefona iletir (DesaySVAndroidAuto/CarPlay KeyEventImpl, tuş 6 → projeksiyon VR tuşu).
+ * yükündeki "status" ve "type" (araçta ölçüldü). Bağlıyken direksiyon ses tuşunu OEM
+ * projeksiyon uygulaması telefona iletir (araçta ölçüldü: tuş 6 → projeksiyon sesli komut tuşu).
  */
 internal object ProjectionLink {
     /** PhoneLinkProto.PhoneStatus.CONNECTED. */

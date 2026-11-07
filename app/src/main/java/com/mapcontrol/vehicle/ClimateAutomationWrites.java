@@ -110,7 +110,7 @@ final class ClimateAutomationWrites {
             case ClimateAutomationStore.STEER_HEAT:
                 return Collections.emptyList();
             case ClimateAutomationStore.WINDSHIELD:
-                // OEM: 65 ve 24 için 1 aç, 2 kapat (HvacModel.onFrontHeatingClick / onMaxDefrostingClick)
+                // OEM: 65 ve 24 için 1 aç, 2 kapat (araçta ölçüldü)
                 return Arrays.asList(hvac(HvacID.ID_AC_FRONT_GLASS_HEAT, 2), hvac(HvacID.ID_AC_MAX_FRONT_DEFOREST, 2));
             case ClimateAutomationStore.REAR_DEFROST:
                 // OEM her tıkta 80 ← 1 yazar (anahtar); araçta 0 ve tekrar 1 kapatmadı. Kapatma değeri

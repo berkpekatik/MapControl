@@ -67,7 +67,7 @@ internal object WidgetWritePolicy {
         Entry("ClimatePower", HV, HvacID.ID_AC_WORKING, setOf(ClimateMath.POWER_ON, ClimateMath.POWER_OFF),
             listOf(sig("hvac18_power", HV, HvacID.ID_AC_WORKING))),
         // Klima aç/kapat, FrostNav sırası (ClimateMath.powerPlan): açmada 18 ← 1'den ~150 ms sonra A/C 1 ← 1 ve otomatik 4 ← 1;
-        // kapatmada üçü de 2. 0 yazılmaz (OEM HvacModel).
+        // kapatmada üçü de 2. 0 yazılmaz (aracın klima paneliyle aynı sıra).
         Entry("ClimateAc", HV, HvacID.ID_AC_STATE, setOf(ClimateMath.AC_ON, ClimateMath.AC_OFF),
             listOf(sig("hvac1_ac_state", HV, HvacID.ID_AC_STATE), sig("hvac18_power", HV, HvacID.ID_AC_WORKING))),
         Entry("ClimateAuto", HV, HvacID.ID_AC_AUTO_STATE, setOf(ClimateMath.AC_ON, ClimateMath.AC_OFF),

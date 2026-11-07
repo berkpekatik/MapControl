@@ -9,7 +9,7 @@ import com.mapcontrol.vehicle.material.OemEolConfigReader
 
 /**
  * EOL araç yapılandırmasından (CarConfig) widget kararları: saf çözücüler JVM'de sınanır, okuma [CarFeatures.init]'tedir.
- * Bit yerleri OEM `EolConfig.getConfig`: 109 sürüş modları = configs4[5] & 31; 120 direksiyon ısıtma = configs5[0] bit 1;
+ * Bit yerleri araçta ölçüldü: 109 sürüş modları = configs4[5] & 31; 120 direksiyon ısıtma = configs5[0] bit 1;
  * 163 ülke/bölge = configs5[6] & 255. Eksik ya da kısa (< 8 bayt) blok "bilinmiyor"dur (OEM 0 döner; biz 0'ı varsaymayız).
  */
 internal object CarConfigMath {

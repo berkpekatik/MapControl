@@ -1,7 +1,7 @@
 /*
  * VDBus medya kaynağı türü verisi (araçla konuşmak için).
- * Parcel alan sırası değiştirilmemeli: OEM medya servisi CURRENT_SOURCE_TYPE cevabını bu sınıf adıyla yazar
- * (SourceTypeEventHandle.getEventInfo), alıcı aynı adlı ve aynı sıralı sınıfla açar.
+ * Parcel alan sırası değiştirilmemeli: araç medya servisi CURRENT_SOURCE_TYPE cevabını bu sınıf adıyla yazar,
+ * alıcı aynı adlı ve aynı sıralı sınıfla açar.
  */
 package com.desaysv.ivi.vdb.event.id.media.bean;
 

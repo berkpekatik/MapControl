@@ -3,7 +3,7 @@ package com.desaysv.ivi.vdb.event.id.media.bean;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-/** [VDMediaPlay] eylem ayrıntısı; Parcel sırası OEM ile aynı. */
+/** [VDMediaPlay] eylem ayrıntısı; Parcel alan sırası araçla uyum için sabit. */
 public class VDMediaPlayActionInfo implements Parcelable {
     public static final Parcelable.Creator<VDMediaPlayActionInfo> CREATOR = new Parcelable.Creator<VDMediaPlayActionInfo>() {
         @Override

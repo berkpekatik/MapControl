@@ -28,17 +28,17 @@ object ComfortPlan {
 
     /**
      * CarSettingID.ID_CAR_STEER_WHEEL_HEAT. Anahtar gibi: OEM açarken de kapatırken de 160 ← 1 yazar, 0 hiç yazmaz
-     * (SystemUI HvacModel.onCarSteerWheelHeatClick; sesli komut durumu okuyup farklıysa 1 gönderir). Okuma: 1 açık, 0 kapalı.
+     * (araç arayüzü de böyle yapar; sesli komut durumu okuyup farklıysa 1 gönderir). Okuma: 1 açık, 0 kapalı.
      */
     const val ID_STEER_WHEEL_HEAT = 160
 
     /** Direksiyon ısıtma anahtar değeri (aç ve kapat aynı). */
     const val STEER_WHEEL_TOGGLE = 1
 
-    /** HvacID.ID_AC_FRONT_GLASS_HEAT. OEM: 1 aç, 2 kapat (HvacModel.onFrontHeatingClick); 0 hiç yazmaz. */
+    /** HvacID.ID_AC_FRONT_GLASS_HEAT. OEM: 1 aç, 2 kapat (araçta ölçüldü); 0 hiç yazmaz. */
     const val ID_FRONT_GLASS_HEAT = 65
 
-    /** HvacID.ID_AC_MAX_FRONT_DEFOREST. OEM: 1 aç, 2 kapat (HvacModel.onMaxDefrostingClick); 0 hiç yazmaz. */
+    /** HvacID.ID_AC_MAX_FRONT_DEFOREST. OEM: 1 aç, 2 kapat (araçta ölçüldü); 0 hiç yazmaz. */
     const val ID_MAX_FRONT_DEFOREST = 24
 
     /** HVAC 65 ve 24 için OEM kapatma değeri. */
@@ -205,7 +205,7 @@ object ComfortPlan {
 
     /**
      * Anahtar kararı (saf): okunamadıysa REFUSE, zaten hedefteyse SKIP, değilse SEND.
-     * OEM gibi yalnızca 1 "açık" sayılır (HvacModel.getCarSteerWheelHeat: == 1); 0, 2 vb. kapalıdır.
+     * OEM gibi yalnızca 1 "açık" sayılır (araçta ölçüldü); 0, 2 vb. kapalıdır.
      */
     @JvmStatic
     fun toggleAction(current: Int?, target: Int): ToggleAction = when {

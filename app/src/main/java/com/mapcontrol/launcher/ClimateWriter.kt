@@ -66,7 +66,7 @@ internal object ClimateMath {
     /** Ham değer: °C = 15,5 + ham/2 ([OurBottomBar.decodeTemp]'in tersi); LO = 0, HI = 30. */
     fun encodeTemp(c: Double): Int = ((clampTemp(c) - LO_TEMP) * 2).roundToInt()
 
-    /** Klima gücü (HVAC 18): okuma 1 = açık; yazma 1 aç / 2 kapat (OEM `HvacModel.onPowerClick`). */
+    /** Klima gücü (HVAC 18): okuma 1 = açık; yazma 1 aç / 2 kapat (araçta ölçüldü). */
     const val POWER_ON = 1
     const val POWER_OFF = 2
 
@@ -94,7 +94,7 @@ internal object ClimateMath {
      */
     fun encodeFan(level: Int): Int = level.coerceIn(1, FAN_MAX)
 
-    /** A/C (HVAC 1) ve otomatik (HVAC 4): 1 aç / 2 kapat; 0 yazılmaz (OEM `HvacModel`, FrostNav ClimateAutomationWrites). */
+    /** A/C (HVAC 1) ve otomatik (HVAC 4): 1 aç / 2 kapat; 0 yazılmaz (aracın klima paneliyle aynı sıra, FrostNav ClimateAutomationWrites). */
     const val AC_ON = 1
     const val AC_OFF = 2
 

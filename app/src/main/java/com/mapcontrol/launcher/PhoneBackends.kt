@@ -795,7 +795,7 @@ internal class VdbusCallBackend(private val io: Executor, private val onAvailabi
     }
 
     /**
-     * DIAL_MIC_MODE (262547): {"status": 2 sessiz / 1 açık}; OEM servisi AudioManager.setMicrophoneMute'u sistem
+     * DIAL_MIC_MODE (262547): {"status": 2 sessiz / 1 açık}; araç servisi AudioManager.setMicrophoneMute'u sistem
      * uid'siyle çağırır.
      */
     override fun setMute(on: Boolean): Boolean {

@@ -258,7 +258,7 @@ internal object PhoneKeys {
     }
 
     /**
-     * PHONELINK PHONE_STATE/VOICE_STATE aboneliği ve şu anki değer (onGet var: PhoneLinkVDDispatcher.onGet). Servis
+     * PHONELINK PHONE_STATE/VOICE_STATE aboneliği ve şu anki değer (servis ilk değeri hemen döner). Servis
      * yoksa (projeksiyonsuz araç) sessizce atlanır; o zaman projeksiyon "yok" sayılır.
      */
     private fun subscribeLink() {

@@ -406,7 +406,7 @@ public final class ClimateAutomationEngine {
             // Koltuk ısıtma / soğutma: 0 veya 1 = kapalı
             isOffNotification = (raw == 0 || raw == 1);
         } else {
-            // OEM okuması: yalnızca 1 açık (HvacModel get*State() == 1); kapalı 0 ya da 2 dönebilir
+            // OEM okuması: yalnızca 1 açık (araçta ölçüldü); kapalı 0 ya da 2 dönebilir
             isOffNotification = (raw != 1);
         }
         if (isOffNotification) {

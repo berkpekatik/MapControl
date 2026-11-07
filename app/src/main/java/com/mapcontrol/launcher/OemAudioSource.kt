@@ -63,7 +63,7 @@ internal object MediaSourcePick {
     /**
      * OEM ses uygulamasının kendi çaldığı OEM kaynak türleri (VDValueMedia.MediaType: LOCAL_MUSIC 2, USB0 3, USB1 4, FM_AM 8, FM 9,
      * AM 10, DAB 24). Hepsi OEM başlatıcı kartının izlediği listede ve medya servisinde
-     * denetçisi var (tanımsız türde `PlayStatusEventHandle` NPE verir).
+     * denetçisi var (tanımsız türde medya servisi boş değerle çöker).
      */
     private val OEM_OWN_SOURCES = setOf(2, 3, 4, 8, 9, 10, 24)
 
