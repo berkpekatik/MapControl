@@ -190,7 +190,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         addMetric(grid, R.string.vehicle_info_odo, EnumSet.of(Category.GENERAL, Category.TRIP),
                 s -> read(ReadOnlyID.ID_GRAND_TOTAL_KM, formatter::formatKm));
         addMetric(grid, R.string.vehicle_info_battery, EnumSet.of(Category.GENERAL, Category.ENGINE),
-                s -> read(ReadOnlyID.ID_IBS_VOLTAGE, formatter::formatVoltage));
+                s -> read(ReadOnlyID.ID_BATTERY_LEVEL, formatter::formatVoltage));
         addMetric(grid, R.string.vehicle_info_col_tmp, EnumSet.of(Category.GENERAL, Category.ENGINE),
                 s -> read(ReadOnlyID.ID_WATER_TEMPERATURE, formatter::formatTemperature));
         addMetric(grid, R.string.vehicle_info_gear, EnumSet.of(Category.GENERAL, Category.ENGINE),
