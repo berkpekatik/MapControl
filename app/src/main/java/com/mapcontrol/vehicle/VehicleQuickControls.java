@@ -36,7 +36,8 @@ public final class VehicleQuickControls {
 
     private final Context appContext;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    /** Daemon ve boşta 30 sn sonra biten tek iş parçacığı; tekil örnek kapatılmadığı için uygulama kapanışını tutmaz. */
+    private final ExecutorService ioExecutor = newDaemonSingleThread();
     private final Set<Listener> listeners = new CopyOnWriteArraySet<>();
 
     private volatile boolean started;
@@ -123,6 +124,19 @@ public final class VehicleQuickControls {
         if (listeners.isEmpty()) {
             stop();
         }
+    }
+
+    private static ExecutorService newDaemonSingleThread() {
+        java.util.concurrent.ThreadPoolExecutor ex = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 30L, java.util.concurrent.TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "quickcontrols-io");
+                    t.setDaemon(true);
+                    return t;
+                });
+        ex.allowCoreThreadTimeOut(true);
+        return ex;
     }
 
     public boolean isCarInfoConnected() {

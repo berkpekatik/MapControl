@@ -25,4 +25,23 @@ public class OpenMeteoWeatherClientTest {
     public void backoffStopsAtThirtyMinutes() {
         assertEquals(30 * MINUTE, OpenMeteoWeatherClient.nextRefreshDelayMs(10));
     }
+
+    @Test
+    public void fastFailureThenOnAvailableStillSchedulesRetry() {
+        // start -> istek hızla başarısız (fetching=false) -> bağlantı geri geldi, 5 sn dolmadan tekrar çağrıldı
+        assertEquals(OpenMeteoWeatherClient.FetchAction.SKIP_AND_SCHEDULE,
+                OpenMeteoWeatherClient.decideFetch(false, 1_000L, 0L, false));
+    }
+
+    @Test
+    public void runningFetchSchedulesItselfWhenFinished() {
+        assertEquals(OpenMeteoWeatherClient.FetchAction.SKIP_FETCHING,
+                OpenMeteoWeatherClient.decideFetch(true, 1_000L, 0L, false));
+    }
+
+    @Test
+    public void fetchesAfterMinimumGap() {
+        assertEquals(OpenMeteoWeatherClient.FetchAction.FETCH,
+                OpenMeteoWeatherClient.decideFetch(false, 6_000L, 0L, false));
+    }
 }

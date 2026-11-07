@@ -188,12 +188,35 @@ public final class OpenMeteoWeatherClient {
             return;
         }
         long now = System.currentTimeMillis();
-        if (fetching || now - lastFetchStartMs < MIN_FETCH_GAP_MS) {
+        FetchAction action = decideFetch(fetching, now, lastFetchStartMs, false);
+        if (action == FetchAction.SKIP_AND_SCHEDULE) {
+            // Asgari aralık içinde atlandı: onAvailable bekleyen yenilemeyi sildiği için sıradakini yeniden kur.
+            scheduleNextRefresh();
+            return;
+        }
+        if (action == FetchAction.SKIP_FETCHING) {
+            // Sürmekte olan istek bitince finally içinde zaten planlanır.
             return;
         }
         fetching = true;
         lastFetchStartMs = now;
         executor.execute(this::fetchFromNetwork);
+    }
+
+    enum FetchAction { SERVE_CACHE, SKIP_FETCHING, SKIP_AND_SCHEDULE, FETCH }
+
+    /** Çekme kararı (Android'siz): istek sürüyorsa bekle, asgari aralık dolmadıysa atla ama yenilemeyi planla. */
+    static FetchAction decideFetch(boolean fetching, long nowMs, long lastFetchStartMs, boolean cacheFresh) {
+        if (cacheFresh) {
+            return FetchAction.SERVE_CACHE;
+        }
+        if (fetching) {
+            return FetchAction.SKIP_FETCHING;
+        }
+        if (nowMs - lastFetchStartMs < MIN_FETCH_GAP_MS) {
+            return FetchAction.SKIP_AND_SCHEDULE;
+        }
+        return FetchAction.FETCH;
     }
 
     private void fetchFromNetwork() {
