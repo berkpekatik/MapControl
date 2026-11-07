@@ -59,7 +59,7 @@ public class VDRouter {
         this.CORE_POOL_SIZE = availableProcessors + 1;
         this.MAXIMUM_POOL_SIZE = (availableProcessors * 2) + 1;
         this.KEEP_ALIVE = 1;
-        Log.d(TAG, "VDRouter created, CPU_COUNT=" + this.CPU_COUNT + " CORE_POOL_SIZE=" + this.CORE_POOL_SIZE + " MAXIMUM_POOL_SIZE=" + this.MAXIMUM_POOL_SIZE);
+        VdLog.d(TAG, "VDRouter created, CPU_COUNT=" + this.CPU_COUNT + " CORE_POOL_SIZE=" + this.CORE_POOL_SIZE + " MAXIMUM_POOL_SIZE=" + this.MAXIMUM_POOL_SIZE);
         this.mMainThreadHandler = new Handler(Looper.getMainLooper()) {
             public void handleMessage(Message message) {
                 super.handleMessage(message);
@@ -77,7 +77,7 @@ public class VDRouter {
                 super.handleMessage(message);
                 VDEvent vDEvent = (VDEvent) message.obj;
                 int i9 = message.arg1;
-                Log.d(TAG, "Debounce handler: eventId=" + vDEvent.getId() + " onceFlag=" + i9);
+                VdLog.d(TAG, "Debounce handler: eventId=" + vDEvent.getId() + " onceFlag=" + i9);
                 VDConnector connector = VDRouter.this.getConnector(vDEvent);
                 if (connector == null) {
                     return;
@@ -93,7 +93,7 @@ public class VDRouter {
 
     private boolean dealDebounce(com.desaysv.ivi.vdb.event.VDEvent event, int debounceMs, int onceFlag) {
         if (debounceMs <= 0) {
-            Log.d(TAG, "dealDebounce: debounceMs<=0, will be sent directly. eventId=" + event.getId());
+            VdLog.d(TAG, "dealDebounce: debounceMs<=0, will be sent directly. eventId=" + event.getId());
             return true;
         }
 
@@ -105,7 +105,7 @@ public class VDRouter {
 
                     long diff = Math.abs(event.getTimeMillis() - last.getTimeMillis());
                     if (diff < (long) debounceMs) {
-                        Log.d(TAG, "dealDebounce: event repeated, debounce applied. eventId=" + event.getId() + " diff=" + diff + "ms debounceMs=" + debounceMs);
+                        VdLog.d(TAG, "dealDebounce: event repeated, debounce applied. eventId=" + event.getId() + " diff=" + diff + "ms debounceMs=" + debounceMs);
                         Message msg = mDebounceHandler.obtainMessage();
                         msg.what = event.getId();
                         msg.obj = event;
@@ -120,7 +120,7 @@ public class VDRouter {
             }
 
             mDebounceList.add(0, event);
-            Log.d(TAG, "dealDebounce: event added to list, eventId=" + event.getId() + " size=" + mDebounceList.size());
+            VdLog.d(TAG, "dealDebounce: event added to list, eventId=" + event.getId() + " size=" + mDebounceList.size());
             if (mDebounceList.size() > MAX_DEBOUNCE_NUM) {
                 mDebounceList.remove(MAX_DEBOUNCE_NUM);
             }
@@ -139,7 +139,7 @@ public class VDRouter {
     public void addSubscribe(VDEvent vDEvent, int i9) {
         if (!VDValue.isNullEvent(vDEvent)) {
             vDEvent.setThreadType(i9);
-            Log.d(TAG, "addSubscribe: eventId=" + vDEvent.getId() + " threadType=" + i9);
+            VdLog.d(TAG, "addSubscribe: eventId=" + vDEvent.getId() + " threadType=" + i9);
             VDConnector connector = getConnector(vDEvent);
             if (connector != null) {
                 connector.addSubscribe(vDEvent);
@@ -149,7 +149,7 @@ public class VDRouter {
 
     public boolean bindService(VDServiceDef.ServiceType serviceType) {
         VDConnector connector = getConnector(serviceType);
-        Log.d(TAG, "bindService: serviceType=" + serviceType + " connector=" + connector);
+        VdLog.d(TAG, "bindService: serviceType=" + serviceType + " connector=" + connector);
         if (connector != null) {
             return connector.bindService();
         }
@@ -223,7 +223,7 @@ public class VDRouter {
     public void get(VDEvent vDEvent, int i9, VDGetListener vDGetListener) {
         VDConnector connector;
         if (!VDValue.isNullEvent(vDEvent) && vDGetListener != null && (connector = getConnector(vDEvent)) != null) {
-            Log.d(TAG, "get: eventId=" + vDEvent.getId() + " threadType=" + i9 + " connectorService=" + connector.getServiceInfo().getServiceName());
+            VdLog.d(TAG, "get: eventId=" + vDEvent.getId() + " threadType=" + i9 + " connectorService=" + connector.getServiceInfo().getServiceName());
             connector.get(vDEvent, i9, vDGetListener);
         }
     }
@@ -240,14 +240,14 @@ public class VDRouter {
         }
         VDConnector vDConnector2 = this.mVDConnectorList.get(id);
         this.mCurVDConnector = vDConnector2;
-        Log.d(TAG, "getConnector(VDEvent): eventId=" + vDEvent.getId() + " index=" + id + " service=" + vDConnector2.getServiceInfo().getServiceName());
+        VdLog.d(TAG, "getConnector(VDEvent): eventId=" + vDEvent.getId() + " index=" + id + " service=" + vDConnector2.getServiceInfo().getServiceName());
         return vDConnector2;
     }
 
     public VDEvent getOnce(VDEvent vDEvent) {
         VDConnector connector;
         if (!VDValue.isNullEvent(vDEvent) && (connector = getConnector(vDEvent)) != null) {
-            Log.d(TAG, "getOnce: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
+            VdLog.d(TAG, "getOnce: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
             return connector.getOnce(vDEvent);
         }
         Log.w(TAG, "getOnce: invalid event or connector null, eventId=" + (vDEvent != null ? vDEvent.getId() : -1));
@@ -258,7 +258,7 @@ public class VDRouter {
         if (context != null && !this.mIsInited) {
             this.mIsInited = true;
             this.mContext = context;
-            Log.d(TAG, "init: context=" + context + " threadConfig=" + vDThreadConfig + " keepBindList=" + arrayList);
+            VdLog.d(TAG, "init: context=" + context + " threadConfig=" + vDThreadConfig + " keepBindList=" + arrayList);
             if (vDThreadConfig == null) {
                 this.mThreadPoolExecutor = new ThreadPoolExecutor(this.CORE_POOL_SIZE, this.MAXIMUM_POOL_SIZE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue(128));
             } else {
@@ -273,7 +273,7 @@ public class VDRouter {
                 VDServiceDef.ServiceInfo serviceInfo2 = serviceInfo;
                 VDConnector vDConnector = new VDConnector(context, serviceInfo2, this.mThreadPoolExecutor);
                 this.mVDConnectorList.add(vDConnector);
-                Log.d(TAG, "init: VDConnector added service=" + serviceInfo2.getServiceName() + " type=" + serviceInfo2.getServiceType());
+                VdLog.d(TAG, "init: VDConnector added service=" + serviceInfo2.getServiceName() + " type=" + serviceInfo2.getServiceType());
                 if (arrayList != null) {
                     int i10 = 0;
                     while (true) {
@@ -296,7 +296,7 @@ public class VDRouter {
         VDConnector connector = getConnector(serviceType);
         if (connector != null) {
             boolean connected = connector.isServiceConnected();
-            Log.d(TAG, "isServiceConnected: serviceType=" + serviceType + " connected=" + connected);
+            VdLog.d(TAG, "isServiceConnected: serviceType=" + serviceType + " connected=" + connected);
             return connected;
         }
         Log.w(TAG, "isServiceConnected: connector null, serviceType=" + serviceType);
@@ -337,7 +337,7 @@ public class VDRouter {
     }
 
     public void release() {
-        Log.d(TAG, "release: clearing all VDConnector list, size=" + this.mVDConnectorList.size());
+        VdLog.d(TAG, "release: clearing all VDConnector list, size=" + this.mVDConnectorList.size());
         ArrayList<VDConnector> arrayList = this.mVDConnectorList;
         int size = arrayList.size();
         int i9 = 0;
@@ -357,7 +357,7 @@ public class VDRouter {
     public void removeSubscribe(VDEvent vDEvent) {
         VDConnector connector;
         if (!VDValue.isNullEvent(vDEvent) && (connector = getConnector(vDEvent)) != null) {
-            Log.d(TAG, "removeSubscribe: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
+            VdLog.d(TAG, "removeSubscribe: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
             connector.removeSubscribe(vDEvent);
         }
     }
@@ -376,9 +376,9 @@ public class VDRouter {
         VDConnector connector;
         if (!VDValue.isNullEvent(vDEvent)) {
             vDEvent.createTimeMillis();
-            Log.d(TAG, "setOnce: eventId=" + vDEvent.getId() + " debounceMs=" + i9);
+            VdLog.d(TAG, "setOnce: eventId=" + vDEvent.getId() + " debounceMs=" + i9);
             if (dealDebounce(vDEvent, i9, 1) && (connector = getConnector(vDEvent)) != null) {
-                Log.d(TAG, "setOnce: debounce passed, connector.setOnce called. service=" + connector.getServiceInfo().getServiceName());
+                VdLog.d(TAG, "setOnce: debounce passed, connector.setOnce called. service=" + connector.getServiceInfo().getServiceName());
                 connector.setOnce(vDEvent);
             }
         }
@@ -395,7 +395,7 @@ public class VDRouter {
         ArrayList<VDConnector> arrayList = this.mVDConnectorList;
         int size = arrayList.size();
         int i9 = 0;
-        Log.d(TAG, "subscribeCommit: sending commit to all connectors, size=" + size);
+        VdLog.d(TAG, "subscribeCommit: sending commit to all connectors, size=" + size);
         while (i9 < size) {
             VDConnector vDConnector = arrayList.get(i9);
             i9++;
@@ -407,7 +407,7 @@ public class VDRouter {
         VDConnector connector = getConnector(serviceType);
         if (connector != null) {
             boolean result = connector.unbindService();
-            Log.d(TAG, "unbindService: serviceType=" + serviceType + " result=" + result);
+            VdLog.d(TAG, "unbindService: serviceType=" + serviceType + " result=" + result);
             return result;
         }
         Log.w(TAG, "unbindService: connector null, serviceType=" + serviceType);
@@ -450,7 +450,7 @@ public class VDRouter {
     public void unsubscribe(VDEvent vDEvent, IVDBusNotify.Stub stub) {
         VDConnector connector;
         if (stub != null && (connector = getConnector(vDEvent)) != null) {
-            Log.d(TAG, "unsubscribe: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
+            VdLog.d(TAG, "unsubscribe: eventId=" + vDEvent.getId() + " connectorService=" + connector.getServiceInfo().getServiceName());
             connector.unsubscribe(vDEvent, stub);
         }
     }
