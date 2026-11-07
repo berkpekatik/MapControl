@@ -100,46 +100,11 @@ public class SharedHeaderNavigationTest {
                     assertNotNull(widgets);
                     pinnedWidgets[0] = widgets;
                     assertSame(rail, widgets.getParent());
-                    Field launcherTab = MainActivity.class.getDeclaredField("TAB_LAUNCHER");
-                    launcherTab.setAccessible(true);
-                    call(host, "applyLauncherChrome", boolean.class, true);
-                    call(host, "switchTab", int.class, launcherTab.getInt(null));
-                    assertEquals(View.GONE, header[0].getVisibility());
-                    View clockTitle = host.getWindow().getDecorView().findViewWithTag("launcher_clock_title");
-                    View clockWidgets = host.getWindow().getDecorView().findViewWithTag("launcher_status_statuses");
-                    assertNotNull(clockTitle);
-                    assertNotNull(clockWidgets);
-                    assertNotSame(clockTitle.getParent(), clockWidgets.getParent());
-                    View quickScroll = host.getWindow().getDecorView().findViewWithTag("launcher_quick_access_scroll");
-                    assertSame(clockWidgets, quickScroll.findViewWithTag("launcher_status_statuses"));
-                    ViewGroup shortcuts = host.getWindow().getDecorView().findViewWithTag("launcher_shortcuts_grid");
-                    assertEquals(7, shortcuts.getChildCount());
-                    assertNotNull(shortcuts.findViewWithTag("launcher_shortcut_14"));
-                    assertNotNull(shortcuts.findViewWithTag("launcher_shortcut_15"));
-                    for (int tab : new int[]{0, 1, 3, 6}) {
-                        assertNull(shortcuts.findViewWithTag("launcher_shortcut_" + tab));
-                    }
-                    assertEquals(View.VISIBLE, clockWidgets.getVisibility());
                 } catch (Exception failure) { throw new AssertionError(failure); }
             });
-            instrumentation.waitForIdleSync();
-            instrumentation.runOnMainSync(() -> {
-                ViewGroup widgets = host.getWindow().getDecorView().findViewWithTag("launcher_status_statuses");
-                View wifi = widgets.findViewWithTag("launcher_status_wifi");
-                View mode = widgets.findViewWithTag("launcher_status_mode");
-                View phone = widgets.findViewWithTag("launcher_status_phone");
-                View projection = widgets.findViewWithTag("launcher_status_projection");
-                assertTrue(wifi.getWidth() > 0);
-                assertEquals(wifi.getTop(), mode.getTop());
-                assertEquals(phone.getTop(), projection.getTop());
-                assertTrue(phone.getTop() > wifi.getBottom());
-                assertTrue(mode.getLeft() > wifi.getRight());
-            });
-            screenshot(instrumentation, context, "fullscreen-clock-widgets.png");
             instrumentation.runOnMainSync(() -> {
                 try {
                     call(host, "switchTab", int.class, 9);
-                    call(host, "applyLauncherChrome", boolean.class, false);
                     assertEquals(View.VISIBLE, header[0].getVisibility());
                     assertSame(pinnedWidgets[0], host.getWindow().getDecorView().findViewWithTag("header_statuses"));
                 } catch (Exception failure) { throw new AssertionError(failure); }

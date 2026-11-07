@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FrostNav özelliklerini süren launcher widget'ları: web paneli, ekolayzer, otomasyon, bölünmüş ekran, göstergeye yansıt. -->
+<resources>
+    <string name="launcher_widget_web_panel">Web paneli</string>
+    <string name="launcher_widget_equalizer">Ekolayzer</string>
+    <string name="launcher_widget_automation">Otomasyon</string>
+    <string name="launcher_widget_cluster_mirror">Göstergeye yansıt</string>
+    <string name="launcher_fn_only">Yalnızca FrostNav\'da</string>
+    <string name="launcher_fn_unavailable_toast">Bu özellik FrostNav\'lı sürümde çalışır</string>
+    <string name="launcher_fn_web_start">Başlat</string>
+    <string name="launcher_fn_web_starting">Başlatılıyor…</string>
+    <string name="launcher_fn_web_start_failed">Web paneli başlatılamadı</string>
+    <string name="launcher_fn_web_needs_frostnav">Önce FrostNav\'ı bir kez açıp uyarıyı onaylayın</string>
+    <string name="launcher_fn_web_manage">FrostNav\'da yönet</string>
+    <string name="launcher_fn_web_scan">Telefon kamerasıyla tarayın</string>
+    <string name="launcher_fn_web_local">Araç bir ağa bağlı değil</string>
+    <string name="launcher_fn_web_off_detail">Web yönetimi kapalı</string>
+    <string name="launcher_fn_qr_desc">Web paneli QR kodu</string>
+    <string name="launcher_fn_eq_unsupported">Bu cihazda desteklenmiyor</string>
+    <string name="launcher_fn_auto_climate">Klima</string>
+    <string name="launcher_fn_auto_sunroof">Cam tavan</string>
+    <string name="launcher_fn_auto_face">Yüz tanıma</string>
+    <string name="launcher_fn_auto_on_count">%1$d açık</string>
+    <string name="launcher_fn_open_settings">Ayarları aç</string>
+    <string name="launcher_fn_cluster_start">Yansıt</string>
+    <string name="launcher_fn_cluster_stop">Durdur</string>
+    <string name="launcher_fn_cluster_no_target">Hedef uygulama seçilmedi</string>
+</resources>

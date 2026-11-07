@@ -309,6 +309,8 @@ public class EqualizerTabBuilder {
         for (int i = 0; i < presetChips.length; i++) {
             boolean selected = PRESET_IDS[i].equals(preset);
             TextView chip = presetChips[i];
+            // Görsel değil (zemin sabit şekil): erişilebilirlik ve otomatik test seçili hazır ayarı okuyabilsin.
+            chip.setSelected(selected);
             if (selected) {
                 UiStyles.setBackgroundRes(chip, R.drawable.bg_segment_thumb);
                 chip.setTextColor(UiStyles.color(context, R.color.textPrimary));

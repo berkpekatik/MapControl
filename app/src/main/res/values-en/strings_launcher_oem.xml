@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Desay OEM komutlarindan turetilen widget'lar (klima tuslari, isitmalar, lastik, toplamlar, arka hoparlor). -->
+<resources>
+    <string name="launcher_widget_trip_totals">Totals</string>
+    <string name="launcher_tire_fl">Front left</string>
+    <string name="launcher_tire_fr">Front right</string>
+    <string name="launcher_tire_rl">Rear left</string>
+    <string name="launcher_tire_rr">Rear right</string>
+    <string name="launcher_liter_value" formatted="true">%1$s L</string>
+    <string name="launcher_totals_fuel_label">Total fuel</string>
+    <string name="launcher_totals_time_label">Driving time</string>
+    <string name="launcher_totals_odometer">Odometer</string>
+</resources>

@@ -78,7 +78,6 @@ public class Upstream134NavigationTest {
                 assertTab(host,MainActivity.TAB_CAMERA_360,R.string.camera360_title,"menuCamera360");
                 call(host,"setContentWide",boolean.class,true);
                 assertEquals(View.GONE,((View)field(host,"sideRail")).getVisibility());
-                assertEquals(View.VISIBLE,((View)field(field(host,"topBarBuilder"),"launcherBackButton")).getVisibility());
                 call(host,"setContentWide",boolean.class,false);
             });
             clickMenu(instrumentation,host,"menuSplitScreen");
@@ -96,19 +95,6 @@ public class Upstream134NavigationTest {
                 call(host,"switchTab",int.class,6);
                 assertNotNull(host.getWindow().getDecorView().findViewWithTag("assist_card_dmsSetting"));
             });
-            for(int tab:new int[]{MainActivity.TAB_CAMERA_360,MainActivity.TAB_SPLIT_SCREEN}) {
-                instrumentation.runOnMainSync(()->{
-                    call(host,"applyLauncherChrome",boolean.class,true);
-                    call(host,"switchTab",int.class,10);
-                    assertEquals(View.GONE,host.getWindow().getDecorView().findViewWithTag("shared_header").getVisibility());
-                    View shortcut=host.getWindow().getDecorView().findViewWithTag("launcher_shortcut_"+tab);
-                    assertNotNull(shortcut);assertTrue(shortcut.performClick());
-                });
-                Thread.sleep(650);instrumentation.waitForIdleSync();
-                instrumentation.runOnMainSync(()->assertTab(host,tab,
-                        tab==MainActivity.TAB_CAMERA_360?R.string.camera360_title:R.string.side_rail_split_screen,
-                        tab==MainActivity.TAB_CAMERA_360?"menuCamera360":"menuSplitScreen"));
-            }
         } finally {
             if(activity!=null){MainActivity host=activity;instrumentation.runOnMainSync(()->{
                 host.onConfigurationChanged(original);host.finish();

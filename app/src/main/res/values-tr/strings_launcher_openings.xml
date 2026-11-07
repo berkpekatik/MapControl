@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sahne: açık gövde parçaları satırı -->
+    <string name="launcher_lock_waiting">Bekleniyor</string>
+    <string name="launcher_stage_waiting">Araç verisi bekleniyor</string>
+    <string name="launcher_trip_no_data">Henüz yolculuk verisi yok</string>
+    <string name="launcher_consumption_avg_short" formatted="true">Ort. %1$s</string>
+    <string name="launcher_wifi_web_sub">Telefondan yönet</string>
+    <string name="launcher_totals_short_km">Yol</string>
+    <string name="launcher_totals_short_fuel">Yakıt</string>
+    <string name="launcher_totals_short_time">Süre</string>
+</resources>

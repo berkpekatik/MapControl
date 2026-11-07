@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Stage home screen layout -->
+    <string name="launcher_sahne_car">Car view</string>
+    <string name="launcher_sahne_km">km</string>
+    <string name="launcher_sahne_pick_panel">Add to panel</string>
+    <string name="launcher_sahne_pick_strip">Add to bottom row</string>
+    <string name="launcher_sahne_in_slot" formatted="true">Now: %1$s</string>
+    <string name="launcher_sahne_in_this_slot">Now</string>
+    <string name="launcher_sahne_change">Change</string>
+    <string name="launcher_sahne_add_here">Add widget</string>
+    <string name="launcher_sahne_helper_park">Tap an area to change it</string>
+    <string name="launcher_sahne_helper_drive">Tap an area to change it</string>
+    <string name="launcher_car_color">Car colour</string>
+    <string name="launcher_car_color_help">Colour of the car in the middle of the Stage home screen.</string>
+    <string name="car_color_grafit">Graphite</string>
+    <string name="car_color_siyah">Black</string>
+    <string name="car_color_beyaz">White</string>
+    <string name="car_color_gumus">Silver</string>
+    <string name="car_color_kirmizi">Red</string>
+    <string name="car_color_mavi">Blue</string>
+    <string name="launcher_sahne_psi" formatted="true">%1$d psi</string>
+    <string name="launcher_notice_more" formatted="true">+%1$d</string>
+    <string name="launcher_notice_more_desc" formatted="true">%1$d more alerts</string>
+    <string name="launcher_notice_no_maps">No maps app found</string>
+    <string name="launcher_detail_title">Vehicle status</string>
+    <string name="launcher_detail_open">Open</string>
+    <string name="launcher_detail_closed">Closed</string>
+    <string name="launcher_detail_doors">Doors</string>
+    <string name="launcher_detail_windows">Windows</string>
+    <string name="launcher_detail_sunroof">Sunroof</string>
+    <string name="launcher_strip_tire_wheel" formatted="true">%1$s %2$d psi</string>
+    <string name="launcher_strip_air">Poor air quality</string>
+    <string name="launcher_strip_battery_low" formatted="true">Battery low %1$.1f V</string>
+    <string name="launcher_strip_battery_high" formatted="true">Battery high %1$.1f V</string>
+    <string name="launcher_strip_fuel_cap">Fuel cap open</string>
+</resources>

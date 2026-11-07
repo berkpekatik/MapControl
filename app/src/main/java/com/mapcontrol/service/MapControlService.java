@@ -614,6 +614,13 @@ public class MapControlService extends Service {
             BootSession.setUiPending(this, false);
             return;
         }
+        // Launcher modu açıkken araç açılışında bizim ana ekranımız açılır (HomePolicy.bootScreen); başarı
+        // HomeLauncherActivity.onResume onayıyla sayılır (LauncherEdition.onLauncherShown).
+        if (com.mapcontrol.launcher.HomeKey.bootOpensLauncher(this)) {
+            com.mapcontrol.launcher.HomeKey.openLauncher(this);
+            uiLaunchAttempts++;
+            return;
+        }
         try {
             Intent activityIntent = new Intent(this, MainActivity.class);
             activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
