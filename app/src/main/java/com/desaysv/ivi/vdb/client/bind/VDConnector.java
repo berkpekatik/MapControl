@@ -418,32 +418,29 @@ public class VDConnector {
         }
     }
 
+    /**
+     * Önceki sürümde finally içinde sonsuz döngü vardı: ilk çağrı iş parçacığını sonsuza kadar kilitliyordu.
+     * Yalnızca CHILD / MAIN_AND_CHILD iş parçacığı türleri mThreadSubscribeBuffer'a girer (yoksa ana iş parçacığı).
+     */
     public void addSubscribe(VDEvent vDEvent) {
-        if (this.mServiceInfo.isExist()) {
-            synchronized (this.mSubscribeBuffer) {
-                try {
-                    Iterator<VDEvent> it = this.mSubscribeBuffer.iterator();
-                    while (it.hasNext()) {
-                        if (vDEvent.getId() == it.next().getId()) {
-                            Log.d(TAG, "addSubscribe: zaten buffer'da, eventId=" + vDEvent.getId() + " service=" + this.mServiceInfo.getServiceName());
-                            return;
-                        }
-                    }
-                    Log.d(TAG, "addSubscribe: eklendi, eventId=" + vDEvent.getId() + " threadType=" + vDEvent.getThreadType());
-                    this.mSubscribeBuffer.add(vDEvent);
-                    this.mIsSubscribeModified = true;
-                    synchronized (this.mThreadSubscribeBuffer) {
-                        if (vDEvent.getThreadType() != VDThreadType.CHILD_THREAD) {
-                            if (vDEvent.getThreadType() == VDThreadType.MAIN_AND_CHILD_THREAD) {
-                            }
-                        }
-                        this.mThreadSubscribeBuffer.add(vDEvent);
-                    }
-                } catch (Throwable th) {
-                    throw th;
-                } finally {
-                    while (true) {
-                    }
+        if (!this.mServiceInfo.isExist()) {
+            Log.w(TAG, "addSubscribe: service mevcut değil. name=" + this.mServiceInfo.getServiceName());
+            return;
+        }
+        synchronized (this.mSubscribeBuffer) {
+            Iterator<VDEvent> it = this.mSubscribeBuffer.iterator();
+            while (it.hasNext()) {
+                if (vDEvent.getId() == it.next().getId()) {
+                    Log.d(TAG, "addSubscribe: zaten buffer'da, eventId=" + vDEvent.getId() + " service=" + this.mServiceInfo.getServiceName());
+                    return;
+                }
+            }
+            Log.d(TAG, "addSubscribe: eklendi, eventId=" + vDEvent.getId() + " threadType=" + vDEvent.getThreadType());
+            this.mSubscribeBuffer.add(vDEvent);
+            this.mIsSubscribeModified = true;
+            synchronized (this.mThreadSubscribeBuffer) {
+                if (vDEvent.getThreadType() == VDThreadType.CHILD_THREAD || vDEvent.getThreadType() == VDThreadType.MAIN_AND_CHILD_THREAD) {
+                    this.mThreadSubscribeBuffer.add(vDEvent);
                 }
             }
         }
