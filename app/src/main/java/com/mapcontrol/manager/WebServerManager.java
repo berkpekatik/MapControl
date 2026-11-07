@@ -59,7 +59,7 @@ public class WebServerManager {
     private volatile Thread serverThread;
     private AtomicBoolean isRunning = new AtomicBoolean(false);
     /** Her başlatmada artar; kabul iş parçacığı yalnızca kendi kuşağı güncelken durum yazar. */
-    private final AtomicInteger generation = new AtomicInteger();
+    private final ServerGeneration generation = new ServerGeneration();
     /**
      * Sunucunun açık olması istenir mi: {@link #startServer()} true, {@link #stopServer()} false yapar. Beklenmedik
      * düşüşte ({@link #isHealthy()} false iken) bu true kalır; {@link WebServerHost} bekçisi o zaman yeniden açar.
@@ -124,7 +124,7 @@ public class WebServerManager {
             }
             serverSocket = socket;
             // Bu iş parçacığı yalnızca kendi kuşağını kapatır: durdurma geç biterse yeni sunucunun durumunu ezmez.
-            final int gen = generation.incrementAndGet();
+            final int gen = generation.next();
             isRunning.set(true);
             nsdAdvertiser.register(serverPort);
             
@@ -137,12 +137,12 @@ public class WebServerManager {
                     
                     if (listener != null) listener.onLog("HTTP Server başlatıldı: http://" + localIp + ":" + serverPort);
                     
-                    while (isRunning.get() && generation.get() == gen && !socket.isClosed()) {
+                    while (isRunning.get() && generation.isCurrent(gen) && !socket.isClosed()) {
                         try {
                             Socket clientSocket = socket.accept();
                             handleClient(clientSocket);
                         } catch (IOException e) {
-                            if (isRunning.get() && generation.get() == gen) {
+                            if (isRunning.get() && generation.isCurrent(gen)) {
                                 if (listener != null) listener.onLog("[ERROR] Client bağlantı hatası: " + e.getMessage());
                             }
                         }
@@ -153,7 +153,7 @@ public class WebServerManager {
                         listener.onError("Server hatası: " + e.getMessage());
                     }
                 } finally {
-                    if (generation.get() == gen) {
+                    if (generation.isCurrent(gen)) {
                         isRunning.set(false);
                         if (listener != null) {
                             listener.onServerStopped();
