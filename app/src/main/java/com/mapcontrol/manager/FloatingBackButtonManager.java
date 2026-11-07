@@ -66,6 +66,8 @@ public class FloatingBackButtonManager {
     private View floatingButton;
     private WindowManager.LayoutParams params;
     private boolean isShowing = false;
+    /** Ana ekran (HomeLauncherActivity/MiniDashActivity) öndeyken true: hub gizlenir, ayar ve konum korunur. */
+    private static volatile boolean sSuppressed;
 
     private LinearLayout cardInner;
     private AppCompatImageButton btnBack;
@@ -524,6 +526,26 @@ public class FloatingBackButtonManager {
         }
     }
 
+    /**
+     * Launcher öndeyken yüzen geri/menü hub'ı görünmez yapılır (ayar kapanmaz, pencere kalır, yoklama yok);
+     * başka uygulama öne geçince aynen geri gelir. Ana iş parçacığından çağrılır (yaşam döngüsü).
+     */
+    public static void setSuppressed(boolean suppressed) {
+        sSuppressed = suppressed;
+        FloatingBackButtonManager m = sInstance;
+        if (m != null) m.applySuppressed();
+    }
+
+    private synchronized void applySuppressed() {
+        View root = floatingButton;
+        if (root == null) return;
+        if (sSuppressed && menuOpen && menuContainer != null) {
+            menuContainer.setVisibility(View.GONE);
+            menuOpen = false;
+        }
+        root.setVisibility(sSuppressed ? View.GONE : View.VISIBLE);
+    }
+
     public synchronized void show() {
         log("[INFO] Floating Back hub show() çağrıldı");
 
@@ -745,6 +767,7 @@ public class FloatingBackButtonManager {
             if (windowManager != null && floatingButton != null && params != null) {
                 windowManager.addView(floatingButton, params);
                 isShowing = true;
+                applySuppressed();
                 registerThemeConfigCallback();
                 log("[SUCCESS] Floating Back hub gösterildi");
             }

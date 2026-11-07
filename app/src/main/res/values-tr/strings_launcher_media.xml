@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Medya kartı: sakin izin yok ve boşta durumları -->
+<resources>
+    <string name="launcher_media_title_neutral">Müzik</string>
+    <string name="launcher_media_access_hint">Müzik bilgisi için izin gerekli</string>
+    <string name="launcher_media_grant_access">İzin ver</string>
+    <string name="launcher_media_idle_title">Çalan bir şey yok</string>
+    <string name="launcher_media_idle_resume">Açmak için oynat tuşuna dokun</string>
+</resources>

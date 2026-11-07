@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sürüş ekranı yarıları, gece: Sahne zemini siyah (Sahne.GROUND). -->
+<resources>
+    <color name="sahne_drive_ground">#000000</color>
+
+    <style name="Theme.Sahne.DriveHalf" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/sahne_drive_ground</item>
+    </style>
+</resources>

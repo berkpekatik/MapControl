@@ -14,6 +14,9 @@ import com.mapcontrol.ui.theme.UiStyles;
  * ve dashboard tema renkleri.
  * <p>
  * Eco=0, Normal=1, Sport=2, Snow=3, Mud=4, Offroad=5, Sand=7.
+ * <p>
+ * Okunan ve yazılan değerler aynıdır (7 Kasım araç ölçümü, fiziksel düğme; 6 hiç görülmedi). Launcher tarafındaki tek
+ * kaynak {@code com.mapcontrol.launcher.DriveModes}.
  */
 public final class DriveModeStyle {
 

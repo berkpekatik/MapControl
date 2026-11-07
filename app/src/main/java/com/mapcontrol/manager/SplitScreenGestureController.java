@@ -111,6 +111,9 @@ public final class SplitScreenGestureController {
         if (pkg == null || pkg.isEmpty()) {
             return false;
         }
+        if (com.mapcontrol.util.SplitSlot.isComponent(pkg)) {
+            return com.mapcontrol.util.SplitSlot.isMiniDash(pkg, appContext.getPackageName());
+        }
         try {
             android.content.pm.ApplicationInfo info = appContext.getPackageManager()
                     .getApplicationInfo(pkg, 0);

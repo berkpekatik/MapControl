@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_seat_vent_later">Araç testinden sonra açılacak</string>
+    <string name="launcher_widget_seat_driver">Sürücü koltuğu</string>
+    <string name="launcher_widget_seat_passenger">Yolcu koltuğu</string>
+    <string name="launcher_seat_heat_level">Isıtma %1$d</string>
+    <string name="launcher_seat_cool_level">Soğutma %1$d</string>
+    <string name="launcher_seat_row_heat">Isıtma</string>
+    <string name="launcher_seat_row_cool">Soğutma</string>
+    <string name="launcher_seat_level_desc" formatted="true">%1$s, seviye %2$d</string>
+    <string name="launcher_read_only_seat">Test sürümü: koltuk araçtan değiştirilir</string>
+    <string name="launcher_read_only_lock">Test sürümü: kilit araçtan değiştirilir</string>
+</resources>

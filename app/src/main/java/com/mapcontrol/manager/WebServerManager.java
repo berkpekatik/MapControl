@@ -25,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
@@ -33,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import android.os.Environment;
 
 import androidx.core.content.ContextCompat;
@@ -56,6 +58,8 @@ public class WebServerManager {
     private final NsdAdvertiser nsdAdvertiser;
     private volatile Thread serverThread;
     private AtomicBoolean isRunning = new AtomicBoolean(false);
+    /** Her başlatmada artar; kabul iş parçacığı yalnızca kendi kuşağı güncelken durum yazar. */
+    private final AtomicInteger generation = new AtomicInteger();
     /**
      * Sunucunun açık olması istenir mi: {@link #startServer()} true, {@link #stopServer()} false yapar. Beklenmedik
      * düşüşte ({@link #isHealthy()} false iken) bu true kalır; {@link WebServerHost} bekçisi o zaman yeniden açar.
@@ -95,7 +99,7 @@ public class WebServerManager {
     /**
      * HTTP server'ı başlat (7462 portunda)
      */
-    public void startServer() {
+    public synchronized void startServer() {
         desired = true;
         if (isRunning.get()) {
             if (listener != null) listener.onLog("Server zaten çalışıyor");
@@ -109,8 +113,18 @@ public class WebServerManager {
             // Hızlı yeniden başlatmada eski bağlantılar (TIME_WAIT) portu tutuyorsa "Address already in use" olmasın.
             ServerSocket socket = new ServerSocket();
             socket.setReuseAddress(true);
-            socket.bind(new java.net.InetSocketAddress(serverPort));
+            try {
+                socket.bind(new InetSocketAddress(serverPort));
+            } catch (IOException e) {
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
+                throw e;
+            }
             serverSocket = socket;
+            // Bu iş parçacığı yalnızca kendi kuşağını kapatır: durdurma geç biterse yeni sunucunun durumunu ezmez.
+            final int gen = generation.incrementAndGet();
             isRunning.set(true);
             nsdAdvertiser.register(serverPort);
             
@@ -123,12 +137,12 @@ public class WebServerManager {
                     
                     if (listener != null) listener.onLog("HTTP Server başlatıldı: http://" + localIp + ":" + serverPort);
                     
-                    while (isRunning.get() && !serverSocket.isClosed()) {
+                    while (isRunning.get() && generation.get() == gen && !socket.isClosed()) {
                         try {
-                            Socket clientSocket = serverSocket.accept();
+                            Socket clientSocket = socket.accept();
                             handleClient(clientSocket);
                         } catch (IOException e) {
-                            if (isRunning.get()) {
+                            if (isRunning.get() && generation.get() == gen) {
                                 if (listener != null) listener.onLog("[ERROR] Client bağlantı hatası: " + e.getMessage());
                             }
                         }
@@ -139,9 +153,11 @@ public class WebServerManager {
                         listener.onError("Server hatası: " + e.getMessage());
                     }
                 } finally {
-                    isRunning.set(false);
-                    if (listener != null) {
-                        listener.onServerStopped();
+                    if (generation.get() == gen) {
+                        isRunning.set(false);
+                        if (listener != null) {
+                            listener.onServerStopped();
+                        }
                     }
                 }
             });
@@ -159,13 +175,13 @@ public class WebServerManager {
     /**
      * HTTP server'ı durdur
      */
-    public void stopServer() {
+    public synchronized void stopServer() {
         desired = false;
         stopInternal();
     }
 
     /** Durdurup yeniden açar; {@link #isDesired()} değişmez (bekçi kurtarması). */
-    public void restart() {
+    public synchronized void restart() {
         stopInternal();
         startServer();
     }

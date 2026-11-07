@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_data_check">Data check</string>
+    <string name="launcher_data_check_device">Device</string>
+    <string name="launcher_data_check_hint">Is data arriving for each widget?</string>
+    <string name="launcher_data_check_save">Share/Save</string>
+    <string name="launcher_data_check_saved">Saved: %1$s</string>
+    <string name="launcher_data_check_save_failed">Could not save</string>
+    <string name="launcher_data_check_no_service">Service not connected</string>
+</resources>

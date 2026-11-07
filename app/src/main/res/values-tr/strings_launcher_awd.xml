@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_widget_awd">4x4 güç dağılımı</string>
+    <string name="launcher_awd_active">4x4 aktif</string>
+    <string name="launcher_awd_front">Ön çekiş</string>
+    <string name="launcher_awd_split">Ön %%%1$d, arka %%%2$d</string>
+    <string name="launcher_awd_front_short">Ön</string>
+    <string name="launcher_awd_rear_short">Arka</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_widget_awd">4x4 power split</string>
+    <string name="launcher_awd_active">4x4 active</string>
+    <string name="launcher_awd_front">Front-wheel drive</string>
+    <string name="launcher_awd_split">Front %1$d%% · Rear %2$d%%</string>
+    <string name="launcher_awd_front_short">Front</string>
+    <string name="launcher_awd_rear_short">Rear</string>
+</resources>

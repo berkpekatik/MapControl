@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Özgün "kil beyazı" yandan SUV silüeti (markasız; hiçbir üretici görselinden türetilmedi, tamamen elle çizildi).
+  Park düzenindeki araç kartında üstten görünüşe alternatif olarak kullanılabilir; şimdilik hiçbir yerde varsayılan bağlı değil.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="100dp"
+    android:viewportWidth="240"
+    android:viewportHeight="100">
+    <!-- Yer gölgesi -->
+    <path
+        android:fillColor="#22000000"
+        android:pathData="M14,88 C14,84 60,83 120,83 C180,83 226,84 226,88 C226,92 180,94 120,94 C60,94 14,92 14,88 Z" />
+    <!-- Gövde -->
+    <path android:pathData="M14,66 C11,58 11,40 14,32 L18,22 C20,15 26,12 36,11 L152,9 C160,9 165,12 170,17 L190,38 C200,39 216,41 225,45 C231,48 233,58 232,66 L229,73 L16,73 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="9"
+                android:endX="0" android:endY="73">
+                <item android:offset="0" android:color="#FFFCFBF8" />
+                <item android:offset="0.5" android:color="#FFF1EEE6" />
+                <item android:offset="1" android:color="#FFD8D3C8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Alt etek gölgesi -->
+    <path
+        android:fillColor="#14000000"
+        android:pathData="M14,65 L232,65 L232,66 L229,73 L16,73 Z" />
+    <!-- Tavan rayı -->
+    <path
+        android:strokeColor="#38000000"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:pathData="M44,8 L150,6" />
+    <!-- Camlar (iki bölme, B sütunu ortada) -->
+    <path
+        android:fillColor="#FFC7D0DA"
+        android:pathData="M36,19 L86,17 L86,38 L21,38 Z" />
+    <path
+        android:fillColor="#FFD5DCE4"
+        android:pathData="M92,17 L150,16 C155,16 159,18 162,22 L180,38 L92,38 Z" />
+    <path
+        android:fillColor="#45FFFFFF"
+        android:pathData="M100,17.5 L120,17 L106,38 L92,38 Z" />
+    <!-- Kapı dikişleri ve kollar -->
+    <path
+        android:strokeColor="#33000000"
+        android:strokeWidth="0.9"
+        android:strokeLineCap="round"
+        android:pathData="M89,17 L89,72 M142,39 L142,72 M30,39 L30,70" />
+    <path
+        android:strokeColor="#42000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M77,46 L84,46 M128,46 L135,46" />
+    <!-- Omuz çizgisi -->
+    <path
+        android:strokeColor="#1F000000"
+        android:strokeWidth="0.9"
+        android:strokeLineCap="round"
+        android:pathData="M16,42 C80,45 150,45 190,41" />
+    <!-- Ön ve arka lamba şeritleri (sönük, tek renk) -->
+    <path
+        android:fillColor="#FFE9E2C6"
+        android:pathData="M224,47 L231,52 L231,55 L225,53 Z" />
+    <path
+        android:fillColor="#FFCFC9BB"
+        android:pathData="M12.5,34 L16,34 L16,48 L13,48 Z" />
+    <!-- Tekerlek yuvaları -->
+    <path
+        android:fillColor="#FF2F333A"
+        android:pathData="M37,73 A19,19 0 1 1 75,73 Z M167,73 A19,19 0 1 1 205,73 Z" />
+    <!-- Lastik, jant, poyra -->
+    <path
+        android:fillColor="#FF3C4149"
+        android:pathData="M41,73 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0 M171,73 a15,15 0 1 0 30,0 a15,15 0 1 0 -30,0" />
+    <path
+        android:fillColor="#FFDDE1E7"
+        android:pathData="M47,73 a9,9 0 1 0 18,0 a9,9 0 1 0 -18,0 M177,73 a9,9 0 1 0 18,0 a9,9 0 1 0 -18,0" />
+    <path
+        android:fillColor="#FF9AA1AB"
+        android:pathData="M53,73 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 M183,73 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0" />
+</vector>

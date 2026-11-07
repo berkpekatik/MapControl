@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Desay OEM komutlarindan turetilen widget'lar (klima tuslari, isitmalar, lastik, toplamlar, arka hoparlor). -->
+<resources>
+    <string name="launcher_climate_lo">LO</string>
+    <string name="launcher_climate_hi">HI</string>
+    <string name="launcher_trunk_stale">Bagaj durumu değişti, tekrar dokunun</string>
+    <string name="launcher_widget_trip_totals">Toplam</string>
+    <string name="launcher_widget_rear_speaker">Arka hoparlör</string>
+    <string name="launcher_rear_on">Açık</string>
+    <string name="launcher_rear_off">Kapalı</string>
+    <string name="launcher_tire_fl">Ön sol</string>
+    <string name="launcher_tire_fr">Ön sağ</string>
+    <string name="launcher_tire_rl">Arka sol</string>
+    <string name="launcher_tire_rr">Arka sağ</string>
+    <string name="launcher_liter_value" formatted="true">%1$s L</string>
+    <string name="launcher_totals_fuel_label">Toplam yakıt</string>
+    <string name="launcher_totals_time_label">Sürüş süresi</string>
+    <string name="launcher_totals_odometer">Toplam yol</string>
+    <string name="launcher_rear_muted_detail">Ses sadece önden</string>
+    <string name="launcher_rear_on_detail">Tüm hoparlörler</string>
+    <string name="launcher_rear_denied_detail">Sistem izni gerekiyor</string>
+    <string name="launcher_rear_assumed_detail">Son komuta göre tahmin</string>
+</resources>

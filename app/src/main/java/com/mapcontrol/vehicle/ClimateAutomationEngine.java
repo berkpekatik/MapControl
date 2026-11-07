@@ -16,9 +16,11 @@ import com.desaysv.ivi.extra.project.carinfo.proxy.Constants;
 import com.desaysv.ivi.vdb.IVDBusNotify;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
+import com.mapcontrol.comfort.ComfortPlan;
 
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -66,6 +68,15 @@ public final class ClimateAutomationEngine {
      * otomasyon tekrar açmaz.
      */
     private static final int MAX_STARTUP_SEND_ATTEMPTS = 3;
+    /**
+     * OEM sesli komut klima kapalıyken önce güç (HVAC 18 ← 1) gönderir, asıl komutu 150 ms sonra yollar.
+     */
+    private static final long CLIMATE_POWER_LEAD_MS = 150;
+    /**
+     * Anahtar yazması (CS 160) geri okuma gecikirse ikinci gönderim ısıtmayı geri kapatır; OEM de yazmadan sonra
+     * okumayı ~2 sn yok sayar. Bu yüzden iki gönderim arasında en az bu kadar beklenir.
+     */
+    private static final long TOGGLE_RESEND_GAP_MS = 3000;
     private static final int MODULE_HVAC = VDEventCarInfo.MODULE_HVAC;
     private static final int MODULE_SETTING = VDEventCarInfo.MODULE_CAR_SETTING;
     private static final int MODULE_READONLY = VDEventCarInfo.MODULE_READONLY_INFO;
@@ -311,7 +322,10 @@ public final class ClimateAutomationEngine {
                 }
                 firedThisDrive.remove(id);
             } else if (appliedThisDrive.contains(id)) {
-                if (applyRule(id, rule)) {
+                if (ClimateAutomationStore.STEER_HEAT.equals(id)) {
+                    // Anahtar: komut süre/sıcaklık ayarına bağlı değil; yeniden göndermek ısıtmayı ters çevirir
+                    firedThisDrive.add(id);
+                } else if (applyRule(id, rule)) {
                     firedThisDrive.add(id);
                     if (lastPowerMode == 1) {
                         appliedWhileReady.add(id);
@@ -328,7 +342,11 @@ public final class ClimateAutomationEngine {
 
     public void disableRule(String id) {
         io.execute(() -> {
-            deactivateRule(id);
+            // Direksiyon ısıtma anahtardır: otomasyon açmadıysa kapatma, sürücünün elle açtığı ısıtmayı kapatır
+            if (!ClimateAutomationStore.STEER_HEAT.equals(id)
+                    || appliedThisDrive.contains(id) || pendingDeactivation.contains(id)) {
+                deactivateRule(id);
+            }
             refreshFromBus();
             evaluate("rule-disabled:" + id);
             notifyListeners();
@@ -388,7 +406,8 @@ public final class ClimateAutomationEngine {
             // Koltuk ısıtma / soğutma: 0 veya 1 = kapalı
             isOffNotification = (raw == 0 || raw == 1);
         } else {
-            isOffNotification = (raw == 0);
+            // OEM okuması: yalnızca 1 açık (HvacModel get*State() == 1); kapalı 0 ya da 2 dönebilir
+            isOffNotification = (raw != 1);
         }
         if (isOffNotification) {
             firedThisDrive.add(ruleId);
@@ -602,10 +621,17 @@ public final class ClimateAutomationEngine {
                 log("Karşıt kural aktif (" + partnerId + "); yeni kural (" + id + ") için kapatılıyor");
                 deactivateRule(partnerId);
             }
+            if (ClimateAutomationStore.STEER_HEAT.equals(id) && sentWithin(id, TOGGLE_RESEND_GAP_MS)) {
+                // Anahtar: önceki 160 ← 1 henüz geri okunmadıysa tekrar gönderme (ısıtmayı geri kapatır)
+                continue;
+            }
             if (applyRule(id, rule)) {
                 lastCommandErrors.remove(id);
                 appliedThisDrive.add(id);
-                lastSentElapsedMs.put(id, SystemClock.elapsedRealtime());
+                if (!ClimateAutomationStore.STEER_HEAT.equals(id)) {
+                    // Direksiyon ısıtma zamanını toggleSteerWheelHeat yalnızca gerçek gönderimde kaydeder
+                    lastSentElapsedMs.put(id, SystemClock.elapsedRealtime());
+                }
                 if (lastPowerMode == 1) {
                     appliedWhileReady.add(id);
                 }
@@ -742,37 +768,17 @@ public final class ClimateAutomationEngine {
     private boolean applyRule(String id, ClimateAutomationStore.Rule rule) {
         try {
             CarInfoProxy proxy = CarInfoProxy.getInstance();
-            switch (id) {
-                case ClimateAutomationStore.DRIVER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_DRIVER_SEAT_HEAT, wireSeatLevel(rule.level));
-                    break;
-                case ClimateAutomationStore.PASSENGER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_HEAT, wireSeatLevel(rule.level));
-                    break;
-                case ClimateAutomationStore.DRIVER_VENT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_DRIVER_SEAT_VENTILATION, wireSeatLevel(rule.level));
-                    break;
-                case ClimateAutomationStore.PASSENGER_VENT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_VENTILATION, wireSeatLevel(rule.level));
-                    break;
-                case ClimateAutomationStore.STEER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 1);
-                    break;
-                case ClimateAutomationStore.WINDSHIELD:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
-                    break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 1);
-                    break;
-                case ClimateAutomationStore.CLIMATE:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 1);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 1);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_AUTO_STATE, 1);
-                    break;
-                default:
-                    return false;
+            // Yazma değerleri ClimateAutomationWrites tablosunda (JVM'de sınanır)
+            List<ClimateAutomationWrites.Write> writes = ClimateAutomationWrites.onWrites(id, wireSeatLevel(rule.level));
+            if (writes == null) {
+                return false;
+            }
+            if (ClimateAutomationStore.STEER_HEAT.equals(id)) {
+                toggleSteerWheelHeat(proxy, true);
+            }
+            send(proxy, writes);
+            if (ClimateAutomationStore.CLIMATE.equals(id)) {
+                scheduleClimateFollowUp();
             }
             if (ClimateAutomationStore.usesHeatLevel(id)) {
                 Log.d(TAG, "Koltuk kademe komutu: " + id + ", seçilen kademe="
@@ -834,40 +840,23 @@ public final class ClimateAutomationEngine {
                 pendingDeactivation.add(id);
                 return;
             }
-            CarInfoProxy proxy = CarInfoProxy.getInstance();
-            lastSentElapsedMs.put(id, SystemClock.elapsedRealtime());
-            switch (id) {
-                case ClimateAutomationStore.DRIVER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_DRIVER_SEAT_HEAT, 1);
-                    break;
-                case ClimateAutomationStore.PASSENGER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_HEAT, 1);
-                    break;
-                case ClimateAutomationStore.DRIVER_VENT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_DRIVER_SEAT_VENTILATION, 1);
-                    break;
-                case ClimateAutomationStore.PASSENGER_VENT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_VENTILATION, 1);
-                    break;
-                case ClimateAutomationStore.STEER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 0);
-                    break;
-                case ClimateAutomationStore.WINDSHIELD:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 0);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 0);
-                    break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 0);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 0);
-                    break;
-                case ClimateAutomationStore.CLIMATE:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 0);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 0);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_AUTO_STATE, 0);
-                    break;
-                default:
-                    return;
+            List<ClimateAutomationWrites.Write> writes = ClimateAutomationWrites.offWrites(id);
+            if (writes == null) {
+                return;
             }
+            CarInfoProxy proxy = CarInfoProxy.getInstance();
+            if (ClimateAutomationStore.STEER_HEAT.equals(id)) {
+                if (sentWithin(id, TOGGLE_RESEND_GAP_MS)) {
+                    // Önceki 160 ← 1 henüz geri okunmamış olabilir; bayat okumayla anahtarı ters çevirme.
+                    // Kural uygulanmış sayılmaya devam eder; retryPendingDeactivations boşluktan sonra yeniden okur.
+                    pendingDeactivation.add(id);
+                    return;
+                }
+                toggleSteerWheelHeat(proxy, false);
+            } else {
+                lastSentElapsedMs.put(id, SystemClock.elapsedRealtime());
+            }
+            send(proxy, writes);
             firedThisDrive.remove(id);
             appliedThisDrive.remove(id);
             appliedWhileReady.remove(id);
@@ -877,6 +866,57 @@ public final class ClimateAutomationEngine {
             pendingDeactivation.add(id);
             log("Konfor otomasyonu kapatılamadı (" + id + "): " + t.getMessage());
         }
+    }
+
+    private void send(CarInfoProxy proxy, List<ClimateAutomationWrites.Write> writes) {
+        for (ClimateAutomationWrites.Write w : writes) {
+            proxy.sendItemValue(w.module, w.id, w.value);
+        }
+    }
+
+    /**
+     * Direksiyon ısıtma anahtarı: CS 160 okunur (1 açık, 0 kapalı); hedeften farklıysa 160 ← 1 gönderilir
+     * (OEM sesli komut STEERING_WHEEL_HEATING). Okunamazsa gönderilmez, hata fırlatır.
+     * Gönderim zamanı yalnızca gerçekten yazıldığında kaydedilir (TOGGLE_RESEND_GAP_MS bundan ölçülür).
+     */
+    private void toggleSteerWheelHeat(CarInfoProxy proxy, boolean on) {
+        int[] values = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT);
+        Integer current = values != null && values.length > 0 ? values[0] : null;
+        switch (ComfortPlan.toggleAction(current, on ? 1 : 0)) {
+            case REFUSE:
+                throw new IllegalStateException("direksiyon ısıtma durumu okunamadı");
+            case SKIP:
+                return;
+            default:
+                lastSentElapsedMs.put(ClimateAutomationStore.STEER_HEAT, SystemClock.elapsedRealtime());
+                proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT,
+                        ClimateAutomationWrites.STEER_WHEEL_TOGGLE);
+        }
+    }
+
+    private boolean sentWithin(String id, long windowMs) {
+        Long sentAt = lastSentElapsedMs.get(id);
+        return sentAt != null && SystemClock.elapsedRealtime() - sentAt < windowMs;
+    }
+
+    /** Klima açma: güç yazmasından CLIMATE_POWER_LEAD_MS sonra A/C 1 ← 1 ve otomatik 4 ← 1 (io kuyruğunda). */
+    private void scheduleClimateFollowUp() {
+        io.schedule(() -> {
+            // Arada kural kapatıldıysa ya da kapatma bekliyorsa (deactivateRule) açma komutlarını gönderme
+            if (!appliedThisDrive.contains(ClimateAutomationStore.CLIMATE)
+                    || pendingDeactivation.contains(ClimateAutomationStore.CLIMATE)) {
+                return;
+            }
+            try {
+                send(CarInfoProxy.getInstance(), ClimateAutomationWrites.climateFollowUpWrites());
+            } catch (Throwable t) {
+                String error = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                if (!error.equals(lastCommandErrors.put(ClimateAutomationStore.CLIMATE, error))) {
+                    log("Konfor otomasyonu gönderilemedi (" + ClimateAutomationStore.CLIMATE + "): " + error);
+                }
+                notifyListeners();
+            }
+        }, CLIMATE_POWER_LEAD_MS, TimeUnit.MILLISECONDS);
     }
 
     private void retryPendingDeactivations() {

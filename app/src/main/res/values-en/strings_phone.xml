@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Telefon paneli, arama şeridi ve ses tuşu ayarı. -->
+<resources>
+    <string name="launcher_widget_phone_call">Phone</string>
+    <string name="launcher_phone_title">Phone</string>
+    <string name="launcher_phone_label">PHONE</string>
+    <string name="launcher_phone_assistant">Voice assistant</string>
+    <string name="launcher_phone_assistant_failed">Couldn\'t start the voice assistant</string>
+    <string name="launcher_phone_not_connected">No phone connected</string>
+    <string name="launcher_phone_not_connected_sub">Connect a phone via Bluetooth</string>
+    <string name="launcher_phone_bluetooth">Bluetooth</string>
+    <string name="launcher_phone_permission">Contacts access is needed</string>
+    <string name="launcher_phone_grant">Allow</string>
+    <string name="launcher_phone_loading">Loading contacts…</string>
+    <string name="launcher_phone_empty">No recent calls or favorites</string>
+    <string name="launcher_phone_empty_sub">Allow contact sharing on your phone</string>
+    <string name="launcher_phone_favorites">Favorites</string>
+    <string name="launcher_phone_recents">Recent calls</string>
+    <string name="launcher_phone_pinned">Pinned</string>
+    <string name="launcher_phone_unpinned">Unpinned</string>
+    <string name="launcher_phone_call_cd">Call %s</string>
+    <string name="launcher_phone_pin_hint">Touch and hold to pin</string>
+    <string name="launcher_call_incoming">Incoming call</string>
+    <string name="launcher_call_dialing">Calling…</string>
+    <string name="launcher_call_ended">Call ended</string>
+    <string name="launcher_call_answer">Answer</string>
+    <string name="launcher_call_decline">Decline</string>
+    <string name="launcher_call_hangup">End</string>
+    <string name="launcher_call_mute">Mute</string>
+    <string name="launcher_call_failed">Couldn\'t complete the call action</string>
+    <string name="launcher_call_no_phone">No phone connected</string>
+    <string name="launcher_call_not_supported">Not supported on this car</string>
+    <string name="launcher_phone_voice_key">Long-press voice key opens phone assistant</string>
+    <string name="launcher_phone_voice_key_hint">Short press opens the car\'s own voice control. Touching and holding the phone button in the bottom bar also opens the phone assistant.</string>
+    <string name="launcher_phone_assistant_button">Voice assistant button</string>
+    <string name="launcher_phone_assistant_button_hint">When off, the phone card has no voice assistant button: a larger last call and up to 5 favourites instead.</string>
+    <string name="launcher_time_yesterday">Yesterday</string>
+    <string name="launcher_time_minutes">%d min</string>
+    <string name="launcher_time_hours">%d h</string>
+    <string name="launcher_time_now">Now</string>
+    <string name="launcher_phone_permission_settings_sub">Turn it on in Settings &gt; Apps &gt; permissions</string>
+    <string name="launcher_phone_open_settings">Open settings</string>
+    <!-- Call screen and new panel (6 Nov). -->
+    <string name="call_screen_mute">Mute</string>
+    <string name="call_audio_phone">Use phone</string>
+    <string name="call_audio_car">Use car</string>
+    <string name="call_keypad">Keypad</string>
+    <string name="call_minimize">Minimize</string>
+    <string name="call_hangup">End</string>
+    <string name="call_screen_open_cd">Open call screen</string>
+    <string name="phone_last_call">Last call</string>
+    <string name="phone_call_back">Call back</string>
+    <string name="phone_all">All</string>
+    <string name="phone_tab_recents">Recent calls</string>
+    <string name="phone_tab_contacts">Contacts</string>
+    <string name="phone_all_empty">Nothing here yet</string>
+    <string name="phone_all_empty_sub">Contacts and history come from your phone</string>
+    <string name="phone_assistant_strip">Voice assistant</string>
+    <string name="phone_ago_minutes">%d min ago</string>
+    <string name="phone_ago_hours">%d h ago</string>
+    <string name="pref_call_screen">Call screen</string>
+    <string name="pref_call_screen_launcher">Launcher</string>
+    <string name="pref_call_screen_oem">Factory</string>
+    <string name="pref_call_screen_hint">Launcher: when a call starts the home screen comes to the front and the call continues on our screen. Factory: the car\'s own call screen stays.</string>
+</resources>

@@ -67,17 +67,17 @@ public class VDConnector {
             super.handleMessage(message);
             int i9 = message.what;
             if (i9 == 1000) {
-                Log.d(VDConnector.TAG, "MSG_RECONNECT_SERVICE: reconnectCount=" + VDConnector.this.mReconnectCount + " service=" + VDConnector.this.mServiceInfo.getServiceName());
+                VdLog.d(VDConnector.TAG, "MSG_RECONNECT_SERVICE: reconnectCount=" + VDConnector.this.mReconnectCount + " service=" + VDConnector.this.mServiceInfo.getServiceName());
                 if (VDConnector.this.mReconnectCount >= 10) {
                     VDConnector.this.mReconnectCount = 0;
                     Log.w(VDConnector.TAG, "Reconnect deneme limiti aşıldı, tekrar denenmeyecek. service=" + VDConnector.this.mServiceInfo.getServiceName());
                     return;
                 }
                 VDConnector.access$108(VDConnector.this);
-                Log.d(VDConnector.TAG, "Reconnect denemesi başlatılıyor, count=" + VDConnector.this.mReconnectCount + " service=" + VDConnector.this.mServiceInfo.getServiceName());
+                VdLog.d(VDConnector.TAG, "Reconnect denemesi başlatılıyor, count=" + VDConnector.this.mReconnectCount + " service=" + VDConnector.this.mServiceInfo.getServiceName());
                 VDConnector.this.bindService();
             } else if (i9 == 2000) {
-                Log.d(VDConnector.TAG, "MSG_DISPATCH_EVENT: main thread notify, eventId=" + ((VDEvent) message.obj).getId());
+                VdLog.d(VDConnector.TAG, "MSG_DISPATCH_EVENT: main thread notify, eventId=" + ((VDEvent) message.obj).getId());
                 VDConnector.this.dispatchEvent((VDEvent) message.obj, VDThreadType.MAIN_THREAD);
             } else if (i9 == 3000) {
                 Iterator it = ((Map) message.obj).entrySet().iterator();
@@ -94,11 +94,11 @@ public class VDConnector {
     public int mReconnectCount = 0;
     private ServiceConnection mServiceConn = new ServiceConnection() {
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            Log.d(VDConnector.TAG, "onServiceConnected: component=" + componentName + " service=" + VDConnector.this.mServiceInfo.getServiceName());
+            VdLog.d(VDConnector.TAG, "onServiceConnected: component=" + componentName + " service=" + VDConnector.this.mServiceInfo.getServiceName());
             try {
                 iBinder.linkToDeath(VDConnector.this.mDeathRecipient, 0);
                 VDConnector.this.mIVDBus = IVDBus.Stub.asInterface(iBinder);
-                Log.d(VDConnector.TAG, "onServiceConnected: IVDBus arayüzü alındı");
+                VdLog.d(VDConnector.TAG, "onServiceConnected: IVDBus arayüzü alındı");
                 VDConnector.this.stopReconnect();
                 VDConnector.this.onVDBusConnected();
             } catch (Exception e10) {
@@ -212,7 +212,7 @@ public class VDConnector {
         this.mContext = context;
         this.mServiceInfo = serviceInfo;
         this.mThreadPoolExecutor = threadPoolExecutor;
-        Log.d(TAG, "VDConnector oluşturuldu service=" + serviceInfo.getServiceName() + " type=" + serviceInfo.getServiceType());
+        VdLog.d(TAG, "VDConnector oluşturuldu service=" + serviceInfo.getServiceName() + " type=" + serviceInfo.getServiceType());
         this.mICallback = new IVDBusCallback.Stub() {
             public void onVDBusCallback(VDEvent vDEvent) {
                 if (vDEvent.getPayload() != null) {
@@ -431,11 +431,11 @@ public class VDConnector {
             Iterator<VDEvent> it = this.mSubscribeBuffer.iterator();
             while (it.hasNext()) {
                 if (vDEvent.getId() == it.next().getId()) {
-                    Log.d(TAG, "addSubscribe: zaten buffer'da, eventId=" + vDEvent.getId() + " service=" + this.mServiceInfo.getServiceName());
+                    VdLog.d(TAG, "addSubscribe: zaten buffer'da, eventId=" + vDEvent.getId() + " service=" + this.mServiceInfo.getServiceName());
                     return;
                 }
             }
-            Log.d(TAG, "addSubscribe: eklendi, eventId=" + vDEvent.getId() + " threadType=" + vDEvent.getThreadType());
+            VdLog.d(TAG, "addSubscribe: eklendi, eventId=" + vDEvent.getId() + " threadType=" + vDEvent.getThreadType());
             this.mSubscribeBuffer.add(vDEvent);
             this.mIsSubscribeModified = true;
             synchronized (this.mThreadSubscribeBuffer) {
@@ -447,9 +447,9 @@ public class VDConnector {
     }
 
     public boolean bindService() {
-        Log.d(TAG, "bindService: çağrıldı service=" + this.mServiceInfo.getServiceName() + " system=" + this.mServiceInfo.isSystemService());
+        VdLog.d(TAG, "bindService: çağrıldı service=" + this.mServiceInfo.getServiceName() + " system=" + this.mServiceInfo.isSystemService());
         if (this.mIVDBus != null) {
-            Log.d(TAG, "bindService: zaten bağlı, IVDBus null değil");
+            VdLog.d(TAG, "bindService: zaten bağlı, IVDBus null değil");
             return true;
         }
         startReconnect();
@@ -460,7 +460,7 @@ public class VDConnector {
                     serviceFromServiceManager.linkToDeath(this.mDeathRecipient, 0);
                     try {
                         this.mIVDBus = IVDBus.Stub.asInterface(serviceFromServiceManager);
-                        Log.d(TAG, "bindService: system service üzerinden IVDBus alındı");
+                        VdLog.d(TAG, "bindService: system service üzerinden IVDBus alındı");
                         stopReconnect();
                         onVDBusConnected();
                     } catch (Exception e10) {
@@ -487,7 +487,7 @@ public class VDConnector {
     }
 
     public void dispatchEvent(VDEvent vDEvent, int i9) {
-        Log.d(TAG, "dispatchEvent: id=" + vDEvent.getId() + " threadType=" + i9 + " listenerCount=" + this.mVDNotifyListenerList.size());
+        VdLog.d(TAG, "dispatchEvent: id=" + vDEvent.getId() + " threadType=" + i9 + " listenerCount=" + this.mVDNotifyListenerList.size());
         synchronized (this.mVDNotifyListenerList) {
             int i10 = 0;
             while (i10 < this.mVDNotifyListenerList.size()) {
@@ -512,13 +512,13 @@ public class VDConnector {
             return;
         }
         if (this.mIVDBus == null) {
-            Log.d(TAG, "get: IVDBus null, bindService çağrılıyor. eventId=" + vDEvent.getId());
+            VdLog.d(TAG, "get: IVDBus null, bindService çağrılıyor. eventId=" + vDEvent.getId());
             bindService();
         }
         try {
             IVDBus iVDBus = this.mIVDBus;
             if (iVDBus != null) {
-                Log.d(TAG, "get: IVDBus.get çağrılıyor, eventId=" + vDEvent.getId());
+                VdLog.d(TAG, "get: IVDBus.get çağrılıyor, eventId=" + vDEvent.getId());
                 VDEvent vDEvent3 = iVDBus.get(vDEvent);
                 if (!VDValue.isNullEvent(vDEvent3)) {
                     if (vDEvent3.getPayload() != null) {
@@ -558,7 +558,7 @@ public class VDConnector {
                     }
                 }
                 this.mGetBuffer.add(vDEvent);
-                Log.d(TAG, "get: IVDBus null, istek buffer'a eklendi. eventId=" + vDEvent.getId());
+                VdLog.d(TAG, "get: IVDBus null, istek buffer'a eklendi. eventId=" + vDEvent.getId());
             } catch (Throwable th) {
                 while (true) {
                     throw th;
@@ -575,14 +575,14 @@ public class VDConnector {
             return null;
         }
         if (this.mIVDBus == null) {
-            Log.d(TAG, "getOnce: IVDBus null, bindService çağrılıyor. eventId=" + vDEvent.getId());
+            VdLog.d(TAG, "getOnce: IVDBus null, bindService çağrılıyor. eventId=" + vDEvent.getId());
             bindService();
         }
         boolean z9 = true;
         try {
             IVDBus iVDBus = this.mIVDBus;
             if (iVDBus != null) {
-                Log.d(TAG, "getOnce: IVDBus.get çağrılıyor, eventId=" + vDEvent.getId());
+                VdLog.d(TAG, "getOnce: IVDBus.get çağrılıyor, eventId=" + vDEvent.getId());
                 VDEvent vDEvent3 = iVDBus.get(vDEvent);
                 if (!VDValue.isNullEvent(vDEvent3)) {
                     if (vDEvent3.getPayload() != null) {
@@ -596,7 +596,7 @@ public class VDConnector {
             Log.e(TAG, "getOnce: beklenmeyen hata", unused2);
         }
         if (z9) {
-            Log.d(TAG, "getOnce: IVDBus null veya hata sonrası bindService tekrar çağrılıyor. eventId=" + vDEvent.getId());
+            VdLog.d(TAG, "getOnce: IVDBus null veya hata sonrası bindService tekrar çağrılıyor. eventId=" + vDEvent.getId());
             bindService();
         }
         return vDEvent2;
@@ -608,7 +608,7 @@ public class VDConnector {
 
     public boolean isServiceConnected() {
         boolean connected = this.mIVDBus != null;
-        Log.d(TAG, "isServiceConnected: " + connected + " service=" + this.mServiceInfo.getServiceName());
+        VdLog.d(TAG, "isServiceConnected: " + connected + " service=" + this.mServiceInfo.getServiceName());
         if (connected) {
             return true;
         }
@@ -620,7 +620,7 @@ public class VDConnector {
     }
 
     public void onVDBusConnected() {
-        Log.d(TAG, "onVDBusConnected: service=" + this.mServiceInfo.getServiceName());
+        VdLog.d(TAG, "onVDBusConnected: service=" + this.mServiceInfo.getServiceName());
         int i9;
         synchronized (this.mSubscribeBuffer) {
             try {
@@ -650,7 +650,7 @@ public class VDConnector {
                     VDEvent vDEvent = arrayList.get(i10);
                     i10++;
                     VDEvent vDEvent2 = vDEvent;
-                    Log.d(TAG, "onVDBusConnected: pending get işleniyor, eventId=" + vDEvent2.getId());
+                    VdLog.d(TAG, "onVDBusConnected: pending get işleniyor, eventId=" + vDEvent2.getId());
                     dispatchGet(vDEvent2, this.mIVDBus.get(vDEvent2));
                 }
             } catch (Exception e12) {
@@ -667,7 +667,7 @@ public class VDConnector {
                 i11++;
                 VDBindListener vDBindListener2 = vDBindListener;
                 if (vDBindListener2 != null) {
-                    Log.d(TAG, "onVDBusConnected: VDBindListener'e onVDConnected bildiriliyor, serviceType=" + this.mServiceInfo.getServiceType());
+                    VdLog.d(TAG, "onVDBusConnected: VDBindListener'e onVDConnected bildiriliyor, serviceType=" + this.mServiceInfo.getServiceType());
                     vDBindListener2.onVDConnected(this.mServiceInfo.getServiceType());
                 }
             }
@@ -901,58 +901,37 @@ public class VDConnector {
         }
     }
 
-    /* JADX WARNING: No exception handlers in catch block: Catch:{  } */
-    /* Code decompiled incorrectly, please refer to instructions dump. */
+    /**
+     * Biriken abonelikleri servise tek seferde gönderir. Abonelik listesi değişmediyse hiçbir şey yapmaz; dağıtım iş parçacığı bir kez açılır.
+     */
     public void subscribeCommit() {
-        /*
-            r6 = this;
-            com.desaysv.ivi.vdb.client.bind.VDServiceDef$ServiceInfo r0 = r6.mServiceInfo
-            boolean r0 = r0.isExist()
-            if (r0 != 0) goto L_0x0009
-            goto L_0x0048
-        L_0x0009:
-            java.util.ArrayList<com.desaysv.ivi.vdb.event.VDEvent> r0 = r6.mSubscribeBuffer
-            monitor-enter(r0)
-            boolean r1 = r6.mIsSubscribeModified     // Catch:{ all -> 0x0026 }
-            if (r1 == 0) goto L_0x0047
-            r1 = 0
-            r6.mIsSubscribeModified = r1     // Catch:{ all -> 0x0026 }
-            r6.createDispatchEventThread()     // Catch:{ all -> 0x0026 }
-            com.desaysv.ivi.vdb.IVDBus r1 = r6.mIVDBus     // Catch:{ all -> 0x0026 }
-            if (r1 != 0) goto L_0x002b
-            com.desaysv.ivi.vdb.client.bind.VDServiceDef$ServiceInfo r1 = r6.mServiceInfo     // Catch:{ all -> 0x0026 }
-            boolean r1 = r1.isSystemService()     // Catch:{ all -> 0x0026 }
-            if (r1 == 0) goto L_0x0028
-            r6.bindService()     // Catch:{ all -> 0x0026 }
-            goto L_0x002b
-        L_0x0026:
-            r1 = move-exception
-            goto L_0x0049
-        L_0x0028:
-            r6.sendCheckBootBroadcast()     // Catch:{ all -> 0x0026 }
-        L_0x002b:
-            com.desaysv.ivi.vdb.IVDBus r1 = r6.mIVDBus     // Catch:{ RemoteException -> 0x0043 }
-            if (r1 == 0) goto L_0x0047
-            java.util.ArrayList<com.desaysv.ivi.vdb.event.VDEvent> r2 = r6.mSubscribeBuffer     // Catch:{ RemoteException -> 0x0043 }
-            int[] r2 = r6.changeSubscribeBuffer(r2)     // Catch:{ RemoteException -> 0x0043 }
-            int r3 = r6.mPid     // Catch:{ RemoteException -> 0x0043 }
-            android.content.Context r4 = r6.mContext     // Catch:{ RemoteException -> 0x0043 }
-            java.lang.String r4 = r4.getPackageName()     // Catch:{ RemoteException -> 0x0043 }
-            com.desaysv.ivi.vdb.IVDBusCallback$Stub r5 = r6.mICallback     // Catch:{ RemoteException -> 0x0043 }
-            r1.subscribe(r2, r3, r4, r5)     // Catch:{ RemoteException -> 0x0043 }
-            goto L_0x0047
-        L_0x0043:
-            r1 = move-exception
-            r1.printStackTrace()     // Catch:{ all -> 0x0026 }
-        L_0x0047:
-            monitor-exit(r0)     // Catch:{ all -> 0x0026 }
-        L_0x0048:
-            return
-        L_0x0049:
-            monitor-exit(r0)     // Catch:{ all -> 0x0026 }
-            throw r1
-        */
-        throw new UnsupportedOperationException("Method not decompiled: com.desaysv.ivi.vdb.client.bind.VDConnector.subscribeCommit():void");
+        VdLog.d(TAG, "subscribeCommit: service=" + this.mServiceInfo.getServiceName() + " client=" + this.mContext.getPackageName());
+        if (!this.mServiceInfo.isExist()) {
+            Log.w(TAG, "subscribeCommit: service mevcut değil. name=" + this.mServiceInfo.getServiceName());
+            return;
+        }
+        synchronized (this.mSubscribeBuffer) {
+            if (this.mIsSubscribeModified) {
+                this.mIsSubscribeModified = false;
+                createDispatchEventThread();
+                if (this.mIVDBus == null) {
+                    VdLog.d(TAG, "subscribeCommit: IVDBus null");
+                    if (this.mServiceInfo.isSystemService()) {
+                        bindService();
+                    } else {
+                        sendCheckBootBroadcast();
+                    }
+                }
+                try {
+                    if (this.mIVDBus != null) {
+                        this.mIVDBus.subscribe(changeSubscribeBuffer(this.mSubscribeBuffer), this.mPid, this.mContext.getPackageName(), this.mICallback);
+                    }
+                } catch (Exception e10) {
+                    // Bizim IVDBus kopyası binder hatasını RuntimeException ile sarar (OEM'de RemoteException)
+                    Log.e(TAG, "subscribeCommit: VDBus subscribe hatası", e10);
+                }
+            }
+        }
     }
 
     public boolean unbindService() {

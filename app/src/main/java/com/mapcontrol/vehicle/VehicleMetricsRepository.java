@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -64,6 +63,7 @@ public final class VehicleMetricsRepository {
             ReadOnlyID.ID_ENGINE_RPM,
             ReadOnlyID.ID_WATER_TEMPERATURE,
             ReadOnlyID.ID_IBS_VOLTAGE,
+            ReadOnlyID.ID_BATTERY_LEVEL,
             ReadOnlyID.ID_CAR_SPEED,
             ReadOnlyID.ID_SPEED_GAUGE_DISPLAY,
             ReadOnlyID.ID_GEARBOX_STATE,
@@ -89,7 +89,7 @@ public final class VehicleMetricsRepository {
             CarSettingID.ID_CAR_SPF_OPERATE,
             CarSettingID.ID_CAR_SPF_POSI,
             CarSettingID.ID_CAR_SUNSHADE,
-            CarSettingID.ID_CAR_HEAD_LAMP,
+            // ID_CAR_HEAD_LAMP (91) bilerek yok: far YÜKSEKLİĞİ/ayar kademesi (0..3), far açık/kapalı değil.
             CarSettingID.ID_CAR_AIPM_BRIGHTNESS,
             CarSettingID.ID_CAR_METER_BACKLIGHT_LEVEL,
     };
@@ -102,7 +102,7 @@ public final class VehicleMetricsRepository {
     private final Context appContext;
     private final Consumer<String> eventLogger;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService ioExecutor = newDaemonSingleThread();
     private final Set<Listener> listeners = new CopyOnWriteArraySet<>();
     private final VehicleMetricsCache cache = new VehicleMetricsCache();
 
@@ -134,9 +134,6 @@ public final class VehicleMetricsRepository {
             if (module == MODULE_READONLY && itemId == ReadOnlyID.ID_PARKING_LAMP_STATE && values.length > 0) {
                 VehicleLightSensorManager.getInstance(appContext).onParkingLampSignal(values[0]);
             }
-            if (module == MODULE_SETTING && itemId == CarSettingID.ID_CAR_HEAD_LAMP && values.length > 0) {
-                VehicleLightSensorManager.getInstance(appContext).onHeadLampSignal(values[0]);
-            }
             if (cache.update(module, itemId, values)) {
                 if (module == MODULE_NEW_ENERGY && itemId == NewEnergyID.ID_DRIVE_MODE) {
                     int currentDriveMode = cache.getCombined(module, itemId);
@@ -155,6 +152,20 @@ public final class VehicleMetricsRepository {
             }
         }
     };
+
+    /** Hiç kapatılmayan ortak örnek için: arka plan (daemon) iş parçacığı, boştayken 30 sn sonra kendiliğinden biter. */
+    private static ExecutorService newDaemonSingleThread() {
+        java.util.concurrent.ThreadPoolExecutor ex = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 30L, java.util.concurrent.TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "metrics-io");
+                    t.setDaemon(true);
+                    return t;
+                });
+        ex.allowCoreThreadTimeOut(true);
+        return ex;
+    }
 
     public VehicleMetricsRepository(Context context) {
         this(context, message -> { });
@@ -340,9 +351,6 @@ public final class VehicleMetricsRepository {
             int[] values = proxy.getItemValues(MODULE_SETTING, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_SETTING, id, values);
-                if (id == CarSettingID.ID_CAR_HEAD_LAMP) {
-                    VehicleLightSensorManager.getInstance(appContext).onHeadLampSignal(values[0]);
-                }
             }
         }
         for (int id : SUBSCRIBED_NEW_ENERGY_IDS) {

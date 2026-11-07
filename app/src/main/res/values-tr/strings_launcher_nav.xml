@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_widget_navigation">Navigasyon</string>
+    <string name="launcher_nav_home">Ev</string>
+    <string name="launcher_nav_work">İş</string>
+    <string name="launcher_nav_open_map">Haritayı aç</string>
+    <string name="launcher_nav_map_app_title">Harita uygulaması</string>
+    <string name="launcher_nav_map_app_choose">Harita uygulamasını seç</string>
+    <string name="launcher_nav_not_installed">Harita uygulaması yüklü değil (Google ya da Yandex)</string>
+    <string name="launcher_nav_route_hint">Rota başlat</string>
+    <string name="launcher_nav_set_hint">Ayarla</string>
+    <string name="launcher_nav_access_message">Sonraki dönüşü burada görmek için bildirim erişimine izin verin.</string>
+    <string name="launcher_nav_access_button">Ayarları aç</string>
+    <string name="launcher_nav_arrival" formatted="true">Varış %1$s</string>
+    <string name="launcher_nav_exit" formatted="true">%1$d. çıkış</string>
+    <string name="launcher_nav_place_title" formatted="true">%1$s konumu</string>
+    <string name="launcher_nav_place_hint">Enlem, boylam (ör. 41.0082, 28.9784)</string>
+    <string name="launcher_nav_place_save">Kaydet</string>
+    <string name="launcher_nav_place_clear">Sil</string>
+    <string name="launcher_nav_place_cancel">Vazgeç</string>
+    <string name="launcher_nav_place_invalid">Geçersiz konum</string>
+    <string name="launcher_nav_end">Bitir</string>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_read_only_comfort">Test sürümü: araçtan değiştirilir</string>
+    <string name="launcher_comfort_pending">Araç testinden sonra açılacak</string>
+    <string name="launcher_widget_trunk">Bagaj</string>
+    <string name="launcher_trunk_closed">Kapalı</string>
+    <string name="launcher_trunk_opening">Açılıyor</string>
+    <string name="launcher_trunk_closing">Kapanıyor</string>
+    <string name="launcher_trunk_open">Açık</string>
+    <string name="launcher_trunk_percent">%%%1$d açık</string>
+    <string name="launcher_trunk_unverified">Henüz doğrulanmadı</string>
+    <string name="launcher_trunk_stop_unknown">Durdurma henüz doğrulanmadı</string>
+    <string name="launcher_trunk_close_title">Bagaj kapansın mı?</string>
+    <string name="launcher_trunk_close_message">Arkada kimse olmadığından emin olun.</string>
+    <string name="launcher_trunk_close_confirm">Kapat</string>
+</resources>

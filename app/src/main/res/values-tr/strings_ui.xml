@@ -14,7 +14,6 @@
 
     <!-- Zone 1: Golden Dock -->
     <string name="dock_home">Home</string>
-    <string name="dock_menu">Menü</string>
     <string name="dock_back">Geri</string>
     <string name="dock_drive_memory">Hafıza</string>
     <string name="dock_settings">Ayarlar</string>
@@ -65,24 +64,17 @@
     <string name="settings_changelog_version_prefix">Versiyon </string>
 
     <string name="settings_launcher_mode_title">Tam ekran ana sayfa</string>
-    <string name="settings_launcher_mode_desc">Saat, araç bilgileri, müzik ve kısayolları büyük kartlarla gösterir.</string>
-    <string name="settings_launcher_mode_help_on">Büyük kartlı ana sayfa kullanılır.</string>
-    <string name="settings_launcher_mode_help_off">Yan menülü görünüm kullanılır.</string>
+    <string name="settings_launcher_mode_desc">Açıldığında Ana ekran tuşu MapControl\'ün widget\'lı ana ekranını açar (araç bilgisi, müzik, klima, koltuklar, uygulamalar; Park ve Sürüş düzeni). Kapatıldığında aracın kendi ana ekranı geri gelir.</string>
+    <string name="settings_launcher_mode_help_on">Widget\'lı ana ekran açık.</string>
+    <string name="settings_launcher_mode_help_off">Aracın kendi ana ekranı.</string>
     <string name="settings_launcher_home_link">Varsayılan ana ekran uygulamasını sistem ayarlarından değiştir</string>
+    <string name="settings_launcher_appearance_link">Ana ekran görünümü</string>
 
-    <string name="settings_vehicle_image_title">Araç görseli</string>
-    <string name="settings_vehicle_image_desc">Ana sayfada kullanılacak araç görselini seçin.</string>
-    <string name="settings_vehicle_image_pick">Araç görseli seç</string>
-    <string name="settings_vehicle_selected">Seçili: %1$s</string>
-    <string name="settings_vehicle_auto_detect">Otomatik: %1$s</string>
-    <string name="settings_vehicle_auto_no_pkg">Araç görseli bulunamadı. Listeden seçebilirsiniz.</string>
-    <string name="settings_vehicle_no_selection">Listeden bir araç görseli seçebilirsiniz.</string>
 
     <string name="topbar_wifi_management">Wi-Fi</string>
     <string name="topbar_app_management">Uygulamalar</string>
     <string name="topbar_system_logs">Sistem Kayıtları</string>
     <string name="topbar_apps">Uygulamalar</string>
-    <string name="topbar_vehicle_home">Araç Ana Ekranı</string>
 
     <string name="wifi_not_connected">Bağlı değil</string>
     <string name="wifi_turn_on">Wi-Fi Aç</string>
@@ -271,8 +263,6 @@
     <string name="splash_preparing_sub">Lütfen bekleyin</string>
     <string name="splash_map_waiting">Harita bekleniyor</string>
 
-    <string name="vehicle_material_eol">EOL</string>
-    <string name="vehicle_material_pick_title">Araç görseli seçin</string>
     <string name="camera_test_title">Kamera Test</string>
 
     <string name="floating_back_permission_settings">İzin ayarlarına gidilemedi: %1$s</string>
@@ -304,9 +294,6 @@
     <string name="wifi_projection_drop_help">Wi-Fi radyosu değişmeden önce araç erişim noktası kapanır.</string>
     <string name="wifi_projection_keep_help">Telefon bağlı kalır. Bazı araçlar Wi-Fi değişikliğini reddeder.</string>
 
-    <string name="vehicle_material_no_packages">Yüklü araç paketi bulunamadı; yalnızca otomatik algılama kullanılabilir.</string>
-    <string name="vehicle_material_auto_on">Otomatik algılama etkin</string>
-    <string name="vehicle_material_selected">Seçildi: %1$s</string>
 
     <string name="log_system_logs">Sistem Kayıtları</string>
     <string name="log_camera_test">Kamera Test</string>
@@ -559,15 +546,6 @@
     <string name="projection_map_key_off_help">Donanım tuşu harita için bir şey yapmaz.</string>
     <string name="projection_installed_apps">Yüklü Uygulamalar (%1$d)</string>
 
-    <string name="launcher_shortcut_wifi">Wi-Fi</string>
-    <string name="launcher_shortcut_web">Aktar</string>
-    <string name="launcher_shortcut_profile">Profil</string>
-    <string name="launcher_shortcut_projection">Gösterge</string>
-    <string name="launcher_shortcut_apps">Uygulamalar</string>
-    <string name="launcher_shortcut_drive">Sürüş Hafızası</string>
-    <string name="launcher_shortcut_welcome">Karşılama</string>
-    <string name="launcher_shortcut_equalizer">Ses ayarları</string>
-    <string name="launcher_shortcut_settings">Ayarlar</string>
     <string name="side_rail_equalizer">Ses ayarları</string>
     <string name="equalizer_title">Ekolayzer</string>
     <string name="equalizer_desc">Beş bant. Yükseltme en fazla 15 dB. Sınırlayıcı tepeleri cızırtıya bırakmaz.</string>
@@ -700,7 +678,6 @@
     <string name="vehicle_info_more">Diğer ölçümler ↓</string>
     <string name="vehicle_info_less">Diğer ölçümleri gizle ↑</string>
     <string name="vehicle_info_connection_hint">Araç bağlantısı bekleniyor. Kontağı açıp Yenile’ye dokunun.</string>
-    <string name="launcher_current_drive_mode_unknown">Sürüş modu · —</string>
     <string name="drive_modes_4x4">4x4 modlar</string>
     <string name="drive_mode_clear_selection">Seçimi kaldır</string>
     <string name="header_back_home">Ana ekrana dön</string>
@@ -1009,6 +986,7 @@
     <string name="phone_pair_title">Telefon eşleşme anahtarı</string>
     <string name="phone_pair_desc">QR’ı MapControl telefon uygulamasıyla okut veya bu anahtarı gir. Yolculuk ve araç verisi yalnızca bu anahtarı gösteren telefona verilir; GPS Link de aynı eşleşmeyi kullanır.</string>
     <string name="phone_pair_regenerate">Yeni anahtar üret</string>
+    <string name="topbar_vehicle_home">Araç Ana Ekranı</string>
     <!-- GPS Link: telefonun GPS'i araca (alıcı MapControlService içinde çalışır) -->
     <string name="gps_link_title">GPS Link (telefon konumu)</string>
     <string name="gps_status_ready">KAPALI</string>

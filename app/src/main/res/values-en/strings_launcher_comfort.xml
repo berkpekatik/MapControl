@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_read_only_comfort">Test build: change it from the car</string>
+    <string name="launcher_comfort_pending">Will open after the car test</string>
+    <string name="launcher_widget_trunk">Trunk</string>
+    <string name="launcher_trunk_closed">Closed</string>
+    <string name="launcher_trunk_opening">Opening</string>
+    <string name="launcher_trunk_closing">Closing</string>
+    <string name="launcher_trunk_open">Open</string>
+    <string name="launcher_trunk_percent">%1$d%% open</string>
+    <string name="launcher_trunk_unverified">Not verified yet</string>
+    <string name="launcher_trunk_stop_unknown">Stop is not verified yet</string>
+    <string name="launcher_trunk_close_title">Close the trunk?</string>
+    <string name="launcher_trunk_close_message">Make sure nobody is behind the car.</string>
+    <string name="launcher_trunk_close_confirm">Close</string>
+</resources>

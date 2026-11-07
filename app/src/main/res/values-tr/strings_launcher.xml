@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yeni launcher (com.mapcontrol.launcher) metinleri -->
+<resources>
+    <string name="launcher_settings">Ayarlar</string>
+    <string name="launcher_appearance">Görünüm</string>
+    <string name="launcher_degrees" formatted="true">%1$d°</string>
+    <string name="launcher_nav_dialog_cancel">Vazgeç</string>
+    <string name="launcher_media_idle_hint">Başlatmak için bir müzik uygulaması aç</string>
+    <string name="launcher_media_prev">Önceki</string>
+    <string name="launcher_media_radio">Radyo</string>
+    <string name="launcher_media_source_title">Ses kaynağı</string>
+    <string name="launcher_media_source_change">Ses kaynağını değiştir</string>
+    <string name="launcher_media_source_bt">Bluetooth</string>
+    <string name="launcher_media_source_fm">Radyo FM</string>
+    <string name="launcher_media_source_am">Radyo AM</string>
+    <string name="launcher_media_source_usb">USB</string>
+    <string name="launcher_media_source_current">Şu an çalıyor</string>
+    <string name="launcher_phone_priority">Telefon önceliği</string>
+    <string name="launcher_phone_priority_hint">Telefondan çalınca Bluetooth\'a geç (kapalıyken radyo sesi tutar, telefon durur).</string>
+    <string name="launcher_percent" formatted="true">%%%1$d</string>
+    <string name="launcher_locked">Kilitli</string>
+    <string name="launcher_unlocked">Kilit açık</string>
+    <string name="launcher_tires_ok">Normal</string>
+    <string name="launcher_tires_warning">Lastik basıncı düşük</string>
+    <string name="launcher_tires_low_wheel">Lastik basıncı düşük: %1$s %2$d psi</string>
+    <string name="launcher_tires_warning_short">Lastik uyarısı</string>
+    <string name="launcher_app_empty">Uygulama ekle</string>
+    <string name="launcher_app_pick_title">Uygulama seç</string>
+    <string name="launcher_widget_media">Medya</string>
+    <string name="launcher_widget_lock">Kapı kilidi</string>
+    <string name="launcher_widget_drive_mode">Sürüş modu</string>
+    <string name="launcher_widget_steer_heat">Direksiyon ısıtma</string>
+    <string name="launcher_drive_eco">Eko</string>
+    <string name="launcher_drive_normal">Normal</string>
+    <string name="launcher_drive_sport">Spor</string>
+    <string name="launcher_drive_snow">Kar</string>
+    <string name="launcher_drive_mud">Çamur</string>
+    <string name="launcher_drive_offroad">Arazi</string>
+    <string name="launcher_drive_sand">Kum</string>
+    <string name="launcher_door_lf">Sol ön</string>
+    <string name="launcher_door_rf">Sağ ön</string>
+    <string name="launcher_door_lr">Sol arka</string>
+    <string name="launcher_door_rr">Sağ arka</string>
+    <string name="launcher_sunroof_part">Tavan</string>
+    <string name="launcher_trunk">Bagaj</string>
+    <string name="launcher_widget_app">Uygulama kısayolu</string>
+    <string name="launcher_edit">Düzenle</string>
+    <string name="launcher_edit_title">Ana ekranı düzenle</string>
+    <string name="launcher_edit_reset_confirm_park">Park ekranı varsayılana dönsün mü?</string>
+    <string name="launcher_edit_reset_confirm_drive">Sürüş ekranı varsayılana dönsün mü?</string>
+    <string name="launcher_edit_reset_confirm_home">Ana ekran varsayılana dönsün mü?</string>
+    <string name="launcher_edit_reset">Varsayılan</string>
+    <string name="launcher_edit_done">Bitti</string>
+    <string name="launcher_edit_remove">Kaldır</string>
+    <string name="launcher_range_value" formatted="true">%1$d km</string>
+    <string name="launcher_range_label">menzil</string>
+    <string name="launcher_fuel_short" formatted="true">%%%1$d yakıt</string>
+    <string name="launcher_unavailable">—</string>
+    <string name="launcher_theme">Tema</string>
+    <string name="launcher_theme_auto">Otomatik</string>
+    <string name="launcher_theme_day">Aydınlık</string>
+    <string name="launcher_theme_night">Karanlık</string>
+    <string name="launcher_vehicle_settings">Araç ayarları</string>
+    <string name="launcher_mapcontrol_settings">MapControl ayarları</string>
+    <string name="launcher_waiting_data">Araç verisi bekleniyor</string>
+    <string name="launcher_seat_off">Kapalı</string>
+    <string name="launcher_seat_low">Düşük</string>
+    <string name="launcher_seat_mid">Orta</string>
+    <string name="launcher_seat_high">Yüksek</string>
+    <string name="launcher_widget_vehicle">Araç</string>
+    <string name="launcher_doors_closed">Kapılar kapalı</string>
+    <string name="launcher_part_open" formatted="true">%1$s açık</string>
+    <string name="launcher_doors_open_count" formatted="true">%1$d yer açık</string>
+    <string name="launcher_windows_open_count" formatted="true">%1$d cam açık: %2$s</string>
+    <string name="launcher_close">Kapat</string>
+    <string name="launcher_widget_consumption">Anlık tüketim</string>
+    <string name="launcher_widget_trip">Yolculuk</string>
+    <string name="launcher_widget_health">Araç sağlığı</string>
+    <string name="launcher_l100_value" formatted="true">%1$s L/100 km</string>
+    <string name="launcher_consumption_idle">Araç duruyor</string>
+    <string name="launcher_app_vehicle_settings">Araç ayarları</string>
+    <string name="launcher_km_value" formatted="true">%1$s km</string>
+    <string name="launcher_kmh_value" formatted="true">%1$d km/sa</string>
+    <string name="launcher_fuel_low" formatted="true">Yakıt az: %%%1$d</string>
+    <string name="launcher_health_low_fuel">Yakıt az</string>
+    <string name="launcher_health_hot">Motor sıcak</string>
+    <string name="launcher_health_volt_only" formatted="true">%1$s V</string>
+    <string name="launcher_temp_c" formatted="true">%1$d°C</string>
+    <string name="launcher_widget_air">Hava kalitesi</string>
+    <string name="launcher_days_value" formatted="true">%1$d gün</string>
+    <string name="launcher_air_good">İyi</string>
+    <string name="launcher_air_moderate">Orta</string>
+    <string name="launcher_air_poor">Kötü</string>
+    <string name="launcher_air_pm" formatted="true">PM2.5 %1$d µg/m³</string>
+    <string name="launcher_air_in" formatted="true">İç %1$d µg/m³</string>
+    <string name="launcher_air_out" formatted="true">Dışarı %1$d µg/m³</string>
+    <string name="launcher_air_out_poor" formatted="true">Dışarı %1$d µg/m³, kötü</string>
+    <string name="launcher_air_recirc_hint">İç sirkülasyon önerilir</string>
+    <string name="launcher_oem_mock_label">OEM (taklit)</string>
+    <string name="launcher_open_frostnav">FrostNav\'ı aç</string>
+    <string name="launcher_open_frostnav_hint">Uygulamanın kendi ekranları ve ayarları</string>
+    <string name="launcher_open_frostnav_failed">FrostNav açılamadı</string>
+    <string name="launcher_app_frostnav" translatable="false">FrostNav</string>
+    <string name="launcher_app_phone">Telefon</string>
+    <string name="launcher_edit_on_screen">Zaten ekranda</string>
+    <string name="launcher_trip_since_reset">Son sıfırlamadan beri</string>
+    <string name="launcher_trip_avg_cons_label">Ort. tüketim</string>
+    <string name="launcher_trip_avg_speed_label">Ort. hız</string>
+    <string name="launcher_bottom_bar">Alt çubuk</string>
+    <string name="launcher_bottom_bar_original">Orijinal</string>
+    <string name="launcher_bottom_bar_ours">MapControl</string>
+    <string name="launcher_bottom_bar_hidden">Gizli</string>
+    <string name="launcher_bar_home">Ana ekran</string>
+    <string name="launcher_bar_apps">Uygulamalar</string>
+    <string name="launcher_bar_settings">Ayarlar</string>
+    <string name="launcher_read_only_climate">Test sürümü: klima araçtan değiştirilir</string>
+    <string name="launcher_climate_pending">Klima kontrolü araç testinden sonra açılacak</string>
+    <string name="launcher_climate_panel_failed">Klima paneli açılamadı</string>
+    <string name="launcher_climate_sync">Senkron</string>
+    <string name="launcher_climate_driver">Sürücü sıcaklığı</string>
+    <string name="launcher_climate_passenger">Yolcu sıcaklığı</string>
+    <string name="launcher_climate_fan">Fan kademesi</string>
+    <string name="launcher_climate_increase">Artır</string>
+    <string name="launcher_climate_decrease">Azalt</string>
+    <string name="launcher_health_row_battery">Akü</string>
+    <string name="launcher_health_all_ok">Her şey normal</string>
+    <string name="launcher_health_battery_low">Akü zayıf</string>
+    <string name="launcher_health_battery_high">Akü yüksek</string>
+    <string name="launcher_health_service_overdue">Bakım zamanı</string>
+    <string name="launcher_health_service_soon">Bakım yaklaşıyor</string>
+    <string name="launcher_health_service_in" formatted="true">Bakıma %1$s</string>
+    <string name="launcher_health_row_service">Bakıma kalan</string>
+    <string name="launcher_health_row_service_days">Bakıma kalan süre</string>
+    <string name="launcher_detail_outside">Dış sıcaklık</string>
+    <string name="launcher_health_row_engine">Motor suyu</string>
+    <string name="launcher_coolant_normal">Normal</string>
+    <string name="launcher_layout_park">Park</string>
+    <string name="launcher_layout_drive">Sürüş</string>
+    <string name="launcher_layout_park_edit">Park düzeni</string>
+    <string name="launcher_layout_drive_edit">Sürüş düzeni</string>
+    <string name="launcher_widget_photo">Fotoğraf</string>
+    <string name="launcher_photo_add">Fotoğraf ekle</string>
+    <string name="launcher_photo_hint">FrostNav panelinden İndirilenler\'e yükle</string>
+    <string name="launcher_photo_pick_title">Fotoğraf seç</string>
+    <string name="launcher_photo_change">Fotoğrafı değiştir</string>
+    <string name="launcher_photo_remove">Fotoğrafı kaldır</string>
+    <string name="launcher_photo_refresh">Yenile</string>
+    <string name="launcher_photo_loading">Yükleniyor…</string>
+    <string name="launcher_photo_none">İndirilenler\'de fotoğraf yok. FrostNav panelinden yükle, sonra yenile.</string>
+    <string name="launcher_photo_permission">Depolama izni gerekli. İzin ver, sonra yenile.</string>
+    <string name="launcher_photo_failed">Bu fotoğraf kullanılamadı</string>
+    <string name="launcher_widget_screen_off">Ekranı karart</string>
+    <string name="launcher_screen_off_label">Ekranı karart</string>
+    <string name="launcher_screen_off_hint">Dokun</string>
+    <string name="launcher_widget_break">Mola</string>
+    <string name="launcher_widget_phone">Telefon</string>
+    <string name="launcher_widget_clock">Saat</string>
+    <string name="launcher_break_hm" formatted="true">%1$d sa %2$d dk</string>
+    <string name="launcher_break_m" formatted="true">%1$d dk</string>
+    <string name="launcher_break_driving">sürüş</string>
+    <string name="launcher_break_driving_for" formatted="true">%1$s sürüş</string>
+    <string name="launcher_break_now">Mola zamanı</string>
+    <string name="launcher_phone_charging">Telefon şarjda</string>
+    <string name="launcher_phone_pad_empty">Şarj pedi boş</string>
+    <string name="launcher_phone_on_pad">Telefon pedde</string>
+    <string name="launcher_phone_charge_full">Şarj tamamlandı</string>
+    <string name="launcher_phone_charge_error">Şarj hatası</string>
+    <string name="launcher_phone_pad_off">Kablosuz şarj kapalı</string>
+    <string name="launcher_phone_take">Telefonunu al</string>
+    <string name="launcher_body_win_lf">Sol ön cam</string>
+    <string name="launcher_body_win_rf">Sağ ön cam</string>
+    <string name="launcher_body_win_lr">Sol arka cam</string>
+    <string name="launcher_body_win_rr">Sağ arka cam</string>
+    <string name="launcher_body_hood">Kaput</string>
+    <string name="launcher_body_fuel_cap">Yakıt kapağı</string>
+    <string name="launcher_drive_theme">Sürüş moduna göre renk</string>
+    <string name="launcher_auto_drive_layout">Sürüşte ayrı düzen</string>
+    <string name="launcher_auto_drive_layout_hint">Araç giderken ayrı bir sürüş düzeni gösterir.</string>
+    <string name="launcher_sport_mode">Spor modu (deneysel)</string>
+    <string name="launcher_sport_close_oem_dialog">Sürüş modu penceresini kapat</string>
+    <string name="launcher_sport_ambient">Spor modunda ambiyans rengi</string>
+    <string name="launcher_sport_ambient_unverified">Spor modunda ambiyans rengi (henüz doğrulanmadı)</string>
+    <string name="launcher_toggle_on">Açık</string>
+    <string name="launcher_toggle_off">Kapalı</string>
+    <string name="launcher_toggle_show">Göster</string>
+    <string name="launcher_toggle_hide">Gizle</string>
+    <string name="launcher_climate_oem_panel">Klima değişince fabrika paneli</string>
+    <string name="launcher_climate_oem_panel_hint">Gizle: alt çubuktan sıcaklık/fan değişince OEM klima paneli açılmaz. Çubukta yukarı kaydırma paneli her zaman açar.</string>
+    <string name="launcher_wifi_connected">Wi-Fi bağlı</string>
+    <string name="launcher_phone_charging_icon">Telefon şarj oluyor</string>
+    <string name="launcher_bt_off">Bluetooth kapalı</string>
+    <string name="launcher_bt_on">Bluetooth açık</string>
+    <string name="launcher_bt_connected">Bluetooth bağlı</string>
+    <string name="launcher_bt_title">Bluetooth</string>
+    <string name="launcher_bt_off_state">Bluetooth kapalı</string>
+    <string name="launcher_bt_unavailable">Bu cihazda Bluetooth yok</string>
+    <string name="launcher_bt_switch_locked">Bluetooth\'u buradan açıp kapatmak için sistem izni gerekiyor</string>
+    <string name="launcher_bt_no_read">Eşleşmiş cihazlar burada okunamıyor. Bluetooth ayarlarını açın.</string>
+    <string name="launcher_bt_paired">Eşleşmiş cihazlar</string>
+    <string name="launcher_bt_none">Eşleşmiş cihaz yok</string>
+    <string name="launcher_bt_connect">Bağlan</string>
+    <string name="launcher_bt_disconnect">Bağlantıyı kes</string>
+    <string name="launcher_bt_connecting">%1$s cihazına bağlanılıyor…</string>
+    <string name="launcher_bt_disconnecting">%1$s bağlantısı kesiliyor…</string>
+    <string name="launcher_bt_connect_failed">Buradan bağlanılamadı</string>
+    <string name="launcher_bt_disconnect_failed">Buradan bağlantı kesilemedi</string>
+    <string name="launcher_bt_open_phone_app">Telefon uygulamasında aç</string>
+    <string name="launcher_bt_settings">Bluetooth ayarları</string>
+    <string name="launcher_bt_profile_phone">Telefon</string>
+    <string name="launcher_bt_profile_audio">Ses</string>
+    <string name="launcher_wifi_off">Wi-Fi bağlı değil</string>
+    <string name="launcher_wifi_hotspot">Hotspot açık</string>
+    <string name="launcher_wifi_title">Wi-Fi</string>
+    <string name="launcher_wifi_off_state">Wi-Fi kapalı</string>
+    <string name="launcher_wifi_disconnect">Bağlantıyı kes</string>
+    <string name="launcher_wifi_networks">Ağlar</string>
+    <string name="launcher_wifi_scanning">Taranıyor…</string>
+    <string name="launcher_wifi_none">Ağ bulunamadı</string>
+    <string name="launcher_wifi_need_location">Ağları görmek için konum izni gerekli</string>
+    <string name="launcher_wifi_grant">İzin ver</string>
+    <string name="launcher_wifi_location_off">Konum kapalı. Ağları görmek için konumu açın</string>
+    <string name="launcher_wifi_location_settings">Konumu aç</string>
+    <string name="launcher_wifi_open_settings">Ayarları aç</string>
+    <string name="launcher_wifi_permission_denied">Konum izni verilmedi</string>
+    <string name="launcher_wifi_settings">Wi-Fi ayarları</string>
+    <string name="launcher_wifi_park_for_password">Şifre girmek için aracı durdurun</string>
+    <string name="launcher_wifi_password_title">Wi-Fi şifresi</string>
+    <string name="launcher_wifi_password_hint">Şifre</string>
+    <string name="launcher_wifi_show_password">Şifreyi göster</string>
+    <string name="launcher_wifi_connect">Bağlan</string>
+    <string name="launcher_wifi_connecting">%1$s ağına bağlanılıyor…</string>
+    <string name="launcher_wifi_connect_failed">Bağlanılamadı</string>
+    <string name="launcher_wifi_list_in_settings">Ağ listesi için Wi-Fi ayarlarını açın</string>
+    <string name="launcher_consumption_recent">Son ölçümler</string>
+    <string name="launcher_screen_off_title">Ekran</string>
+    <string name="launcher_screen_off_action">Karart</string>
+    <string name="launcher_favorite_key">Favori tuşu (direksiyon)</string>
+    <string name="launcher_favorite_key_off">Kapalı</string>
+    <string name="launcher_favorite_key_yandex_navi">Yandex Navi</string>
+    <string name="launcher_favorite_key_yandex_maps">Yandex Haritalar</string>
+    <string name="launcher_favorite_key_missing">%1$s kurulu değil</string>
+</resources>

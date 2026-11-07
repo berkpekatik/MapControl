@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sahne başlık hava ikonu (parçalı bulutlu), dolu/yumuşak: aracın alt çubuğundaki dolu ikon diliyle. Dolu güneş diski ve
+     yuvarlak uçlu kısa ışınlar sol üstte, dolu bulut sağ altta; ikisi birbirine değmez (her zeminde ayrık okunur).
+     Kendi çizimimiz. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M4.7,7.5a2.8,2.8 0 1,0 5.6,0a2.8,2.8 0 1,0 -5.6,0z"
+        android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M7.5,3.3V1.9 M3.3,7.5H1.9 M4.53,4.53L3.5,3.5 M10.47,4.53L11.5,3.5 M4.53,10.47L3.5,11.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round" />
+    <path android:pathData="M9.5,20H18.5A3.5,3.5 0 0,0 18.9,13.02A5,5 0 0,0 9.6,12.1A4,4 0 0,0 9.5,20Z"
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1"
+        android:strokeLineJoin="round" />
+</vector>
