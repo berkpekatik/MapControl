@@ -40,9 +40,13 @@ public final class ParkPhoto {
     /** Ayar anahtarı ({@code MapControlPrefs}); varsayılan kapalı. */
     public static final String PREF_KEY = "parkPhotoEnabled";
 
-    static final int WIDTH = 1280;
-    static final int HEIGHT = 720;
-    private static final int JPEG_QUALITY = 85;
+    /**
+     * Kontak kapanışında internete kalan süre kısa (~2 sn, kapı açılınca kesilir): fotoğraf küçük tutulur ki
+     * yüklemesi sığsın. 4'e bölünebilir olmalı (mozaik dört kadran, native {@code ValidOutSize}).
+     */
+    static final int WIDTH = 960;
+    static final int HEIGHT = 540;
+    private static final int JPEG_QUALITY = 70;
 
     /** Kontak kapandıktan sonra kamera açılışı için en çok beklenen süre. */
     private static final long READY_TIMEOUT_MS = 4_000L;
@@ -130,17 +134,12 @@ public final class ParkPhoto {
                     wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mapcontrol:parkphoto");
                     wake.acquire(WAKE_MS);
                 }
-                capture(app, tripId);
-                // Kamera bırakıldı; şimdi sunucuya yüklenir (yerel kayıt zaten tamam).
-                String[] reason = {""};
-                ParkPhotoUploader.Result r = ParkPhotoUploader.upload(app, reason);
-                if (r == ParkPhotoUploader.Result.UPLOADED) {
-                    note(app, "sunucuya yüklendi (" + reason[0] + ")");
-                } else if (r == ParkPhotoUploader.Result.FAILED) {
-                    note(app, "sunucuya yüklenemedi (" + reason[0] + "), telefon araçtan alır");
-                } else if (reason[0] != null && !reason[0].equals("fotoğraf yok")) {
-                    note(app, reason[0]);
+                if (!capture(app, tripId)) {
+                    return; // yeni fotoğraf yok: eskisi yeniden yüklenmez
                 }
+                // Kamera bırakıldı; yükleme yolculuk gönderiminin arkasına girer (önce yolculuk, sonra fotoğraf).
+                // Tek deneme: olmazsa fotoğraf yerelde kalır, telefon araç ağındayken GET /parking/photo ile alır.
+                com.mapcontrol.trip.TripBoxUploader.afterUploads(() -> uploadOnce(app));
             } catch (Throwable t) {
                 Log.w(TAG, "Park fotoğrafı alınamadı", t);
                 note(app, "alınamadı: " + t);
@@ -153,7 +152,27 @@ public final class ParkPhoto {
         });
     }
 
-    private static void capture(Context context, String tripId) throws Exception {
+    private static void uploadOnce(Context app) {
+        PowerManager.WakeLock wake = com.mapcontrol.api.CloudHttp.acquireWake(app, "mapcontrol:parkphoto-upload", 15_000L);
+        try {
+            String[] reason = {""};
+            ParkPhotoUploader.Result r = ParkPhotoUploader.upload(app, reason);
+            if (r == ParkPhotoUploader.Result.UPLOADED) {
+                note(app, "sunucuya yüklendi (" + reason[0] + ")");
+            } else if (r == ParkPhotoUploader.Result.FAILED) {
+                note(app, "sunucuya yüklenemedi (" + reason[0] + "), yerelde tutuluyor; telefon araçtan alır");
+            } else if (reason[0] != null && !reason[0].equals("fotoğraf yok")) {
+                note(app, reason[0]);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Park fotoğrafı yüklenemedi", t);
+        } finally {
+            com.mapcontrol.api.CloudHttp.release(wake);
+        }
+    }
+
+    /** @return yeni fotoğraf kaydedildiyse true */
+    private static boolean capture(Context context, String tripId) throws Exception {
         final CameraHub hub = CameraHub.get();
         final int[] liveMask = {0};
         final CountDownLatch ready = new CountDownLatch(1);
@@ -164,7 +183,7 @@ public final class ParkPhoto {
         try {
             if (!ready.await(READY_TIMEOUT_MS, TimeUnit.MILLISECONDS) || liveMask[0] == 0) {
                 note(context, "kamera açılmadı (kontak kapanınca kameralar kapanmış olabilir), atlandı");
-                return;
+                return false;
             }
             for (int cam = 0; cam < CameraHub.CAM_COUNT; cam++) {
                 if ((liveMask[0] & (1 << cam)) != 0) {
@@ -180,7 +199,7 @@ public final class ParkPhoto {
                 // Güncelleme başladıysa kare okumayı bırak; akışlar zaten kapatılıyor.
                 if (hub.isInstallHold()) {
                     note(context, "güncelleme hazırlığı başladı, fotoğraf bırakıldı");
-                    return;
+                    return false;
                 }
                 final boolean last = SystemClock.elapsedRealtime() >= deadline;
                 final boolean[] done = {false};
@@ -199,12 +218,13 @@ public final class ParkPhoto {
                 if (!composed) {
                     if (last) {
                         note(context, "kamera karesi gelmedi, atlandı");
-                        return;
+                        return false;
                     }
                     Thread.sleep(POLL_MS);
                 }
             }
             write(context, jpeg(out), tripId);
+            return true;
         } finally {
             hub.clearDemand(HUB_TAG);
             hub.release(HUB_TAG);

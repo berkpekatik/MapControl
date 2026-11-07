@@ -33,7 +33,6 @@ public class LogTabBuilder {
         void onReadAloud(String text);
         /** Hoşgeldin cümlesini tekrar okut */
         void onWelcomeTts();
-        void onOpenProfile();
         void onOpenSoundGenerate();
     }
 
@@ -129,9 +128,6 @@ public class LogTabBuilder {
         cameraTestParams.setMargins(0, 0, 8, 0);
         logControlPanel.addView(btnCameraTest, cameraTestParams);
 
-        logControlPanel.addView(
-                logNavButton(R.string.log_open_profile, v -> callback.onOpenProfile()),
-                logNavParams());
         logControlPanel.addView(
                 logNavButton(R.string.log_open_generate, v -> callback.onOpenSoundGenerate()),
                 logNavParams());

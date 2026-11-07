@@ -340,6 +340,12 @@ public class WebServerManager {
                     handleAutomationGet(output, requestHeader);
                 } else if ("PUT".equals(method) && "/automation".equals(path)) {
                     handleAutomationPut(input, output, requestHeader);
+                } else if ("GET".equals(method) && "/cloud-token".equals(path)) {
+                    handleCloudTokenGet(output, requestHeader);
+                } else if ("PUT".equals(method) && "/cloud-token".equals(path)) {
+                    handleCloudTokenPut(input, output, requestHeader);
+                } else if ("DELETE".equals(method) && "/cloud-token".equals(path)) {
+                    handleCloudTokenDelete(output, requestHeader);
                 } else if ("GET".equals(method) && "/ping".equals(path)) {
                     handlePing(output);
                 } else if ("GET".equals(method) && "/vehicle/now".equals(path)) {
@@ -1138,6 +1144,63 @@ public class WebServerManager {
      * {@code GET /ping}: araç kimliği, protokol sürümü ve GPS Link portu. Telefon, adresi değişen aracı bununla
      * tanır ve bağlantının canlı olduğunu hafif bir istekle ölçer. Eşleşme anahtarı istemez; kişisel veri vermez.
      */
+    /** {@code GET /cloud-token}: araçtaki sunucu anahtarının durumu (anahtarın kendisi verilmez). */
+    private void handleCloudTokenGet(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            sendJson200(output, com.mapcontrol.api.CloudToken.statusJson(context));
+        } catch (Exception e) {
+            sendErrorResponse(output, 500, "cloud-token: " + e.getMessage());
+        }
+    }
+
+    /**
+     * {@code PUT /cloud-token}, gövde {@code {"token": "...", "expiresAtMs": 0, "vin": "..."}}: telefonun sunucudan
+     * aldığı araca özel token. Araç bununla yolculuk ve park fotoğrafını hesabın sunucu kutusuna bırakır; araçta
+     * hesaba giriş yoktur. Şase araçtakiyle çelişirse {@code 409 vin_mismatch}.
+     */
+    private void handleCloudTokenPut(InputStream input, OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0 || cl > 8192) {
+                sendErrorResponse(output, 400, "token_invalid");
+                return;
+            }
+            JSONObject root = new JSONObject(new String(readFixedBodyFromStream(input, cl), StandardCharsets.UTF_8));
+            String error = com.mapcontrol.api.CloudToken.store(context, root.optString("token", null),
+                    root.optLong("expiresAtMs", 0L), root.optString("vin", null),
+                    com.mapcontrol.trip.TripRecorder.get(context).vinOrEmpty());
+            if (error != null) {
+                sendErrorResponse(output, "vin_mismatch".equals(error) ? 409 : 400, error);
+                return;
+            }
+            if (listener != null) listener.onLog("Telefondan sunucu anahtarı alındı");
+            // Bekleyen yolculuklar varsa hemen gitsin.
+            com.mapcontrol.trip.TripBoxUploader.retryPending(context, true);
+            sendJson200(output, com.mapcontrol.api.CloudToken.statusJson(context));
+        } catch (Exception e) {
+            sendErrorResponse(output, 400, "token_invalid");
+        }
+    }
+
+    /** {@code DELETE /cloud-token}: telefon eşleşmeyi kaldırdı. */
+    private void handleCloudTokenDelete(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        com.mapcontrol.api.CloudToken.clear(context);
+        try {
+            sendJson200(output, com.mapcontrol.api.CloudToken.statusJson(context));
+        } catch (IOException e) {
+            // bağlantı koptu
+        }
+    }
+
     private void handlePing(OutputStream output) {
         try {
             sendJson200(output, PhoneApiJson.ping(PhoneAccess.carId(context), com.mapcontrol.gps.Wire.PORT));

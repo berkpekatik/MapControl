@@ -35,7 +35,6 @@ public class SideRailBuilder {
 
     private static final int TAB_WIFI = 0;
     private static final int TAB_FILE = 1;
-    private static final int TAB_PROFILE = 2;
     private static final int TAB_PROJECTION = 3;
     private static final int TAB_APPS = 5;
     private static final int TAB_DRIVE_MODE = 6;
@@ -67,7 +66,6 @@ public class SideRailBuilder {
     private LinearLayout menuClimateAutomation;
     private LinearLayout menuFaceRecognition;
     private LinearLayout menuSunroofAutomation;
-    private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
     private LinearLayout menuSplitScreen;
     private LinearLayout sideRail;
@@ -119,7 +117,6 @@ public class SideRailBuilder {
         menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
-        menuProfile = createRailMenuItemView(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
@@ -143,8 +140,6 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
-        menuProfile.setVisibility(View.GONE);
-        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -174,7 +169,7 @@ public class SideRailBuilder {
         // Zone 1: Kalıcı Altın Dock (MainActivity root FrameLayout katmanında sabit tutulur)
         buildGoldenDock();
 
-        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
         return sideRail;
     }
@@ -200,7 +195,6 @@ public class SideRailBuilder {
         menuWifi = createPortraitRailItem(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createPortraitRailItem(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createPortraitRailItem(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
-        menuProfile = createPortraitRailItem(R.drawable.ic_mdi_account, t(R.string.side_rail_profile));
         menuDriveMode = createPortraitRailItem(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createPortraitRailItem(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
@@ -224,8 +218,6 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
-        menuProfile.setVisibility(View.GONE);
-        menuContainer.addView(menuProfile);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -252,7 +244,7 @@ public class SideRailBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         buildGoldenDock();
-        updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
         return sideRail;
     }
@@ -267,39 +259,35 @@ public class SideRailBuilder {
     private void bindMenuClicks() {
         menuWifi.setOnClickListener(v -> {
             callback.onTabSelected(TAB_WIFI, t(R.string.side_rail_wifi));
-            updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuFileUpload.setOnClickListener(v -> {
             callback.onTabSelected(TAB_FILE, t(R.string.side_rail_web));
-            updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuFileUpload, menuWifi, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
-        menuProfile.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_PROFILE, t(R.string.side_rail_profile));
-            updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
-        });
 
         menuProjection.setOnClickListener(v -> {
             callback.onTabSelected(TAB_PROJECTION, t(R.string.side_rail_projection));
-            updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuVehicleInfo.setOnClickListener(v -> {
             callback.onTabSelected(TAB_VEHICLE_INFO, t(R.string.side_rail_vehicle_info));
-            updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuSettings.setOnClickListener(v -> {
             callback.onTabSelected(TAB_SETTINGS, t(R.string.side_rail_settings));
-            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuApps.setOnClickListener(v -> {
             boolean accepted = prefs.getBoolean("appManagementDisclaimerAccepted", false);
             if (accepted) {
                 callback.onTabSelected(TAB_APPS, t(R.string.side_rail_apps));
-                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
             } else {
                 callback.onAppManagementRequested();
             }
@@ -307,17 +295,17 @@ public class SideRailBuilder {
 
         menuDriveMode.setOnClickListener(v -> {
             callback.onTabSelected(TAB_DRIVE_MODE, t(R.string.side_rail_drive_mode));
-            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
         });
 
         menuWelcomeSound.setOnClickListener(v -> {
             callback.onTabSelected(TAB_WELCOME_SOUND, t(R.string.side_rail_welcome_sound));
-            updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
+            updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
         });
 
         menuEqualizer.setOnClickListener(v -> {
             callback.onTabSelected(TAB_EQUALIZER, t(R.string.side_rail_equalizer));
-            updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         menuClimateAutomation.setOnClickListener(v -> openEarlyAccessMenu(
@@ -463,13 +451,13 @@ public class SideRailBuilder {
             if (callback != null) {
                 callback.onTabSelected(TAB_DRIVE_MODE, t(R.string.side_rail_drive_mode));
             }
-            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
         });
         View btnSettings = createDockActionItem(R.drawable.ic_mdi_cog, t(R.string.dock_settings), v -> {
             if (callback != null) {
                 callback.onTabSelected(TAB_SETTINGS, t(R.string.side_rail_settings));
             }
-            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
         goldenDockItems.add(btnHome);
@@ -628,36 +616,33 @@ public class SideRailBuilder {
         updateGoldenDockSelection(tabIndex);
         switch (tabIndex) {
             case 0:
-                updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 1:
-                updateMenuSelection(menuFileUpload, menuWifi, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
-                break;
-            case 2:
-                updateMenuSelection(menuProfile, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuFileUpload, menuWifi, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 3:
-                updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuProfile, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuProjection, menuWifi, menuFileUpload, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 4:
                 break;
             case 5:
-                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuApps, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 6:
-                updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
                 break;
             case 7:
-                updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 8:
-                updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
+                updateMenuSelection(menuWelcomeSound, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest);
                 break;
             case 9:
-                updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProfile, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuVehicleInfo, menuWifi, menuFileUpload, menuProjection, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case 11:
-                updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+                updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
                 break;
             case TAB_CLIMATE_AUTOMATION:
                 updateMenuSelection(menuClimateAutomation);
@@ -815,7 +800,7 @@ public class SideRailBuilder {
 
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
-                menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
+                menuWifi, menuFileUpload, menuProjection, menuVehicleInfo,
                 menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen
         };
     }

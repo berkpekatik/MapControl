@@ -17,6 +17,7 @@ import com.mapcontrol.manager.ClusterVDBusBenchManager;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.vehicle.ClimateAutomationVdbusDiagnostics;
 import com.mapcontrol.vehicle.OutsideTemperatureVdbusTest;
+import com.mapcontrol.vehicle.PowerTransitionProbe;
 import com.mapcontrol.vehicle.SeatMemoryVdbusTest;
 import com.mapcontrol.vehicle.VehicleVdbusDiscoveryTest;
 
@@ -37,6 +38,8 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
     private Button seatMemoryTestButton;
     private Button vehicleVdbusDiscoveryButton;
     private boolean liveCaptureActive;
+    private PowerTransitionProbe powerProbe;
+    private Button powerProbeButton;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -222,6 +225,36 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         vdbusDiscoveryLp.setMargins(0, 0, 0, gap);
         col.addView(vehicleVdbusDiscoveryButton, vdbusDiscoveryLp);
 
+        // Güç geçiş tanısı ekrandan bağımsız sürer (araç uyuyana kadar); ekran yalnızca satırları gösterir.
+        powerProbe = PowerTransitionProbe.get(this);
+        powerProbe.setLogger(this::appendPowerProbeLine);
+        powerProbeButton = new Button(this);
+        powerProbeButton.setTextColor(UiStyles.color(this, R.color.textPrimary));
+        powerProbeButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        UiStyles.styleOemButton(powerProbeButton, UiStyles.color(this, R.color.buttonPrimary));
+        syncPowerProbeButton();
+        powerProbeButton.setOnClickListener(v -> {
+            if (powerProbe.isRunning()) {
+                powerProbe.stop();
+            } else {
+                powerProbe.start();
+            }
+            syncPowerProbeButton();
+        });
+        LinearLayout.LayoutParams powerProbeLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        powerProbeLp.setMargins(0, 0, 0, gap);
+        col.addView(powerProbeButton, powerProbeLp);
+
+        addBenchButton(col, getString(R.string.cluster_test_power_probe_show), () -> {
+            String tail = powerProbe.readTail(7000);
+            tvOut.setText(tail == null
+                    ? getString(R.string.cluster_test_power_probe_empty)
+                    : getString(R.string.cluster_test_power_probe_file,
+                            PowerTransitionProbe.logFile(this).getAbsolutePath()) + "\n" + tail.trim());
+        }, btnColor, gap);
+
         scroll.addView(col);
         LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -301,6 +334,21 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         });
     }
 
+    private void syncPowerProbeButton() {
+        powerProbeButton.setText(powerProbe.isRunning()
+                ? R.string.cluster_test_power_probe_running
+                : R.string.cluster_test_power_probe_button);
+    }
+
+    private void appendPowerProbeLine(String line) {
+        runOnUiThread(() -> {
+            if (tvOut == null || isFinishing() || isDestroyed()) {
+                return;
+            }
+            appendOutputLine(line);
+        });
+    }
+
     private void appendOutputLine(String line) {
         CharSequence current = tvOut.getText();
         String next = (current != null ? current.toString() : "") + "\n" + line;
@@ -337,6 +385,9 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         }
         if (vehicleVdbusDiscoveryTest != null) {
             vehicleVdbusDiscoveryTest.shutdown();
+        }
+        if (powerProbe != null) {
+            powerProbe.setLogger(null); // tanı durmaz; dosyaya yazmayı sürdürür
         }
         super.onDestroy();
     }

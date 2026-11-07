@@ -2,7 +2,8 @@ package com.mapcontrol.dvr;
 
 import android.content.Context;
 
-import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.api.CloudApi;
+import com.mapcontrol.api.CloudToken;
 import com.mapcontrol.trip.PhoneAccess;
 import com.mapcontrol.trip.TripRecorder;
 
@@ -36,28 +37,28 @@ final class ParkPhotoUploader {
             reason[0] = "fotoğraf yok";
             return Result.SKIPPED;
         }
-        ProfileApiService profile = new ProfileApiService(context);
-        if (!profile.isLoggedIn()) {
-            reason[0] = "hesaba giriş yok, sunucuya yüklenmedi";
-            return Result.SKIPPED;
-        }
         String vin = TripRecorder.get(context).vinOrEmpty();
         if (vin.isEmpty()) {
             reason[0] = "şase numarası okunamadı, sunucuya yüklenmedi";
+            return Result.SKIPPED;
+        }
+        String bearer = CloudToken.bearer(context, vin);
+        if (bearer == null) {
+            reason[0] = "sunucu anahtarı yok (telefon araç ağındayken verir), sunucuya yüklenmedi";
             return Result.SKIPPED;
         }
         HttpURLConnection conn = null;
         try {
             byte[] plain = readAll(ParkPhoto.photoFile(context));
             byte[] sealed = ParkPhotoCrypto.encrypt(ParkPhotoCrypto.deriveKey(PhoneAccess.token(context)), plain);
-            conn = (HttpURLConnection) new URL(ProfileApiService.API_ROOT + "/api/cars/" + vin + "/park-photo")
+            conn = (HttpURLConnection) new URL(CloudApi.API_ROOT + "/api/cars/" + vin + "/park-photo")
                     .openConnection();
             conn.setRequestMethod("PUT");
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setDoOutput(true);
             conn.setFixedLengthStreamingMode(sealed.length);
-            conn.setRequestProperty("Authorization", "Bearer " + profile.getToken());
+            conn.setRequestProperty("Authorization", "Bearer " + bearer);
             conn.setRequestProperty("Content-Type", "application/octet-stream");
             conn.setRequestProperty("X-Trip-Id", meta.tripId);
             conn.setRequestProperty("X-Captured-At", String.valueOf(meta.capturedAt));
@@ -65,6 +66,12 @@ final class ParkPhotoUploader {
                 out.write(sealed);
             }
             int code = conn.getResponseCode();
+            // Bağlantı havuza döner (kapatılmaz): yolculuk yüklemesinin açtığı bağlantıyla aynı, DNS/TLS yok.
+            com.mapcontrol.api.CloudHttp.finish(conn, code);
+            conn = null;
+            if (code == 401) {
+                CloudToken.clear(context); // telefon yenisini verene kadar denenmez
+            }
             if (code / 100 == 2) {
                 reason[0] = (sealed.length / 1024) + " KB";
                 return Result.UPLOADED;

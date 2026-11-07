@@ -12,7 +12,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -25,7 +24,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
-import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.ui.welcome.WelcomeAudioFiles;
 import com.mapcontrol.ui.welcome.WelcomeDesignCatalog;
 import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
@@ -59,16 +57,11 @@ public class WelcomeSoundTabBuilder {
     private TextView tvFilePath;
     private LinearLayout playbackRow;
     private TextView playbackLabel;
-    private EditText lineInput;
-    private Button generateButton;
-    private TextView accessWarning;
     private MediaPlayer mediaPlayer;
     private String selectedFilePath;
     private boolean playing;
     private boolean copying;
-    private boolean generating;
     private boolean mediaRegistered;
-    private final ProfileApiService apiService;
     private View apiBlock;
     private TextView soundTitle;
     private Runnable openSoundPage;
@@ -82,7 +75,6 @@ public class WelcomeSoundTabBuilder {
         this.activity = activity;
         this.prefs = prefs;
         this.audioPicker = audioPicker;
-        this.apiService = new ProfileApiService(activity);
         registerMedia();
         rebuild();
     }
@@ -93,15 +85,11 @@ public class WelcomeSoundTabBuilder {
         boolean showApi = apiToolsVisible;
         boolean autoPlayInitial = prefs.getBoolean("welcomeAudioAutoPlay", false);
         String designId = WelcomeDesignCatalog.savedId(prefs);
-        boolean maleVoice = ProfileApiService.VOICE_MALE.equals(savedVoice());
         WelcomeSoundScreenBuilder.Screen screen = WelcomeSoundScreenBuilder.buildTabScrollView(
                 activity, autoPlayInitial, this::saveAutoPlaySetting,
                 designId, this::saveDesignSetting,
-                prefs.getString(WelcomeDesignCatalog.PREF_TTS_LINE, ""),
-                this::saveSpokenLine,
                 prefs.getString(WelcomeDesignCatalog.PREF_LINE, ""),
-                this::saveCustomLine,
-                maleVoice, this::saveVoiceSetting);
+                this::saveCustomLine);
         this.scrollView = screen.scrollView;
         this.usbStatus = screen.usbStatus;
         this.usbList = screen.usbList;
@@ -112,16 +100,12 @@ public class WelcomeSoundTabBuilder {
         screen.onShowSound = this::refreshSoundSources;
         this.playbackRow = screen.playbackRow;
         this.playbackLabel = screen.playbackLabel;
-        this.lineInput = screen.lineInput;
-        this.generateButton = screen.btnGenerate;
-        this.accessWarning = screen.accessWarning;
         this.apiBlock = screen.apiBlock;
         this.soundTitle = screen.soundTitle;
         this.openSoundPage = screen.openSoundPage;
 
         screen.onOpenPublicSound = this::showPublicSound;
         screen.rowSelect.setOnClickListener(v -> showMp3Dialog());
-        generateButton.setOnClickListener(v -> generateWelcomeAudio());
         setApiToolsVisible(showApi);
         if (showApi && openSoundPage != null) {
             openSoundPage.run();
@@ -148,7 +132,7 @@ public class WelcomeSoundTabBuilder {
         setApiToolsVisible(false);
     }
 
-    /** Gizli log ekranından ses üretme araçlarını açar. */
+    /** Gizli log ekranından indirilenler (MP3) listesini açar. */
     public void openGenerateTools() {
         setApiToolsVisible(true);
         if (openSoundPage != null) {
@@ -160,24 +144,6 @@ public class WelcomeSoundTabBuilder {
     /** Sekme açılınca USB listesini yeniler. */
     public void onTabVisible() {
         refreshSoundSources();
-        if (!apiToolsVisible) {
-            return;
-        }
-        if (!apiService.isLoggedIn()) {
-            updateAccessWarning();
-            return;
-        }
-        apiService.refreshMe(new ProfileApiService.ApiCallback() {
-            @Override
-            public void onSuccess(String message, org.json.JSONObject data) {
-                updateAccessWarning();
-            }
-
-            @Override
-            public void onError(String error) {
-                updateAccessWarning();
-            }
-        });
     }
 
     /** Sistem ses seçicisinin sonucu. */
@@ -555,101 +521,6 @@ public class WelcomeSoundTabBuilder {
         refreshDownloads();
     }
 
-    private void generateWelcomeAudio() {
-        if (generating) {
-            return;
-        }
-        updateAccessWarning();
-        if (!apiService.isLoggedIn()) {
-            Toast.makeText(activity, R.string.welcome_tts_need_login, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (!apiService.isPremium()) {
-            Toast.makeText(activity, R.string.welcome_tts_need_premium, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String text = lineInput == null ? "" : lineInput.getText().toString().trim();
-        if (text.isEmpty()) {
-            Toast.makeText(activity, R.string.welcome_tts_need_text, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        saveSpokenLine(text);
-        generating = true;
-        releasePlayer();
-        setPlaying(false);
-        showGenerateStatus(R.string.welcome_tts_generating);
-        if (generateButton != null) {
-            generateButton.setEnabled(false);
-        }
-        apiService.generateWelcomeAudio(text, savedVoice(), new ProfileApiService.AudioCallback() {
-            @Override
-            public void onDownloading() {
-                showGenerateStatus(R.string.welcome_tts_downloading);
-            }
-
-            @Override
-            public void onSuccess(File file) {
-                generating = false;
-                if (generateButton != null) {
-                    generateButton.setEnabled(true);
-                    generateButton.setText(R.string.welcome_tts_generate);
-                }
-                showGenerateStatus(R.string.welcome_tts_saved);
-                applyGenerated(file);
-            }
-
-            @Override
-            public void onError(String error) {
-                generating = false;
-                if (generateButton != null) {
-                    generateButton.setEnabled(true);
-                    generateButton.setText(R.string.welcome_tts_generate);
-                }
-                showGenerateStatus(0);
-                updateAccessWarning();
-                Toast.makeText(activity, error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void showGenerateStatus(int textRes) {
-        if (savedLine == null) {
-            return;
-        }
-        if (textRes == 0) {
-            savedLine.setVisibility(android.view.View.GONE);
-            return;
-        }
-        savedLine.setText(textRes);
-        savedLine.setVisibility(android.view.View.VISIBLE);
-    }
-
-    private void applyGenerated(File dest) {
-        if (dest == null) {
-            return;
-        }
-        refreshSoundSources();
-        scrollToMp3List();
-    }
-
-    private void scrollToMp3List() {
-        if (scrollView == null || downloadsList == null) {
-            return;
-        }
-        downloadsList.post(() -> {
-            int y = 0;
-            View view = downloadsList;
-            while (view != null && view != scrollView) {
-                y += view.getTop();
-                if (!(view.getParent() instanceof View)) {
-                    break;
-                }
-                view = (View) view.getParent();
-            }
-            scrollView.smoothScrollTo(0, Math.max(0, y - 12));
-        });
-    }
-
     private void setApiToolsVisible(boolean visible) {
         apiToolsVisible = visible;
         if (apiBlock != null) {
@@ -662,37 +533,7 @@ public class WelcomeSoundTabBuilder {
         }
     }
 
-    private void updateAccessWarning() {
-        if (accessWarning == null) {
-            return;
-        }
-        if (!apiService.isLoggedIn()) {
-            accessWarning.setText(R.string.welcome_tts_need_login);
-            accessWarning.setVisibility(android.view.View.VISIBLE);
-        } else if (!apiService.isPremium()) {
-            accessWarning.setText(R.string.welcome_tts_need_premium);
-            accessWarning.setVisibility(android.view.View.VISIBLE);
-        } else {
-            accessWarning.setVisibility(android.view.View.GONE);
-        }
-    }
-
-    private String savedVoice() {
-        String voice = prefs.getString("welcomeTtsVoice", ProfileApiService.VOICE_FEMALE);
-        return ProfileApiService.VOICE_MALE.equals(voice)
-                ? ProfileApiService.VOICE_MALE
-                : ProfileApiService.VOICE_FEMALE;
-    }
-
-    private void saveVoiceSetting(boolean male) {
-        prefs.edit().putString("welcomeTtsVoice",
-                male ? ProfileApiService.VOICE_MALE : ProfileApiService.VOICE_FEMALE).apply();
-    }
-
     private void playAudio() {
-        if (generating) {
-            return;
-        }
         if (selectedFilePath == null || selectedFilePath.isEmpty()) {
             Toast.makeText(activity, R.string.welcome_sound_pick_first, Toast.LENGTH_SHORT).show();
             return;
@@ -777,10 +618,6 @@ public class WelcomeSoundTabBuilder {
 
     private void saveDesignSetting(String designId) {
         prefs.edit().putString(WelcomeDesignCatalog.PREF_KEY, designId).apply();
-    }
-
-    private void saveSpokenLine(String line) {
-        prefs.edit().putString(WelcomeDesignCatalog.PREF_TTS_LINE, line == null ? "" : line).apply();
     }
 
     private void saveCustomLine(String line) {

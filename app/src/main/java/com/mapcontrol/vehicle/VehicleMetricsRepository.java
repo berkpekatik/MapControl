@@ -127,6 +127,12 @@ public final class VehicleMetricsRepository {
             if (values == null || values.length == 0) {
                 return;
             }
+            if (module == MODULE_READONLY && itemId == ReadOnlyID.ID_SYSTEM_POWER_MODE) {
+                // Kontak kapanışı bildirimle ~100 ms'de görülür (2 sn'lik döngü 0,3–1,8 sn geç kalıyordu);
+                // kapanışta internete kalan süre ~2 sn olduğu için yolculuk kaydı hemen haberdar edilir.
+                com.mapcontrol.trip.TripRecorder.get(appContext)
+                        .onPowerSample(values[0], android.os.SystemClock.elapsedRealtime());
+            }
             int previousDriveMode = cache.getCombined(MODULE_NEW_ENERGY, NewEnergyID.ID_DRIVE_MODE);
             if (module == MODULE_READONLY && itemId == ReadOnlyID.ID_LIGHT_DETECTED_IHU && values.length > 0) {
                 VehicleLightSensorManager.getInstance(appContext).onVdbusLightSignal(values[0]);

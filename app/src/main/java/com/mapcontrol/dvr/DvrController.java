@@ -43,7 +43,9 @@ import java.util.function.Supplier;
  *   <li>Kontakla USB'ye otomatik kayit (powermode 2 + USB takili)</li>
  *   <li>Arac ici otomatik kayit: {@link #getInternalDir()}, 3 dk klipler, 960x600</li>
  * </ul>
- * Kayit her zaman tek mozaik dosyadir (tek encoder).
+ * Kayit her zaman tek mozaik dosyadir (tek encoder). Tum kaynaklar 3 dk kliplere bolunur ve
+ * klipler "_id_N" alir; USB'de de dongusel silme vardir, ancak yalnizca id'li klipler silinir
+ * (id'siz eski kayitlara ve diger dosyalara dokunulmaz).
  * Arac ici mod acikken USB kaydi ve USB otomatik kayit kullanilamaz; USB otomatik
  * kayit acikken arac ici mod kullanilamaz. Arac ici modda bos alan her zaman en az
  * {@link #RESERVE_BYTES} kalir. Klipler zaman damgasi + artan "_id_N" ile adlandirilir
@@ -504,7 +506,7 @@ public final class DvrController {
         if (isAutoInternalEnabled() || recorder.isBusy() || usbRoot == null) {
             return false;
         }
-        startRecorder(Source.MANUAL_USB, new File(usbRoot, USB_DIR_NAME), width, height, 0);
+        startRecorder(Source.MANUAL_USB, new File(usbRoot, USB_DIR_NAME), width, height);
         return true;
     }
 
@@ -601,8 +603,10 @@ public final class DvrController {
                 if (!ignition || !isAutoUsbEnabled()) {
                     stopRecording(false);
                 } else {
-                    checkUsbWhileRecording();
+                    enforceUsbSpace();
                 }
+            } else if (source == Source.MANUAL_USB) {
+                enforceUsbSpace();
             }
         } else if (!starting && ignition && !suspended && cameraSupported
                 && SystemClock.elapsedRealtime() >= retryAfterMs
@@ -676,14 +680,23 @@ public final class DvrController {
             return;
         }
         int[] wh = CameraRecorder.RESOLUTIONS[getUsbResIndex()];
-        long free = DvrClipStore.freeBytes(usb);
-        if (CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], false) < MIN_USB_FIT_MINUTES) {
-            setFailure(AutoStatus.USB_FULL, null);
-            return;
-        }
+        File dir = new File(usb, USB_DIR_NAME);
         starting = true;
         updateAutoStatus();
-        startWhenCamerasReady(Source.AUTO_USB, new File(usb, USB_DIR_NAME), wh[0], wh[1]);
+        io.execute(() -> {
+            if (!DvrClipStore.ensureWritable(dir)) {
+                main.post(() -> setFailure(AutoStatus.NOT_WRITABLE, dir.getAbsolutePath()));
+                return;
+            }
+            // Yer yoksa once en eski id'li klipler silinir.
+            long need = MIN_USB_FIT_MINUTES * CameraRecorder.bytesPerMinute(wh[0], wh[1], false);
+            long free = DvrClipStore.freeUpTo(dir, need, null, true);
+            if (free < need) {
+                main.post(() -> setFailure(AutoStatus.USB_FULL, null));
+                return;
+            }
+            main.post(() -> startWhenCamerasReady(Source.AUTO_USB, dir, wh[0], wh[1]));
+        });
     }
 
     /** Hic kamera canli degilse otomatik kayit baslatilmaz (acilista kameralar gec gelebilir). */
@@ -703,35 +716,43 @@ public final class DvrController {
                 setFailure(AutoStatus.NO_CAMERA, null);
                 return;
             }
-            startRecorder(src, dir, w, h, SEGMENT_MS, src == Source.AUTO_INTERNAL);
+            startRecorder(src, dir, w, h);
             hub.release(HUB_TAG_PROBE);
         });
     }
 
-    private void startRecorder(Source src, File dir, int w, int h, long segmentMs) {
-        startRecorder(src, dir, w, h, segmentMs, false);
-    }
-
-    private void startRecorder(Source src, File dir, int w, int h, long segmentMs,
-                               boolean sequentialIds) {
+    /** Her kaynak 3 dk kliplere bolunur ve klipler artan "_id_N" alir. */
+    private void startRecorder(Source src, File dir, int w, int h) {
         source = src;
         lastError = null;
-        recorder.start(dir, new RecorderCallbacks(src), w, h, false, segmentMs, sequentialIds);
+        recorder.start(dir, new RecorderCallbacks(src), w, h, false, SEGMENT_MS, true);
         Log.i(TAG, "kayit istendi: " + src + " -> " + dir + " " + w + "x" + h + " mozaik");
     }
 
-    private void checkUsbWhileRecording() {
+    /**
+     * USB kaydinda (elle/otomatik) bir klip + 1 dk kadar bos alan tutar; gerekirse en eski
+     * id'li klipleri siler. Silinecek klip kalmadiysa kaydi durdurur.
+     */
+    private void enforceUsbSpace() {
         File usb = findUsbRoot(app);
         if (usb == null) {
             return; // MEDIA_EJECT kaydi zaten durdurur
         }
-        long free = DvrClipStore.freeBytes(usb);
-        int[] wh = CameraRecorder.RESOLUTIONS[getUsbResIndex()];
-        if (free >= 0 && CameraRecorder.estimateFitMinutes(free, wh[0], wh[1], false) < 1) {
-            Log.w(TAG, "USB doldu, otomatik kayit durduruluyor");
-            stopRecording(false);
-            setFailure(AutoStatus.USB_FULL, null);
-        }
+        final File dir = new File(usb, USB_DIR_NAME);
+        final long headroom = HEADROOM_MINUTES * recorder.currentBytesPerMinute();
+        final Set<String> active = activeBases();
+        final Source src = source;
+        io.execute(() -> {
+            long free = DvrClipStore.freeUpTo(dir, headroom, active, true);
+            if (free >= 0 && free < headroom / 2) {
+                main.post(() -> {
+                    if (source != src || !isRecordingUsb()) return;
+                    Log.w(TAG, "USB doldu ve silinecek klip yok, kayit durduruluyor: " + src);
+                    stopRecording(false);
+                    if (src == Source.AUTO_USB) setFailure(AutoStatus.USB_FULL, null);
+                });
+            }
+        });
     }
 
     // ---------- dvr-io ----------
@@ -989,6 +1010,8 @@ public final class DvrController {
             starting = false;
             setRecordingActiveFlag(true);
             setRecordingService(true);
+            // Elle kayit on temizlik yapmaz: yer ilk tick'i beklemeden hemen acilir.
+            if (src == Source.MANUAL_USB || src == Source.AUTO_USB) enforceUsbSpace();
             updateAutoStatus();
             for (Listener l : listeners) l.onStarted(src, file);
             notifyState();

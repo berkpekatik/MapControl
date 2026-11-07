@@ -50,6 +50,9 @@ public final class TripRecorder implements TripTracker.Listener {
     private final TripTracker tracker = new TripTracker(this);
     private volatile boolean started;
     private volatile String vin;
+    /** Yalnızca io iş parçacığında: son işlenen güç örneğinin okuma anı ve açık olup olmadığı. */
+    private long lastSampledAt = Long.MIN_VALUE;
+    private boolean lastSampleOn;
 
     /** Kontak kapalıyken araç menzil için 0xF000 (61440) gibi geçersiz değer yollar; son geçerli değer burada tutulur. */
     private static final int MAX_PLAUSIBLE_RANGE_KM = 2000;
@@ -90,20 +93,43 @@ public final class TripRecorder implements TripTracker.Listener {
             return;
         }
         started = true;
+        // Araçta hesaba giriş kaldırıldı (sunucu anahtarını telefon verir); eski oturum kayıtları silinir.
+        com.mapcontrol.api.CloudToken.dropLegacyLogin(context);
         VehicleMetricsRepository.getInstance(context).startMonitoring();
     }
 
-    /**
-     * MapControlService'in 2 sn'lik güç döngüsünden çağrılır. Okunamayan güç için -1 verilir.
-     */
+    /** Okuma anı bilinmiyorsa: şimdi. */
     public void onPowerSample(int powerMode) {
+        onPowerSample(powerMode, SystemClock.elapsedRealtime());
+    }
+
+    /**
+     * Güç örneği. İki kaynaktan gelir: MapControlService'in 2 sn'lik döngüsü ve aracın güç değişim bildirimi
+     * ({@link VehicleMetricsRepository}, ~100 ms). Okunamayan güç için -1 verilir.
+     *
+     * @param sampledAtElapsedMs okumanın başladığı an ({@link SystemClock#elapsedRealtime()}). Bildirimden sonra
+     *                           sıraya giren ama ondan önce okunmuş eski bir döngü örneği atlanır; yoksa kapanış
+     *                           anında "0 → 2 → 0" gibi sahte bir blip görülürdü.
+     */
+    public void onPowerSample(int powerMode, long sampledAtElapsedMs) {
         if (!started) {
             return;
         }
         io.execute(() -> {
             try {
+                if (sampledAtElapsedMs < lastSampledAt) {
+                    return;
+                }
+                lastSampledAt = sampledAtElapsedMs;
+                boolean on = TripTracker.isPowerOn(powerMode);
                 tracker.update(powerMode, System.currentTimeMillis(), readNow());
                 setLocating(tracker.isActive());
+                if (on) {
+                    // Kapanışta zaman ~2 sn: bağlantı sıcak dursun, bekleyen paketler araç açıkken gitsin.
+                    com.mapcontrol.api.CloudHttp.prewarm(context);
+                    TripBoxUploader.retryPending(context, !lastSampleOn);
+                }
+                lastSampleOn = on;
             } catch (RuntimeException e) {
                 Log.w(TAG, "Yolculuk örneği işlenemedi", e);
             }
@@ -129,10 +155,12 @@ public final class TripRecorder implements TripTracker.Listener {
 
     @Override
     public void onIgnitionOff(TripRecord trip) {
-        // io iş parçacığında çağrılır; çekim kendi iş parçacığında yapılır, burayı bekletmez.
-        com.mapcontrol.dvr.ParkPhoto.captureAfterIgnitionOff(context, trip.id);
-        // Yolculuk bu noktada yerel olarak yazıldı; telefon araçta değilse sunucu kutusundan alsın.
+        // io iş parçacığında çağrılır. Kapanış zaman çizelgesinde (güç tanısı) bu anın görünmesi için.
+        onDiagnostic("Kontak kapandı (PowerMode 0), kapanış işleri başlıyor: yolculuk " + trip.id);
+        // Önce yolculuk: internet ~2 sn kalır, kapı açılınca kesilir. Telefon araçta değilse sunucu kutusundan alır.
         TripBoxUploader.enqueue(context, trip);
+        // Sonra fotoğraf: çekim kendi iş parçacığında; yüklemesi yolculuk gönderiminin arkasına girer.
+        com.mapcontrol.dvr.ParkPhoto.captureAfterIgnitionOff(context, trip.id);
     }
 
     @Override

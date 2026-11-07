@@ -48,9 +48,6 @@ public final class WelcomeSoundScreenBuilder {
         public final LinearLayout playbackRow;
         public final TextView playbackLabel;
         public final Button btnPreview;
-        public final EditText lineInput;
-        public final Button btnGenerate;
-        public final TextView accessWarning;
         public Runnable onShowSound;
         public Runnable onOpenPublicSound;
         public Runnable openSoundPage;
@@ -61,8 +58,7 @@ public final class WelcomeSoundScreenBuilder {
         Screen(ScrollView scrollView, TextView usbStatus, LinearLayout usbList,
                 TextView downloadsStatus, LinearLayout downloadsList, TextView savedLine,
                 TextView tvFilePath, LinearLayout rowSelect, LinearLayout playbackRow,
-                TextView playbackLabel, Button btnPreview, EditText lineInput,
-                Button btnGenerate, TextView accessWarning) {
+                TextView playbackLabel, Button btnPreview) {
             this.scrollView = scrollView;
             this.usbStatus = usbStatus;
             this.usbList = usbList;
@@ -74,9 +70,6 @@ public final class WelcomeSoundScreenBuilder {
             this.playbackRow = playbackRow;
             this.playbackLabel = playbackLabel;
             this.btnPreview = btnPreview;
-            this.lineInput = lineInput;
-            this.btnGenerate = btnGenerate;
-            this.accessWarning = accessWarning;
         }
     }
 
@@ -103,9 +96,7 @@ public final class WelcomeSoundScreenBuilder {
 
     public static Screen buildTabScrollView(Context context, boolean autoPlayInitial,
             Consumer<Boolean> onAutoPlayCommitted, String selectedDesignId,
-            Consumer<String> onDesignCommitted, String spokenLine, Consumer<String> onSpokenLine,
-            String designLine, Consumer<String> onDesignLine, boolean maleVoice,
-            Consumer<Boolean> onMaleVoiceCommitted) {
+            Consumer<String> onDesignCommitted, String designLine, Consumer<String> onDesignLine) {
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);
         scrollView.setBackgroundColor(UiStyles.color(context, R.color.backgroundPage));
@@ -133,7 +124,6 @@ public final class WelcomeSoundScreenBuilder {
         designScroll.setVisibility(View.GONE);
 
         SoundSection sound = addSoundPage(context, soundPage, autoPlayInitial, onAutoPlayCommitted,
-                spokenLine, onSpokenLine, maleVoice, onMaleVoiceCommitted,
                 () -> show(scrollView, menu, soundScroll, designScroll));
         DesignSection design = addDesignPage(context, designPage, selectedDesignId, onDesignCommitted,
                 designLine, onDesignLine,
@@ -141,8 +131,7 @@ public final class WelcomeSoundScreenBuilder {
 
         Screen screen = new Screen(scrollView, sound.usbStatus, sound.usbList, sound.downloadsStatus,
                 sound.downloadsList, sound.savedLine, sound.tvFilePath, sound.rowSelect,
-                sound.playbackRow, sound.playbackLabel, design.preview, sound.lineInput,
-                sound.generate, sound.accessWarning);
+                sound.playbackRow, sound.playbackLabel, design.preview);
 
         screen.designLineInput = design.lineInput;
         screen.apiBlock = sound.apiBlock;
@@ -219,9 +208,7 @@ public final class WelcomeSoundScreenBuilder {
     }
 
     private static SoundSection addSoundPage(Context context, LinearLayout body,
-            boolean autoPlayInitial, Consumer<Boolean> onAutoPlayCommitted, String customLine,
-            Consumer<String> onLineCommitted, boolean maleVoice,
-            Consumer<Boolean> onMaleVoiceCommitted, Runnable onBack) {
+            boolean autoPlayInitial, Consumer<Boolean> onAutoPlayCommitted, Runnable onBack) {
         body.addView(backRow(context, onBack));
 
         TextView title = sectionTitle(context, R.string.welcome_group_sound);
@@ -243,43 +230,12 @@ public final class WelcomeSoundScreenBuilder {
         apiBlock.setOrientation(LinearLayout.VERTICAL);
         apiBlock.setVisibility(View.GONE);
 
-        LinearLayout voiceBlock = new LinearLayout(context);
-        voiceBlock.setOrientation(LinearLayout.VERTICAL);
-        UiStyles.addBinarySegmentedControl(context, voiceBlock,
-                context.getString(R.string.welcome_tts_voice_title),
-                context.getString(R.string.welcome_tts_male),
-                context.getString(R.string.welcome_tts_female),
-                context.getString(R.string.welcome_tts_male_help),
-                context.getString(R.string.welcome_tts_female_help),
-                maleVoice,
-                onMaleVoiceCommitted);
-        apiBlock.addView(voiceBlock);
-
-        apiBlock.addView(label(context, R.string.welcome_custom_text_label));
-        EditText lineInput = lineField(context, customLine, onLineCommitted);
-        apiBlock.addView(lineInput, bottomMargin(context, 8));
-
-        Button generate = new Button(context);
-        generate.setText(R.string.welcome_tts_generate);
-        UiStyles.setTextSize(generate, R.dimen.text_size_normal);
-        generate.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.styleOemButton(generate, UiStyles.color(context, R.color.buttonPrimary));
-        generate.setPadding(24, 16, 24, 16);
-        apiBlock.addView(generate, buttonParams(context));
-
         TextView savedLine = new TextView(context);
         UiStyles.setTextSize(savedLine, R.dimen.text_size_normal);
         savedLine.setTypeface(null, Typeface.BOLD);
         savedLine.setTextColor(UiStyles.color(context, R.color.textPrimary));
         savedLine.setVisibility(View.GONE);
         apiBlock.addView(savedLine);
-
-        TextView accessWarning = new TextView(context);
-        UiStyles.setTextSize(accessWarning, R.dimen.text_size_small);
-        accessWarning.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
-        accessWarning.setVisibility(View.GONE);
-        accessWarning.setPadding(0, dp(context, 8), 0, 0);
-        apiBlock.addView(accessWarning);
 
         apiBlock.addView(hint(context, R.string.welcome_mp3_hint));
         LinearLayout rowSelect = actionRow(context, context.getString(R.string.welcome_downloads_title));
@@ -312,8 +268,7 @@ public final class WelcomeSoundScreenBuilder {
                 R.string.welcome_group_sound, R.string.welcome_group_sound_sub);
         cards.addView(card);
         return new SoundSection(card, usbStatus, usbList, downloadsStatus, downloadsList,
-                savedLine, tvFilePath, rowSelect, playbackRow, playbackLabel, generate,
-                accessWarning, lineInput, apiBlock, title);
+                savedLine, tvFilePath, rowSelect, playbackRow, playbackLabel, apiBlock, title);
     }
 
     private static DesignSection addDesignPage(Context context, LinearLayout body,
@@ -780,17 +735,13 @@ public final class WelcomeSoundScreenBuilder {
         final LinearLayout rowSelect;
         final LinearLayout playbackRow;
         final TextView playbackLabel;
-        final Button generate;
-        final TextView accessWarning;
-        final EditText lineInput;
         final View apiBlock;
         final TextView soundTitle;
 
         SoundSection(LinearLayout card, TextView usbStatus, LinearLayout usbList,
                 TextView downloadsStatus, LinearLayout downloadsList, TextView savedLine,
                 TextView tvFilePath, LinearLayout rowSelect, LinearLayout playbackRow,
-                TextView playbackLabel, Button generate, TextView accessWarning,
-                EditText lineInput, View apiBlock, TextView soundTitle) {
+                TextView playbackLabel, View apiBlock, TextView soundTitle) {
             this.card = card;
             this.usbStatus = usbStatus;
             this.usbList = usbList;
@@ -801,9 +752,6 @@ public final class WelcomeSoundScreenBuilder {
             this.rowSelect = rowSelect;
             this.playbackRow = playbackRow;
             this.playbackLabel = playbackLabel;
-            this.generate = generate;
-            this.accessWarning = accessWarning;
-            this.lineInput = lineInput;
             this.apiBlock = apiBlock;
             this.soundTitle = soundTitle;
         }

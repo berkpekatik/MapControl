@@ -51,14 +51,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.mapcontrol.R;
-import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.api.CloudApi;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.Ipv4Http;
 import com.mapcontrol.util.NetworkWifiHelper;
 
 public class AppsTabBuilder {
 
-    private static final String SERVER_LIST_URL = ProfileApiService.API_ROOT + "/api/catalog";
+    private static final String SERVER_LIST_URL = CloudApi.API_ROOT + "/api/catalog";
     /** Kurulum sonuc vermezse kameralar bu sure sonunda geri acilir (onay ekrani icin genis). */
     private static final long SELF_INSTALL_AUTO_RESUME_MS = 120_000L;
     private static final long SERVER_RETRY_INITIAL_MS = 2_000L;

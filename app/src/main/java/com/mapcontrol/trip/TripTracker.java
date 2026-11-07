@@ -97,6 +97,8 @@ public final class TripTracker {
     private int maxSpeed;
     private long lastPointAt;
     private long lastCheckpointAt;
+    /** Bu kapanışta {@link Listener#onIgnitionOff} çağrıldı mı; güç dönüp yeniden düşerse sıfırlanır. */
+    private boolean ignitionOffNotified;
     private final List<TripRecord.Point> route = new ArrayList<>();
 
     /** HTTP iş parçacığı okur, örnekleri işleyen iş parçacığı yazar; değişmez nesne yayımlanır. */
@@ -142,8 +144,9 @@ public final class TripTracker {
                     endReading = reading;
                     // Kimse 60 sn beklemez, araç hemen uykuya geçebilir: yolculuk şimdi kayda geçer.
                     TripRecord saved = checkpoint(nowMs);
-                    if (powerMode == 0 && saved != null) {
-                        listener.onIgnitionOff(saved);
+                    ignitionOffNotified = false;
+                    if (powerMode == 0) {
+                        notifyIgnitionOff(saved);
                     }
                 }
                 break;
@@ -154,14 +157,29 @@ public final class TripTracker {
                     endReading = null;
                     lastSampleAt = nowMs;
                     sample(nowMs, reading);
-                } else if (nowMs - zeroSince >= END_DEBOUNCE_MS) {
-                    close();
+                } else {
+                    // Kapanışta güç önce okunamayabilir (2 → -1 → 0): ilk gerçek 0 yine kapanış işlerini başlatır.
+                    if (powerMode == 0 && !ignitionOffNotified) {
+                        notifyIgnitionOff(checkpoint(nowMs));
+                    }
+                    if (nowMs - zeroSince >= END_DEBOUNCE_MS) {
+                        close();
+                    }
                 }
                 break;
             default:
                 break;
         }
         status = state == State.IDLE ? Status.IDLE : new Status(true, startedAt, route.size(), state == State.ENDING);
+    }
+
+    /** Kapanış başına bir kez; kayda değmeyen (yol almamış) yolculukta hiç çağrılmaz. */
+    private void notifyIgnitionOff(TripRecord saved) {
+        if (saved == null) {
+            return;
+        }
+        ignitionOffNotified = true;
+        listener.onIgnitionOff(saved);
     }
 
     private void begin(long nowMs, TripReading reading) {

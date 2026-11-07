@@ -146,6 +146,11 @@ public class CameraRecorder {
         return separate ? perStream * 4L : perStream;
     }
 
+    /** Suren (veya son) kaydin yapilandirmasina gore dakikada yaklasik boyut. */
+    public long currentBytesPerMinute() {
+        return bytesPerMinute(recWidth, recHeight, separateMode);
+    }
+
     public static long estimateFitMinutes(long freeBytes, int width, int height, boolean separate) {
         long bpm = bytesPerMinute(width, height, separate);
         return bpm > 0 ? freeBytes / bpm : 0;

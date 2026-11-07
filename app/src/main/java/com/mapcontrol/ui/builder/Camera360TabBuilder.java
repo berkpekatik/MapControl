@@ -33,6 +33,7 @@ import com.mapcontrol.R;
 import com.mapcontrol.dvr.CameraGlEngine;
 import com.mapcontrol.dvr.CameraHub;
 import com.mapcontrol.dvr.CameraRecorder;
+import com.mapcontrol.dvr.DvrClipStore;
 import com.mapcontrol.dvr.DvrController;
 import com.mapcontrol.dvr.HabNative;
 import com.mapcontrol.ui.theme.UiStyles;
@@ -1069,6 +1070,16 @@ public class Camera360TabBuilder {
         estP.setMargins(labelInset, dp(10), labelInset, 0);
         card.addView(estimateView, estP);
 
+        TextView loopNote = new TextView(context);
+        loopNote.setText(R.string.camera360_usb_loop_note);
+        loopNote.setTextSize(12);
+        loopNote.setTextColor(themeColor(R.color.textSecondaryCool));
+        loopNote.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams loopP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        loopP.setMargins(labelInset, dp(6), labelInset, 0);
+        card.addView(loopNote, loopP);
+
         usbAutoColumn = new LinearLayout(context);
         usbAutoColumn.setOrientation(LinearLayout.VERTICAL);
         card.addView(usbAutoColumn, new LinearLayout.LayoutParams(
@@ -1617,7 +1628,10 @@ public class Camera360TabBuilder {
                 refreshSettingsState();
                 return;
             }
-            long fit = CameraRecorder.estimateFitMinutes(free,
+            // Dongusel silme: eski id'li klipler de kullanilabilir alan sayilir.
+            long reclaimable = DvrClipStore.reclaimableBytes(
+                    new File(usbRoot, DvrController.USB_DIR_NAME), dvr.activeBases());
+            long fit = CameraRecorder.estimateFitMinutes(free + reclaimable,
                     selectedWidth(), selectedHeight(), false);
             if (fit < MIN_FIT_MINUTES) {
                 usbFitView.setText("< " + formatDuration(MIN_FIT_MINUTES));

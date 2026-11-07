@@ -67,7 +67,6 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import android.content.pm.PackageManager;
 import android.view.MotionEvent;
 import com.mapcontrol.R;
-import com.mapcontrol.api.ProfileApiService;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
 import com.mapcontrol.util.AlertSoundHelper;
@@ -89,7 +88,6 @@ import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
 import com.mapcontrol.ui.builder.LauncherTabBuilder;
 import com.mapcontrol.ui.builder.LogTabBuilder;
-import com.mapcontrol.ui.builder.ProfileTabBuilder;
 import com.mapcontrol.ui.builder.ProjectionTabBuilder;
 import com.mapcontrol.ui.builder.SettingsTabBuilder;
 import com.mapcontrol.ui.builder.SplitScreenTabBuilder;
@@ -185,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
     private View launcherView; // Araç Launcher Modu "Ana Ekran" karşılama sekmesi
     private LauncherTabBuilder launcherTabBuilder;
     private SettingsTabBuilder settingsTabBuilder;
-    private ProfileTabBuilder profileTabBuilder;
     private DriveModeTabBuilder driveModeTabBuilder;
     private AssistTabBuilder assistTabBuilder;
     private LogTabBuilder logTabBuilder;
@@ -194,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
     private SplitScreenTabBuilder splitScreenTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
-    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
+    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager (sahibi WebServerHost; activity kapanınca kapanmaz)
     private WebServerHost webServerHost;
     private WebServerManager.WebServerListener webServerListener;
@@ -211,8 +208,6 @@ public class MainActivity extends AppCompatActivity {
     private TextToSpeech systemTts;
     private String pendingTtsText;
     private TextView topBarTitle; // Üst bar başlığı (dinamik)
-    private ScrollView profileScrollView; // Profil tab ScrollView
-    private ProfileApiService profileApiService; // API servisi
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
@@ -366,25 +361,6 @@ public class MainActivity extends AppCompatActivity {
         // SharedPreferences (tüm bölümler için ortak)
         SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
         
-        // ProfileApiService'i başlat
-        profileApiService = new ProfileApiService(this);
-
-        // Profil tab içeriği (Builder)
-        profileTabBuilder = new ProfileTabBuilder(this, prefs, profileApiService,
-                new ProfileTabBuilder.ProfileCallback() {
-                    @Override
-                    public void log(String msg) {
-                        MainActivity.this.log(msg);
-                    }
-
-                    @Override
-                    public void onSessionChanged(boolean loggedIn, boolean premium) {
-                        if (topBarBuilder != null) {
-                            topBarBuilder.setPremiumTitle(loggedIn && premium);
-                        }
-                    }
-                });
-        profileScrollView = profileTabBuilder.build();
         
         // SharedPreferences'tan targetPackage'ı yükle
         loadTargetPackage();
@@ -514,10 +490,6 @@ public class MainActivity extends AppCompatActivity {
                 });
         topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
-        if (profileApiService != null ) {
-            topBarBuilder.setPremiumTitle(
-                    profileApiService.isLoggedIn() && profileApiService.isPremium());
-        }
         topBarBuilder.setLauncherBackButtonListener(v -> {
             if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
                 updateLauncherBackButton(LauncherModeManager.isEnabled(this));
@@ -815,19 +787,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onWelcomeTts() {
                 speakTtsText(getString(R.string.log_tts_welcome_phrase));
-            }
-
-            @Override
-            public void onOpenProfile() {
-                crossfadeContent(() -> {
-                    switchTab(2);
-                    if (topBarTitle != null) {
-                        topBarTitle.setText(R.string.side_rail_profile);
-                    }
-                    if (sideRailBuilder != null) {
-                        sideRailBuilder.setSelectionForTabIndex(2);
-                    }
-                });
             }
 
             @Override
@@ -1261,7 +1220,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Tab değiştirme metodu
-     * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
+     * 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
      */
     private void switchTab(int tabIndex) {
         // TAB_LAUNCHER asla sağ taraftaki sekme alanında açılmamalıdır; yalnızca tam ekran launcher modu olarak açılabilir.
@@ -1332,8 +1291,6 @@ public class MainActivity extends AppCompatActivity {
             addTabChild(parent, wifiTabContent, matchParent);
         } else if (tabIndex == 1) {
             addTabChild(parent, fileUploadScrollView, matchParent);
-        } else if (tabIndex == 2) {
-            addTabChild(parent, profileScrollView, matchParent);
         } else if (tabIndex == 3) {
             addTabChild(parent, projectionScrollView, matchParent);
         } else if (tabIndex == 4) {
@@ -1393,7 +1350,6 @@ public class MainActivity extends AppCompatActivity {
         switch (tabIndex) {
             case 0: return R.string.side_rail_wifi;
             case 1: return R.string.side_rail_web;
-            case 2: return R.string.side_rail_profile;
             case 3: return R.string.side_rail_projection;
             case 4: return R.string.topbar_system_logs;
             case 5: return R.string.side_rail_apps;
@@ -2024,11 +1980,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                         if (currentServerUrl != null) fileUploadTabBuilder.generateQRCode(currentServerUrl);
                     }
-                }
-                break;
-            case 2:
-                if (profileTabBuilder != null) {
-                    profileScrollView = profileTabBuilder.build();
                 }
                 break;
             case 3:
@@ -2864,9 +2815,6 @@ public class MainActivity extends AppCompatActivity {
 
     // App operations moved to `AppsTabBuilder`.
     
-    // Profil sekmesi UI/logic `ProfileTabBuilder` içine taşındı.
-    
-    // Profil sekmesi helper/metodları `ProfileTabBuilder` içine taşındı.
     // parseMarkdown / processBoldText `SettingsTabBuilder` içine taşındı.
     
     // Settings tab builder is created in initializeApp.

@@ -405,6 +405,40 @@ public class TripTrackerTest {
     }
 
     @Test
+    public void unreadablePowerThenZeroStillTriggersIgnitionOffOnce() {
+        // Kapanışta CarInfo servisi bir an kopabilir: 2 → -1 → 0. İlk gerçek 0 kapanış işlerini başlatır.
+        TripTracker t = trackerWithIgnitionOff();
+        t.update(2, 0, reading(14_000, 100_000, 50));
+        t.update(2, 2_000, reading(14_010, 100_500, 50));
+        t.update(-1, 4_000, reading(14_012, 100_600, 0));
+        assertTrue(ignitionOff.isEmpty());
+        t.update(0, 4_100, reading(14_012, 100_600, 0));
+        t.update(0, 6_000, reading(14_012, 100_600, 0));
+        t.update(-1, 8_000, reading(14_012, 100_600, 0));
+        t.update(0, 10_000, reading(14_012, 100_600, 0));
+
+        assertEquals(1, ignitionOff.size());
+        assertEquals("t0", ignitionOff.get(0).id);
+        // Bitiş saati gücün düştüğü an (-1) kalır, 0'ın okunduğu an değil.
+        assertEquals(4_000, ignitionOff.get(0).endedAt);
+    }
+
+    @Test
+    public void restartWithinDebounceAndSecondIgnitionOffTriggersAgain() {
+        TripTracker t = trackerWithIgnitionOff();
+        t.update(2, 0, reading(14_000, 100_000, 50));
+        t.update(2, 2_000, reading(14_010, 100_500, 50));
+        t.update(0, 4_000, reading(14_010, 100_500, 0));
+        t.update(2, 10_000, reading(14_010, 100_500, 0)); // 60 sn dolmadan yeniden çalıştı
+        t.update(2, 12_000, reading(14_015, 100_700, 40));
+        t.update(0, 14_000, reading(14_015, 100_700, 0));
+
+        assertEquals(2, ignitionOff.size());
+        assertEquals("t0", ignitionOff.get(1).id);
+        assertEquals(14_000, ignitionOff.get(1).endedAt);
+    }
+
+    @Test
     public void ignitionOffWithoutMovementDoesNotTriggerParkPhoto() {
         TripTracker t = trackerWithIgnitionOff();
         t.update(1, 0, reading(5_000, 10, 0));

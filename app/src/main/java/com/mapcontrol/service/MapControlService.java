@@ -387,13 +387,14 @@ public class MapControlService extends Service {
                     return;
                 }
 
-                int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
-                        VDEventCarInfo.MODULE_READONLY_INFO,
-                        ReadOnlyID.ID_SYSTEM_POWER_MODE);
+                // CarInfoProxy.getItemValues yanıt yokken [0] döndürür; bu da "kontak kapandı" sanılırdı.
+                // Ham okuma yanıt yoksa null verir: güç bilinmiyor (-1) sayılır, kapanış işleri tetiklenmez.
+                long sampledAt = android.os.SystemClock.elapsedRealtime();
+                int[] pwrItems = com.mapcontrol.vehicle.CarInfoRead.readOnly(ReadOnlyID.ID_SYSTEM_POWER_MODE);
 
                 // Yolculuk kaydı her örneği görür; kısa okuma kayıpları 60 sn'lik bitiş beklemesine takılır.
                 com.mapcontrol.trip.TripRecorder.get(this).onPowerSample(
-                        pwrItems != null && pwrItems.length > 0 ? pwrItems[0] : -1);
+                        pwrItems != null && pwrItems.length > 0 ? pwrItems[0] : -1, sampledAt);
 
                 if (pwrItems != null && pwrItems.length > 0) {
                     int currentPowerMode = pwrItems[0];

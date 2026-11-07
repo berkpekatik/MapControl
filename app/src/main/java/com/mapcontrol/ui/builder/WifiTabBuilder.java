@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -17,6 +18,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -121,8 +123,16 @@ public class WifiTabBuilder {
         applyControlButtonStyle(btnScanWifi, UiStyles.color(context, R.color.oemAccent));
         btnScanWifi.setOnClickListener(v -> scanWifiNetworks());
         LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
-        scanParams.setMargins(gap / 2, 0, 0, 0);
+        scanParams.setMargins(gap / 2, 0, gap / 2, 0);
         controlButtonsRow.addView(btnScanWifi, scanParams);
+
+        Button btnSavedNetworks = new Button(context);
+        btnSavedNetworks.setText(R.string.wifi_saved_networks);
+        applyControlButtonStyle(btnSavedNetworks, UiStyles.color(context, R.color.primaryDarkColor));
+        btnSavedNetworks.setOnClickListener(v -> showSavedNetworksDialog());
+        LinearLayout.LayoutParams savedParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
+        savedParams.setMargins(gap / 2, 0, 0, 0);
+        controlButtonsRow.addView(btnSavedNetworks, savedParams);
 
         card.addView(controlButtonsRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -747,6 +757,145 @@ public class WifiTabBuilder {
             callback.log("Şifreli ağ bağlantı hatası: " + e.getMessage());
             Toast.makeText(context, context.getString(R.string.common_error_prefix, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void showSavedNetworksDialog() {
+        List<NetworkWifiHelper.SavedNetwork> saved = NetworkWifiHelper.savedNetworks(context);
+        callback.log("Kayıtlı ağ sayısı: " + saved.size());
+
+        String connectedSsid = null;
+        if (wifiManager != null) {
+            WifiInfo info = wifiManager.getConnectionInfo();
+            if (info != null && info.getNetworkId() != -1 && info.getSSID() != null) {
+                connectedSsid = info.getSSID().replace("\"", "");
+            }
+        }
+
+        LinearLayout dialogLayout = new LinearLayout(context);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setPadding(40, 30, 40, 10);
+        dialogLayout.setBackgroundColor(UiStyles.color(context, R.color.cardColor));
+
+        TextView titleView = new TextView(context);
+        titleView.setText(R.string.wifi_saved_title);
+        titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.setTextSize(titleView, R.dimen.text_size_large);
+        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        dialogLayout.addView(titleView);
+
+        TextView subtitleView = new TextView(context);
+        subtitleView.setText(saved.isEmpty() ? R.string.wifi_saved_empty : R.string.wifi_saved_subtitle);
+        subtitleView.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+        UiStyles.setTextSize(subtitleView, R.dimen.text_size_small);
+        subtitleView.setPadding(0, 8, 0, 20);
+        dialogLayout.addView(subtitleView);
+
+        List<CheckBox> checks = new ArrayList<>();
+        if (!saved.isEmpty()) {
+            LinearLayout rows = new LinearLayout(context);
+            rows.setOrientation(LinearLayout.VERTICAL);
+            float density = context.getResources().getDisplayMetrics().density;
+            for (NetworkWifiHelper.SavedNetwork network : saved) {
+                CheckBox check = new CheckBox(context);
+                String label = network.ssid.isEmpty()
+                        ? context.getString(R.string.wifi_hidden_network) : network.ssid;
+                if (network.ssid.equals(connectedSsid)) {
+                    label += context.getString(R.string.wifi_detail_separator)
+                            + context.getString(R.string.wifi_list_connected);
+                }
+                check.setText(label);
+                check.setTag(network);
+                check.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                UiStyles.setTextSize(check, R.dimen.text_size_medium);
+                check.setButtonTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.accentHighlight)));
+                check.setMinHeight(Math.round(56 * density));
+                check.setPadding(12, 0, 12, 0);
+                UiStyles.applySolidRoundedBackgroundDp(check,
+                        UiStyles.color(context, R.color.surfaceCardInner), 12f);
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                rowLp.setMargins(0, 0, 0, 10);
+                rows.addView(check, rowLp);
+                checks.add(check);
+            }
+            ScrollView scroll = new ScrollView(context);
+            scroll.addView(rows);
+            int maxHeight = Math.round(context.getResources().getDisplayMetrics().heightPixels * 0.5f);
+            int listHeight = Math.min(maxHeight, Math.round(saved.size() * 66 * density));
+            dialogLayout.addView(scroll, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, listHeight));
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(context)
+                .setView(dialogLayout)
+                .setNegativeButton(R.string.wifi_cancel, null);
+        if (!saved.isEmpty()) {
+            builder.setPositiveButton(R.string.wifi_forget_selected, null);
+        }
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        dialog.setOnShowListener(d -> {
+            Button pos = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Button neg = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            if (pos != null) {
+                pos.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
+                UiStyles.setTextSize(pos, R.dimen.text_size_medium);
+                pos.setTypeface(null, android.graphics.Typeface.BOLD);
+                // Seçim yokken pencere kapanmasın.
+                pos.setOnClickListener(v -> {
+                    List<NetworkWifiHelper.SavedNetwork> selected = new ArrayList<>();
+                    for (CheckBox check : checks) {
+                        if (check.isChecked()) {
+                            selected.add((NetworkWifiHelper.SavedNetwork) check.getTag());
+                        }
+                    }
+                    if (selected.isEmpty()) {
+                        Toast.makeText(context, R.string.wifi_forget_none_selected, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    dialog.dismiss();
+                    forgetNetworks(selected);
+                });
+            }
+            if (neg != null) {
+                neg.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+                UiStyles.setTextSize(neg, R.dimen.text_size_medium);
+                neg.setTypeface(null, android.graphics.Typeface.BOLD);
+            }
+        });
+        dialog.show();
+    }
+
+    private void forgetNetworks(List<NetworkWifiHelper.SavedNetwork> networks) {
+        new Thread(() -> {
+            int removed = 0;
+            List<String> refused = new ArrayList<>();
+            for (NetworkWifiHelper.SavedNetwork network : networks) {
+                if (NetworkWifiHelper.forgetNetwork(context, network.networkId)) {
+                    removed++;
+                } else {
+                    refused.add(network.ssid);
+                }
+            }
+            final int removedCount = removed;
+            handler.post(() -> {
+                callback.log("Unutulan ağ: " + removedCount + ", silinemeyen: " + refused);
+                if (removedCount > 0) {
+                    Toast.makeText(context, context.getString(R.string.wifi_forget_done, removedCount),
+                            Toast.LENGTH_SHORT).show();
+                }
+                if (!refused.isEmpty()) {
+                    Toast.makeText(context, context.getString(R.string.wifi_forget_denied,
+                            android.text.TextUtils.join(", ", refused)), Toast.LENGTH_LONG).show();
+                }
+                if (wifiManager != null && wifiManager.isWifiEnabled()) {
+                    scanWifiNetworks();
+                }
+            });
+        }, "wifi-forget").start();
     }
 
     private void disconnectFromWifi() {
