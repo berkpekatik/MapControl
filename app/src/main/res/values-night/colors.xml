@@ -26,9 +26,6 @@
     <color name="accentPressed">#3568A0</color>
     <color name="accentHighlight">#73B2F5</color>
 
-    <!-- Filament model clear — cam kart (dark) opak eş -->
-    <color name="filament_scene_clear">#18212C</color>
-
     <color name="backgroundColor">#10141D</color>
     <color name="backgroundPage">#10141B</color>
     <color name="surfaceColor">#161B22</color>
