@@ -927,7 +927,7 @@ public class VDConnector {
                         this.mIVDBus.subscribe(changeSubscribeBuffer(this.mSubscribeBuffer), this.mPid, this.mContext.getPackageName(), this.mICallback);
                     }
                 } catch (Exception e10) {
-                    // Bizim IVDBus kopyası binder hatasını RuntimeException ile sarar (araç tarafındaki asıl kütüphane RemoteException fırlatır)
+                    // Binder hataları RuntimeException içine sarılarak iletilir
                     Log.e(TAG, "subscribeCommit: VDBus subscribe hatası", e10);
                 }
             }
