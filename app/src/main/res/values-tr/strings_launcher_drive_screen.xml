@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sürüş ekranı (Navigasyon kartı → Mini gösterge + harita, bölünmüş; DriveScreen, DriveMapPickerActivity). -->
+<resources>
+    <string name="launcher_drive_add_map">Harita ekle</string>
+    <string name="launcher_drive_picker_title">Harita ekle</string>
+    <string name="launcher_drive_picker_sub">Sürüş ekranında hangi harita açılsın?</string>
+    <string name="launcher_drive_picker_none">Yüklü navigasyon uygulaması yok</string>
+    <string name="launcher_drive_map_full">Harita tam ekran</string>
+    <string name="launcher_drive_map_big">Haritayı büyüt</string>
+    <string name="launcher_drive_home">Ana ekran</string>
+    <string name="launcher_drive_reopen_map">Haritayı aç</string>
+</resources>

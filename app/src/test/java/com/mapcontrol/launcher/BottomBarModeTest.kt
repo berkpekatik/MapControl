@@ -46,6 +46,17 @@ class BottomBarModeTest {
         assertFalse(BottomBarMode.drawsOurBar(BottomBarMode.HIDDEN, oemBarPresent = false))
     }
 
+    @Test fun climateDecode() {
+        assertEquals(26.0, OurBottomBar.decodeTemp(21)!!, 0.0)
+        assertEquals(15.5, OurBottomBar.decodeTemp(0)!!, 0.0)
+        assertNull(OurBottomBar.decodeTemp(-1))
+        assertNull(OurBottomBar.decodeTemp(255))
+        assertNull(OurBottomBar.decodeTemp(31))   // 30 °C üstü yok (OEM: ham 30 = HI)
+        assertEquals(30.5, OurBottomBar.decodeTemp(30)!!, 0.0)
+        assertEquals(3, OurBottomBar.decodeFan(3))
+        assertNull(OurBottomBar.decodeFan(200))
+    }
+
     @Test fun oemBarForcedOnlyWhenHiddenModeAndSystemShowsIt() {
         // Bölünmüş ekran: Bizimki/Gizli'de gizlediğimiz OEM çubuğu sistemce görünür (110 px) → bizimki çizilmez.
         assertTrue(BottomBarMode.oemBarForced(BottomBarMode.OURS, navBarVisible = true, navBarBottomPx = 110))

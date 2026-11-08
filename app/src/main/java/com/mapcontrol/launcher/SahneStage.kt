@@ -33,13 +33,14 @@ import com.mapcontrol.R
  * rengini çok hafif alan ortam ışığı (şarkı başına bir kez küçük kopyadan hesaplanır, yumuşak geçiş) ve araç üstünde dijital
  * ikiz ışıkları ([CarStageView.setLights]). Görünmezken tüm hareket durur.
  *
- * Veri bugünkü widget'lardan gelir: ekrana konmayan bir [VehicleHeroCard] ([VehicleHeroCard.Summary], kilit dahil);
+ * Veri bugünkü widget'lardan gelir: ekrana konmayan bir [VehicleHeroCard] ([VehicleHeroCard.Summary]) ve [LockTile];
  * yolculuk verisi (bakım, hava, ışıklar, hareket) ortak [TripSource] okuyucusundan. Tasarım ölçüleri 960 genişliğe oranlanır.
  */
 class SahneStage(private val activity: Activity) : ViewGroup(activity), LauncherWidget {
 
     private val vehicle = VehicleHeroCard(activity).apply { applySpan(Span(4, 4)) }
-    private val sources: List<LauncherWidget> = listOf(vehicle)
+    private val lock = LockTile(activity)
+    private val sources: List<LauncherWidget> = listOf(vehicle, lock)
 
     private val floor = FloorView(activity)
     private val ambient = arrayOf(AmbientView(activity), AmbientView(activity))
@@ -102,7 +103,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         addView(fuelRow, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = context.dp(6) })
     }
 
-    // --- Kilit hapı (sağ omuz; yalnız durum gösterir) ---
+    // --- Kilit hapı (sağ omuz) ---
     private val lockIcon = sahneIcon(R.drawable.ic_sahne_lock, Sahne.ICE)
     private val lockText = sahneText(activity, SHOULDER_SP, Sahne.INK, SHOULDER_WEIGHT, dayBump = false)
     private val lockChip = LinearLayout(activity).apply {
@@ -112,6 +113,10 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         setPadding(context.dp(16), 0, context.dp(18), 0)
         addView(lockIcon, LinearLayout.LayoutParams(context.dp(24), context.dp(24)))
         addView(lockText, LinearLayout.LayoutParams(WRAP, WRAP).apply { marginStart = context.dp(10) })
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { lock.stripTap(0) }
+        pressFeedback()
     }
     /** Son bilinen kilit durumu (kilitlenince dörtlüler bir kez yanar); henüz okunmadıysa null. */
     private var lastLocked: Boolean? = null
@@ -272,8 +277,9 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         addView(skeleton)
         addView(waitNote)
         vehicle.onSummary = { bindVehicle(it) }
+        lock.onStripChanged = { bindLock(lock.stripState()) }
         bindVehicle(vehicle.summary)
-        bindLock(vehicle.summary?.locked)
+        bindLock(lock.stripState())
         SahneFonts.apply(rangeNumber, 300, -0.03f)
         rangeNumber.includeFontPadding = false
         // Kilit hapı her iki yazıya da sabit genişlikte: yazı değişince hap ve araç yerinden oynamaz.
@@ -321,6 +327,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         welcome = false
         shiftAnim?.cancel()
         shiftAnim = null
+        lock.onStripChanged = null
         artKey = null
         sources.forEach { it.release() }
     }
@@ -361,7 +368,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         bindPartAlerts()
         bindStrip()
         refreshDetail()
-        bindLock(vehicle.summary?.locked)
+        bindLock(lock.stripState())
         requestLayout()
     }
 
@@ -418,24 +425,25 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     }
 
     /**
-     * Kilit hapı: araç özetindeki kilit durumundan; bir kapı açıksa kilitli gösterilmez (açık kapıyla "Kilitli" çelişir). Henüz
-     * okunmadıysa nötr "Bekleniyor". Açıktan kilitliye geçişte dörtlüler bir kez yanar.
+     * Kilit hapı: kilit dinleyicisinden; bir kapı açıksa kilitli gösterilmez (açık kapıyla "Kilitli" çelişir). Henüz okunmadıysa
+     * nötr "Bekleniyor". Açıktan kilitliye geçişte dörtlüler bir kez yanar.
      */
-    private fun bindLock(locked: Boolean?) {
-        val known = locked != null
+    private fun bindLock(s: StripState?) {
+        val known = s != null && s.tone != StripTone.MUTED
         val doorOpen = openings?.anyDoor == true
-        val unlocked = doorOpen || locked == false
-        lockText.text = activity.getString(when {
-            doorOpen || locked == false -> R.string.launcher_unlocked
-            locked == true -> R.string.launcher_locked
-            else -> R.string.launcher_lock_waiting
-        })
+        val unlocked = doorOpen || s?.icon == R.drawable.ic_mdi_lock_open_variant
+        lockText.text = when {
+            doorOpen -> activity.getString(R.string.launcher_unlocked)
+            known -> s!!.value
+            else -> activity.getString(R.string.launcher_lock_waiting)
+        }
         val live = known || doorOpen
         // Dörtlü kenarı yalnız gerçek kilit sinyalinden: açık kapı hapı "Açık" gösterir ama kilit durumu sayılmaz (kilitliyken
         // içeriden açılıp kapanan kapı sahte "kilitlendi" parlaması yapmasın).
-        if (locked != null) {
-            if (lastLocked == false && locked) car.flashHazard()
-            lastLocked = locked
+        if (known) {
+            val nowLocked = s!!.icon != R.drawable.ic_mdi_lock_open_variant
+            if (lastLocked == false && nowLocked) car.flashHazard()
+            lastLocked = nowLocked
         }
         lockIcon.setImageResource(if (unlocked) R.drawable.ic_sahne_lock_open else R.drawable.ic_sahne_lock)
         lockIcon.imageTintList = ColorStateList.valueOf(if (!live) Sahne.INK_3 else Sahne.ICE)

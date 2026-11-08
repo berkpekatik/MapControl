@@ -49,6 +49,7 @@ internal object LauncherDemo {
         enabled = debuggable && intent.getBooleanExtra(EXTRA, false)
         if (!enabled) main.removeCallbacks(cycle)
         if (!enabled) main.removeCallbacks(roofSim)
+        if (!enabled) NavigationSource.setDemo(false)
         if (enabled && intent.hasExtra(VehicleProfile.EXTRA_PROFILE)) VehicleProfile.demoOverride = VehicleProfile.parse(intent.getStringExtra(VehicleProfile.EXTRA_PROFILE))
         if (enabled && intent.hasExtra(EXTRA_WIFI)) wifi = intent.getBooleanExtra(EXTRA_WIFI, false)
         if (enabled && intent.hasExtra(EXTRA_CHARGING)) charging = intent.getBooleanExtra(EXTRA_CHARGING, true)
@@ -263,6 +264,7 @@ internal object LauncherDemo {
         if (intent.hasExtra(EXTRA_HEALTH)) healthProblem = intent.getStringExtra(EXTRA_HEALTH)
         if (intent.hasExtra(EXTRA_NOISE)) noise = intent.getBooleanExtra(EXTRA_NOISE, false)
         if (intent.hasExtra(EXTRA_SEAT)) seatOverride = intent.getIntExtra(EXTRA_SEAT, 0).coerceIn(0, 3)
+        if (intent.hasExtra(EXTRA_NAV)) NavigationSource.setDemo(intent.getBooleanExtra(EXTRA_NAV, false))
         if (intent.hasExtra(EXTRA_LIGHTS)) lights = CarLights.parse(intent.getStringExtra(EXTRA_LIGHTS))
         if (intent.getBooleanExtra(EXTRA_WELCOME, false)) welcomeRequested = true
     }
@@ -286,6 +288,12 @@ internal object LauncherDemo {
     @Volatile
     var lights: CarLights = CarLights.OFF
         private set
+
+    /**
+     * Navigasyon paneli önizlemesi: `--ez launcher_demo_nav true` sahte rota gösterir (300 m sonra sağa, Atatürk Cd.,
+     * Varış 14:52 · 18 km; [NavigationState.DEMO]), `false` gerçek bildirim durumuna döner.
+     */
+    const val EXTRA_NAV = "launcher_demo_nav"
 
     /** Virgüllü parça listesi → kart anahtarları (lf, lr, rf, rr, trunk, hood; tanınmayan olduğu gibi, ör. sunroof). */
     internal fun parseOpen(raw: String?): Set<String> =
@@ -395,6 +403,15 @@ internal object LauncherDemo {
     val CONSUMPTION_HISTORY: List<Float> = listOf(
         9.8f, 11.2f, 8.4f, 7.6f, 12.4f, 9.1f, 7.2f, 6.8f, 6.4f, 7.9f, 6.6f, 6.1f,
         5.9f, 6.3f, 7.4f, 6.9f, 6.2f, 5.8f, 6.5f, 7.1f, 6.8f, 6.4f, 6.9f, 6.8f,
+    )
+
+    /** Konfor kutucukları: bagaj kapalı, klima tuşları, ısıtmalar kapalı, arka hoparlör demo anahtarına göre. */
+    fun comfort(): ComfortReading = ComfortReading(
+        connected = true,
+        // Bagaj, sahne aracıyla aynı demo anahtarından (`launcher_demo_open "trunk"`): tek kaynak.
+        trunk = if ("trunk" in openParts) TrunkReading(position = TrunkMath.FULL_OPEN, latchOpen = 1, motion = TrunkMath.MOTION_STOPPED)
+        else TrunkReading(position = 0, latchOpen = 0, motion = TrunkMath.MOTION_STOPPED),
+        sound = SoundFieldReading(balance = SoundFieldMath.CENTER, fade = if (rearOff) SoundFieldMath.FRONT_EXTREME else SoundFieldMath.CENTER),
     )
 
     /**

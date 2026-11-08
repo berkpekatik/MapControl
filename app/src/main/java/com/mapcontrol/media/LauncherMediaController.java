@@ -12,10 +12,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.service.notification.NotificationListenerService;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 
+import com.mapcontrol.launcher.MediaSourcePick;
+import com.mapcontrol.launcher.OemAudioSource;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -29,8 +34,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public final class LauncherMediaController {
 
-    /** Progress bar yumuşak ilerlesin diye sık tick. */
-    private static final long PROGRESS_TICK_MS = 50L;
+    /**
+     * Saniyede bir tick yeterli (süre metni saniye çözünürlüğünde). 50 ms'lik tick her seferinde
+     * metadata ve kapak resmini binder'dan yeniden okuyup GC baskısı yaratıyor, ses takılmasına katkı veriyordu.
+     */
+    private static final long PROGRESS_TICK_MS = 1000L;
 
     public interface Listener {
         void onMediaStateChanged(MediaState state);
@@ -80,8 +88,17 @@ public final class LauncherMediaController {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<Listener> listeners = new CopyOnWriteArraySet<>();
 
+    private static final String PREFS = "launcher_media";
+    private static final String KEY_LAST_SOURCE = "last_source";
+    /** Süreç başına bir kez: izin açık ama dinleyici bağlı değilse sistemden yeniden bağlama istenir. */
+    private static volatile boolean rebindRequested;
+
+    @Nullable
+    private String lastSource;
     private MediaSessionManager sessionManager;
     private MediaController activeController;
+    @Nullable private String lastArtworkKey;
+    @Nullable private Bitmap lastArtwork;
     private boolean started;
     private boolean sessionsListenerRegistered;
 
@@ -90,6 +107,9 @@ public final class LauncherMediaController {
 
     private final LauncherMediaNotificationListener.Listener notificationListener =
             this::onNotificationListenerConnected;
+
+    /** OEM ses kaynağı (CURRENT_SOURCE_TYPE) değişti: kart yeni kaynağı izlesin ({@link MediaSourcePick#pick}). */
+    private final OemAudioSource.SourceListener oemSourceListener = type -> refreshActiveController();
 
     private final MediaController.Callback controllerCallback = new MediaController.Callback() {
         @Override
@@ -101,6 +121,10 @@ public final class LauncherMediaController {
         public void onPlaybackStateChanged(PlaybackState state) {
             notifyState();
             scheduleProgressTick(state);
+            // Seçili oturum durdu: başka çalan varsa ona geç.
+            if (state == null || state.getState() != PlaybackState.STATE_PLAYING) {
+                mainHandler.post(LauncherMediaController.this::refreshActiveController);
+            }
         }
 
         @Override
@@ -109,6 +133,53 @@ public final class LauncherMediaController {
             refreshActiveController();
         }
     };
+
+    /**
+     * Seçili olmayan oturumlar da izlenir: biri çalmaya başlarsa ya da seçili oturum durursa yeniden seçilir.
+     * 6 Kasım araç: radyo (OEM ses uygulaması, "am") seçiliyken Bluetooth müziği başladı; iki oturum zaten etkin olduğundan
+     * oturum listesi değişmedi ve kart radyoda kaldı.
+     */
+    private final List<MediaController> watched = new ArrayList<>();
+
+    private final MediaController.Callback watcherCallback = new MediaController.Callback() {
+        @Override
+        public void onPlaybackStateChanged(PlaybackState state) {
+            if (isPlayingState(state)) {
+                mainHandler.post(LauncherMediaController.this::refreshActiveController);
+            }
+        }
+    };
+
+    private void watchOthers(@Nullable List<MediaController> controllers) {
+        unwatchOthers();
+        if (controllers == null) {
+            return;
+        }
+        for (MediaController c : controllers) {
+            // Liste her okunuşta yeni örnekler verir: seçili oturum kimliğiyle (token) ayıklanır.
+            if (c == activeController || (activeController != null
+                    && c.getSessionToken().equals(activeController.getSessionToken()))) {
+                continue;
+            }
+            try {
+                c.registerCallback(watcherCallback, mainHandler);
+                watched.add(c);
+            } catch (Exception ignored) {
+                // oturum kapanmış olabilir
+            }
+        }
+    }
+
+    private void unwatchOthers() {
+        for (MediaController c : watched) {
+            try {
+                c.unregisterCallback(watcherCallback);
+            } catch (Exception ignored) {
+                // no-op
+            }
+        }
+        watched.clear();
+    }
 
     private final Runnable progressTick = () -> {
         notifyState();
@@ -136,10 +207,15 @@ public final class LauncherMediaController {
             return;
         }
         started = true;
-        LauncherMediaNotificationListener.setListener(notificationListener);
+        LauncherMediaNotificationListener.addListener(notificationListener);
+        OemAudioSource.INSTANCE.watchSource(appContext, oemSourceListener);
+        selfGrantNotificationAccessOnce();
+        requestListenerRebindOnce();
         sessionManager = (MediaSessionManager) appContext.getSystemService(Context.MEDIA_SESSION_SERVICE);
         registerSessionsListener();
         refreshActiveController();
+        // Telefon önceliği kartın ömründen bağımsız (süreç boyu); dinleyici henüz bağlanmadıysa bu bir şey yapmaz.
+        BtSessionWatcher.start(appContext);
     }
 
     public void stop() {
@@ -147,35 +223,83 @@ public final class LauncherMediaController {
             return;
         }
         started = false;
-        LauncherMediaNotificationListener.setListener(null);
+        LauncherMediaNotificationListener.removeListener(notificationListener);
+        OemAudioSource.INSTANCE.unwatchSource(oemSourceListener);
         mainHandler.removeCallbacks(progressTick);
         unregisterSessionsListener();
         detachController();
         notifyState();
     }
 
+    /** Geri: OEM kaynağına göre VDBus ya da oturum ({@link OemAudioSource#skip}). */
     public void skipToPrevious() {
-        if (activeController != null) {
-            activeController.getTransportControls().skipToPrevious();
-        }
+        skip(false);
     }
 
+    /**
+     * Oynat/duraklat. Oynat'ta bir Bluetooth oturumu varsa önce OEM ses kaynağı Bluetooth müziğine geçirilir (OEM medya
+     * uygulaması gibi; radyo odağı tutarken BT çalması 1-2 sn'de duruyordu), sonra BT oturumuna oynat gönderilir
+     * ({@link OemAudioSource#playBluetooth}). Yalnızca kullanıcı dokunuşuyla çağrılır.
+     */
     public void playPause() {
-        if (activeController == null) {
+        MediaController active = activeController;
+        PlaybackState state = active != null ? active.getPlaybackState() : null;
+        if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
+            active.getTransportControls().pause();
             return;
         }
-        PlaybackState state = activeController.getPlaybackState();
-        if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
-            activeController.getTransportControls().pause();
-        } else {
-            activeController.getTransportControls().play();
+        MediaController bt = MediaSourcePick.INSTANCE.isBluetooth(active != null ? active.getPackageName() : null)
+                ? active : findBluetooth(loadControllers());
+        if (bt != null) {
+            final MediaController target = bt;
+            OemAudioSource.INSTANCE.playBluetooth(appContext, () -> {
+                try {
+                    target.getTransportControls().play();
+                } catch (Exception ignored) {
+                    // oturum bu arada kapanmış olabilir
+                }
+            });
+            return;
+        }
+        if (active != null) {
+            active.getTransportControls().play();
         }
     }
 
-    public void skipToNext() {
-        if (activeController != null) {
-            activeController.getTransportControls().skipToNext();
+    @Nullable
+    private static MediaController findBluetooth(@Nullable List<MediaController> controllers) {
+        if (controllers == null) {
+            return null;
         }
+        for (MediaController c : controllers) {
+            if (MediaSourcePick.INSTANCE.isBluetooth(c.getPackageName())) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /** İleri: OEM kaynağına göre VDBus ya da oturum ({@link OemAudioSource#skip}). */
+    public void skipToNext() {
+        skip(true);
+    }
+
+    private void skip(boolean next) {
+        final MediaController target = activeController;
+        OemAudioSource.INSTANCE.skip(appContext, next, target != null ? target.getPackageName() : null, () -> {
+            if (target == null) {
+                return;
+            }
+            try {
+                if (next) {
+                    target.getTransportControls().skipToNext();
+                } else {
+                    target.getTransportControls().skipToPrevious();
+                }
+            } catch (Exception ignored) {
+                // oturum bu arada kapanmış olabilir
+            }
+        });
     }
 
     public void volumeDown() {
@@ -218,16 +342,126 @@ public final class LauncherMediaController {
         return isNotificationAccessEnabled(appContext);
     }
 
-    /** Sistem bildirim erişimi ayar ekranını açar. */
+    /** Son oturumu olan medya uygulamasının paket adı (yoksa null); yeniden açılışta da korunur. */
+    @Nullable
+    public String lastSourcePackage() {
+        if (lastSource == null) {
+            lastSource = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .getString(KEY_LAST_SOURCE, null);
+        }
+        return lastSource;
+    }
+
+    /** Son kaynak uygulamayı başlatır; açılamazsa false döner. */
+    public boolean launchLastSource() {
+        String pkg = lastSourcePackage();
+        if (pkg == null) {
+            return false;
+        }
+        try {
+            Intent launch = appContext.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (launch == null) {
+                return false;
+            }
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            appContext.startActivity(launch);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void rememberSource(@Nullable String pkg) {
+        if (pkg == null || pkg.equals(lastSource)) {
+            return;
+        }
+        lastSource = pkg;
+        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putString(KEY_LAST_SOURCE, pkg).apply();
+    }
+
+    /** Sistem bildirim erişimi ayar ekranını açar (API 30+ bu uygulamanın ayrıntı sayfası). */
     public void openNotificationAccessSettings() {
         Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS);
+            intent.putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                    new ComponentName(appContext, LauncherMediaNotificationListener.class)
+                            .flattenToString());
+        }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             appContext.startActivity(intent);
         } catch (Exception ignored) {
+            try {
+                Intent general = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+                general.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                appContext.startActivity(general);
+                return;
+            } catch (Exception ignoredToo) {
+                // son çare genel ayarlar
+            }
             Intent fallback = new Intent(Settings.ACTION_SETTINGS);
             fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             appContext.startActivity(fallback);
+        }
+    }
+
+    /**
+     * İzin kurulum betiğiyle ({@code cmd notification allow_listener com.mapcontrol/com.mapcontrol.media.LauncherMediaNotificationListener})
+     * verildikten sonra dinleyici, uygulama güncellemesi ya da süreç ölümü sonrası bağsız kalabilir; sistemden yeniden bağlanması
+     * istenir (zaten bağlıysa etkisizdir). Bağlanınca {@code onListenerConnected} kartları tazeler.
+     */
+    private boolean selfGrantTried;
+
+    /**
+     * Araçta "Bildirim erişimi" ayar ekranı yok (araç Ayarlar'ı NOTIFICATION_LISTENER_SETTINGS'i çözmüyor; araçta ölçüldü):
+     * kullanıcı bu izni ekrandan veremez. Kurulum aracı WRITE_SECURE_SETTINGS verdiyse dinleyicimizi listeye kendimiz ekleriz
+     * (yalnız ekleme; diğer dinleyiciler korunur). İzin yoksa sessizce geçer, kart "izin gerekli" durumunda kalır.
+     */
+    private void selfGrantNotificationAccessOnce() {
+        if (selfGrantTried || isNotificationAccessGranted()) {
+            return;
+        }
+        selfGrantTried = true;
+        if (appContext.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        String self = new ComponentName(appContext, LauncherMediaNotificationListener.class).flattenToString();
+        try {
+            String current = Settings.Secure.getString(appContext.getContentResolver(), "enabled_notification_listeners");
+            Settings.Secure.putString(appContext.getContentResolver(), "enabled_notification_listeners",
+                    withListener(current, self));
+            android.util.Log.i("MediaAccess", "bildirim erişimi kendiliğinden açıldı (WRITE_SECURE_SETTINGS)");
+        } catch (RuntimeException e) {
+            android.util.Log.w("MediaAccess", "bildirim erişimi açılamadı: " + e.getClass().getSimpleName());
+        }
+    }
+
+    /** ':' ile ayrılmış dinleyici listesine [component]'i ekler; zaten varsa listeyi aynen döner. */
+    public static String withListener(@Nullable String current, String component) {
+        if (current == null || current.trim().isEmpty() || "null".equals(current.trim())) {
+            return component;
+        }
+        for (String raw : current.split(":")) {
+            if (raw.trim().equals(component)) {
+                return current;
+            }
+        }
+        return current + ":" + component;
+    }
+
+    private void requestListenerRebindOnce() {
+        if (rebindRequested || !isNotificationAccessGranted()) {
+            return;
+        }
+        rebindRequested = true;
+        try {
+            NotificationListenerService.requestRebind(
+                    new ComponentName(appContext, LauncherMediaNotificationListener.class));
+        } catch (RuntimeException ignored) {
+            // izin yok / sistem reddetti: kart "izin gerekli" durumunda kalır
         }
     }
 
@@ -295,8 +529,16 @@ public final class LauncherMediaController {
         }
         // İzin yeni açıldıysa listener'ı kaydet
         registerSessionsListener();
-        MediaController next = pickController(loadControllers());
+        List<MediaController> all = loadControllers();
+        // Hiçbiri çalmıyorsa seçili oturum (hâlâ listedeyse) korunur: duraklatılan müzik radyoya atlamaz. BT oturumu varken
+        // OEM radyosunun boş ("am") oturumu karta seçilmez (MediaSourcePick).
+        MediaController next = pickController(all, activeController);
+        if (next != null && activeController != null
+                && next.getSessionToken().equals(activeController.getSessionToken())) {
+            next = activeController;
+        }
         if (next == activeController) {
+            watchOthers(all);
             notifyState();
             PlaybackState sameState = activeController != null
                     ? activeController.getPlaybackState() : null;
@@ -308,6 +550,7 @@ public final class LauncherMediaController {
         if (activeController != null) {
             activeController.registerCallback(controllerCallback, mainHandler);
         }
+        watchOthers(all);
         notifyState();
         PlaybackState state = activeController != null ? activeController.getPlaybackState() : null;
         scheduleProgressTick(state);
@@ -328,21 +571,57 @@ public final class LauncherMediaController {
     }
 
     @Nullable
-    private static MediaController pickController(@Nullable List<MediaController> controllers) {
+    private static MediaController pickController(@Nullable List<MediaController> controllers,
+                                                  @Nullable MediaController current) {
         if (controllers == null || controllers.isEmpty()) {
             return null;
         }
-        MediaController withMetadata = null;
-        for (MediaController controller : controllers) {
-            PlaybackState state = controller.getPlaybackState();
-            if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
-                return controller;
-            }
-            if (withMetadata == null && hasMetadata(controller)) {
-                withMetadata = controller;
+        List<MediaSourcePick.Cand> cands = new ArrayList<>(controllers.size());
+        int currentIndex = -1;
+        boolean hasBt = false;
+        for (int i = 0; i < controllers.size(); i++) {
+            MediaController c = controllers.get(i);
+            cands.add(new MediaSourcePick.Cand(c.getPackageName(), isPlaying(c), hasMetadata(c)));
+            hasBt |= MediaSourcePick.INSTANCE.isBluetooth(c.getPackageName());
+            if (current != null && currentIndex < 0 && c.getSessionToken().equals(current.getSessionToken())) {
+                currentIndex = i;
             }
         }
-        return withMetadata != null ? withMetadata : controllers.get(0);
+        int pick = MediaSourcePick.INSTANCE.pick(cands, currentIndex, OemAudioSource.INSTANCE.followSource(hasBt));
+        return pick >= 0 ? (pick == currentIndex ? current : controllers.get(pick)) : null;
+    }
+
+    private static boolean isPlaying(@Nullable MediaController controller) {
+        return isPlayingState(controller != null ? controller.getPlaybackState() : null);
+    }
+
+    static boolean isPlayingState(@Nullable PlaybackState state) {
+        return state != null && state.getState() == PlaybackState.STATE_PLAYING;
+    }
+
+    /** Bir Bluetooth (A2DP) oturumu var mı (seçicide Bluetooth satırı için). */
+    public boolean hasBluetoothSession() {
+        return findBluetooth(loadControllers()) != null;
+    }
+
+    /**
+     * Seçicide Bluetooth: oturum varsa kartın Oynat'ıyla aynı yol ({@link OemAudioSource#playBluetooth}); yoksa oturumsuz
+     * BT geçişi ({@link OemAudioSource#openBluetoothSource}). Yalnızca kullanıcı dokunuşuyla.
+     */
+    public void selectBluetooth() {
+        MediaController bt = findBluetooth(loadControllers());
+        if (bt == null) {
+            OemAudioSource.INSTANCE.openBluetoothSource(appContext);
+            return;
+        }
+        final MediaController target = bt;
+        OemAudioSource.INSTANCE.playBluetooth(appContext, () -> {
+            try {
+                target.getTransportControls().play();
+            } catch (Exception ignored) {
+                // oturum bu arada kapanmış olabilir
+            }
+        });
     }
 
     private static boolean hasMetadata(MediaController controller) {
@@ -356,6 +635,7 @@ public final class LauncherMediaController {
 
     private void detachController() {
         mainHandler.removeCallbacks(progressTick);
+        unwatchOthers();
         if (activeController != null) {
             activeController.unregisterCallback(controllerCallback);
             activeController = null;
@@ -375,6 +655,45 @@ public final class LauncherMediaController {
         for (Listener listener : listeners) {
             listener.onMediaStateChanged(state);
         }
+    }
+
+    /** Parça kimliği: kaynak, başlık, sanatçı ve albüm. */
+    static String trackKey(@Nullable String source, @Nullable String title,
+                           @Nullable String artist, @Nullable String album) {
+        return source + "\u0001" + title + "\u0001" + artist + "\u0001" + album;
+    }
+
+    /**
+     * Kapak tutma anahtarı: [trackKey] artı süre ve medya kimliği (aynı yazılı farklı parçalar ayrılsın). Başlık, sanatçı
+     * ve albüm hiç yoksa parça tanınamaz: null (önceki kapak tutulmaz; boş üstverili BT kaynağında eski kapak kalmasın).
+     */
+    @Nullable
+    static String artworkKey(@Nullable String source, @Nullable String title, @Nullable String artist,
+                             @Nullable String album, long durationMs, @Nullable String mediaId) {
+        if (title == null && artist == null && album == null) {
+            return null;
+        }
+        return trackKey(source, title, artist, album) + "\u0001" + durationMs + "\u0001" + mediaId;
+    }
+
+    interface SameContent<T> {
+        boolean same(T a, T b);
+    }
+
+    /**
+     * Aynı parçada kapak içeriği değişmediyse (ya da kapak geçici yoksa) önceki örneği döndürür;
+     * parça değiştiyse ya da içerik gerçekten farklıysa yenisini.
+     */
+    @Nullable
+    static <T> T stableArtwork(@Nullable String prevKey, @Nullable T prev,
+                               @Nullable String key, @Nullable T next, SameContent<T> cmp) {
+        if (prev == null || prevKey == null || !prevKey.equals(key)) {
+            return next;
+        }
+        if (next == null || next == prev) {
+            return prev;
+        }
+        return cmp.same(prev, next) ? prev : next;
     }
 
     private MediaState buildState(@Nullable MediaController controller) {
@@ -398,6 +717,17 @@ public final class LauncherMediaController {
         if (artwork == null && metadata != null) {
             artwork = metadata.getBitmap(MediaMetadata.METADATA_KEY_ART);
         }
+        // Bluetooth servisi aynı şarkının üstverisini ~5 sn'de bir yeniden yollar ve her seferinde
+        // yeni Bitmap nesnesi gelir; kapak titremesin diye aynı parçada eski örneği koru.
+        String album = metadata != null
+                ? metadata.getString(MediaMetadata.METADATA_KEY_ALBUM) : null;
+        String trackKey = artworkKey(source, title, artist, album,
+                metadata != null ? metadata.getLong(MediaMetadata.METADATA_KEY_DURATION) : 0L,
+                metadata != null ? metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID) : null);
+        artwork = stableArtwork(lastArtworkKey, lastArtwork, trackKey, artwork,
+                (a, b) -> a.getWidth() == b.getWidth() && a.getHeight() == b.getHeight() && a.sameAs(b));
+        lastArtworkKey = trackKey;
+        lastArtwork = artwork;
 
         long durationMs = metadata != null
                 ? metadata.getLong(MediaMetadata.METADATA_KEY_DURATION) : 0L;
@@ -426,6 +756,9 @@ public final class LauncherMediaController {
         }
 
         boolean hasContent = title != null && !title.isEmpty();
+        if (hasContent || playing) {
+            rememberSource(source);
+        }
         return new MediaState(
                 hasContent || playing,
                 access,

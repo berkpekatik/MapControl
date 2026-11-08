@@ -17,6 +17,9 @@ import com.mapcontrol.service.DmsFaceRecognitionManager
 import com.mapcontrol.service.MapControlService
 import com.mapcontrol.ui.activity.MainActivity
 import com.mapcontrol.util.ClusterNavigationState
+import com.mapcontrol.util.SplitScreenLauncher
+import com.mapcontrol.util.SplitScreenMessages
+import com.mapcontrol.util.SplitScreenStore
 import com.mapcontrol.util.TargetPackageStore
 import com.mapcontrol.vehicle.ClimateAutomationEngine
 import com.mapcontrol.vehicle.ClimateAutomationStore
@@ -126,6 +129,54 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
         }
         Log.i(TAG, "automation $id -> $on")
     }
+
+    // --- Bölünmüş ekran (SplitScreenTabBuilder.onStartClicked ile aynı yol) ---
+
+    override fun readSplitPair() = SplitPair(SplitScreenStore.getPkg1(app), SplitScreenStore.getPkg2(app))
+
+    override fun startSplit(done: (String?) -> Unit) {
+        val pair = readSplitPair()
+        if (!FrostNavWidgetMath.splitReady(pair)) {
+            main.post { done(app.getString(com.mapcontrol.R.string.split_select_both)) }
+            return
+        }
+        SplitScreenLauncher.start(app, pair.first!!, pair.second!!, SplitScreenStore.getRatio(app)) { result ->
+            Log.i(TAG, "split -> $result")
+            done(if (result == SplitScreenLauncher.Result.STARTED) null else SplitScreenMessages.resultText(app, result))
+        }
+    }
+
+    override fun startSplitWithMiniDash(done: (String?) -> Unit) {
+        val other = FrostNavWidgetMath.miniDashSplitOther(SplitScreenLauncher.lastOtherApp(app)) { pkg ->
+            try { app.packageManager.getApplicationInfo(pkg, 0); true } catch (e: Exception) { false }
+        }
+        SplitScreenLauncher.startWithMiniDash(app, other) { result ->
+            Log.i(TAG, "split(miniDash, $other) -> $result")
+            done(if (result == SplitScreenLauncher.Result.STARTED) null else SplitScreenMessages.resultText(app, result))
+        }
+    }
+
+    // --- Sürüş ekranı (Navigasyon kartı; FrostNav'ın aynı bölme başlatıcısı) ---
+
+    override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) {
+        val slot = mapPkg ?: com.mapcontrol.util.SplitSlot.mapPicker(app.packageName)
+        SplitScreenLauncher.startDriveScreen(app, slot, route) { result ->
+            Log.i(TAG, "split(drive, ${if (mapPkg == null) "picker" else mapPkg}) -> $result")
+            done(if (result == SplitScreenLauncher.Result.STARTED) null else SplitScreenMessages.resultText(app, result))
+        }
+    }
+
+    override fun mapFullScreen(pkg: String, done: (Boolean) -> Unit) {
+        SplitScreenLauncher.mapFullScreen(app, pkg) { result -> done(result == SplitScreenLauncher.Result.STARTED) }
+    }
+
+    override fun endDriveScreen() = SplitScreenLauncher.endDriveScreen(app)
+
+    override fun openFullScreen(pkg: String) = SplitScreenLauncher.openFullScreenAsync(app, pkg)
+
+    override fun restoreStaleMap(pkg: String) = SplitScreenLauncher.restoreStaleMap(app, pkg)
+
+    override fun driveMapSlot(): android.graphics.Rect? = SplitScreenLauncher.driveMapSlot(app)
 
     // --- Göstergeye yansıt (MapControlService aç/kapa eylemleri → ClusterDisplayManager, Yansıtma sekmesiyle aynı) ---
 

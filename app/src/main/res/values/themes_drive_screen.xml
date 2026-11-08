@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sürüş ekranı yarıları (Mini gösterge, harita seçici): açılışta pencere zemini Sahne zemini olsun. Theme.Material'in koyu gri
+     (#303030) zemini, 7 Kasım öykünücüsünde Mini çizilmeden önce ~0,3 sn yarıda koyu bir kutu olarak göründü. -->
+<resources>
+    <color name="sahne_drive_ground">#E4E2DD</color>
+
+    <style name="Theme.Sahne.DriveHalf" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/sahne_drive_ground</item>
+    </style>
+</resources>

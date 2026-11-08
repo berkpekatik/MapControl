@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_widget_navigation">Navigation</string>
+    <string name="launcher_nav_home">Home</string>
+    <string name="launcher_nav_work">Work</string>
+    <string name="launcher_nav_open_map">Open map</string>
+    <string name="launcher_nav_map_app_title">Map app</string>
+    <string name="launcher_nav_map_app_choose">Choose map app</string>
+    <string name="launcher_nav_not_installed">No map app installed (Google or Yandex)</string>
+    <string name="launcher_nav_route_hint">Start route</string>
+    <string name="launcher_nav_set_hint">Tap to set</string>
+    <string name="launcher_nav_access_message">To see the next turn here, allow notification access.</string>
+    <string name="launcher_nav_access_button">Open settings</string>
+    <string name="launcher_nav_arrival" formatted="true">Arrive %1$s</string>
+    <string name="launcher_nav_exit" formatted="true">Exit %1$d</string>
+    <string name="launcher_nav_place_title" formatted="true">%1$s location</string>
+    <string name="launcher_nav_place_hint">Latitude, longitude (e.g. 41.0082, 28.9784)</string>
+    <string name="launcher_nav_place_save">Save</string>
+    <string name="launcher_nav_place_clear">Clear</string>
+    <string name="launcher_nav_place_cancel">Cancel</string>
+    <string name="launcher_nav_place_invalid">Invalid location</string>
+    <string name="launcher_nav_end">Finish</string>
+</resources>

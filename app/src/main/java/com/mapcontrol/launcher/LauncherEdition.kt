@@ -9,6 +9,9 @@ import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.desaysv.ivi.extra.project.carinfo.CarSettingID
+import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
+import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.mapcontrol.ui.activity.MainActivity
 import com.mapcontrol.util.WifiController
 
@@ -23,6 +26,12 @@ internal object LauncherEdition {
     /** true: araç verisi yalnızca okunur, dokunuşlar komut göndermez. */
     const val READ_ONLY = false
 
+    /**
+     * Widget yazmaları açık. Yine de yalnızca araçta doğrulanmış girdiler gider ([WidgetWritePolicy.gate]: doğrulanmış VE
+     * açık); bagaj, kilit ve sürüş modu ayrıca park kapısından geçer. Her komut `WidgetWrite` etiketiyle günlüğe yazılır.
+     */
+    const val WRITES_ON = true
+
     @Suppress("UNUSED_PARAMETER")
     fun init(context: Context) = Unit
 
@@ -34,6 +43,29 @@ internal object LauncherEdition {
 
     /** Ayarlar (MapControl ana ekranı) bu derlemede var mı. */
     const val HAS_SETTINGS = true
+
+    /**
+     * Koltuk soğutma yazması araçta doğrulandı (sürücü, CS 93: yazma seviye+1 = 2/3/4, kapalı = 1; okuma 1/2/3, kapalı 0).
+     * Yolcu tarafı (CS 94) aynı kodlamayla gidiyor, ayrıca ölçülmedi.
+     */
+    const val SEAT_VENT_WRITE_VERIFIED = true
+
+    /** Koltuk soğutma seviyesi (0..3). Kodlama ısıtmayla aynı (sürücüde araçta doğrulandı). */
+    fun sendSeatVentLevel(proxy: CarInfoProxy, driver: Boolean, level: Int): Boolean {
+        if (!SEAT_VENT_WRITE_VERIFIED) return false
+        val id = if (driver) CarSettingID.ID_CAR_DRIVER_SEAT_VENTILATION else CarSettingID.ID_CAR_COPILOT_SEAT_VENTILATION
+        // Kodlama ısıtmayla aynı (SeatHeatModel.encode: 0 kapalı → 1, 1..3 → 2..4), ClimateAutomationEngine.wireSeatLevel gibi.
+        return WidgetWriter.send(proxy, VDEventCarInfo.MODULE_CAR_SETTING, id, SeatHeatModel.encode(level))
+    }
+
+    /** Beyaz liste + `WidgetWrite` günlüğü ([WidgetWriter]). */
+    fun sendItemValue(proxy: CarInfoProxy, module: Int, id: Int, value: Int): Boolean =
+        WidgetWriter.send(proxy, module, id, value)
+
+    /** Ses alanı (arka hoparlör): [balance] sol-sağ, [fade] ön-arka, 0..20. Çağıran kapıyı ([ComfortWriter.rearSpeakerEnabled]) zaten denetledi. */
+    fun sendSoundField(balance: Int, fade: Int): Boolean = WidgetWriter.sendSoundField(balance, fade)
+
+    fun setCentralLock(context: Context, locked: Boolean): Boolean = WidgetWriter.sendLock(context, locked)
 
     /**
      * FrostNav'ı doğrudan "Ana ekran" sekmesinde açar. Launcher kendi görev ilişkisinde (taskAffinity) çalışır;

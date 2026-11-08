@@ -1,10 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Mini gösterge (bölünmüş ekranın bir yarısı, MiniDashActivity). -->
 <resources>
+    <string name="launcher_mini_fullscreen">Full screen</string>
+    <string name="launcher_mini_range">Range</string>
+    <string name="launcher_mini_fuel">Fuel</string>
     <string name="launcher_mini_alert_tire">Low tire pressure</string>
     <string name="launcher_mini_alert_tire_psi" formatted="true">Low tire %1$d psi</string>
     <string name="launcher_mini_alert_fuel">Low fuel</string>
     <string name="launcher_mini_alert_service">Service due soon</string>
     <string name="launcher_mini_alert_service_km" formatted="true">Service in %1$d km</string>
     <string name="launcher_mini_alert_service_overdue">Service overdue</string>
+    <string name="launcher_mini_nav_m" formatted="true">%1$s m</string>
+    <string name="launcher_mini_nav_km" formatted="true">%1$s km</string>
+    <string name="launcher_mini_nav_eta" formatted="true">Arrive %1$s</string>
+    <string name="launcher_mini_title">Mini dashboard</string>
+    <string name="launcher_mini_turn_straight">Continue straight</string>
+    <string name="launcher_mini_turn_slight_left">Keep left</string>
+    <string name="launcher_mini_turn_slight_right">Keep right</string>
+    <string name="launcher_mini_turn_left">Turn left</string>
+    <string name="launcher_mini_turn_right">Turn right</string>
+    <string name="launcher_mini_turn_hard_left">Sharp left</string>
+    <string name="launcher_mini_turn_hard_right">Sharp right</string>
+    <string name="launcher_mini_turn_uturn">U-turn</string>
+    <string name="launcher_mini_turn_roundabout">Roundabout</string>
+    <string name="launcher_mini_turn_exit_left">Exit left</string>
+    <string name="launcher_mini_turn_exit_right">Exit right</string>
+    <string name="launcher_mini_turn_ferry">Ferry</string>
+    <string name="launcher_mini_turn_finish">Destination</string>
+    <string name="launcher_mini_turn_waypoint">Waypoint</string>
+    <string name="launcher_mini_open_music">Open music</string>
 </resources>

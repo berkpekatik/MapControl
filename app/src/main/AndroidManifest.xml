@@ -20,6 +20,8 @@
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
+    <!-- Bölünmüş ekran: önceden açık başka uygulama görevini sınırlarıyla öne almak (moveTaskToFront, normal izin). -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
     
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -190,6 +192,46 @@
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         </activity>
 
+        <!-- Mini gösterge: bölünmüş ekranın bir yarısında (960 x ~610) açılan, boyutu değişebilen ayrı ekran (ana ekran
+             bölünemez). Uygulama listesi simgesi aşağıdaki alias'ta (yalnız launcher modunda); serbest pencere (freeform) bölmesinde seçilebilir. Kendi görev
+             ilişkisi (taskAffinity) ana ekranla ve FrostNav'la aynı göreve karışmasın diye. -->
+        <activity
+            android:name="com.mapcontrol.launcher.MiniDashActivity"
+            android:exported="true"
+            android:label="Mini gösterge"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.minidash"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@style/Theme.Sahne.DriveHalf" />
+
+        <!-- Mini göstergenin uygulama listesi simgesi: varsayılan KAPALI; yalnız FrostNav launcher modu açıkken
+             LauncherModeManager etkinleştirir (MiniDashEntry). Bölünmüş ekran etkinliği bileşen adıyla açar, simgeye bağlı değil. -->
+        <activity-alias
+            android:name="com.mapcontrol.launcher.MiniDashLauncherAlias"
+            android:targetActivity="com.mapcontrol.launcher.MiniDashActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Mini gösterge">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sürüş ekranının harita yarısı, harita uygulaması yokken ("+ Harita ekle"; DriveScreen). Yalnız bölünmüş ekran başlatıcısı
+             açar; kendi görev ilişkisi, uygulama listesinde simgesi yok. -->
+        <activity
+            android:name="com.mapcontrol.ui.activity.DriveMapPickerActivity"
+            android:exported="false"
+            android:label="Harita ekle"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.drivemap"
+            android:excludeFromRecents="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@style/Theme.Sahne.DriveHalf" />
 
         <!-- FileProvider for APK installation -->
         <provider
