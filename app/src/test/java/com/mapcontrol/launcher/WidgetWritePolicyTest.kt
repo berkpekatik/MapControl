@@ -100,19 +100,20 @@ class WidgetWritePolicyTest {
             .startsWith("refused-park"))
     }
 
-    @Test fun `vites P değilken kilit ve sürüş modu reddedilir`() {
+    @Test fun `vites P değilken bagaj reddedilir, kilit ve sürüş modu sürüşte de geçer`() {
         for (gear in listOf(0, 2, 3, 4)) {
-            assertTrue("kilit vites $gear", refusedForPark(WidgetWritePolicy.evaluate(cs, lockId, 2, inGear(gear))))
-            assertTrue("kilit aç vites $gear", refusedForPark(WidgetWritePolicy.evaluate(cs, lockId, 1, inGear(gear))))
-            assertTrue("mod vites $gear", refusedForPark(WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, inGear(gear))))
+            assertTrue("kilit vites $gear", WidgetWritePolicy.evaluate(cs, lockId, 2, inGear(gear)) is WidgetWritePolicy.Verdict.Allowed)
+            assertTrue("kilit aç vites $gear", WidgetWritePolicy.evaluate(cs, lockId, 1, inGear(gear)) is WidgetWritePolicy.Verdict.Allowed)
+            assertTrue("mod vites $gear", WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, inGear(gear)) is WidgetWritePolicy.Verdict.Allowed)
             assertTrue("bagaj vites $gear", refusedForPark(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value, inGear(gear))))
         }
-        // Hareket halinde de reddedilir.
-        assertTrue(refusedForPark(WidgetWritePolicy.evaluate(cs, lockId, 2, moving(20))))
-        assertTrue(refusedForPark(WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, moving(20))))
+        // Hareket halinde kilit ve sürüş modu geçer (Berk isteği), bagaj reddedilir.
+        assertTrue(WidgetWritePolicy.evaluate(cs, lockId, 2, moving(20)) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, moving(20)) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(refusedForPark(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value, moving(20))))
     }
 
-    @Test fun `hız ya da vites bilinmiyorsa reddedilir`() {
+    @Test fun `hız ya da vites bilinmiyorsa bagaj reddedilir`() {
         val unknowns = listOf(
             { ParkGate.evaluate(null, 0, ParkGate.GEAR_PARK) },
             { ParkGate.evaluate(0, 0, null) },
@@ -120,11 +121,12 @@ class WidgetWritePolicyTest {
         )
         for (park in unknowns) {
             assertTrue(refusedForPark(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value, park)))
-            assertTrue(refusedForPark(WidgetWritePolicy.evaluate(cs, lockId, 2, park)))
-            assertTrue(refusedForPark(WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, park)))
+            // Kilit ve sürüş modu artık park kapısız: hız/vites okunamasa da geçer.
+            assertTrue(WidgetWritePolicy.evaluate(cs, lockId, 2, park) is WidgetWritePolicy.Verdict.Allowed)
+            assertTrue(WidgetWritePolicy.evaluate(ne, NewEnergyID.ID_DRIVE_MODE, driveMode, park) is WidgetWritePolicy.Verdict.Allowed)
         }
         // Park kararı verilmezse varsayılan "okunamadı" sayılır.
-        assertTrue(refusedForPark(WidgetWritePolicy.evaluate(cs, lockId, 2)))
+        assertTrue(refusedForPark(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value)))
     }
 
     @Test fun `doğrulanmamış giriş kapıdan geçemez`() {
@@ -156,8 +158,8 @@ class WidgetWritePolicyTest {
             assertTrue(e.widget, v is WidgetWritePolicy.Verdict.Allowed)
             assertEquals("sent", WidgetWritePolicy.resultText(v))
         }
-        // Park kapılılar yalnızca hız 0 ve vites P iken geçer.
-        assertEquals(setOf("Trunk", "Lock", "DriveMode"), WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.map { it.widget }.toSet())
+        // Park kapılı yalnız bagajdır: hız 0 ve vites P iken geçer.
+        assertEquals(setOf("Trunk"), WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.map { it.widget }.toSet())
         assertTrue(WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.all { it.verified })
         assertTrue(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value, parked) is WidgetWritePolicy.Verdict.Allowed)
         assertTrue(WidgetWritePolicy.evaluate(cs, lockId, 2, parked) is WidgetWritePolicy.Verdict.Allowed)
