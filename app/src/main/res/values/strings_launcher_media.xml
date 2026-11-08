@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Media card: calm no-access and idle states -->
+<resources>
+    <string name="launcher_media_title_neutral">Music</string>
+    <string name="launcher_media_access_hint">Permission needed for music info</string>
+    <string name="launcher_media_grant_access">Allow</string>
+    <string name="launcher_media_idle_title">Nothing playing</string>
+    <string name="launcher_media_idle_resume">Tap play to open the app</string>
+</resources>

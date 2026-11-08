@@ -34,7 +34,6 @@ public interface IVDBusNotify extends IInterface {
             }
 
             public void onVDBusNotify(VDEvent vDEvent) {
-                Log.e("onVDBusNotify", "onVDBusNotify");
                 Parcel obtain = Parcel.obtain();
                 try {
                     obtain.writeInterfaceToken(Stub.DESCRIPTOR);
@@ -56,6 +55,26 @@ public interface IVDBusNotify extends IInterface {
             }
         }
 
+        /** Debug-only, rate-limited trace: one summary line per 10 s instead of one ERROR line per callback. */
+        private static final long TRACE_INTERVAL_MS = 10_000L;
+        private static long sTraceCount;
+        private static long sTraceWindowStart;
+
+        private static void traceTransact() {
+            if (!com.mapcontrol.BuildConfig.DEBUG) return;
+            synchronized (Stub.class) {
+                sTraceCount++;
+                long now = android.os.SystemClock.elapsedRealtime();
+                if (sTraceWindowStart == 0L) {
+                    sTraceWindowStart = now;
+                } else if (now - sTraceWindowStart >= TRACE_INTERVAL_MS) {
+                    Log.d("VDBusNotify", "onTransact x" + sTraceCount + " in " + (now - sTraceWindowStart) + " ms");
+                    sTraceCount = 0;
+                    sTraceWindowStart = now;
+                }
+            }
+        }
+
         public Stub() {
             attachInterface(this, DESCRIPTOR);
         }
@@ -73,7 +92,7 @@ public interface IVDBusNotify extends IInterface {
 
         public boolean onTransact(int i9, Parcel parcel, Parcel parcel2, int i10) throws RemoteException {
             VDEvent vDEvent;
-            Log.e("onTransact", "onTransact");
+            traceTransact();
             if (i9 == 1) {
                 parcel.enforceInterface(DESCRIPTOR);
                 if (parcel.readInt() != 0) {

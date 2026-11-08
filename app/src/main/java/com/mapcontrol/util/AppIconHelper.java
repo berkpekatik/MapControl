@@ -12,6 +12,8 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -64,6 +66,73 @@ public final class AppIconHelper {
             @NonNull Context context,
             @Nullable String packageName,
             @Nullable String activityName) {
+        return toImageViewDrawable(context, loadRaw(context, packageName, activityName));
+    }
+
+    /**
+     * Dock gibi sabit boyutlu yerler için: ikonu tam görüntü boyutunda ([sizePx]) bitmap'e çizer.
+     * [nightPlate] != 0 ise (gece) arka planı çok açık adaptif ikonlar parlamasın diye yalnızca ön katman
+     * bu renkte yuvarlak bir plakaya çizilir; diğer ikonlar kendi arka planıyla kalır.
+     */
+    @NonNull
+    public static Drawable loadSized(
+            @NonNull Context context, @Nullable String packageName, int sizePx, int nightPlate) {
+        Drawable raw = loadRaw(context, packageName, null);
+        int size = Math.max(1, sizePx);
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        if (raw instanceof AdaptiveIconDrawable) {
+            AdaptiveIconDrawable adaptive = (AdaptiveIconDrawable) raw;
+            if (nightPlate != 0 && isBright(adaptive.getBackground())) {
+                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                paint.setColor(nightPlate);
+                canvas.drawRoundRect(0, 0, size, size, size * 0.28f, size * 0.28f, paint);
+                Drawable fg = adaptive.getForeground();
+                if (fg != null) {
+                    // Ön katman 108dp tuval; görünen 72dp'lik orta bölge plakayı doldursun.
+                    int big = Math.round(size * 1.5f);
+                    int off = (big - size) / 2;
+                    fg.setBounds(-off, -off, size + off, size + off);
+                    fg.draw(canvas);
+                }
+                return new BitmapDrawable(context.getResources(), bitmap);
+            }
+        }
+        raw.setBounds(0, 0, size, size);
+        raw.draw(canvas);
+        return new BitmapDrawable(context.getResources(), bitmap);
+    }
+
+    /** Katmanın ortalama parlaklığı yüksek mi (beyaza yakın arka plan). */
+    private static boolean isBright(@Nullable Drawable layer) {
+        if (layer == null) {
+            return false;
+        }
+        Bitmap probe = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(probe);
+        layer.setBounds(0, 0, 8, 8);
+        layer.draw(c);
+        long sum = 0;
+        int n = 0;
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                int p = probe.getPixel(x, y);
+                if (Color.alpha(p) < 200) {
+                    return false;
+                }
+                sum += (Color.red(p) * 299 + Color.green(p) * 587 + Color.blue(p) * 114) / 1000;
+                n++;
+            }
+        }
+        probe.recycle();
+        return n > 0 && sum / n > 215;
+    }
+
+    @NonNull
+    private static Drawable loadRaw(
+            @NonNull Context context,
+            @Nullable String packageName,
+            @Nullable String activityName) {
         PackageManager pm = context.getPackageManager();
         Drawable fallback = pm.getDefaultActivityIcon();
         if (packageName == null || packageName.isEmpty()) {
@@ -74,28 +143,28 @@ public final class AppIconHelper {
 
         Drawable icon = loadFromLauncherApps(context, pm, packageName, activityName, density);
         if (isRealIcon(context, pm, icon)) {
-            return toImageViewDrawable(context, icon);
+            return icon;
         }
 
         icon = loadFromComponentResources(context, pm, packageName, activityName, density);
         if (isRealIcon(context, pm, icon)) {
-            return toImageViewDrawable(context, icon);
+            return icon;
         }
 
         icon = loadFromResolvedLauncher(context, pm, packageName, density);
         if (isRealIcon(context, pm, icon)) {
-            return toImageViewDrawable(context, icon);
+            return icon;
         }
 
         icon = loadFromLaunchIntent(pm, packageName);
         if (isRealIcon(context, pm, icon)) {
-            return toImageViewDrawable(context, icon);
+            return icon;
         }
 
         try {
             icon = pm.getApplicationIcon(packageName);
             if (isRealIcon(context, pm, icon)) {
-                return toImageViewDrawable(context, icon);
+                return icon;
             }
         } catch (Exception ignored) {
         }

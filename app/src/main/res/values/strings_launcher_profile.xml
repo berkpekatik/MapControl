@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sürücü profilleri -->
+<resources>
+    <string name="launcher_profile">Profile</string>
+    <string name="launcher_profile_default_name">Driver %d</string>
+    <string name="launcher_profile_name">Name</string>
+    <string name="launcher_profile_color">Color %d</string>
+    <string name="launcher_profile_save">Save</string>
+    <string name="launcher_profile_cancel">Cancel</string>
+</resources>

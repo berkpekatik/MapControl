@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_data_check">Veri kontrolü</string>
+    <string name="launcher_data_check_device">Cihaz</string>
+    <string name="launcher_data_check_hint">Her widget için araçtan veri geliyor mu?</string>
+    <string name="launcher_data_check_save">Paylaş/Kaydet</string>
+    <string name="launcher_data_check_saved">Kaydedildi: %1$s</string>
+    <string name="launcher_data_check_save_failed">Kaydedilemedi</string>
+    <string name="launcher_data_check_no_service">Servis bağlı değil</string>
+</resources>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sahne ana ekran düzeni -->
+    <string name="launcher_sahne_car">Araç görünümü</string>
+    <string name="launcher_sahne_km">km</string>
+    <string name="launcher_sahne_pick_panel">Panele ekle</string>
+    <string name="launcher_sahne_pick_strip">Alt sıraya ekle</string>
+    <string name="launcher_sahne_in_slot" formatted="true">Şu an: %1$s</string>
+    <string name="launcher_sahne_in_this_slot">Şu an</string>
+    <string name="launcher_sahne_change">Değiştir</string>
+    <string name="launcher_sahne_add_here">Widget ekle</string>
+    <string name="launcher_sahne_helper_park">Değiştirmek için bir alana dokun</string>
+    <string name="launcher_sahne_helper_drive">Değiştirmek için bir alana dokun</string>
+    <string name="launcher_car_color">Araç rengi</string>
+    <string name="launcher_car_color_help">Sahne ana ekranının ortasındaki aracın rengi.</string>
+    <string name="car_color_grafit">Grafit</string>
+    <string name="car_color_siyah">Siyah</string>
+    <string name="car_color_beyaz">Beyaz</string>
+    <string name="car_color_gumus">Gümüş</string>
+    <string name="car_color_kirmizi">Kırmızı</string>
+    <string name="car_color_mavi">Mavi</string>
+    <string name="launcher_sahne_psi" formatted="true">%1$d psi</string>
+    <string name="launcher_notice_more" formatted="true">+%1$d</string>
+    <string name="launcher_notice_more_desc" formatted="true">%1$d bildirim daha</string>
+    <string name="launcher_notice_no_maps">Harita uygulaması bulunamadı</string>
+    <string name="launcher_detail_title">Araç durumu</string>
+    <string name="launcher_detail_open">Açık</string>
+    <string name="launcher_detail_closed">Kapalı</string>
+    <string name="launcher_detail_doors">Kapılar</string>
+    <string name="launcher_detail_windows">Camlar</string>
+    <string name="launcher_detail_sunroof">Cam tavan</string>
+    <string name="launcher_strip_tire_wheel" formatted="true">%1$s %2$d psi</string>
+    <string name="launcher_strip_air">Hava kalitesi kötü</string>
+    <string name="launcher_strip_battery_low" formatted="true">Akü zayıf %1$.1f V</string>
+    <string name="launcher_strip_battery_high" formatted="true">Akü yüksek %1$.1f V</string>
+    <string name="launcher_strip_fuel_cap">Yakıt kapağı açık</string>
+    <!-- Medya kartının sağ üst köşesindeki çevirme simgesi (kartın arka yüzü telefon). -->
+    <string name="launcher_flip_to_phone">Telefona geç</string>
+    <string name="launcher_flip_to_media">Medyaya geç</string>
+    <string name="launcher_sport_dial_change">Kadranı değiştir: %1$s</string>
+    <string name="launcher_sport_helper_edit">Değiştirmek için küçük kadrana uzun bas</string>
+    <string name="launcher_sport_pick_swap">Yer değişir</string>
+    <string name="launcher_sport_pick_title">Kadran</string>
+    <!-- Spor hız kadranının altındaki küçük devir okuması. -->
+    <string name="launcher_sport_rpm">%1$d dev/dk</string>
+    <string name="launcher_sport_summary_avg">Tüketim</string>
+    <string name="launcher_sport_summary_max">Maks</string>
+    <string name="launcher_sport_summary_time">Süre</string>
+    <string name="launcher_sport_summary_title">Sürüş özeti</string>
+</resources>

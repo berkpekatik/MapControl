@@ -1,6 +1,7 @@
 package com.mapcontrol.vehicle;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -13,6 +14,7 @@ import com.desaysv.ivi.vdb.client.VDBus;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
@@ -21,11 +23,13 @@ import java.util.concurrent.Executors;
 /**
  * OEM {@code SimpleQuickSettingFragment} merkezi kilit komutu ve durum takibi.
  * Fiziksel kumanda veya araç tarafı otomatik kilitleme VDBus üzerinden yansır.
+ * Araçtan gerçek bir cevap gelmediyse kilit durumu bilinmiyor ({@code null}) kalır.
  */
 public final class VehicleQuickControls {
 
     public interface Listener {
-        void onCentralLockChanged(boolean locked, boolean connected);
+        /** @param locked {@code null}: araçtan kilit verisi gelmedi (bilinmiyor). */
+        void onCentralLockChanged(Boolean locked, boolean connected);
     }
 
     private static final int MODULE_SETTING = VDEventCarInfo.MODULE_CAR_SETTING;
@@ -36,13 +40,16 @@ public final class VehicleQuickControls {
 
     private final Context appContext;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    /** Daemon ve boşta 30 sn sonra biten tek iş parçacığı; tekil örnek kapatılmadığı için uygulama kapanışını tutmaz. */
+    private final ExecutorService ioExecutor = newDaemonSingleThread();
     private final Set<Listener> listeners = new CopyOnWriteArraySet<>();
 
     private volatile boolean started;
     private volatile boolean callbacksRegistered;
     private volatile boolean connectListenerRegistered;
-    private volatile boolean centralLocked;
+    /** {@code null}: araçtan kilit verisi gelmedi (bilinmiyor). */
+    private volatile Boolean centralLocked;
+    private volatile boolean notifiedOnce;
     private volatile Boolean lastNotifiedLocked;
     private volatile boolean lastNotifiedConnected;
 
@@ -56,11 +63,12 @@ public final class VehicleQuickControls {
             if (itemId != LOCK_CMD_ID) {
                 return;
             }
-            int[] values = event.getPayload().getIntArray(Constants.VALUE);
-            if (values == null || values.length == 0) {
+            Boolean locked = lockedFromReply(event.getPayload().getIntArray(Constants.VALUE));
+            if (locked == null) {
                 return;
             }
-            applyCentralLockValue(values[0], true);
+            centralLocked = locked;
+            notifyListeners();
         }
     };
 
@@ -115,11 +123,27 @@ public final class VehicleQuickControls {
         }
     }
 
+    /**
+     * Başka dinleyicileri etkilememek için dinleyicileri silmez ve tekil örneği kapatmaz;
+     * yalnızca dinleyen kalmadıysa takibi durdurur. Her sahip kendi dinleyicisini removeListener ile çıkarır.
+     */
     public void release() {
-        listeners.clear();
-        stop();
-        ioExecutor.shutdownNow();
-        instance = null;
+        if (listeners.isEmpty()) {
+            stop();
+        }
+    }
+
+    private static ExecutorService newDaemonSingleThread() {
+        java.util.concurrent.ThreadPoolExecutor ex = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 30L, java.util.concurrent.TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "quickcontrols-io");
+                    t.setDaemon(true);
+                    return t;
+                });
+        ex.allowCoreThreadTimeOut(true);
+        return ex;
     }
 
     public boolean isCarInfoConnected() {
@@ -127,9 +151,34 @@ public final class VehicleQuickControls {
         return CarInfoProxy.getInstance().isServiceConnnected();
     }
 
-    /** OEM: değer 2 = kilitli */
-    public boolean isCentralLocked() {
+    /** {@code true} kilitli, {@code false} açık, {@code null} bilinmiyor (bkz. {@link #lockedFromReply(int[])}). */
+    public Boolean isCentralLocked() {
         return centralLocked;
+    }
+
+    /**
+     * Kilit komutu değeri: kilitle 2, aç 1. Tiggo 7'de denendi; her yazmadan sonra aynı ID'nin geri okuması
+     * değişti. Geri okuma kodlaması komuttan farklıdır, bkz. {@link #isLockedValue(int)}.
+     */
+    public static int centralLockValue(boolean locked) {
+        return locked ? 2 : 1;
+    }
+
+    /** Geri okunan kilit değeri: 0 kilitli, 1 açık (Tiggo 7'de ölçüldü). */
+    static boolean isLockedValue(int rawValue) {
+        return rawValue == 0;
+    }
+
+    /**
+     * Araç cevabındaki kilit durumu. Cevap yoksa ya da değer dizisi boşsa {@code null} (bilinmiyor):
+     * {@code CarInfoProxy.getItemValues} cevap gelmeyince {@code {0}} döndürür ve 0 "kilitli" demek olduğundan
+     * kilit durumu bu yardımcıyla değil, doğrudan VDBus cevabından okunur.
+     */
+    static Boolean lockedFromReply(int[] values) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        return isLockedValue(values[0]);
     }
 
     public void setCentralLock(boolean locked) {
@@ -137,7 +186,7 @@ public final class VehicleQuickControls {
         if (!CarInfoProxy.getInstance().isServiceConnnected()) {
             return;
         }
-        int value = locked ? 2 : 1;
+        int value = centralLockValue(locked);
         CarInfoProxy.getInstance().sendItemValue(MODULE_SETTING, LOCK_CMD_ID, value);
     }
 
@@ -153,7 +202,7 @@ public final class VehicleQuickControls {
                 registerConnectListenerIfNeeded();
                 loadStateFromBus();
             } catch (Throwable ignored) {
-                centralLocked = false;
+                centralLocked = null;
             }
             notifyListeners();
         });
@@ -163,24 +212,25 @@ public final class VehicleQuickControls {
         started = false;
         unregisterCallbacks();
         unregisterConnectListener();
+        notifiedOnce = false;
         lastNotifiedLocked = null;
         lastNotifiedConnected = false;
     }
 
-    private void applyCentralLockValue(int rawValue, boolean notify) {
-        centralLocked = rawValue == 2;
-        if (notify) {
-            notifyListeners();
-        }
-    }
-
+    /**
+     * Kilit durumu doğrudan VDBus cevabından okunur ({@code CarInfoProxy.getItemValue} cevap yokken 0 = "kilitli"
+     * döndürdüğü için kullanılmaz). Cevap gelmediyse ya da araçta bu sinyal yoksa durum bilinmiyor kalır.
+     */
     private void loadStateFromBus() {
         if (!isCarInfoConnected()) {
-            centralLocked = false;
+            centralLocked = null;
             return;
         }
-        int value = CarInfoProxy.getInstance().getItemValue(MODULE_SETTING, LOCK_CMD_ID);
-        applyCentralLockValue(value, false);
+        Bundle request = new Bundle();
+        request.putInt(Constants.CMD_ID, LOCK_CMD_ID);
+        VDEvent reply = VDBus.getDefault().getOnce(new VDEvent(MODULE_SETTING, request));
+        Bundle payload = reply == null ? null : reply.getPayload();
+        centralLocked = lockedFromReply(payload == null ? null : payload.getIntArray(Constants.VALUE));
     }
 
     private void notifyListeners() {
@@ -188,13 +238,13 @@ public final class VehicleQuickControls {
             return;
         }
         boolean connected = isCarInfoConnected();
-        boolean locked = centralLocked;
-        Boolean previousLocked = lastNotifiedLocked;
-        if (previousLocked != null
-                && previousLocked == locked
+        Boolean locked = centralLocked;
+        if (notifiedOnce
+                && Objects.equals(lastNotifiedLocked, locked)
                 && lastNotifiedConnected == connected) {
             return;
         }
+        notifiedOnce = true;
         lastNotifiedLocked = locked;
         lastNotifiedConnected = connected;
         mainHandler.post(() -> {

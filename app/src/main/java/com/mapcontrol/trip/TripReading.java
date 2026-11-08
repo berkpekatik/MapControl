@@ -1,5 +1,7 @@
 package com.mapcontrol.trip;
 
+import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
+
 /**
  * Bir andaki araç sayaçları. Okunamayan alan {@link #INVALID}, konum yoksa {@code NaN}.
  * Birimler: odometre km, birikmiş yakıt ml ({@code ID_SUM_FUEL}, 1 birim = 1 ml), hız km/s.
@@ -41,11 +43,9 @@ public final class TripReading {
         return value != INVALID && value >= 0;
     }
 
-    /** Depo yüzdesi tam yüzdedir; 100'den büyükse onda bir (348 → %34,8). */
+    /** Depo değeri her zaman onda bir yüzdedir (694 → %69); ekranla aynı yuvarlama ({@link VehicleMetricsSnapshot#fuelPercentRounded(int)}). */
     static int percent(int raw) {
-        if (raw == INVALID || raw < 0) {
-            return INVALID;
-        }
-        return raw > 100 ? Math.round(raw / 10f) : raw;
+        int rounded = VehicleMetricsSnapshot.fuelPercentRounded(raw);
+        return rounded < 0 ? INVALID : rounded;
     }
 }

@@ -5,9 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkRequest;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,10 +21,15 @@ import androidx.annotation.NonNull;
 
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
+import com.mapcontrol.util.LinkOpener;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Telefonla konuşan HTTP sunucusunun (7462) sahibi. Sunucu artık {@code MainActivity}'ye bağlı değildir: uygulama
@@ -34,8 +42,12 @@ import java.util.ArrayDeque;
  *   <li><b>Ağ:</b> Wi-Fi bağlanınca, hotspot açılıp kapanınca ya da adres değişince mDNS kaydı yenilenir, arayüz
  *       (QR adresi) güncellenir; açık olması istenen sunucu düşmüşse yeniden açılır.</li>
  *   <li><b>Bekçi:</b> 30 sn'de bir; açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar.</li>
- *   <li><b>Activity yokken gelen komut:</b> uygulama başlatma ve klavye doğrudan yapılır; link açma, APK kurma ve
- *       silme activity'nin yardımcılarını kullandığı için kuyruğa alınır ve activity öne getirilir.</li>
+ *   <li><b>Activity yokken gelen komut:</b> uygulama başlatma, klavye, link açma ve silme doğrudan
+ *       yapılır (launcher üstüne FrostNav açılmaz); APK kurma activity ister, kuyruğa alınır ve activity öne
+ *       getirilir.</li>
+ *   <li><b>Başka ekranlar (launcher):</b> {@link #addStateListener} ile durumu dinler, {@link #startServer} /
+ *       {@link #stopServer} ile açıp kapatır; açma/kapama arka plan iş parçacığında yapılır (durdurma 1 sn'ye kadar
+ *       bekleyebilir, ana iş parçacığı bloklanmaz).</li>
  * </ul>
  */
 public final class WebServerHost {
@@ -66,6 +78,16 @@ public final class WebServerHost {
         return local;
     }
 
+    /** Ana iş parçacığında çağrılır: sunucu açıldı, kapandı, hata verdi ya da adresi değişti. */
+    public interface StateListener {
+        void onWebServerStateChanged();
+    }
+
+    /** Açma sonucu (ana iş parçacığında): null = çalışıyor, değilse hata metni. */
+    public interface StartCallback {
+        void onResult(String error);
+    }
+
     private interface UiCall {
         void run(WebServerManager.WebServerListener ui);
     }
@@ -83,6 +105,14 @@ public final class WebServerHost {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final WebServerManager manager;
     private final ArrayDeque<Pending> pending = new ArrayDeque<>();
+    private final CopyOnWriteArrayList<StateListener> stateListeners = new CopyOnWriteArrayList<>();
+    private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, TAG);
+        t.setDaemon(true);
+        return t;
+    });
+    private volatile String lastError;
+    private final AtomicBoolean restarting = new AtomicBoolean();
 
     private volatile WebServerManager.WebServerListener ui;
     private boolean monitoring;
@@ -117,6 +147,91 @@ public final class WebServerHost {
         return manager;
     }
 
+    public boolean isRunning() {
+        return manager.isRunning();
+    }
+
+    /** Telefonun bağlanacağı güncel adres (hotspot sunucudan sonra açılmış olabilir). */
+    public String currentHost() {
+        return manager.currentHost();
+    }
+
+    // ---- elle açma / kapama ---------------------------------------------
+
+    /** Sunucuyu arka planda açar; çalışıyorsa yalnızca sonucu bildirir. [callback] null olabilir. */
+    public void startServer(StartCallback callback) {
+        io.execute(() -> {
+            if (!manager.isRunning()) {
+                lastError = null;
+                manager.startServer();
+            }
+            String error = manager.isRunning() ? null : (lastError != null ? lastError : "Sunucu açılamadı");
+            main.post(() -> {
+                afterStartAttempt();
+                if (callback != null) {
+                    callback.onResult(error);
+                }
+            });
+        });
+    }
+
+    /** Sunucuyu arka planda kapatır; elle kapatılan sunucu bekçi ya da kontakla kendiliğinden açılmaz. */
+    public void stopServer() {
+        io.execute(() -> {
+            manager.stopServer();
+            // Sürmekte olan bir istek (ör. APK yükleme) sunucu iş parçacığını tutarsa onServerStopped ancak istek
+            // bitince gelir; isRunning() şimdiden false olduğu için arayüz hemen güncellenir (tekrarı zararsız).
+            notifyState();
+            main.post(() -> {
+                WebServerManager.WebServerListener target = ui;
+                if (target != null && !manager.isRunning()) {
+                    target.onServerStopped();
+                }
+            });
+        });
+    }
+
+    /** Aktar sekmesindeki aç/kapat düğmesi. */
+    public void toggleServer() {
+        if (manager.isRunning()) {
+            stopServer();
+        } else {
+            startServer(null);
+        }
+    }
+
+    /**
+     * Ekler ve güncel durumu okuması için hemen bir kez bildirir; sonra durum değişince ana iş parçacığında bildirilir.
+     * Durum {@link #isRunning()} ve {@link #currentHost()} ile okunur.
+     */
+    public void addStateListener(StateListener listener) {
+        if (listener == null || !stateListeners.addIfAbsent(listener)) {
+            return;
+        }
+        main.post(() -> {
+            if (stateListeners.contains(listener)) {
+                listener.onWebServerStateChanged();
+            }
+        });
+    }
+
+    public void removeStateListener(StateListener listener) {
+        stateListeners.remove(listener);
+    }
+
+    private void notifyState() {
+        if (stateListeners.isEmpty()) {
+            return;
+        }
+        main.post(() -> {
+            for (StateListener l : stateListeners) {
+                if (stateListeners.contains(l)) {
+                    l.onWebServerStateChanged();
+                }
+            }
+        });
+    }
+
     // ---- yaşam döngüsü --------------------------------------------------
 
     /**
@@ -138,10 +253,16 @@ public final class WebServerHost {
 
     /** Kullanıcı "otomatik başlat"ı seçtiyse ve sunucu kapalıysa açar; varsayılan kapalı. */
     public void startIfPreferred() {
-        if (!manager.isRunning() && autoStart()) {
-            manager.startServer();
-            afterStartAttempt();
+        if (manager.isRunning() || !autoStart()) {
+            return;
         }
+        // Açma/kapama kilidi (durdurma 1 sn'ye kadar bekleyebilir) ana iş parçacığını tutmasın.
+        io.execute(() -> {
+            if (!manager.isRunning()) {
+                manager.startServer();
+            }
+            main.post(this::afterStartAttempt);
+        });
     }
 
     private boolean autoStart() {
@@ -208,6 +329,11 @@ public final class WebServerHost {
             }
             pending.add(new Pending(call));
         }
+        // Kuyruğa eklerken attachUi araya girip kuyruğu boşaltmış olabilir: komut sonraki bağlanmaya kalmasın.
+        if (ui != null) {
+            main.post(this::drainPending);
+            return;
+        }
         try {
             Intent open = new Intent(app, MainActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -222,9 +348,20 @@ public final class WebServerHost {
     /** Açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar; adres değiştiyse yayını yeniler. */
     private void check(String reason) {
         if (manager.isDesired() && !manager.isHealthy()) {
-            Log.i(TAG, "Sunucu sağlıklı değil (" + reason + "), yeniden açılıyor");
-            manager.restart();
-            afterStartAttempt();
+            if (restarting.compareAndSet(false, true)) {
+                Log.i(TAG, "Sunucu sağlıklı değil (" + reason + "), yeniden açılıyor");
+                // restart() 1 sn'ye kadar bekleyebilir: arka planda yapılır.
+                io.execute(() -> {
+                    try {
+                        if (manager.isDesired() && !manager.isHealthy()) {
+                            manager.restart();
+                        }
+                    } finally {
+                        restarting.set(false);
+                        main.post(this::afterStartAttempt);
+                    }
+                });
+            }
             return;
         }
         if (manager.isRunning()) {
@@ -260,6 +397,7 @@ public final class WebServerHost {
         if (target != null) {
             target.onServerStarted(manager.getPort(), host);
         }
+        notifyState();
     }
 
     // ---- ağ ve kontak tetikleyicileri -----------------------------------
@@ -347,10 +485,12 @@ public final class WebServerHost {
         @Override
         public void onServerStarted(int port, String localIp) {
             advertisedHost = localIp;
+            lastError = null;
             WebServerManager.WebServerListener target = ui;
             if (target != null) {
                 target.onServerStarted(port, localIp);
             }
+            notifyState();
         }
 
         @Override
@@ -359,6 +499,7 @@ public final class WebServerHost {
             if (target != null) {
                 target.onServerStopped();
             }
+            notifyState();
             // Beklenmedik düşüş (istenen sunucu kapandı): bekçiyi beklemeden bir an sonra yeniden dene.
             if (manager.isDesired()) {
                 main.removeCallbacks(retry);
@@ -369,10 +510,12 @@ public final class WebServerHost {
         @Override
         public void onError(String error) {
             Log.w(TAG, "Sunucu hatası: " + error);
+            lastError = error;
             WebServerManager.WebServerListener target = ui;
             if (target != null) {
                 target.onError(error);
             }
+            notifyState();
         }
 
         @Override
@@ -392,12 +535,23 @@ public final class WebServerHost {
 
         @Override
         public void onDeleteApp(String packageName) {
-            dispatchOrQueue(l -> l.onDeleteApp(packageName));
+            WebServerManager.WebServerListener target = ui;
+            if (target != null) {
+                target.onDeleteApp(packageName);
+                return;
+            }
+            main.post(() -> deleteHeadless(packageName));
         }
 
         @Override
         public void onOpenMapUrl(String url) {
-            dispatchOrQueue(l -> l.onOpenMapUrl(url));
+            WebServerManager.WebServerListener target = ui;
+            if (target != null) {
+                target.onOpenMapUrl(url);
+                return;
+            }
+            // Launcher modunda FrostNav ekranı öne getirilmez: Geri tuşu haritadan launcher'a dönsün.
+            main.post(() -> LinkOpener.open(app, url, msg -> Log.d(TAG, msg)));
         }
 
         @Override
@@ -435,6 +589,28 @@ public final class WebServerHost {
             app.startActivity(launch);
         } catch (RuntimeException e) {
             Log.w(TAG, "Uygulama açma hatası: " + packageName, e);
+        }
+    }
+
+    /** Activity yokken uygulama silme: sistem kaldırma ekranı doğrudan açılır (bkz. AppsTabBuilder.deleteApp). */
+    private void deleteHeadless(String packageName) {
+        try {
+            if (packageName == null || packageName.isEmpty() || app.getPackageName().equals(packageName)) {
+                Log.w(TAG, "Bu uygulama silinemez: " + packageName);
+                return;
+            }
+            ApplicationInfo info = app.getPackageManager().getApplicationInfo(packageName, 0);
+            if ((info.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0) {
+                Log.w(TAG, "Sistem uygulaması silinemez: " + packageName);
+                return;
+            }
+            Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + packageName))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            app.startActivity(intent);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.w(TAG, "Silinecek uygulama bulunamadı: " + packageName);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Uygulama silme hatası: " + packageName, e);
         }
     }
 

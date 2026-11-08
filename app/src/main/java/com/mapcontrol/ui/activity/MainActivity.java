@@ -13,7 +13,6 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInstaller;
-import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -86,9 +85,9 @@ import com.mapcontrol.ui.builder.SunroofAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
-import com.mapcontrol.ui.builder.LauncherTabBuilder;
 import com.mapcontrol.ui.builder.LogTabBuilder;
 import com.mapcontrol.ui.builder.ProjectionTabBuilder;
+import com.mapcontrol.ui.builder.HomeScreenTabBuilder;
 import com.mapcontrol.ui.builder.SettingsTabBuilder;
 import com.mapcontrol.ui.builder.SplitScreenTabBuilder;
 import com.mapcontrol.ui.builder.SideRailBuilder;
@@ -103,7 +102,7 @@ import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
-import com.mapcontrol.util.LauncherSwipeStore;
+import com.mapcontrol.launcher.HomeLauncherActivity;
 import com.mapcontrol.util.GestureConflicts;
 import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
@@ -111,9 +110,7 @@ import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
 import com.mapcontrol.vehicle.SunroofGestureStore;
-import com.mapcontrol.util.MapsLink;
-import com.mapcontrol.util.YouTubeLink;
-import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.util.LinkOpener;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.HeaderStatusMonitor;
 
@@ -121,8 +118,11 @@ public class MainActivity extends AppCompatActivity {
 
     /** Yüzen yansıtma çubuğundan hedef uygulama seçiciyi açmak için {@link Intent} extra anahtarı. */
     public static final String EXTRA_OPEN_PROJECTION_TARGET_PICKER = "com.mapcontrol.extra.OPEN_PROJECTION_TARGET_PICKER";
-    /** Araç Launcher Modu "Ana Ekran" karşılama sekmesinin {@code switchTab} indeksi. */
-    private static final int TAB_LAUNCHER = 10;
+    /** Açılışta seçilecek sekme indeksi (int extra); yoksa Wi-Fi sekmesi. Yeni launcher "Ayarlar" için kullanır. */
+    public static final String EXTRA_OPEN_TAB = "com.mapcontrol.extra.OPEN_TAB";
+    public static final int TAB_WIFI = 0;
+    public static final int TAB_SETTINGS = 7;
+    public static final int TAB_HOME_SCREEN = 17;
     private static final int TAB_EQUALIZER = 11;
     public static final int TAB_CLIMATE_AUTOMATION = 12;
     public static final int TAB_FACE_RECOGNITION = 13;
@@ -180,9 +180,8 @@ public class MainActivity extends AppCompatActivity {
     private VehicleInfoTabBuilder vehicleInfoTabBuilder;
     private VehicleMetricsRepository vehicleMetricsRepository;
     private ScrollView vehicleInfoScrollView;
-    private View launcherView; // Araç Launcher Modu "Ana Ekran" karşılama sekmesi
-    private LauncherTabBuilder launcherTabBuilder;
     private SettingsTabBuilder settingsTabBuilder;
+    private HomeScreenTabBuilder homeScreenTabBuilder;
     private DriveModeTabBuilder driveModeTabBuilder;
     private AssistTabBuilder assistTabBuilder;
     private LogTabBuilder logTabBuilder;
@@ -190,8 +189,7 @@ public class MainActivity extends AppCompatActivity {
     private android.view.View camera360TabContent;
     private SplitScreenTabBuilder splitScreenTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
-    private boolean launchedAsHome;
-    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 10=Ana Ekran (Launcher), 11=Ekolayzer
+    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager (sahibi WebServerHost; activity kapanınca kapanmaz)
     private WebServerHost webServerHost;
     private WebServerManager.WebServerListener webServerListener;
@@ -211,10 +209,9 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
-    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_SUNROOF_AUTOMATION + 1];
+    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_HOME_SCREEN + 1];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
-    private int lastNormalTab = 0;
     private LinearLayout shellHost;
     private boolean portraitShell;
     private LinearLayout sideRail; // Sol kenar çubuğu kök view'ı (Launcher modunda gizlenebilir)
@@ -290,8 +287,28 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Ana Ekran (HOME) rolü artık com.mapcontrol.launcher.HomeLauncherActivity'de; HOME
+        // intent'i yine de buraya düşerse yeni launcher'a yönlendir.
+        if (LauncherModeManager.isHomeIntent(getIntent())) {
+            openHomeLauncher();
+            finish();
+            return;
+        }
+        // Launcher modunda FrostNav simgesinden açılış bizim ana ekranımızda başlar (HomePolicy.appStartScreen); ana ekranın
+        // ayarlar düğmesi (sekme isteği) ve diğer özel istekler ayarları açar.
+        Intent startIntent = getIntent();
+        boolean ownRequest = startIntent != null
+                && (startIntent.hasExtra(EXTRA_OPEN_TAB)
+                || startIntent.hasExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER));
+        if (com.mapcontrol.launcher.HomeKey.openLauncherOnAppStart(
+                this, startIntent, ownRequest, savedInstanceState != null)) {
+            finish();
+            return;
+        }
+
         handler = new Handler(Looper.getMainLooper());
-        launchedAsHome = LauncherModeManager.isHomeIntent(getIntent());
+        // Güncelleme/yeniden kurulum alias'ı manifest varsayılanına (kapalı) döndürür; tercihle eşitle.
+        LauncherModeManager.syncAliasWithPreference(this);
         if (savedInstanceState == null && getIntent() != null
                 && getIntent().getBooleanExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER, false)) {
             deferredOpenProjectionTargetPicker = true;
@@ -414,14 +431,6 @@ public class MainActivity extends AppCompatActivity {
                 new SideRailBuilder.SideRailCallback() {
                     @Override
                     public void onTabSelected(int tabIndex, String title) {
-                        if (LauncherModeManager.isEnabled(MainActivity.this)) {
-                            crossfadeLauncherTransition(() -> {
-                                exitLauncherMode();
-                                switchTab(tabIndex);
-                                if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
-                            });
-                            return;
-                        }
                         if (tabIndex == 8 && welcomeSoundTabBuilder != null) {
                             welcomeSoundTabBuilder.showPublicSound();
                         }
@@ -442,13 +451,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onHomeRequested() {
-                        // A subpage can retain the launcher preference. Navigate by the visible page.
-                        // Switch directly so a full-window veil does not flash over the destination.
-                        if (currentTab == TAB_LAUNCHER) {
-                            exitLauncherMode();
-                        } else {
-                            enterLauncherMode();
-                        }
+                        returnToLauncherHome();
                     }
 
                     @Override
@@ -490,13 +493,6 @@ public class MainActivity extends AppCompatActivity {
                 });
         topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
-        topBarBuilder.setLauncherBackButtonListener(v -> {
-            if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
-                updateLauncherBackButton(LauncherModeManager.isEnabled(this));
-                return;
-            }
-            returnToLauncherHome();
-        });
         
         // Status widgets TopBar içine taşındı
 
@@ -597,29 +593,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onOpenMapUrl(String url) {
-                handler.post(() -> {
-                    try {
-                        String u = url != null ? url.trim() : "";
-                        if (u.isEmpty()) {
-                            return;
-                        }
-                        // Google Haritalar bağlantısı: tarayıcı seçicisine düşmeden doğrudan Google Haritalar'a ver.
-                        if (MapsLink.isGoogleMaps(u) && openGoogleMapsLink(u)) {
-                            return;
-                        }
-                        if (MapsLink.isYandex(u) && openYandexLink(u)) {
-                            return;
-                        }
-                        if (YouTubeLink.isYouTube(u) && openYouTubeLink(u)) {
-                            return;
-                        }
-                        openLinkViaSystem(u);
-                    } catch (Exception e) {
-                        Toast.makeText(MainActivity.this,
-                                "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                        log("Link açma hatası: " + e.getMessage());
-                    }
-                });
+                handler.post(() -> LinkOpener.open(MainActivity.this, url, MainActivity.this::log));
             }
 
             @Override
@@ -649,7 +623,7 @@ public class MainActivity extends AppCompatActivity {
         };
 
         // Web Yönetimi tab içeriği
-        fileUploadTabBuilder = new FileUploadTabBuilder(this, webServerManager);
+        fileUploadTabBuilder = new FileUploadTabBuilder(this, webServerHost);
         fileUploadScrollView = fileUploadTabBuilder.getScrollView();
         btnWebServerToggle = fileUploadTabBuilder.getToggleButton();
         webServerStatusText = fileUploadTabBuilder.getStatusText();
@@ -844,7 +818,6 @@ public class MainActivity extends AppCompatActivity {
         camera360TabContent = camera360TabBuilder.getTabContent();
         camera360TabBuilder.setWideListener(this::setContentWide);
         camera360TabBuilder.setSubpageListener((isNested, subpageTitle) -> {
-            updateLauncherBackButton(LauncherModeManager.isEnabled(MainActivity.this));
             if (currentTab == TAB_CAMERA_360 && topBarBuilder != null) {
                 if (isNested && subpageTitle != null && !subpageTitle.isEmpty()) {
                     topBarBuilder.setTitle(subpageTitle);
@@ -923,13 +896,16 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onLauncherModeChanged(boolean enabled) {
-                        crossfadeLauncherTransition(() -> {
-                            if (enabled) {
-                                enterLauncherMode();
-                            } else {
-                                exitLauncherMode();
-                            }
-                        });
+                        if (enabled) {
+                            enterLauncherMode();
+                        } else {
+                            exitLauncherMode();
+                        }
+                    }
+
+                    @Override
+                    public void onOpenHomeScreenTab() {
+                        switchTab(TAB_HOME_SCREEN);
                     }
 
                     @Override
@@ -949,48 +925,21 @@ public class MainActivity extends AppCompatActivity {
         settingsScrollView = settingsTabBuilder.getScrollView();
         settingsTabContent = settingsTabBuilder.getSettingsTabContent();
 
-        // Araç Launcher Modu "Ana Ekran" karşılama sekmesi (Builder) — mevcut switchTab akışını kullanır
-        launcherTabBuilder = new LauncherTabBuilder(this, vehicleMetricsRepository,
-                new LauncherTabBuilder.LauncherCallback() {
-                    @Override
-                    public void onShortcutSelected(int tabIndex, String title) {
-                        if (sideRailBuilder != null && sideRailBuilder.openCameraOrSplitScreen(tabIndex)) return;
-                        crossfadeContent(() -> {
-                            switchTab(tabIndex);
-                            if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
-                        });
-                    }
+        homeScreenTabBuilder = new HomeScreenTabBuilder(this, new HomeScreenTabBuilder.Callback() {
+            @Override
+            public void log(String msg) {
+                MainActivity.this.log(msg);
+            }
 
-                    @Override
-                    public void onExitLauncherRequested() {
-                        crossfadeLauncherTransition(() -> exitLauncherMode());
-                    }
-
-                    @Override
-                    public void onAppLaunchRequested(String packageName) {
-                        if (appsTabBuilder != null) {
-                            appsTabBuilder.launchApp(packageName);
-                        }
-                    }
-
-                    @Override
-                    public void onClusterProjectionRequested(String action) {
-                        if (clusterDisplayManager == null) {
-                            return;
-                        }
-                        if (LauncherSwipeStore.ACTION_CLUSTER_CLOSE.equals(action)
-                                || (LauncherSwipeStore.ACTION_CLUSTER_TOGGLE.equals(action)
-                                && isNavigationOpen)) {
-                            clusterDisplayManager.closeClusterDisplay(false);
-                        } else {
-                            clusterDisplayManager.openClusterDisplay();
-                        }
-                    }
-                });
-        launcherView = launcherTabBuilder.build();
-        if (headerStatusMonitor != null && launcherTabBuilder.getDashboardBuilder() != null) {
-            headerStatusMonitor.addSink(launcherTabBuilder.getDashboardBuilder());
-        }
+            @Override
+            public void onLauncherModeChanged(boolean enabled) {
+                if (enabled) {
+                    enterLauncherMode();
+                } else {
+                    exitLauncherMode();
+                }
+            }
+        });
 
         lastOrientation = getResources().getConfiguration().orientation;
         lastNightModeUiBits = getResources().getConfiguration().uiMode
@@ -998,17 +947,9 @@ public class MainActivity extends AppCompatActivity {
         UiStyles.setUiModeOverride(getResources().getConfiguration());
         presentMainUi(mainRootContainer);
 
-        if (LauncherModeManager.isHomeIntent(getIntent())) {
-            LauncherModeManager.ensurePersistedFromHomeLaunch(this);
-            launchedAsHome = true;
-        }
-        if (LauncherModeManager.isEnabled(this)) {
-            applyLauncherChrome(true);
-            switchTab(TAB_LAUNCHER);
-        } else {
-            applyLauncherChrome(false);
-            switchTab(0);
-        }
+        applyLauncherChrome(LauncherModeManager.isEnabled(this));
+        switchTab(0);
+        applyOpenTabExtra(getIntent());
         
         // Uygulamaları yükle
         if (appsTabBuilder != null) appsTabBuilder.loadAppsFromServer();
@@ -1223,13 +1164,6 @@ public class MainActivity extends AppCompatActivity {
      * 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
      */
     private void switchTab(int tabIndex) {
-        // TAB_LAUNCHER asla sağ taraftaki sekme alanında açılmamalıdır; yalnızca tam ekran launcher modu olarak açılabilir.
-        if (tabIndex == TAB_LAUNCHER) {
-            if (!LauncherModeManager.isEnabled(this)) {
-                enterLauncherMode();
-                return;
-            }
-        }
         if (tabIndex >= 0 && tabIndex < tabNeedsUiModeRebuild.length && tabNeedsUiModeRebuild[tabIndex]) {
             rebuildTabForUiMode(tabIndex);
             tabNeedsUiModeRebuild[tabIndex] = false;
@@ -1244,9 +1178,6 @@ public class MainActivity extends AppCompatActivity {
         if (currentTab == 9 && tabIndex != 9 && vehicleInfoTabBuilder != null) {
             vehicleInfoTabBuilder.stopListening();
         }
-        if (currentTab == TAB_LAUNCHER && tabIndex != TAB_LAUNCHER && launcherTabBuilder != null) {
-            launcherTabBuilder.onTabHidden();
-        }
         if (currentTab == 5 && tabIndex != 5 && appsTabBuilder != null) {
             appsTabBuilder.onTabHidden();
         }
@@ -1255,9 +1186,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         currentTab = tabIndex;
-        if (tabIndex != TAB_LAUNCHER) {
-            lastNormalTab = tabIndex;
-        }
 
         contentWide = false;
         applyLauncherChrome(LauncherModeManager.isEnabled(this));
@@ -1325,13 +1253,10 @@ public class MainActivity extends AppCompatActivity {
                 addTabChild(parent, splitScreenTabBuilder.getScrollView(), matchParent);
                 splitScreenTabBuilder.onTabVisible();
             }
-        } else if (tabIndex == TAB_LAUNCHER) {
-            if (launcherView != null) {
-                addTabChild(parent, launcherView, matchParent);
-            }
-            if (launcherTabBuilder != null) {
-                launcherTabBuilder.onTabVisible();
-            }
+        } else if (tabIndex == TAB_HOME_SCREEN && homeScreenTabBuilder != null) {
+            // Değerler launcher'dan da değişebilir: her açılışta tercihlerden yeniden kurulur.
+            homeScreenTabBuilder.rebuild();
+            addTabChild(parent, homeScreenTabBuilder.getScrollView(), matchParent);
         }
     }
 
@@ -1363,6 +1288,7 @@ public class MainActivity extends AppCompatActivity {
             case TAB_CLIMATE_AUTOMATION: return R.string.side_rail_climate_automation;
             case TAB_FACE_RECOGNITION: return R.string.side_rail_face_recognition;
             case TAB_SUNROOF_AUTOMATION: return R.string.side_rail_sunroof_automation;
+            case TAB_HOME_SCREEN: return R.string.side_rail_home_screen;
             default: return R.string.topbar_vehicle_home;
         }
     }
@@ -1370,11 +1296,7 @@ public class MainActivity extends AppCompatActivity {
     private void applyTabChrome(int tabIndex) {
         updateNavigationDockParent();
         if (topBarBuilder != null) {
-            boolean notLauncher = (tabIndex != TAB_LAUNCHER);
-            topBarBuilder.setTopBarVisible(notLauncher);
-            boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive() && !contentWide);
-            boolean isCameraTab = (tabIndex == TAB_CAMERA_360);
-            topBarBuilder.setLauncherBackButtonVisible(notLauncher && (!sidebarOpen || isCameraTab));
+            topBarBuilder.setTopBarVisible(true);
             topBarBuilder.setTitle(tabTitle(tabIndex));
         }
         if (tabIndex == 0 && wifiTabBuilder != null) {
@@ -1395,12 +1317,10 @@ public class MainActivity extends AppCompatActivity {
      * Launcher modu chrome'unu uygular: sol menü görünürlüğü, içerik genişliği ve TopBar geri düğmesi.
      */
     private void applyLauncherChrome(boolean active) {
-        active = active && currentTab == TAB_LAUNCHER;
         if (sideRailBuilder != null) {
-            sideRailBuilder.setLauncherModeActive(active);
             sideRailBuilder.setContentWide(contentWide);
         }
-        boolean railHidden = active || contentWide;
+        boolean railHidden = contentWide;
         if (mainContent != null && mainContentParams != null) {
             if (portraitShell) {
                 mainContentParams.width = LinearLayout.LayoutParams.MATCH_PARENT;
@@ -1414,17 +1334,16 @@ public class MainActivity extends AppCompatActivity {
             mainContent.setLayoutParams(mainContentParams);
         }
         updateNavigationDockParent();
-        updateLauncherBackButton(active);
+        if (topBarBuilder != null) {
+            topBarBuilder.setTopBarVisible(true);
+        }
         ImmersiveFullscreenHelper.setImmersiveFullscreen(this, active);
     }
 
     private void updateNavigationDockParent() {
         if (sideRailBuilder == null || mainRootContainer == null) return;
         View dock = sideRailBuilder.getGoldenDock();
-        if (currentTab == TAB_LAUNCHER && launcherTabBuilder != null
-                && launcherTabBuilder.getDashboardBuilder() != null) {
-            launcherTabBuilder.getDashboardBuilder().attachNavigationDock(dock);
-        } else if (portraitShell && shellHost != null) {
+        if (portraitShell && shellHost != null) {
             if (dock.getParent() != shellHost) {
                 if (dock.getParent() instanceof android.view.ViewGroup) {
                     ((android.view.ViewGroup) dock.getParent()).removeView(dock);
@@ -1442,16 +1361,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateLauncherBackButton(boolean active) {
-        if (topBarBuilder != null) {
-            boolean notLauncher = (currentTab != TAB_LAUNCHER);
-            topBarBuilder.setTopBarVisible(notLauncher);
-            boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive() && !contentWide);
-            boolean isCameraTab = (currentTab == TAB_CAMERA_360);
-            topBarBuilder.setLauncherBackButtonVisible(notLauncher && (!sidebarOpen || isCameraTab));
-        }
-    }
-
     /** Sekme içeriği sol menüyü gizleyip tam genişlik ister (launcher modundan bağımsız). */
     private void setContentWide(boolean wide) {
         if (contentWide == wide) return;
@@ -1459,21 +1368,46 @@ public class MainActivity extends AppCompatActivity {
         applyLauncherChrome(LauncherModeManager.isEnabled(this));
     }
 
-    /** Alt sekmeden ana ekran ızgarasına döner. */
+    /**
+     * Alt gezinme "Ana ekran" düğmesi: Launcher Modu açıksa yeni launcher'a (HomeLauncherActivity)
+     * döner, kapalıysa sistemin Ana Ekranına gider.
+     */
     private void returnToLauncherHome() {
         if (LauncherModeManager.isEnabled(this)) {
-            crossfadeLauncherTransition(() -> enterLauncherMode());
+            openHomeLauncher();
+        } else {
+            startActivity(new Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         }
+    }
+
+    /** {@link #EXTRA_OPEN_TAB} varsa o sekmeyi açar ve extra'yı tüketir (yeniden kurulumda tekrar açılmasın). */
+    private void applyOpenTabExtra(Intent intent) {
+        if (intent == null || !intent.hasExtra(EXTRA_OPEN_TAB)) {
+            return;
+        }
+        if (tabContentArea == null) {
+            // Arayüz henüz kurulmadı (soğuk başlangıç: initializeApp sırada ya da açılış/yasal ekranı açık) ve
+            // switchTab sessizce döner. Extra tüketilmez: onNewIntent setIntent yaptı, initializeApp onu uygular.
+            return;
+        }
+        int tab = intent.getIntExtra(EXTRA_OPEN_TAB, 0);
+        intent.removeExtra(EXTRA_OPEN_TAB);
+        switchTab(tab);
+        if (sideRailBuilder != null) {
+            sideRailBuilder.setSelectionForTabIndex(tab);
+        }
+    }
+
+    private void openHomeLauncher() {
+        startActivity(new Intent(this, HomeLauncherActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
     }
 
     /** Page transitions leave the shared header and side rail visible. */
     private void crossfadeContent(Runnable change) {
         crossfadeWithVeil(tabContentArea, 110L, 200L, change);
-    }
-
-    /** Covers the window, applies the layout switch, then reveals it. */
-    private void crossfadeLauncherTransition(Runnable change) {
-        crossfadeWithVeil(findViewById(android.R.id.content), 140L, 260L, change);
     }
 
     /**
@@ -1567,48 +1501,46 @@ public class MainActivity extends AppCompatActivity {
         target.setAlpha(1f);
     }
 
+    private static final int REQUEST_HOME_ROLE = 4711;
+
     private void enterLauncherMode() {
         LauncherModeManager.setEnabled(this, true);
-        launchedAsHome = true;
         applyLauncherChrome(true);
-        switchTab(TAB_LAUNCHER);
         syncLauncherModeSettingsUi();
+        // Alias kapatılınca Android HOME rolünü düşürür; yeniden açınca rol kendiliğinden gelmez.
+        // PackageManager alias değişikliğini yayınlayınca rol isteği gösterilir (bkz. LauncherModeManager).
+        handler.postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed() && LauncherModeManager.isEnabled(this)) {
+                LauncherModeManager.requestHomeRoleIfNeeded(this, REQUEST_HOME_ROLE);
+            }
+        }, 600L);
     }
 
-    /**
-     * Launcher modunu kapatır. Yalnızca araç paneli sekmesindeyken Wi-Fi sekmesine döner;
-     * Ayarlar gibi başka bir sekmeden kapatılırsa mevcut sekme korunur.
-     */
     private void exitLauncherMode() {
-        boolean wasOnLauncherTab = currentTab == TAB_LAUNCHER;
+        final int tabToKeep = currentTab;
+        final Context appContext = getApplicationContext();
         LauncherModeManager.setEnabled(this, false);
-        launchedAsHome = false;
         applyLauncherChrome(false);
         syncLauncherModeSettingsUi();
-        detachParkedLauncher();
-        if (wasOnLauncherTab) {
-            int targetTab = (lastNormalTab != TAB_LAUNCHER && lastNormalTab >= 0) ? lastNormalTab : 0;
-            switchTab(targetTab);
-            if (sideRailBuilder != null) {
-                sideRailBuilder.setSelectionForTabIndex(targetTab);
+        // Alias devre dışı kalınca sistem, kökü bu alias olan görevi (launcher görevi) kapatır. FrostNav
+        // ekranı o görevin içinde açılmışsa (bazı cihazlarda) onunla birlikte kapanır ve kullanıcı sistem
+        // launcher'ına düşer. Kapanmışsa aynı sekmede ayrı görevde yeniden aç.
+        handler.postDelayed(() -> {
+            if (isFinishing() || isDestroyed()) {
+                appContext.startActivity(new Intent(appContext, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        .putExtra(EXTRA_OPEN_TAB, tabToKeep));
             }
-        }
-    }
-
-    /** Launcher modu kapanırken ana ekran view'ını parent'tan ayırır. */
-    private void detachParkedLauncher() {
-        if (launcherView == null || tabContentArea == null) {
-            return;
-        }
-        if (launcherView.getParent() == tabContentArea) {
-            tabContentArea.removeView(launcherView);
-        }
-        launcherView.setVisibility(View.VISIBLE);
+        }, 1200L);
     }
 
     private void syncLauncherModeSettingsUi() {
         if (settingsTabBuilder != null) {
             settingsTabBuilder.syncLauncherModeFromPrefs();
+        }
+        if (homeScreenTabBuilder != null) {
+            homeScreenTabBuilder.rebuild();
         }
     }
 
@@ -1688,12 +1620,12 @@ public class MainActivity extends AppCompatActivity {
             intent.removeExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER);
             deferredOpenProjectionTargetPicker = true;
         }
-        // Cihaz Ana Ekran (Home) tuşuna basılıp uygulama zaten açıkken (singleTop) tekrar
-        // çağrılırsa Araç Launcher karşılama ekranına dön.
+        // HOME intent'i yine de buraya düşerse yeni launcher'a yönlendir.
         if (LauncherModeManager.isHomeIntent(intent)) {
-            LauncherModeManager.ensurePersistedFromHomeLaunch(this);
-            enterLauncherMode();
+            openHomeLauncher();
+            return;
         }
+        applyOpenTabExtra(intent);
     }
 
     @Override
@@ -1719,7 +1651,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
-            updateLauncherBackButton(LauncherModeManager.isEnabled(this));
+            return;
+        }
+        if (LauncherModeManager.isEnabled(this)) {
+            // Launcher modunda geri tuşu uygulamayı kapatmaz; yeni launcher'a döner.
+            openHomeLauncher();
             return;
         }
         // Kullanıcı isteği: Geri tuşuna basınca tam ekranın sağ tarafta açılması engellendi, hiçbir şey olmasın.
@@ -1743,15 +1679,10 @@ public class MainActivity extends AppCompatActivity {
         if (newConfig.orientation != lastOrientation) {
             lastOrientation = newConfig.orientation;
             mountShell(newConfig.orientation == Configuration.ORIENTATION_PORTRAIT);
-            boolean launcherMode = LauncherModeManager.isEnabled(this);
             if (sideRailBuilder != null) {
-                sideRailBuilder.setLauncherModeActive(launcherMode);
-                if (currentTab != TAB_LAUNCHER) {
-                    sideRailBuilder.setSelectionForTabIndex(currentTab);
-                }
+                sideRailBuilder.setSelectionForTabIndex(currentTab);
             }
-            applyLauncherChrome(launcherMode);
-            rebuildLauncherForOrientation();
+            applyLauncherChrome(LauncherModeManager.isEnabled(this));
         }
         int night = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
         if (night == lastNightModeUiBits) {
@@ -1817,9 +1748,8 @@ public class MainActivity extends AppCompatActivity {
             tabNeedsUiModeRebuild[tab] = false;
         }
 
-        boolean launcherMode = LauncherModeManager.isEnabled(this);
-        applyLauncherChrome(launcherMode);
-        if (sideRailBuilder != null && tab != TAB_LAUNCHER) {
+        applyLauncherChrome(LauncherModeManager.isEnabled(this));
+        if (sideRailBuilder != null) {
             sideRailBuilder.setSelectionForTabIndex(tab);
         }
         if (tabContentArea == null) {
@@ -1834,8 +1764,7 @@ public class MainActivity extends AppCompatActivity {
         if (sideRailBuilder == null || shellHost == null) {
             return;
         }
-        boolean launcherActive = LauncherModeManager.isEnabled(this);
-        int selectTab = currentTab == TAB_LAUNCHER ? 0 : currentTab;
+        int selectTab = currentTab;
         if (sideRail != null) {
             shellHost.removeView(sideRail);
         }
@@ -1848,7 +1777,6 @@ public class MainActivity extends AppCompatActivity {
                         sidebarWidthPx,
                         LinearLayout.LayoutParams.MATCH_PARENT);
         shellHost.addView(sideRail, portraitShell ? Math.min(1, shellHost.getChildCount()) : 0, railParams);
-        sideRailBuilder.setLauncherModeActive(launcherActive);
         sideRailBuilder.setSelectionForTabIndex(selectTab);
     }
 
@@ -1920,31 +1848,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         updateNavigationDockParent();
-    }
-
-    /** Launcher kartları yön değişince yeniden dizilir; normal sekmeler kaydırılmaya devam eder. */
-    private void rebuildLauncherForOrientation() {
-        if (launcherTabBuilder == null) {
-            return;
-        }
-        boolean show = currentTab == TAB_LAUNCHER;
-        launcherTabBuilder.onTabHidden();
-        if (launcherView != null
-                && launcherView.getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) launcherView.getParent()).removeView(launcherView);
-        }
-        if (headerStatusMonitor != null && launcherTabBuilder != null && launcherTabBuilder.getDashboardBuilder() != null) {
-            headerStatusMonitor.removeSink(launcherTabBuilder.getDashboardBuilder());
-        }
-        launcherView = launcherTabBuilder.build();
-        if (headerStatusMonitor != null && launcherTabBuilder.getDashboardBuilder() != null) {
-            headerStatusMonitor.addSink(launcherTabBuilder.getDashboardBuilder());
-        }
-        if (show && tabContentArea != null) {
-            tabContentArea.removeAllViews();
-            attachTabContent(TAB_LAUNCHER);
-            applyTabChrome(TAB_LAUNCHER);
-        }
     }
 
     private void rebuildTopBarForUiMode() {
@@ -2081,9 +1984,9 @@ public class MainActivity extends AppCompatActivity {
                     rebuildSunroofAutomationTab();
                 }
                 break;
-            case TAB_LAUNCHER:
-                if (launcherTabBuilder != null) {
-                    launcherTabBuilder.onUiModeChanged();
+            case TAB_HOME_SCREEN:
+                if (homeScreenTabBuilder != null) {
+                    homeScreenTabBuilder.rebuild();
                 }
                 break;
         }
@@ -2124,6 +2027,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == WifiTabBuilder.LOCATION_PERMISSION_REQUEST && wifiTabBuilder != null) {
+            wifiTabBuilder.onLocationPermissionResult(grantResults);
+            return;
+        }
         if (requestCode == DmsFaceRecognitionTabBuilder.CAMERA_PERMISSION_REQUEST
                 && dmsFaceRecognitionTabBuilder != null) {
             boolean granted = grantResults.length > 0
@@ -2149,9 +2056,23 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         com.mapcontrol.util.BootSession.markUiLaunched(this);
+        // Görev zaten varken am start onCreate'i çalıştırmaz; güncelleme sonrası launcher modunu her
+        // öne gelişte eşitle (alias + cihaz sahibi sabitlemesi), rol düştüyse sürüm başına bir kez iste.
+        android.content.SharedPreferences guardPrefs = getSharedPreferences(
+                com.mapcontrol.launcher.LauncherCrashGuard.PREFS, MODE_PRIVATE);
+        if (guardPrefs.getBoolean(com.mapcontrol.launcher.LauncherCrashGuard.KEY_NOTICE, false)) {
+            guardPrefs.edit().remove(com.mapcontrol.launcher.LauncherCrashGuard.KEY_NOTICE).apply();
+            Toast.makeText(this, "Ana ekran hata verdi, aracın kendi ana ekranına dönüldü",
+                    Toast.LENGTH_LONG).show();
+        }
+        LauncherModeManager.restoreIfEnabled(this);
+        LauncherModeManager.requestHomeRoleOncePerVersion(this, REQUEST_HOME_ROLE);
         SunroofGestureOverlayManager.getInstance(this).onActivityResumed();
         if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null) {
             camera360TabBuilder.onTabVisible();
+        }
+        if (currentTab == 0 && wifiTabBuilder != null) {
+            wifiTabBuilder.onHostResumed();
         }
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
@@ -2467,9 +2388,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (headerStatusMonitor != null) {
-            if (launcherTabBuilder != null && launcherTabBuilder.getDashboardBuilder() != null) {
-                headerStatusMonitor.removeSink(launcherTabBuilder.getDashboardBuilder());
-            }
             headerStatusMonitor.stop();
         }
         if (topBarBuilder != null) topBarBuilder.release();
@@ -2493,6 +2411,7 @@ public class MainActivity extends AppCompatActivity {
             systemTts = null;
         }
         pendingTtsText = null;
+        // Kilit dinleyicileri launcher'a ait; burada yalnızca dinleyen kalmadıysa takip durdurulur.
         VehicleQuickControls.getInstance(getApplicationContext()).release();
         super.onDestroy();
         // Sunucu kapanmaz (WebServerHost'ta yaşar); yalnızca bu activity'nin arayüz bağlantısı bırakılır.
@@ -2610,207 +2529,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             log("loadTargetPackage hatası: " + e.getMessage());
         }
-    }
-
-    /**
-     * Aynı host’ta /q açılırken /maps gibi yollarda Yandex Haritalar (veya App Link) intent’i alıp
-     * ekran göstermeyebiliyor; doğrudan tarayıcı hiç seçilmiyor. Bu URL’lerde önce seçici gösterilir.
-     */
-    /** Bağlantıyı sistemin seçtiği uygulamayla açar; bazı harita bağlantılarında önce seçici gösterir. */
-    private void openLinkViaSystem(String u) {
-        try {
-            Uri uri = Uri.parse(u);
-            Intent i = new Intent(Intent.ACTION_VIEW, uri);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            String scheme = uri.getScheme();
-            if (scheme != null
-                    && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
-                i.addCategory(Intent.CATEGORY_BROWSABLE);
-            }
-            if (shouldShowChooserToPickBrowserOrMaps(uri)) {
-                // Yandex /maps, goo.gl harita kısası: önce tek hedef uyg. sessizce çalışıp
-                // ekran göstermeyebiliyor; listeden tarayıcı seçilebilir.
-                Intent chooser = Intent.createChooser(i, "Linki aç (tarayıcı önerilir)");
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(chooser);
-            } else {
-                try {
-                    startActivity(i);
-                } catch (android.content.ActivityNotFoundException noHandler) {
-                    Intent chooser = Intent.createChooser(i, "Bağlantıyı aç");
-                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(chooser);
-                }
-            }
-        } catch (Exception e) {
-            Toast.makeText(MainActivity.this, "Link açılamadı: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            log("Link açma hatası: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Google Haritalar bağlantısını doğrudan Google Haritalar'a verir (açık paket adıyla, seçici yok).
-     * Sırayla dener: bağlantının kendisi, koordinat varsa rota/konum, yer adı varsa arama. Kısa bağlantıda
-     * (maps.app.goo.gl) koordinat bağlantıda yoktur; yönlendirme arka planda çözülür.
-     *
-     * @return Google Haritalar kurulu değilse false (çağıran sistemin yoluna döner); aksi halde true
-     */
-    private boolean openGoogleMapsLink(String u) {
-        if (!isPackageInstalled(AppLaunchHelper.GOOGLE_MAPS_PACKAGE)) {
-            log("Google Haritalar kurulu değil; sistem yoluyla açılıyor");
-            return false;
-        }
-        if (startGoogleMaps(Uri.parse(u), "bağlantı")) {
-            return true;
-        }
-        if (openGoogleMapsTarget(u)) {
-            return true;
-        }
-        if (MapsLink.isShortLink(u)) {
-            log("Kısa bağlantı çözülüyor: " + u);
-            new Thread(() -> {
-                String resolved = MapsLink.resolve(u);
-                handler.post(() -> {
-                    log("Kısa bağlantı çözüldü: " + resolved);
-                    if (!resolved.equals(u) && (startGoogleMaps(Uri.parse(resolved), "çözülen bağlantı")
-                            || openGoogleMapsTarget(resolved))) {
-                        return;
-                    }
-                    openLinkViaSystem(u);
-                });
-            }, "MapsLinkResolve").start();
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Yandex bağlantısı (Navi/Haritalar ayrımı yok): kurulu Yandex uygulaması açar; hiçbiri yoksa hedef
-     * koordinatı varsa Google Haritalar rotasına düşer.
-     *
-     * @return açıldıysa true; false ise çağıran sistemin yoluna döner
-     */
-    private boolean openYandexLink(String u) {
-        for (String pkg : AppLaunchHelper.YANDEX_PACKAGES) {
-            if (!isPackageInstalled(pkg)) {
-                continue;
-            }
-            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(u));
-            i.setPackage(pkg);
-            i.addCategory(Intent.CATEGORY_BROWSABLE);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (getPackageManager().queryIntentActivities(i, 0).isEmpty()) {
-                log("Yandex (" + pkg + ") bu bağlantıyı açmıyor");
-                continue;
-            }
-            try {
-                startActivity(i);
-                log("Yandex'e verildi (" + pkg + "): " + u);
-                return true;
-            } catch (Exception e) {
-                log("Yandex açılamadı (" + pkg + "): " + e.getMessage());
-            }
-        }
-        log("Yandex yok; Google Haritalar deneniyor");
-        double[] dest = MapsLink.yandexDestination(u);
-        if (dest != null && isPackageInstalled(AppLaunchHelper.GOOGLE_MAPS_PACKAGE)) {
-            return startGoogleMaps(Uri.parse(MapsLink.navigationUri(dest[0], dest[1])), "Yandex rotası")
-                    || startGoogleMaps(Uri.parse(MapsLink.geoUri(dest[0], dest[1])), "Yandex konumu");
-        }
-        return false;
-    }
-
-    /** Bağlantıdan koordinat ya da yer adı çıkarıp Google Haritalar'ın anladığı bir adresle açar. */
-    private boolean openGoogleMapsTarget(String url) {
-        double[] c = MapsLink.coordinates(url);
-        if (c != null) {
-            return startGoogleMaps(Uri.parse(MapsLink.navigationUri(c[0], c[1])), "rota")
-                    || startGoogleMaps(Uri.parse(MapsLink.geoUri(c[0], c[1])), "konum");
-        }
-        String name = MapsLink.placeName(url);
-        return name != null && startGoogleMaps(Uri.parse(MapsLink.searchUri(name)), "yer araması");
-    }
-
-    private boolean startGoogleMaps(Uri uri, String what) {
-        Intent i = new Intent(Intent.ACTION_VIEW, uri);
-        i.setPackage(AppLaunchHelper.GOOGLE_MAPS_PACKAGE);
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        String scheme = uri.getScheme();
-        if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
-            i.addCategory(Intent.CATEGORY_BROWSABLE);
-        }
-        List<ResolveInfo> handlers = getPackageManager().queryIntentActivities(i, 0);
-        if (handlers.isEmpty()) {
-            // Hangi biçimleri anladığı araçta bilinmediği için tanı kaydı: Günlük sekmesinde görünür.
-            log("Google Haritalar bu biçimi açmıyor (" + what + "): " + uri.getScheme() + ":");
-            return false;
-        }
-        try {
-            startActivity(i);
-            log("Google Haritalar'a verildi (" + what + "): " + uri);
-            return true;
-        } catch (Exception e) {
-            log("Google Haritalar açılamadı (" + what + "): " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * YouTube bağlantısını doğrudan YouTube uygulamasına verir (açık paket adıyla, seçici ve tarayıcı yok).
-     * {@link YouTubeLink#PACKAGES} sırasıyla denenir: resmî YouTube, sonra ReVanced. Paket kurulu ama bağlantıyı
-     * kabul etmiyorsa (ReVanced'da bağlantı açma izni verilmemiş olabilir) sıradakine geçilir; her deneme Günlük
-     * sekmesine yazılır.
-     *
-     * @return Hiçbiri açmadıysa false; çağıran sistemin yoluna (tarayıcı) döner
-     */
-    private boolean openYouTubeLink(String u) {
-        Uri uri = Uri.parse(u);
-        for (String pkg : YouTubeLink.PACKAGES) {
-            if (!isPackageInstalled(pkg)) {
-                continue;
-            }
-            Intent i = new Intent(Intent.ACTION_VIEW, uri);
-            i.setPackage(pkg);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            i.addCategory(Intent.CATEGORY_BROWSABLE);
-            if (getPackageManager().queryIntentActivities(i, 0).isEmpty()) {
-                log("YouTube bağlantısı bu uygulamada açılmıyor: " + pkg);
-                continue;
-            }
-            try {
-                startActivity(i);
-                log("YouTube'a verildi (" + pkg + "): " + uri);
-                return true;
-            } catch (Exception e) {
-                log("YouTube açılamadı (" + pkg + "): " + e.getMessage());
-            }
-        }
-        log("YouTube uygulaması bağlantıyı açmadı; sistem yoluyla açılıyor");
-        return false;
-    }
-
-    private boolean isPackageInstalled(String packageName) {
-        try {
-            getPackageManager().getApplicationInfo(packageName, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
-    }
-
-    private static boolean shouldShowChooserToPickBrowserOrMaps(Uri uri) {
-        if (uri == null) {
-            return false;
-        }
-        String h = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
-        String p = uri.getPath() != null ? uri.getPath().toLowerCase() : "";
-        if (h.contains("yandex") && p.contains("maps")) {
-            return true;
-        }
-        if (h.equals("maps.app.goo.gl")) {
-            return true;
-        }
-        return false;
     }
 
     // App operations moved to `AppsTabBuilder`.

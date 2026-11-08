@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="side_rail_home_screen">Home screen</string>
+    <string name="settings_home_screen_link">Home screen settings \u2192</string>
+    <string name="home_screen_off_hint">Turn on full-screen home to change the home screen settings.</string>
+    <string name="home_screen_appearance_title">Appearance</string>
+    <string name="home_screen_theme_help_auto">Follows the car\'s light sensor.</string>
+    <string name="home_screen_theme_help_day">Always the light look.</string>
+    <string name="home_screen_theme_help_night">Always the dark look.</string>
+    <string name="home_screen_bottom_bar_help_original">The car\'s own bottom bar stays visible.</string>
+    <string name="home_screen_bottom_bar_help_ours">The car\'s bar is hidden; the launcher\'s own bar is shown.</string>
+    <string name="home_screen_bottom_bar_help_hidden">No bottom bar; the widgets use the full height.</string>
+    <string name="home_screen_drive_theme_help_on">The accent color follows the drive mode.</string>
+    <string name="home_screen_drive_theme_help_off">Always the theme\'s own accent color.</string>
+    <string name="home_screen_auto_layout_help_on">A separate Drive layout appears while moving; the Park layout when stopped.</string>
+    <string name="home_screen_auto_layout_help_off">One layout, moving or parked.</string>
+    <string name="home_screen_layout_title">Layout</string>
+    <string name="home_screen_edit_desc">Move, resize, add or remove widgets directly on the home screen.</string>
+    <string name="home_screen_reset_park">Reset Park layout to default</string>
+    <string name="home_screen_reset_drive">Reset Drive layout to default</string>
+    <string name="home_screen_reset_park_confirm">Reset the Park layout to the default? Your changes to it will be lost.</string>
+    <string name="home_screen_reset_drive_confirm">Reset the Drive layout to the default? Your changes to it will be lost.</string>
+    <string name="home_screen_reset_home">Reset home screen to default</string>
+    <string name="home_screen_reset_home_confirm">Reset the home screen to the default? Your changes to it will be lost.</string>
+    <string name="home_screen_reset_done">Layout reset to default.</string>
+    <string name="home_screen_about_title">About</string>
+    <string name="home_screen_version_line">Home screen version %1$s (%2$s)</string>
+    <string name="home_screen_reset_button">Reset</string>
+    <string name="home_screen_vehicle_screen">Vehicle screen</string>
+    <string name="home_screen_vehicle_auto">Auto</string>
+    <string name="home_screen_vehicle_t7">Tiggo 7</string>
+    <string name="home_screen_vehicle_t8">Tiggo 8</string>
+    <string name="home_screen_vehicle_help_auto">Chosen automatically from the screen size. Applied the next time the home screen opens.</string>
+    <string name="home_screen_vehicle_help_t7">12×6 grid and the current bottom bar. Applied the next time the home screen opens.</string>
+    <string name="home_screen_vehicle_help_t8">12×8 grid and a thin flat bottom bar; layouts are separate from Tiggo 7. Applied the next time the home screen opens.</string>
+    <string name="home_screen_sport_mode_help_on">In Sport, a chronograph screen opens (Stage layout only).</string>
+    <string name="home_screen_sport_mode_help_off">Sport keeps the original theme.</string>
+</resources>

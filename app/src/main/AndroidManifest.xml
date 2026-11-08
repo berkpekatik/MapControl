@@ -20,6 +20,8 @@
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
+    <!-- Bölünmüş ekran: önceden açık başka uygulama görevini sınırlarıyla öne almak (moveTaskToFront, normal izin). -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
     
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -49,6 +51,9 @@
     
     <!-- System Alert Window (for SYSTEM_ALERT_WINDOW appops) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Spor hız kadranı: android.car PERF_VEHICLE_SPEED 10 Hz (tehlikeli izin; uygulama durağanken bir kez sorar ya da
+         adb shell pm grant <paket> android.car.permission.CAR_SPEED). Yoksa ReadOnly 119 gösterge hızı kullanılır. -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
     
     <!-- Query all packages permission (Android 11+) - Required to see all installed apps -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
@@ -64,9 +69,18 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.BROADCAST_STICKY" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Telefon (launcher): rehber, arama geçmişi ve arama başlatma. Araçta sistem izin penceresi yoksa
+         adb shell pm grant com.mapcontrol android.permission.READ_CONTACTS (READ_CALL_LOG, CALL_PHONE) ile verilir. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Telefon: Telecom ile cevap/kapat (yansımasız yedek; araçta adb pm grant ile verilir). -->
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_UPDATES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Fotoğraf kutucuğu (launcher, PhotoTile): İndirilenler'deki resmi gösterir; çalışma anında istenir. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
     
     <!-- Package uninstall permissions -->
@@ -90,6 +104,7 @@
         <package android:name="com.desaysv.engmode" />
         <package android:name="ru.yandex.yandexmaps" />
         <package android:name="ru.yandex.yandexnavi" />
+        <package android:name="com.google.android.apps.maps" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -111,6 +126,9 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="true">
 
+        <!-- android.car isteğe bağlı kitaplık (CarPropertyManager hız okuması); araçta yoksa uygulama yine kurulur. -->
+        <uses-library android:name="android.car" android:required="false" />
+
         <meta-data
             android:name="io.sentry.auto-init"
             android:value="false" />
@@ -130,11 +148,11 @@
 
         <!-- Araç Launcher Modu: varsayılan olarak KAPALI (enabled=false). Ayarlar > Araç Launcher
              Modu açıldığında LauncherModeManager bu bileşeni etkinleştirir; böylece MapControl,
-             cihazın Ana Ekran (HOME) uygulaması olarak seçilebilir hale gelir. MainActivity'yi
-             hedefler; ayrı bir Activity sınıfı gerekmez, mevcut ekran akışı değişmez. -->
+             cihazın Ana Ekran (HOME) uygulaması olarak seçilebilir hale gelir. Hedef: yeni launcher
+             (HomeLauncherActivity). Alias adı, mevcut kullanıcı tercihleri bozulmasın diye korunur. -->
         <activity-alias
             android:name=".ui.activity.MainActivityHomeAlias"
-            android:targetActivity=".ui.activity.MainActivity"
+            android:targetActivity=".launcher.HomeLauncherActivity"
             android:enabled="false"
             android:exported="true"
             android:label="MapControl (Ana Ekran)"
@@ -161,7 +179,72 @@
             android:name=".ui.activity.ClusterVDBusTestActivity"
             android:label="Cluster / VDBus bench"
             android:screenOrientation="landscape" />
-        
+
+        <!-- Ekranı karart: tam siyah, en düşük parlaklık; dokununca kapanır (launcher kutucuğu açar). -->
+        <activity
+            android:name=".launcher.ScreenOffActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <!-- Yeni launcher (Kotlin). HOME rolü yalnızca MainActivityHomeAlias üzerinden (Launcher Modu anahtarı); uygulama listesinde ayrı simgesi yoktur. -->
+        <activity
+            android:name=".launcher.HomeLauncherActivity"
+            android:exported="true"
+            android:label="Ana Ekran"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.home"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        </activity>
+
+        <!-- Mini gösterge: bölünmüş ekranın bir yarısında (960 x ~610) açılan, boyutu değişebilen ayrı ekran (ana ekran
+             bölünemez). Uygulama listesi simgesi aşağıdaki alias'ta (yalnız launcher modunda); serbest pencere (freeform) bölmesinde seçilebilir. Kendi görev
+             ilişkisi (taskAffinity) ana ekranla ve FrostNav'la aynı göreve karışmasın diye. -->
+        <activity
+            android:name="com.mapcontrol.launcher.MiniDashActivity"
+            android:exported="true"
+            android:label="Mini gösterge"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.minidash"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@style/Theme.Sahne.DriveHalf" />
+
+        <!-- Mini göstergenin uygulama listesi simgesi: varsayılan KAPALI; yalnız FrostNav launcher modu açıkken
+             LauncherModeManager etkinleştirir (MiniDashEntry). Bölünmüş ekran etkinliği bileşen adıyla açar, simgeye bağlı değil. -->
+        <activity-alias
+            android:name="com.mapcontrol.launcher.MiniDashLauncherAlias"
+            android:targetActivity="com.mapcontrol.launcher.MiniDashActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:label="Mini gösterge">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sürüş ekranının harita yarısı, harita uygulaması yokken ("+ Harita ekle"; DriveScreen). Yalnız bölünmüş ekran başlatıcısı
+             açar; kendi görev ilişkisi, uygulama listesinde simgesi yok. -->
+        <activity
+            android:name="com.mapcontrol.ui.activity.DriveMapPickerActivity"
+            android:exported="false"
+            android:label="Harita ekle"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.drivemap"
+            android:excludeFromRecents="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@style/Theme.Sahne.DriveHalf" />
+
         <!-- FileProvider for APK installation -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -186,6 +269,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Uygulama güncellenince Launcher Modu'nu (HOME alias + cihaz sahibi sabitlemesi) geri kurar. -->
+        <receiver
+            android:name=".service.PackageReplacedReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <!-- adb kurulumundan once kamerayi kapatir. DUMP: yalnizca adb shell gonderebilir. -->
         <receiver
             android:name=".dvr.InstallPrepareReceiver"

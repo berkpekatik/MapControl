@@ -26,7 +26,7 @@ import com.mapcontrol.gps.GpsLinkManager;
 import com.mapcontrol.gps.LinkState;
 import com.mapcontrol.gps.LinkStatus;
 import com.mapcontrol.gps.Wire;
-import com.mapcontrol.manager.WebServerManager;
+import com.mapcontrol.manager.WebServerHost;
 import com.mapcontrol.trip.PairingUri;
 import com.mapcontrol.trip.PhoneAccess;
 import com.mapcontrol.trip.TripRecorder;
@@ -40,7 +40,7 @@ public class FileUploadTabBuilder {
     public static final String KEY_PHONE_PAIR_BETA_SHOWN = "phonePairBetaNoticeShown";
 
     private final Context context;
-    private final WebServerManager webServerManager;
+    private final WebServerHost webServerHost;
 
     private ScrollView scrollView;
     private LinearLayout fileUploadTabContent;
@@ -70,9 +70,9 @@ public class FileUploadTabBuilder {
     private String serverUrl;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    public FileUploadTabBuilder(Context context, WebServerManager webServerManager) {
+    public FileUploadTabBuilder(Context context, WebServerHost webServerHost) {
         this.context = context;
-        this.webServerManager = webServerManager;
+        this.webServerHost = webServerHost;
         build();
     }
 
@@ -353,13 +353,7 @@ public class FileUploadTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        btnWebServerToggle.setOnClickListener(v -> {
-            if (webServerManager.isRunning()) {
-                webServerManager.stopServer();
-            } else {
-                webServerManager.startServer();
-            }
-        });
+        btnWebServerToggle.setOnClickListener(v -> webServerHost.toggleServer());
 
         fileUploadTabContent.addView(webPanel, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -464,7 +458,7 @@ public class FileUploadTabBuilder {
             return;
         }
         // Adres sunucu açıldığından beri değişmiş olabilir (hotspot sonradan açıldı); QR her çizimde güncel adresi alır.
-        String host = webServerManager.currentHost();
+        String host = webServerHost.currentHost();
         if (host.startsWith("127.")) {
             showPairQrOff();
             return;

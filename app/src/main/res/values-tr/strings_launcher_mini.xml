@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mini gösterge (bölünmüş ekranın bir yarısı, MiniDashActivity). -->
+<resources>
+    <string name="launcher_mini_fullscreen">Tam ekran</string>
+    <string name="launcher_mini_range">Menzil</string>
+    <string name="launcher_mini_fuel">Yakıt</string>
+    <string name="launcher_mini_alert_tire">Lastik basıncı düşük</string>
+    <string name="launcher_mini_alert_tire_psi" formatted="true">Lastik düşük %1$d psi</string>
+    <string name="launcher_mini_alert_fuel">Yakıt az</string>
+    <string name="launcher_mini_alert_service">Bakım yaklaştı</string>
+    <string name="launcher_mini_alert_service_km" formatted="true">Bakıma %1$d km</string>
+    <string name="launcher_mini_alert_service_overdue">Bakım zamanı geçti</string>
+    <string name="launcher_mini_nav_m" formatted="true">%1$s m</string>
+    <string name="launcher_mini_nav_km" formatted="true">%1$s km</string>
+    <string name="launcher_mini_nav_eta" formatted="true">Varış %1$s</string>
+    <string name="launcher_mini_title">Mini gösterge</string>
+    <string name="launcher_mini_turn_straight">Düz devam</string>
+    <string name="launcher_mini_turn_slight_left">Hafif sola</string>
+    <string name="launcher_mini_turn_slight_right">Hafif sağa</string>
+    <string name="launcher_mini_turn_left">Sola dönün</string>
+    <string name="launcher_mini_turn_right">Sağa dönün</string>
+    <string name="launcher_mini_turn_hard_left">Keskin sola</string>
+    <string name="launcher_mini_turn_hard_right">Keskin sağa</string>
+    <string name="launcher_mini_turn_uturn">U dönüşü</string>
+    <string name="launcher_mini_turn_roundabout">Kavşak</string>
+    <string name="launcher_mini_turn_exit_left">Soldan çıkın</string>
+    <string name="launcher_mini_turn_exit_right">Sağdan çıkın</string>
+    <string name="launcher_mini_turn_ferry">Feribot</string>
+    <string name="launcher_mini_turn_finish">Varış noktası</string>
+    <string name="launcher_mini_turn_waypoint">Ara nokta</string>
+    <string name="launcher_mini_open_music">Müzik aç</string>
+    <!-- Yan sütunun telefon satırı: bağlı telefon yokken tek sessiz satır. -->
+    <string name="launcher_mini_phone_off">Telefon bağlı değil</string>
+</resources>

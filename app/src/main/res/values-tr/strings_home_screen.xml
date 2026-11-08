@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="side_rail_home_screen">Ana ekran</string>
+    <string name="settings_home_screen_link">Ana ekran ayarları \u2192</string>
+    <string name="home_screen_off_hint">Ana ekran ayarlarını değiştirmek için Tam ekran ana sayfa\'yı aç.</string>
+    <string name="home_screen_appearance_title">Görünüm</string>
+    <string name="home_screen_theme_help_auto">Aracın ışık sensörünü izler.</string>
+    <string name="home_screen_theme_help_day">Hep aydınlık görünüm.</string>
+    <string name="home_screen_theme_help_night">Hep karanlık görünüm.</string>
+    <string name="home_screen_bottom_bar_help_original">Aracın kendi alt çubuğu görünür kalır.</string>
+    <string name="home_screen_bottom_bar_help_ours">Aracın çubuğu gizlenir, ana ekranın kendi çubuğu gelir.</string>
+    <string name="home_screen_bottom_bar_help_hidden">Alt çubuk yok; widget\'lar tüm yüksekliği kullanır.</string>
+    <string name="home_screen_drive_theme_help_on">Vurgu rengi sürüş moduna göre değişir.</string>
+    <string name="home_screen_drive_theme_help_off">Hep temanın kendi vurgu rengi.</string>
+    <string name="home_screen_auto_layout_help_on">Araç giderken ayrı Sürüş düzeni, dururken Park düzeni gösterilir.</string>
+    <string name="home_screen_auto_layout_help_off">Giderken de dururken de tek düzen.</string>
+    <string name="home_screen_layout_title">Düzen</string>
+    <string name="home_screen_edit_desc">Widget\'ları doğrudan ana ekranda taşı, boyutlandır, ekle ya da kaldır.</string>
+    <string name="home_screen_reset_park">Park düzenini varsayılana döndür</string>
+    <string name="home_screen_reset_drive">Sürüş düzenini varsayılana döndür</string>
+    <string name="home_screen_reset_park_confirm">Park düzeni varsayılana döndürülsün mü? Yaptığın değişiklikler kaybolur.</string>
+    <string name="home_screen_reset_drive_confirm">Sürüş düzeni varsayılana döndürülsün mü? Yaptığın değişiklikler kaybolur.</string>
+    <string name="home_screen_reset_home">Ana ekranı varsayılana döndür</string>
+    <string name="home_screen_reset_home_confirm">Ana ekran varsayılana döndürülsün mü? Yaptığın değişiklikler kaybolur.</string>
+    <string name="home_screen_reset_done">Düzen varsayılana döndürüldü.</string>
+    <string name="home_screen_about_title">Hakkında</string>
+    <string name="home_screen_version_line">Ana ekran sürümü %1$s (%2$s)</string>
+    <string name="home_screen_reset_button">Sıfırla</string>
+    <string name="home_screen_vehicle_screen">Araç ekranı</string>
+    <string name="home_screen_vehicle_auto">Otomatik</string>
+    <string name="home_screen_vehicle_t7">Tiggo 7</string>
+    <string name="home_screen_vehicle_t8">Tiggo 8</string>
+    <string name="home_screen_vehicle_help_auto">Ekran boyutundan otomatik seçilir. Değişiklik ana ekran bir sonraki açılışında uygulanır.</string>
+    <string name="home_screen_vehicle_help_t7">12×6 ızgara ve mevcut alt çubuk. Ana ekran bir sonraki açılışında uygulanır.</string>
+    <string name="home_screen_vehicle_help_t8">12×8 ızgara ve ince düz alt çubuk; düzenleri Tiggo 7\'den ayrıdır. Ana ekran bir sonraki açılışında uygulanır.</string>
+    <string name="home_screen_sport_mode_help_on">Spor\'da kronograf ekranı açılır (yalnız Sahne düzeni).</string>
+    <string name="home_screen_sport_mode_help_off">Spor\'da da orijinal tema kalır.</string>
+</resources>
