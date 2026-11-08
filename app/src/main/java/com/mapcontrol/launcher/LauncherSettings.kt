@@ -143,6 +143,42 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
         addView(gap(activity, 12, vertical = true))
         addView(favoriteKeySegments(d), fullWidth())
 
+        // Ses (VR) tuşu: uzun basış bağlı telefonun asistanını açar; kısa basış aracın kendi sesli komutunda kalır.
+        addView(gap(activity, 12, vertical = true))
+        addView(onOffControl(R.string.launcher_phone_voice_key, PhonePrefs.assistantOnVoiceKey(activity)) { value ->
+            d.dismiss()
+            PhonePrefs.setAssistantOnVoiceKey(activity, value)
+            PhoneSource.syncVoiceKey(activity)
+        }, fullWidth())
+        addView(gap(activity, 4, vertical = true))
+        addView(text(activity, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY, maxLines = 2).apply {
+            setText(R.string.launcher_phone_voice_key_hint)
+        }, fullWidth())
+
+        // Telefon kartında "Sesli asistan" düğmesi: kapalıyken son arama ve favoriler büyür (açık paneller hemen değişir).
+        addView(gap(activity, 12, vertical = true))
+        addView(onOffControl(R.string.launcher_phone_assistant_button, PhonePrefs.showAssistant(activity)) { value ->
+            d.dismiss()
+            PhonePrefs.setShowAssistant(activity, value)
+        }, fullWidth())
+        addView(gap(activity, 4, vertical = true))
+        addView(text(activity, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY, maxLines = 2).apply {
+            setText(R.string.launcher_phone_assistant_button_hint)
+        }, fullWidth())
+
+        // Arama ekranı: Launcher (arama başlayınca ana ekran öne gelir, bizim arama sayfası) / Fabrika. Varsayılan Launcher.
+        addView(gap(activity, 12, vertical = true))
+        addView(onOffControl(R.string.pref_call_screen, CallScreenPrefs.launcher(activity),
+            R.string.pref_call_screen_launcher, R.string.pref_call_screen_oem) { value ->
+            d.dismiss()
+            CallScreenPrefs.setLauncher(activity, value)
+            (activity as? HomeLauncherActivity)?.syncCallWatcher()
+        }, fullWidth())
+        addView(gap(activity, 4, vertical = true))
+        addView(text(activity, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY, maxLines = 2).apply {
+            setText(R.string.pref_call_screen_hint)
+        }, fullWidth())
+
         // Telefon önceliği (varsayılan açık): telefonda Oynat'a basılınca araç kaynağı Bluetooth'a geçer ([PhonePriority]).
         addView(gap(activity, 12, vertical = true))
         addView(onOffControl(R.string.launcher_phone_priority, MediaPrefs.phonePriority(activity)) { value ->

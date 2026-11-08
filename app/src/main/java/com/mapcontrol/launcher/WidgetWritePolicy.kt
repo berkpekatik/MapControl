@@ -16,8 +16,8 @@ import com.mapcontrol.comfort.ParkGate
  *
  * Kurallar:
  *  - Araçta geri okumayla doğrulanmamış girdi ([Entry.verified] false) hiçbir koşulda gönderilmez.
- *  - Bagaj, merkezi kilit ve sürüş modu ([Entry.parkOnly]) yalnızca araç dururken (hız 0) ve vites P'deyken gider
- *    ([ParkGate]); hız ya da vites okunamazsa reddedilir ve kullanıcıya neden gösterilir.
+ *  - Yalnız bagaj ([Entry.parkOnly]) yalnızca araç dururken (hız 0) ve vites P'deyken gider; merkezi kilit ve sürüş modu
+ *    sürüşte de çalışır ([ParkGate]); hız ya da vites okunamazsa reddedilir ve kullanıcıya neden gösterilir.
  *  - Diğer doğrulanmış widget'lar (koltuk, klima dock'u) sürüşte de kullanılır.
  */
 internal object WidgetWritePolicy {
@@ -117,13 +117,13 @@ internal object WidgetWritePolicy {
         // Arka hoparlör: DSP SOUND_FIELD (modül = olay kimliği, kimlik sabit; değer = fade 0..20, balance gönderirken korunur). Uç değeri doğrulanmadı.
         Entry("RearSpeaker", VDEventDsp.SOUND_FIELD, SoundFieldMath.WRITE_ID, (0..SoundFieldMath.MAX).toSet(),
             listOf(sig("dsp_sound_field", VDEventDsp.SOUND_FIELD, SoundFieldMath.WRITE_ID)), verified = ComfortWriter.REAR_SPEAKER_WRITE_VERIFIED),
-        // Merkezi kilit: VehicleQuickControls.centralLockValue → 2 kilitle, 1 aç. Yalnızca park halinde ([LOCK_WRITE_VERIFIED]).
+        // Merkezi kilit: VehicleQuickControls.centralLockValue → 2 kilitle, 1 aç. Sürüşte de çalışır ([LOCK_WRITE_VERIFIED]).
         Entry("Lock", CS, CarSettingID.ID_CAR_IVI_LOCK, setOf(1, 2),
-            listOf(sig("cs169_ivi_lock", CS, CarSettingID.ID_CAR_IVI_LOCK)), verified = LOCK_WRITE_VERIFIED, parkOnly = true),
+            listOf(sig("cs169_ivi_lock", CS, CarSettingID.ID_CAR_IVI_LOCK)), verified = LOCK_WRITE_VERIFIED),
         // Sürüş modu: NewEnergy 4 YAZMA değerleri (FrostNav'ın araçta çalışan yazması, OEM seçicisi): Eko 0, Normal 1, Spor 2,
-        // Kar 3, Çamur 4, Arazi 5, Kum 7 ([DriveModes]; okunan değerler aynı). Araçta doğrulandı; yalnızca park halinde.
+        // Kar 3, Çamur 4, Arazi 5, Kum 7 ([DriveModes]; okunan değerler aynı). Araçta doğrulandı; sürüşte de çalışır.
         Entry("DriveMode", NE, NewEnergyID.ID_DRIVE_MODE, DriveModes.WRITE_VALUES,
-            listOf(sig("ne4_drive_mode", NE, NewEnergyID.ID_DRIVE_MODE)), verified = DRIVE_MODE_WRITE_VERIFIED, parkOnly = true),
+            listOf(sig("ne4_drive_mode", NE, NewEnergyID.ID_DRIVE_MODE)), verified = DRIVE_MODE_WRITE_VERIFIED),
         // Direksiyon ısıtma (Tiggo 8): anahtar gibi, açarken de kapatırken de 160 ← 1 (OEM sesli komut); 0 yazılmaz. Doğrulanmadı.
         Entry("SteerHeat", CS, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, setOf(ComfortPlan.STEER_WHEEL_TOGGLE),
             listOf(ComfortPlan.STEER_WHEEL_HEAT), verified = STEER_HEAT_WRITE_VERIFIED),

@@ -34,4 +34,7 @@
     <string name="launcher_strip_battery_low" formatted="true">Akü zayıf %1$.1f V</string>
     <string name="launcher_strip_battery_high" formatted="true">Akü yüksek %1$.1f V</string>
     <string name="launcher_strip_fuel_cap">Yakıt kapağı açık</string>
+    <!-- Medya kartının sağ üst köşesindeki çevirme simgesi (kartın arka yüzü telefon). -->
+    <string name="launcher_flip_to_phone">Telefona geç</string>
+    <string name="launcher_flip_to_media">Medyaya geç</string>
 </resources>

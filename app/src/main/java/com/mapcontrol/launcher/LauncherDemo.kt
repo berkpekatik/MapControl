@@ -267,6 +267,10 @@ internal object LauncherDemo {
         if (intent.hasExtra(EXTRA_NAV)) NavigationSource.setDemo(intent.getBooleanExtra(EXTRA_NAV, false))
         if (intent.hasExtra(EXTRA_LIGHTS)) lights = CarLights.parse(intent.getStringExtra(EXTRA_LIGHTS))
         if (intent.getBooleanExtra(EXTRA_WELCOME, false)) welcomeRequested = true
+        if (intent.hasExtra(PhoneDemo.EXTRA_PHONE) || intent.hasExtra(PhoneDemo.EXTRA_CALL)) {
+            PhoneDemo.apply(intent)
+            PhoneSource.demoChanged()
+        }
     }
 
     /**

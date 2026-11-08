@@ -68,6 +68,20 @@ Desay SV **CarInfo / VDBus** üzerinden güç modu (OFF → STANDBY → ON), clu
 
 ---
 
+## 🔒 Gizlilik / izinler
+
+**Telefon paneli (launcher):** Launcher modu açıkken ana ekrandaki telefon paneli, arama şeridi ve arama ekranı bağlı telefonun rehberini ve son aramalarını gösterir. Bunun için uygulama şu izinleri ister; launcher modu kapalıyken bu özellikler çalışmaz ve izin istenmez:
+
+- `READ_CONTACTS`: favoriler ve kişi listesi (Bluetooth ile telefondan eşitlenen rehber).
+- `READ_CALL_LOG`: son aramalar ve "Geri ara".
+- `CALL_PHONE`: panelden ya da arama ekranından arama başlatma.
+- `ANSWER_PHONE_CALLS`: arama ekranından gelen aramayı cevaplama ve aramayı kapatma.
+- `READ_EXTERNAL_STORAGE`: yalnızca isteğe bağlı fotoğraf widget'ı, İndirilenler klasöründeki resmi göstermek için.
+
+Rehber ve arama geçmişi yalnızca ana ünitede, ekranda göstermek için kullanılır: buluta, web paneline ya da telefon eşleme uygulamasına gönderilmez. Açılışta hızlı gösterim için son liste uygulamaya özel, yedeğe girmeyen bir dosyada tutulur (fotoğraflar yazılmaz); başka bir telefon bağlanınca silinir. Günlüğe (log) isim ya da numara yazılmaz, yalnızca sayılar yazılır. İzinler Android ayarlarından istendiği zaman geri alınabilir.
+
+---
+
 ## 🛠️ Kurulum
 
 **Hazır APK yok**, derleyerek kurulur. Gereksinimler: JDK 17, Android SDK Platform 34, Build-Tools 34.0.0.

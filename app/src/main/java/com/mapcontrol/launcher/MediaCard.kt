@@ -44,7 +44,7 @@ class MediaCard(
     // --- Şerit (Sahne): başlık, sanatçı; dokunuş oynat/duraklat (boştayken son kaynağı açar) ---
     override var onStripChanged: (() -> Unit)? = null
 
-    /** Çalma durumu değişince (yalnız değişimde). */
+    /** Çalma durumu değişince (yalnız değişimde; [MediaPhoneFlip] çevirme simgesinin ışıması için). */
     var onPlayingChanged: ((Boolean) -> Unit)? = null
 
     /** Şu an çalıyor mu (ekranda gösterilen durum). */
@@ -733,8 +733,8 @@ class MediaCard(
         if (sourcePicker?.isShowing == true) return
         val current = oemSource()
         val demo = LauncherDemo.enabled
-        // Bağlı telefonun adı telefon parçasıyla gelir; bu sürümde Bluetooth satırı yalnız kaynak adını gösterir.
-        val phone: String? = null
+        // Telefon adı yalnızca ekranda gösterilir (günlüğe yazılmaz).
+        val phone = if (demo) PhoneDemo.DEVICE_NAME else HfpLink.deviceName()
         sourcePicker = showLauncherSheet(activity, R.string.launcher_media_source_title, widthDp = PICKER_WIDTH_DP) { d ->
             val list = this
             fun add(type: Int) {

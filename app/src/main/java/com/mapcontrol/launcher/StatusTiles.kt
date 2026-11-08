@@ -58,8 +58,7 @@ internal abstract class MetricsTile(
 /**
  * Sürüş modu: Eko, Normal, Spor ve arazi modları. İkon rengi aracın mod rengini alır. Dokunuş (kutucuk, şerit ve panel)
  * araçta seçilebilen sıradaki moda geçer ([DriveModes.next]; liste CarConfig 109'dan, okunamazsa Eko/Normal/Spor). Yazma
- * NewEnergy 4 ← modun değeri (okuma = yazma), [WidgetWriter] beyaz listesinden; yalnızca araç dururken ve vites P'deyken gider
- * (park kapısı). Hedef araç okuyana kadar ([CONFIRM_MS]) iyimser gösterilir.
+ * NewEnergy 4 ← modun değeri (okuma = yazma), [WidgetWriter] beyaz listesinden; sürüşte de gider (park kapısı yalnız bagajda). Hedef araç okuyana kadar ([CONFIRM_MS]) iyimser gösterilir.
  * Değişimden sonra açılan OEM sürüş modu penceresi [DriveModeRequests] üzerinden kapatılır ([OemDriveDialogCloser]).
  */
 internal class DriveModeTile(context: Context) :
@@ -94,7 +93,7 @@ internal class DriveModeTile(context: Context) :
         DriveModeRequests.mark(SystemClock.elapsedRealtime())
         io.runSafely {
             val sent = LauncherEdition.sendItemValue(CarInfoProxy.getInstance(), VDEventCarInfo.MODULE_NEW_ENERGY, NewEnergyID.ID_DRIVE_MODE, to.value)
-            // Park kapısı reddettiyse (araç durmuyor ya da vites P değil; neden gösterildi) iyimser hedef hemen bırakılır.
+            // Yazma reddedildiyse (neden gösterildi) iyimser hedef hemen bırakılır.
             if (!sent) main.post { main.removeCallbacks(clearPending); pending = null; bind() }
         }
     }

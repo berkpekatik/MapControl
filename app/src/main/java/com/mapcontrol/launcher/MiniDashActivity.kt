@@ -39,7 +39,7 @@ import java.util.Date
  * Yan panele göz atan sürücü için önem sırası: (1) saat, menzil ve yakıt büyük; (2) ana ekranın araç sahnesi ([SahneStage],
  * küçültülmüş: kapı / bagaj / ışıklar canlı, kilit hapı, uyarı şeridi, dokununca araç detayı); (3) ince medya şeridi (çalan bir
  * şey yokken yer tutmaz, üstte "Müzik aç" düğmesi kalır); (4) yan sütunda yolculuk (sürüşte canlı anlık tüketim, dururken
- * yolculuk mesafesi; [MiniTripPanel]); (5) "Tam ekran" ile
+ * yolculuk mesafesi; [MiniTripPanel]) ve telefon (tek dokunuşla "Geri ara", favoriler; [MiniPhonePanel]); (5) "Tam ekran" ile
  * ana ekrana dönüş. Klima yok (fabrika çubuğunda), hız yok (gösterge panelinde), koltuklar ana ekranda. Yerleşim kuralları
  * [MiniLayout]'ta (bölünmüş yarı ya da geniş satır); serbest pencere başlığı gizlenemezse içerik onun altından başlar
  * ([FreeformCaption.overlapPx]).
@@ -49,7 +49,7 @@ import java.util.Date
  * kapanır. Yer açılsın diye "Müzik aç" o zaman yalnız simge kalır.
  *
  * Veri kaynakları ana ekranınkilerle aynıdır ve paylaşılır ([VehicleMetricsRepository], [TripSource], [LauncherMediaController],
- * sahnenin kendi kaynakları); araca hiçbir şey yazılmaz. Görünmezken (onStop) tüm
+ * [PhoneSource], sahnenin kendi kaynakları); araca hiçbir şey yazılmaz. Görünmezken (onStop) tüm
  * dinleyiciler ve yoklamalar durur.
  */
 class MiniDashActivity : Activity() {
@@ -63,6 +63,7 @@ class MiniDashActivity : Activity() {
     // --- Durum (yalnızca değişince yeniden bağlanır) ---
     private var snapshot: VehicleMetricsSnapshot? = null
     private var trip = TripData()
+    private var phoneView: MiniSide.PhoneView? = null
     private var tripShownNow: Boolean? = null
     private var navHint: NavHint? = null
     private var lastTop: Triple<Int?, Int?, Boolean>? = null
@@ -95,9 +96,9 @@ class MiniDashActivity : Activity() {
     private lateinit var info: LinearLayout
     private lateinit var stats: LinearLayout
     private lateinit var pills: LinearLayout
-    /** Bölünmüş: araç | yan sütun (yolculuk) satırı. Geniş: araç / medya sütunu. */
+    /** Bölünmüş: araç | yan sütun (yolculuk + telefon) satırı. Geniş: araç / medya sütunu. */
     private lateinit var body: LinearLayout
-    /** Yan sütun: yolculuk. */
+    /** Yan sütun: yolculuk + telefon. */
     private lateinit var side: LinearLayout
     private var arrangedWide: Boolean? = null
     private lateinit var clock: TextView
@@ -129,6 +130,7 @@ class MiniDashActivity : Activity() {
     private lateinit var navDistance: TextView
     private lateinit var navEta: TextView
     private lateinit var tripPanel: MiniTripPanel
+    private lateinit var phonePanel: MiniPhonePanel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -187,6 +189,7 @@ class MiniDashActivity : Activity() {
         media.start()
         bindMedia(currentMedia())
         stage.onVisible()
+        phonePanel.onVisible()
         bindTrip()
         nav.start(navListener)
     }
@@ -241,6 +244,7 @@ class MiniDashActivity : Activity() {
         media.removeListener(mediaListener)
         media.stop()
         stage.onHidden()
+        phonePanel.onHidden()
         nav.stop()
         main.removeCallbacksAndMessages(null)
         super.onStop()
@@ -249,6 +253,11 @@ class MiniDashActivity : Activity() {
     override fun onDestroy() {
         stage.release()
         super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PhoneSource.REQ_PERMISSIONS) PhoneSource.onPermissionsResult(this)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -325,10 +334,20 @@ class MiniDashActivity : Activity() {
         }
     }
 
-    /** Yan sütun: yolculuk paneli, veri yokken gizli. */
+    /**
+     * Yan sütun: yolculuk kalan yüksekliği alır, telefon doğal yüksekliğinde altta ([MiniSide.phoneDp]). Yolculuk gizliyken
+     * telefon üstte kalır (boş kutu büyütülmez).
+     */
     private fun applySide() {
-        if (layoutNow == null) return
-        tripPanel.view.visibility = if (tripShownNow == true) View.VISIBLE else View.GONE
+        val m = layoutNow ?: return
+        val v = phoneView ?: MiniSide.phone(PhoneSnapshot.EMPTY)
+        val trip = tripShownNow == true
+        tripPanel.view.visibility = if (trip) View.VISIBLE else View.GONE
+        (phonePanel.view.layoutParams as? LinearLayout.LayoutParams)?.apply {
+            height = dp(MiniSide.phoneDp(v, m))
+            topMargin = if (trip) dp(m.gapDp) else 0
+            phonePanel.view.layoutParams = this
+        }
     }
 
     private fun bindNav() {
@@ -535,8 +554,9 @@ class MiniDashActivity : Activity() {
             visibility = View.GONE
         }
 
-        // Yan sütun: yolculuk.
+        // Yan sütun: yolculuk ve telefon.
         tripPanel = MiniTripPanel(this)
+        phonePanel = MiniPhonePanel(this) { v -> phoneView = v; applySide() }
 
         root.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) relayout(r - l, b - t)
@@ -558,7 +578,7 @@ class MiniDashActivity : Activity() {
     }
 
     /**
-     * Bölünmüş: üst satır (saat | menzil, yakıt | düğmeler), araç | yan sütun (yolculuk), altta medya şeridi.
+     * Bölünmüş: üst satır (saat | menzil, yakıt | düğmeler), araç | yan sütun (yolculuk + telefon), altta medya şeridi.
      * Geniş: bilgi sütunu (saat, menzil + yakıt, rota, düğmeler) | araç / medya | yan sütun.
      * Görünümler aynıdır; yalnızca ebeveyn ve yerleşim parametreleri değişir.
      */
@@ -574,6 +594,7 @@ class MiniDashActivity : Activity() {
         pills.addView(mapPill, LinearLayout.LayoutParams(WRAP, dp(MiniLayout.MIN_TOUCH_DP)).apply { marginEnd = dp(12) })
         pills.addView(fullPill, LinearLayout.LayoutParams(WRAP, dp(MiniLayout.MIN_TOUCH_DP)))
         side.addView(tripPanel.view, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        side.addView(phonePanel.view, LinearLayout.LayoutParams(MATCH, dp(MiniLayout.MIN_TOUCH_DP)))
         if (!wide) {
             column.orientation = LinearLayout.VERTICAL
             info.orientation = LinearLayout.HORIZONTAL
@@ -631,6 +652,7 @@ class MiniDashActivity : Activity() {
         lp(next).apply { width = dp(m.skipDp); height = dp(m.skipDp) }
         lp(play).apply { width = dp(m.playDp); height = dp(m.playDp) }
         tripPanel.setSizes(m)
+        phonePanel.setSizes(m)
         applyFuelMargin(m)
         if (!m.wide) {
             lp(info).apply { height = dp(m.headerDp) }

@@ -29,4 +29,6 @@
     <string name="launcher_mini_turn_finish">Destination</string>
     <string name="launcher_mini_turn_waypoint">Waypoint</string>
     <string name="launcher_mini_open_music">Open music</string>
+    <!-- Yan sütunun telefon satırı: bağlı telefon yokken tek sessiz satır. -->
+    <string name="launcher_mini_phone_off">No phone connected</string>
 </resources>

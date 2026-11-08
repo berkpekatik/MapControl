@@ -29,4 +29,6 @@
     <string name="launcher_mini_turn_finish">Varış noktası</string>
     <string name="launcher_mini_turn_waypoint">Ara nokta</string>
     <string name="launcher_mini_open_music">Müzik aç</string>
+    <!-- Yan sütunun telefon satırı: bağlı telefon yokken tek sessiz satır. -->
+    <string name="launcher_mini_phone_off">Telefon bağlı değil</string>
 </resources>

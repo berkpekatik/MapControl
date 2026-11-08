@@ -136,6 +136,17 @@
     <string name="launcher_layout_drive">Sürüş</string>
     <string name="launcher_layout_park_edit">Park düzeni</string>
     <string name="launcher_layout_drive_edit">Sürüş düzeni</string>
+    <string name="launcher_widget_photo">Fotoğraf</string>
+    <string name="launcher_photo_add">Fotoğraf ekle</string>
+    <string name="launcher_photo_hint">FrostNav panelinden İndirilenler\'e yükle</string>
+    <string name="launcher_photo_pick_title">Fotoğraf seç</string>
+    <string name="launcher_photo_change">Fotoğrafı değiştir</string>
+    <string name="launcher_photo_remove">Fotoğrafı kaldır</string>
+    <string name="launcher_photo_refresh">Yenile</string>
+    <string name="launcher_photo_loading">Yükleniyor…</string>
+    <string name="launcher_photo_none">İndirilenler\'de fotoğraf yok. FrostNav panelinden yükle, sonra yenile.</string>
+    <string name="launcher_photo_permission">Depolama izni gerekli. İzin ver, sonra yenile.</string>
+    <string name="launcher_photo_failed">Bu fotoğraf kullanılamadı</string>
     <string name="launcher_widget_screen_off">Ekranı karart</string>
     <string name="launcher_screen_off_label">Ekranı karart</string>
     <string name="launcher_screen_off_hint">Dokun</string>

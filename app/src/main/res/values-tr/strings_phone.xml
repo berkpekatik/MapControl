@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Telefon paneli, arama şeridi ve ses tuşu ayarı. -->
+<resources>
+    <string name="launcher_widget_phone_call">Telefon</string>
+    <string name="launcher_phone_title">Telefon</string>
+    <string name="launcher_phone_label">TELEFON</string>
+    <string name="launcher_phone_assistant_failed">Sesli asistan başlatılamadı</string>
+    <string name="launcher_phone_not_connected">Bağlı telefon yok</string>
+    <string name="launcher_phone_not_connected_sub">Bluetooth ile bir telefon bağlayın</string>
+    <string name="launcher_phone_bluetooth">Bluetooth</string>
+    <string name="launcher_phone_permission">Rehbere erişim izni gerekiyor</string>
+    <string name="launcher_phone_grant">İzin ver</string>
+    <string name="launcher_phone_loading">Rehber yükleniyor…</string>
+    <string name="launcher_phone_empty">Son arama ya da favori yok</string>
+    <string name="launcher_phone_empty_sub">Telefonunuzda rehber paylaşımına izin verin</string>
+    <string name="launcher_phone_pinned">Sabitlendi</string>
+    <string name="launcher_phone_unpinned">Sabitleme kaldırıldı</string>
+    <string name="launcher_phone_call_cd">Ara: %s</string>
+    <string name="launcher_call_incoming">Gelen arama</string>
+    <string name="launcher_call_dialing">Aranıyor…</string>
+    <string name="launcher_call_ended">Arama bitti</string>
+    <string name="launcher_call_answer">Cevapla</string>
+    <string name="launcher_call_decline">Reddet</string>
+    <string name="launcher_call_failed">Arama işlemi yapılamadı</string>
+    <string name="launcher_call_no_phone">Bağlı telefon yok</string>
+    <string name="launcher_call_not_supported">Bu araçta desteklenmiyor</string>
+    <string name="launcher_phone_voice_key">Ses tuşuna uzun basınca telefon asistanı açılsın</string>
+    <string name="launcher_phone_voice_key_hint">Kısa basış aracın kendi sesli komutunu açar. Alt çubuktaki telefon düğmesine basılı tutmak da telefon asistanını açar.</string>
+    <string name="launcher_phone_assistant_button">Sesli asistan düğmesi</string>
+    <string name="launcher_phone_assistant_button_hint">Kapalıyken telefon kartında sesli asistan düğmesi olmaz; son arama büyür, en çok 5 favori görünür.</string>
+    <string name="launcher_time_yesterday">Dün</string>
+    <string name="launcher_time_minutes">%d dk</string>
+    <string name="launcher_time_hours">%d sa</string>
+    <string name="launcher_time_now">Şimdi</string>
+    <string name="launcher_phone_permission_settings_sub">Ayarlar &gt; Uygulamalar &gt; izinler bölümünden açın</string>
+    <string name="launcher_phone_open_settings">Ayarları aç</string>
+    <!-- Arama ekranı ve telefon paneli. -->
+    <string name="call_screen_mute">Sessiz</string>
+    <string name="call_audio_phone">Telefona aktar</string>
+    <string name="call_audio_car">Araca aktar</string>
+    <string name="call_keypad">Tuş takımı</string>
+    <string name="call_minimize">Küçült</string>
+    <string name="call_hangup">Kapat</string>
+    <string name="call_screen_open_cd">Arama ekranını aç</string>
+    <string name="phone_last_call">Son arama</string>
+    <string name="phone_call_back">Geri ara</string>
+    <string name="phone_all">Tümü</string>
+    <string name="phone_tab_recents">Son aramalar</string>
+    <string name="phone_tab_contacts">Kişiler</string>
+    <string name="phone_all_empty">Henüz bir şey yok</string>
+    <string name="phone_all_empty_sub">Rehber ve geçmiş telefondan alınıyor</string>
+    <string name="phone_assistant_strip">Sesli asistan</string>
+    <string name="phone_ago_minutes">%d dk önce</string>
+    <string name="phone_ago_hours">%d sa önce</string>
+    <string name="pref_call_screen">Arama ekranı</string>
+    <string name="pref_call_screen_launcher">Launcher</string>
+    <string name="pref_call_screen_oem">Fabrika</string>
+    <string name="pref_call_screen_hint">Launcher: arama başlayınca ana ekran öne gelir, arama bizim ekranda sürer. Fabrika: aracın kendi arama ekranı kalır.</string>
+</resources>
