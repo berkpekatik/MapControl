@@ -36,7 +36,8 @@ public final class VehicleQuickControls {
 
     private final Context appContext;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    /** Daemon ve boşta 30 sn sonra biten tek iş parçacığı; tekil örnek kapatılmadığı için uygulama kapanışını tutmaz. */
+    private final ExecutorService ioExecutor = newDaemonSingleThread();
     private final Set<Listener> listeners = new CopyOnWriteArraySet<>();
 
     private volatile boolean started;
@@ -115,11 +116,27 @@ public final class VehicleQuickControls {
         }
     }
 
+    /**
+     * Başka dinleyicileri etkilememek için dinleyicileri silmez ve tekil örneği kapatmaz;
+     * yalnızca dinleyen kalmadıysa takibi durdurur. Her sahip kendi dinleyicisini removeListener ile çıkarır.
+     */
     public void release() {
-        listeners.clear();
-        stop();
-        ioExecutor.shutdownNow();
-        instance = null;
+        if (listeners.isEmpty()) {
+            stop();
+        }
+    }
+
+    private static ExecutorService newDaemonSingleThread() {
+        java.util.concurrent.ThreadPoolExecutor ex = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 30L, java.util.concurrent.TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "quickcontrols-io");
+                    t.setDaemon(true);
+                    return t;
+                });
+        ex.allowCoreThreadTimeOut(true);
+        return ex;
     }
 
     public boolean isCarInfoConnected() {
@@ -127,9 +144,22 @@ public final class VehicleQuickControls {
         return CarInfoProxy.getInstance().isServiceConnnected();
     }
 
-    /** OEM: değer 2 = kilitli */
+    /** Okunan değer 0 = kilitli, 1 = açık (bkz. {@link #isLockedValue(int)}). */
     public boolean isCentralLocked() {
         return centralLocked;
+    }
+
+    /**
+     * Kilit komutu değeri: kilitle 2, aç 1. Tiggo 7'de denendi; her yazmadan sonra aynı ID'nin geri okuması
+     * değişti. Geri okuma kodlaması komuttan farklıdır, bkz. {@link #isLockedValue(int)}.
+     */
+    public static int centralLockValue(boolean locked) {
+        return locked ? 2 : 1;
+    }
+
+    /** Geri okunan kilit değeri: 0 kilitli, 1 açık (Tiggo 7'de ölçüldü). */
+    static boolean isLockedValue(int rawValue) {
+        return rawValue == 0;
     }
 
     public void setCentralLock(boolean locked) {
@@ -137,7 +167,7 @@ public final class VehicleQuickControls {
         if (!CarInfoProxy.getInstance().isServiceConnnected()) {
             return;
         }
-        int value = locked ? 2 : 1;
+        int value = centralLockValue(locked);
         CarInfoProxy.getInstance().sendItemValue(MODULE_SETTING, LOCK_CMD_ID, value);
     }
 
@@ -168,7 +198,7 @@ public final class VehicleQuickControls {
     }
 
     private void applyCentralLockValue(int rawValue, boolean notify) {
-        centralLocked = rawValue == 2;
+        centralLocked = isLockedValue(rawValue);
         if (notify) {
             notifyListeners();
         }
