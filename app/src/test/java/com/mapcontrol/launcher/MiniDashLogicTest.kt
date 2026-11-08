@@ -290,6 +290,57 @@ class MiniDashLogicTest {
         assertEquals(emptyList<MiniSide.Stat>(), MiniSide.stats(TripHero.Content.TRIP, 53.8, null, null, null))
     }
 
+    // --- Yan sütun: telefon ---
+
+    private val ayse = PhoneContact("1", "Ayşe", "0555 000 00 01", starred = true)
+    private val mehmet = PhoneContact("2", "Mehmet", "+90 555 000 00 02", starred = true)
+    private val ev = PhoneContact("3", "Ev", "0555 000 00 03")
+    private val annem = PhoneContact("4", "Annem", "0555 000 00 04")
+    private val bare = PhoneContact("5", "0555 000 00 05", "0555 000 00 05")
+
+    @Test fun phoneOffIsQuietRow() {
+        val v = MiniSide.phone(PhoneSnapshot(connected = false, favorites = listOf(ayse)))
+        assertEquals(MiniSide.Phone.OFF, v.state)
+        assertNull(v.last)
+        assertEquals(MiniLayout.MIN_TOUCH_DP, MiniSide.phoneDp(v, MiniLayout.forSize(960, 606)))
+    }
+
+    @Test fun phoneStatesFollowPanelState() {
+        assertEquals(MiniSide.Phone.PERMISSION, MiniSide.phone(PhoneSnapshot(connected = true, permissionNeeded = true)).state)
+        assertEquals(MiniSide.Phone.LOADING, MiniSide.phone(PhoneSnapshot(connected = true)).state)
+        assertEquals(MiniSide.Phone.EMPTY, MiniSide.phone(PhoneSnapshot(connected = true, loaded = true)).state)
+        // Yalnız isimsiz kayıtlar ve çıplak numaralı kişi: gösterilecek bir şey yok, boş sayılır.
+        val unnamed = PhoneSnapshot(connected = true, loaded = true, favorites = listOf(bare),
+            recents = listOf(PhoneRecent(RecentType.INCOMING, null, "0555 000 00 99", 1L)))
+        assertEquals(MiniSide.Phone.EMPTY, MiniSide.phone(unnamed).state)
+    }
+
+    @Test fun callBackIsLastNamedAndFavoritesSkipIt() {
+        val s = PhoneSnapshot(connected = true, loaded = true, favorites = listOf(ayse, mehmet, ev, annem),
+            recents = listOf(
+                PhoneRecent(RecentType.INCOMING, null, "0555 000 00 99", 3L),
+                PhoneRecent(RecentType.MISSED, "Mehmet", "0555 000 00 02", 2L),
+            ))
+        val v = MiniSide.phone(s)
+        assertEquals(MiniSide.Phone.CONTENT, v.state)
+        assertEquals("Mehmet", v.last?.name)
+        // "+90 555…" ile "0555…" aynı kişi: favorilerde tekrar edilmez; en çok üç.
+        assertEquals(listOf(ayse, ev, annem), v.favorites)
+        val m = MiniLayout.forSize(960, 606)
+        assertEquals(MiniSide.phoneMaxDp(m), MiniSide.phoneDp(v, m))
+    }
+
+    @Test fun phoneHeightShrinksWithRows() {
+        val m = MiniLayout.forSize(960, 606)
+        val onlyFavs = MiniSide.phone(PhoneSnapshot(connected = true, loaded = true, favorites = listOf(ayse)))
+        assertNull(onlyFavs.last)
+        assertEquals(2 * m.panelPadDp + MiniSide.favoriteRowDp(m), MiniSide.phoneDp(onlyFavs, m))
+        val onlyLast = MiniSide.phone(PhoneSnapshot(connected = true, loaded = true,
+            recents = listOf(PhoneRecent(RecentType.OUTGOING, "Ev", "0555 000 00 03", 1L))))
+        assertEquals(2 * m.panelPadDp + m.callRowDp, MiniSide.phoneDp(onlyLast, m))
+        assertTrue(MiniSide.phoneDp(onlyLast, m) < MiniSide.phoneMaxDp(m))
+    }
+
     // --- Gerçek navigasyon kaynağı ---
 
     @Test fun navStateBecomesHint() {

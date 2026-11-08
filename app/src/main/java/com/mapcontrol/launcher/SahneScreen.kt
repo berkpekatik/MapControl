@@ -80,6 +80,33 @@ class SahneScreen(
         rebuildAll()
     }
 
+    /**
+     * Etkin düzende [type] türü bir panel yuvasında mı (alt çubuk telefon düğmesi: panel ekrandaysa sayfa açılmaz). Telefon
+     * için medya kartı telefon yüzündeyse de evet.
+     */
+    fun hasPanel(type: WidgetType): Boolean = panelIndexOf(type) != null
+
+    private fun panelIndexOf(type: WidgetType): Int? = panels.indices.firstOrNull {
+        SahneSlots.get(shown, SahneSlotRef(SahneSlotKind.PANEL, it))?.type == type ||
+            (type == WidgetType.PHONE && flipAt(it)?.face == CardFace.PHONE)
+    }
+
+    private fun flipAt(index: Int): MediaPhoneFlip? = hosted[SahneSlotRef(SahneSlotKind.PANEL, index)]?.firstOrNull() as? MediaPhoneFlip
+
+    /**
+     * Verilen türü taşıyan paneli kısa bir nabızla gösterir (ör. alt çubuk telefon düğmesi, panel zaten ekrandayken):
+     * 120 ms'de %97'ye küçülüp geri döner; başka kare işi yok.
+     */
+    fun flashPanel(type: WidgetType) {
+        val i = panelIndexOf(type) ?: return
+        if (flipAt(i)?.moving == true) return
+        val v = panels[i]
+        v.animate().cancel()
+        v.animate().scaleX(0.97f).scaleY(0.97f).setDuration(FLASH_MS).withEndAction {
+            v.animate().scaleX(1f).scaleY(1f).setDuration(FLASH_MS).start()
+        }.start()
+    }
+
     /** Karşılama ([SahneWelcome]) için: araç sahnesi ve geri kalan orta alan (yan paneller, şerit). */
     internal fun welcomeParts(): Pair<SahneStage, List<View>> = stage to panels + strip
 
@@ -154,9 +181,11 @@ class SahneScreen(
                     panel.removeAllViews()
                     widgets = emptyList()
                 } else {
-                    val w = SahnePanelFactory.create(activity, slot, calm = mode == LayoutMode.DRIVE)
-                    // Medya panelinde sol üstte sıcak renk ışıması; diğer paneller sakin cam.
-                    panel.setGlow(slot.type == WidgetType.MEDIA)
+                    val w = SahnePanelFactory.create(activity, slot, calm = mode == LayoutMode.DRIVE, phonePanel = SahneForm.hasPhonePanel(shown))
+                    val flip = w as? MediaPhoneFlip
+                    // Medya ışıması yalnız kartın medya yüzünde (telefon yüzü sakin cam).
+                    flip?.onFaceShown = { face -> panel.setGlow(face == CardFace.MEDIA) }
+                    panel.setGlow(slot.type == WidgetType.MEDIA && flip?.face != CardFace.PHONE)
                     panel.host(w.view, SahnePanelFactory.panelPaddingDp(slot.type), SahneArt.panelBackground(activity, slot.type))
                     widgets = listOf(w)
                 }
@@ -226,9 +255,13 @@ class SahneScreen(
     }
 
     private fun apply(ref: SahneSlotRef, slot: SahneSlot?) {
+        val hadPhone = SahneForm.hasPhonePanel(stored)
         stored = SahneSlots.set(stored, ref, slot)
         store.save(stored)
         build(ref)
+        // Telefon paneli geldi ya da gitti: medya kartı telefon sayfasını sunup sunmayacağına göre yeniden kurulur.
+        if (hadPhone != SahneForm.hasPhonePanel(stored)) panels.indices.map { SahneSlotRef(SahneSlotKind.PANEL, it) }
+            .filter { it != ref && SahneSlots.get(stored, it)?.type == WidgetType.MEDIA }.forEach { build(it) }
         if (ref.kind == SahneSlotKind.STRIP) strip.syncDividers()
         refreshEmpty()
         requestLayout()
@@ -581,6 +614,7 @@ class SahneScreen(
 
     private companion object {
         const val DESIGN_W = 1872f
+        const val FLASH_MS = 120L
         const val PANEL_W = 440f
         const val GAP_H = 16f
         const val STRIP_H_DP = 92

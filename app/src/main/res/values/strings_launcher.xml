@@ -136,6 +136,17 @@
     <string name="launcher_layout_drive">Drive</string>
     <string name="launcher_layout_park_edit">Park layout</string>
     <string name="launcher_layout_drive_edit">Drive layout</string>
+    <string name="launcher_widget_photo">Photo</string>
+    <string name="launcher_photo_add">Add photo</string>
+    <string name="launcher_photo_hint">Upload from the FrostNav panel to Downloads</string>
+    <string name="launcher_photo_pick_title">Pick a photo</string>
+    <string name="launcher_photo_change">Change photo</string>
+    <string name="launcher_photo_remove">Remove photo</string>
+    <string name="launcher_photo_refresh">Refresh</string>
+    <string name="launcher_photo_loading">Loading…</string>
+    <string name="launcher_photo_none">No photos in Downloads. Upload from the FrostNav panel, then refresh.</string>
+    <string name="launcher_photo_permission">Storage permission is needed. Allow it, then refresh.</string>
+    <string name="launcher_photo_failed">Could not use this photo</string>
     <string name="launcher_widget_screen_off">Screen off</string>
     <string name="launcher_screen_off_label">Dim screen</string>
     <string name="launcher_screen_off_hint">Tap</string>

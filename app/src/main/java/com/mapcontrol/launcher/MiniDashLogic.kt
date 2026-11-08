@@ -374,8 +374,44 @@ internal object MiniSide {
         )
     }
 
+    /** Telefon panelinin hâli: kutusuz sessiz satır (bağlı değil, yükleniyor, boş), izin satırı ya da içerik. */
+    enum class Phone { OFF, LOADING, EMPTY, PERMISSION, CONTENT }
+
+    /** Gösterilecek telefon içeriği. [last] "Geri ara" kaydı (isimli), [favorites] en çok [FAVORITES] isimli kişi. */
+    data class PhoneView(val state: Phone, val last: PhoneRecent?, val favorites: List<PhoneContact>) {
+        override fun toString(): String = "PhoneView(state=$state, last=${last != null}, fav=${favorites.size})"
+    }
+
+    /**
+     * Telefon durumundan panel. Favoriler "Geri ara" kişisini tekrarlamaz (numara son 10 haneyle karşılaştırılır); ne son
+     * arama ne favori varsa boş sayılır.
+     */
+    fun phone(s: PhoneSnapshot): PhoneView {
+        val state = when (PhoneUiLogic.panelState(s)) {
+            PhoneUiLogic.PanelState.NO_PHONE -> Phone.OFF
+            PhoneUiLogic.PanelState.PERMISSION -> Phone.PERMISSION
+            PhoneUiLogic.PanelState.LOADING -> Phone.LOADING
+            PhoneUiLogic.PanelState.EMPTY -> Phone.EMPTY
+            PhoneUiLogic.PanelState.CONTENT -> Phone.CONTENT
+        }
+        if (state != Phone.CONTENT) return PhoneView(state, null, emptyList())
+        val last = PhoneUiLogic.lastNamedRecent(s.recents)
+        val lastNumber = last?.let { FavoritesRanker.normalizeNumber(it.number) }
+        val favs = s.favorites.filter { PhoneUiLogic.hasName(it.name) && (lastNumber == null || FavoritesRanker.normalizeNumber(it.number) != lastNumber) }
+            .take(FAVORITES)
+        if (last == null && favs.isEmpty()) return PhoneView(Phone.EMPTY, null, emptyList())
+        return PhoneView(Phone.CONTENT, last, favs)
+    }
+
     /** Favori satırının yüksekliği: avatar + ad. */
     fun favoriteRowDp(m: MiniLayout): Int = m.favAvatarDp + NAME_GAP_DP + NAME_ROW_DP
+
+    /** Telefon panelinin doğal yüksekliği; içerik yoksa tek sessiz satır ([MiniLayout.MIN_TOUCH_DP]). */
+    fun phoneDp(v: PhoneView, m: MiniLayout): Int {
+        if (v.state != Phone.CONTENT) return MiniLayout.MIN_TOUCH_DP
+        val rows = listOfNotNull(m.callRowDp.takeIf { v.last != null }, favoriteRowDp(m).takeIf { v.favorites.isNotEmpty() })
+        return 2 * m.panelPadDp + rows.sum() + ROW_GAP_DP * (rows.size - 1).coerceAtLeast(0)
+    }
 
     /** En dolu telefon paneli (Geri ara + favoriler). */
     fun phoneMaxDp(m: MiniLayout): Int = 2 * m.panelPadDp + m.callRowDp + ROW_GAP_DP + favoriteRowDp(m)

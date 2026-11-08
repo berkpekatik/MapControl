@@ -34,4 +34,7 @@
     <string name="launcher_strip_battery_low" formatted="true">Battery low %1$.1f V</string>
     <string name="launcher_strip_battery_high" formatted="true">Battery high %1$.1f V</string>
     <string name="launcher_strip_fuel_cap">Fuel cap open</string>
+    <!-- Medya kartının sağ üst köşesindeki çevirme simgesi (kartın arka yüzü telefon). -->
+    <string name="launcher_flip_to_phone">Show phone</string>
+    <string name="launcher_flip_to_media">Show media</string>
 </resources>

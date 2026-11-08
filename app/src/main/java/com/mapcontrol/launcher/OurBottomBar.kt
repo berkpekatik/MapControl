@@ -41,12 +41,17 @@ internal data class ClimateReadout(
 /**
  * Launcher'ın kendi alt çubuğu ("Alt çubuk: Bizimki"): OEM gezinme çubuğu gizlenirken yerini alır.
  * Tek parça "dock" şeridi, bölümler ince ayraçlarla: ana ekran · uygulamalar · araç (kare düğmeler), sürücü sıcaklığı · fan ·
- * yolcu sıcaklığı ([ClimateControl]: sürükle/dokun/uzun bas), ayarlar · telefon (kare düğmeler). Telefon düğmesi aracın
- * telefon uygulamasını açar. Klima yazması yalnızca doğrulanmış dock yolunda gider ([ClimateWriter.enabled]); panel yolu seçiliyse değer kısa
+ * yolcu sıcaklığı ([ClimateControl]: sürükle/dokun/uzun bas), ayarlar · telefon (kare düğmeler). Telefon düğmesi ana
+ * ekranda telefon sayfasını ya da panelini açar ([onPhoneTap]), uzun basış bağlı telefonun sesli asistanıdır. Klima yazması yalnızca doğrulanmış dock yolunda gider ([ClimateWriter.enabled]); panel yolu seçiliyse değer kısa
  * süre değişir, sonra araçtakine döner. Okuma 3 sn'de bir, yalnızca ekran görünürken.
  */
 class OurBottomBar(
     private val activity: Activity,
+    /**
+     * Telefon düğmesine dokunuş (ana ekran: telefon sayfası ya da paneli, bkz. HomeLauncherActivity.onPhoneButton); null ise
+     * eski davranış (OEM telefon uygulaması). Uzun basış her durumda bağlı telefonun sesli asistanıdır.
+     */
+    private val onPhoneTap: (() -> Unit)? = null,
 ) : LauncherWidget {
 
     private val context: Context = activity
@@ -84,7 +89,9 @@ class OurBottomBar(
         addView(climateControl.passengerView, LinearLayout.LayoutParams(0, context.dp(80), 1f))
         addView(sep(), sepLp())
         addView(sahneButton(R.drawable.ic_sahne_gear, R.string.launcher_bar_settings) { openAndroidSettings() }, btnLp(true))
-        addView(sahneButton(R.drawable.ic_sahne_phone, R.string.launcher_app_phone) { openPackage(PHONE_PACKAGE) }, btnLp(false))
+        addView(sahneButton(R.drawable.ic_sahne_phone, R.string.launcher_app_phone, onLongClick = ::startPhoneAssistant) {
+            onPhoneTap?.invoke() ?: openPackage(PHONE_PACKAGE)
+        }, btnLp(false))
     }
 
     /** Sahne düğmesi: 22dp köşeli; etkin olan birincil (CTA) gradyan zeminli ve gölgeli, diğerleri zeminsiz. */
@@ -93,6 +100,8 @@ class OurBottomBar(
         labelRes: Int,
         active: Boolean = false,
         iconDp: Int = 30,
+        /** Uzun basış (yalnız telefon düğmesinde: sesli asistan); dokunsal geri bildirimle. */
+        onLongClick: (() -> Unit)? = null,
         onClick: () -> Unit,
     ): View =
         FrameLayout(context).apply {
@@ -117,7 +126,20 @@ class OurBottomBar(
             addView(icon(context, iconRes, iconDp, if (active) Sahne.HOME_INK else Sahne.CONTROL_ICON),
                 FrameLayout.LayoutParams(context.dp(iconDp), context.dp(iconDp), Gravity.CENTER))
             setOnClickListener { onClick() }
+            if (onLongClick != null) setOnLongClickListener { v ->
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                onLongClick()
+                true
+            }
         }
+
+    /** Telefon düğmesine uzun basış: bağlı telefonun sesli asistanı (Siri / Google); yol yoksa kısa uyarı (OEM uygulaması açılmaz). */
+    private fun startPhoneAssistant() {
+        if (PhoneSource.startVoiceAssistant()) return
+        // Neden (bağlı telefon yok vb.) dinleyen panel/şerit varsa onPhoneError ile zaten gösterilir; yoksa tek genel
+        // uyarı. Hata bildirimi ana kuyruğa önce girdiği için sonrasında bakılır.
+        view.post { if (!PhoneToast.shownWithin(ERROR_TOAST_WINDOW_MS)) PhoneToast.show(context, R.string.launcher_phone_assistant_failed) }
+    }
 
     override fun onVisible() {
         bindClimate(readout)
@@ -302,6 +324,7 @@ class OurBottomBar(
 
         private const val VEHICLE_SETTINGS_PACKAGE = "com.desaysv.vehiclesetting"
         private const val PHONE_PACKAGE = "com.desaysv.bluetooth.phone"
+        private const val ERROR_TOAST_WINDOW_MS = 500L
         private const val POLL_MS = 3_000L
 
         private const val APPS_SHEET_WIDTH_DP = 1280

@@ -70,11 +70,17 @@ object SahneForm {
 
     /**
      * Panel (büyük) için izinli türler, seçicideki sırayla: yalnız bu boyuta göre çizilmiş widget'lar (4 Kasım kararı §2;
-     * Navigasyon §3'ten: Yandex bildiriminden sonraki dönüş). Diğer türlerin eski Sahne kayıtlarındaki yuvaları
+     * Navigasyon §3'ten: Yandex bildiriminden sonraki dönüş). Telefon Tiggo 7'de ayrı panel değil (6 Kasım kararı): medya
+     * kartının arka yüzüdür ([MediaPhoneFlip]); eski iki panelli kayıtlardaki telefon paneli [SahneSlots.migratePhonePanel]
+     * ile kalkar. Tiggo 8'in dört panelli biçiminde yer var: telefon yine kendi panelidir ([QUAD_ONLY_PANELS], 7 Kasım
+     * kararı) ve o zaman medya kartı telefon sayfasını sunmaz. Diğer türlerin eski Sahne kayıtlarındaki yuvaları
      * [SahneSlots.decode]'da yedeğe döner.
      */
     val PANEL_TYPES: List<WidgetType> =
-        listOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.CONSUMPTION, WidgetType.NAVIGATION)
+        listOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.CONSUMPTION, WidgetType.NAVIGATION, WidgetType.PHONE)
+
+    /** Yalnız dört panelli biçimde (Tiggo 8) panel olabilen türler: telefon (Tiggo 7'de medya kartının arka yüzü). */
+    val QUAD_ONLY_PANELS: Set<WidgetType> = setOf(WidgetType.PHONE)
 
     fun fitsPanel(type: WidgetType): Boolean = type in PANEL_TYPES
     fun fitsStrip(type: WidgetType): Boolean = type in STRIP_TYPES
@@ -125,7 +131,11 @@ object SahneForm {
 
     /** Bu biçimde ([quad] false = Tiggo 7) ve bu araçta ([configHidden]) gösterilebilir mi. */
     fun available(type: WidgetType, quad: Boolean): Boolean =
-        type !in UNVERIFIED && type !in configHidden() && (quad || type !in TIGGO7_HIDDEN)
+        type !in UNVERIFIED && type !in configHidden() && (quad || (type !in TIGGO7_HIDDEN && type !in QUAD_ONLY_PANELS))
+
+    /** Düzende telefon paneli var mı (dört panelli biçim): varsa medya kartı telefon sayfasını sunmaz. */
+    fun hasPhonePanel(layout: SahneLayout): Boolean =
+        listOf(layout.left, layout.right, layout.leftLower, layout.rightLower).any { it?.type == WidgetType.PHONE }
 
     /** Seçicide [kind] yuvası için sunulan türler ([quad] false = Tiggo 7: gizlenenler yok). */
     fun offered(kind: SahneSlotKind, quad: Boolean = false): List<WidgetType> =
@@ -216,7 +226,7 @@ object SahneSlots {
     )
 
     /**
-     * Sürüş varsayılanı: Park ile aynı paneller (7 Kasım kararı: solda medya; sağda "Toplam" bölümlü
+     * Sürüş varsayılanı: Park ile aynı paneller (7 Kasım kararı: solda medya, telefon arkasında; sağda "Toplam" bölümlü
      * yolculuk) ve aynı şerit ([defaultStrip], 7 Kasım). Yalnız ilk kurulum ve sıfırlamada kullanılır; kayıtlı düzene dokunulmaz.
      */
     @Suppress("UNUSED_PARAMETER")
@@ -231,7 +241,8 @@ object SahneSlots {
 
     /**
      * Tiggo 8 varsayılanı (Park ve Sürüş aynı panel dizilişi): sol üst medya, sol alt navigasyon, sağ üst yolculuk, sağ alt
-     * anlık tüketim.
+     * telefon. Sağ alt eskiden tüketimdi; yolculuk kartı sürüşte canlı tüketimi zaten gösterdiğinden yineliyordu (7 Kasım
+     * kararı): yer olduğundan telefon yine kendi panelidir, medya kartı yalnız medyadır.
      *
      * Şerit: [steerHeat] (CarConfig 120 izin veriyor, [CarFeatures.steerHeat]) ise direksiyon ısıtma sürücü koltuğunun hemen
      * yanına gelir ([quadStrip]); değilse o modun Tiggo 7 şeridi.
@@ -245,7 +256,7 @@ object SahneSlots {
             strip = if (steerHeat) quadStrip(mode, appPackages, rear) else base.strip,
             quad = true,
             leftLower = SahneSlot("nav_turn", WidgetType.NAVIGATION),
-            rightLower = SahneSlot("consumption", WidgetType.CONSUMPTION),
+            rightLower = SahneSlot("phone", WidgetType.PHONE),
         )
     }
 
@@ -261,17 +272,17 @@ object SahneSlots {
         return listOf(base.first(), SahneSlot("steer_heat", WidgetType.STEER_HEAT)) + middle + base.last()
     }
 
-    /** Alt yuvaların tercih ettiği türler (yükseltme ve yedek için): sol alt navigasyon, sağ alt tüketim. */
+    /** Alt yuvaların tercih ettiği türler (yükseltme ve yedek için): sol alt navigasyon, sağ alt telefon. */
     private fun preferredPanel(index: Int): WidgetType = when (index) {
         0 -> WidgetType.MEDIA
         1 -> WidgetType.TRIP
         2 -> WidgetType.NAVIGATION
-        else -> WidgetType.CONSUMPTION
+        else -> WidgetType.PHONE
     }
 
     /**
      * İki panelli bir kaydı dört panelliye çevirir (Tiggo 8'in 6 Kasım öncesi kayıtları): üst paneller ve şerit aynen kalır,
-     * alt yuvalar düzende olmayan izinli panel türleriyle dolar (sol alt önce navigasyon, sağ alt önce tüketim). Zaten dört
+     * alt yuvalar düzende olmayan izinli panel türleriyle dolar (sol alt önce navigasyon, sağ alt önce telefon). Zaten dört
      * panelliyse aynen döner.
      */
     fun toQuad(layout: SahneLayout): SahneLayout {
@@ -314,7 +325,7 @@ object SahneSlots {
     // aynen eski dört alanlı biçimdir; eski okuyucu altı alanlı kaydı çözemez ve varsayılana döner (yalnız Tiggo 8 dosyasında).
     // v2 (6 Kasım): alanlar aynı; yalnız v1 kayıtları bir kez [migrateTripConsumption]'dan geçer. v2 kayıtlarına dokunulmaz
     // (kullanıcı tüketimi bilerek geri eklemiş olabilir).
-    // v3 (7 Kasım): alanlar aynı; v1/v2 kayıtlar bir kez geçirilip v3 olarak yeniden yazılır. v3 kayıtlarına dokunulmaz.
+    // v3 (7 Kasım): alanlar aynı; v1/v2 dört panelli kayıtlar bir kez [migrateQuadPhone]'dan geçer. v3 kayıtlarına dokunulmaz.
 
     private const val VERSION = "v3"
     private const val VERSION_2 = "v2"
@@ -349,15 +360,27 @@ object SahneSlots {
         }
         val strip = parts[3].split(",").map { slot(it) }
         val quad = parts.size == 6
-        val raw = migrateLock(SahneLayout(slot(parts[1]), slot(parts[2]), strip, quad,
-            if (quad) slot(parts[4]) else null, if (quad) slot(parts[5]) else null))
+        val raw = migratePhonePanel(migrateLock(SahneLayout(slot(parts[1]), slot(parts[2]), strip, quad,
+            if (quad) slot(parts[4]) else null, if (quad) slot(parts[5]) else null)))
         val clean = fallbackPanels(raw, sanitize(raw))
         val trip = if (v1) migrateTripConsumption(clean) else clean
         // v1/v2 kayıt: şeritteki arka hoparlör bir kerelik yedeğe döner (7 Kasım kararı: Tiggo 8'de de ekranı kapat; Tiggo 7'de
         // zaten gizli). v3 olarak geri yazılınca bayrak sonradan açılsa da eski kayıtlarda geri gelmez.
-        return if (legacy) replaceHidden(trip, setOf(WidgetType.REAR_SPEAKER)) else trip
+        return if (legacy) migrateQuadPhone(replaceHidden(trip, setOf(WidgetType.REAR_SPEAKER))) else trip
     }
 
+    /**
+     * v1/v2 → v3 bir kerelik geçiş (yalnız dört panelli kayıt): sağ alttaki tüketim paneli yolculuk kartının sürüşteki canlı
+     * satırını yineler; telefon düzende yoksa sağ alt telefona döner (medya kartı o zaman telefon sayfasını sunmaz). Sağ alt
+     * başka bir türse ya da telefon zaten başka yuvadaysa düzen aynen döner. v3 kayıtlarına hiç uygulanmaz: sonradan bilerek
+     * konan tüketim kalır.
+     */
+    fun migrateQuadPhone(layout: SahneLayout): SahneLayout {
+        if (!layout.quad || layout.rightLower?.type != WidgetType.CONSUMPTION) return layout
+        if (WidgetType.PHONE in layout.types()) return layout
+        val cleared = layout.copy(rightLower = null)
+        return cleared.copy(rightLower = SahneSlot(newId(cleared, WidgetType.PHONE), WidgetType.PHONE))
+    }
 
     /**
      * v1 → v2 bir kerelik GEÇMİŞ geçiş (yalnız v1 kayıtlara; yeni kayıtlara uygulanmaz): o zaman yolculuk kartı sürüşte
@@ -414,6 +437,36 @@ object SahneSlots {
         return out
     }
 
+    /**
+     * İki panelli biçimde (Tiggo 7) telefon paneli kalktı (6 Kasım kararı: telefon medya kartının arka yüzü); dört panelli
+     * biçimde (Tiggo 8) telefon yine kendi panelidir ve hiç dokunulmaz (7 Kasım kararı). Eski kayıttaki telefon paneli, düzende medya
+     * paneli varsa boşalır (iki panelli biçimde o yan kapanır; [SahneBand]); medya hiç yoksa medya gelir ki telefon yüzüne
+     * kart çevrilerek yine ulaşılsın. İki yüzlü kart solda yaşar: medya ilk yuvaya (sol, dört panelde sol üst) konur, oradaki
+     * widget telefonun boşalttığı yuvaya taşınır. Telefon paneli yoksa düzen aynen döner.
+     */
+    fun migratePhonePanel(layout: SahneLayout): SahneLayout {
+        if (layout.quad) return layout
+        val refs = (0 until layout.panelCount).map { SahneSlotRef(SahneSlotKind.PANEL, it) }
+        if (refs.none { get(layout, it)?.type == WidgetType.PHONE }) return layout
+        var out = layout
+        refs.forEach { ref ->
+            if (get(out, ref)?.type != WidgetType.PHONE) return@forEach
+            val cleared = set(out, ref, null)
+            val hasMedia = refs.any { get(cleared, it)?.type == WidgetType.MEDIA }
+            out = if (hasMedia) {
+                // Boşalan yuva o tarafın varsayılanıyla dolar (sağ: yolculuk, yoksa tüketim); ekran tek taraflı kalmaz.
+                val used = cleared.types()
+                val pick = (listOf(preferredPanel(ref.index)) + listOf(WidgetType.TRIP, WidgetType.CONSUMPTION, WidgetType.NAVIGATION))
+                    .firstOrNull { it != WidgetType.MEDIA && it !in used && SahneForm.fitsPanel(it) }
+                if (pick == null) cleared else set(cleared, ref, SahneSlot(newId(cleared, pick), pick))
+            } else {
+                val first = refs.first()
+                val media = SahneSlot(newId(cleared, WidgetType.MEDIA), WidgetType.MEDIA)
+                set(set(cleared, ref, get(cleared, first)), first, media)
+            }
+        }
+        return out
+    }
 
     /**
      * Tiggo 7 kaydı: gizlenen türdeki ([SahneForm.TIGGO7_HIDDEN]) şerit yuvası, düzende olmayan ilk yedek türe
@@ -492,7 +545,7 @@ class SahneStore(
     private fun forVehicle(layout: SahneLayout): SahneLayout = when {
         quad -> SahneSlots.forTiggo8(SahneSlots.toQuad(layout))
         layout.quad -> SahneSlots.forTiggo7(SahneSlots.sanitize(
-            layout.copy(quad = false, leftLower = null, rightLower = null)))
+            SahneSlots.migratePhonePanel(layout.copy(quad = false, leftLower = null, rightLower = null))))
         else -> SahneSlots.forTiggo7(layout)
     }
 

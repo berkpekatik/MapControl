@@ -15,7 +15,7 @@ data class Span(val w: Int, val h: Int) {
 
 /**
  * Widget türleri ve her birinin desteklediği boyutlar. İlk boyut Sahne şeridinde ([SahneForm.stripSpan]), en büyük alanlı
- * boyut Sahne panelinde ([SahneForm.panelSpan]) kullanılır. Sahne'de gösterilmeyen türler (ör. sağlık, hava, saat)
+ * boyut Sahne panelinde ([SahneForm.panelSpan]) kullanılır. Sahne'de gösterilmeyen türler (ör. sağlık, hava, fotoğraf)
  * eski Sahne kayıtlarının çözülüp yedeğe dönmesi için listede kalır ([SahneSlots.decode]).
  */
 enum class WidgetType(val key: String, @StringRes val label: Int, @DrawableRes val icon: Int, val sizes: List<Span>) {
@@ -31,6 +31,7 @@ enum class WidgetType(val key: String, @StringRes val label: Int, @DrawableRes v
     // Birleşik koltuk (ısıtma + soğutma tek widget'ta, taraf başına bir tane); 4×4 büyük biçim Sahne panelindedir.
     SEAT_DRIVER("seat_driver", R.string.launcher_widget_seat_driver, R.drawable.ic_mdi_car_seat_heater, listOf(Span(2, 2), Span(4, 4))),
     SEAT_PASSENGER("seat_passenger", R.string.launcher_widget_seat_passenger, R.drawable.ic_mdi_car_seat_heater, listOf(Span(2, 2), Span(4, 4))),
+    PHOTO("photo", R.string.launcher_widget_photo, R.drawable.ic_mdi_image, listOf(Span(2, 2), Span(4, 2), Span(4, 4))),
     TRUNK("trunk", R.string.launcher_widget_trunk, R.drawable.ic_mdi_car_trunk, listOf(Span(2, 2), Span(2, 4))),
     SCREEN_OFF("screen_off", R.string.launcher_widget_screen_off, R.drawable.ic_mdi_weather_night, listOf(Span(2, 2), Span(1, 2))),
     BREAK_REMINDER("break_reminder", R.string.launcher_widget_break, R.drawable.ic_mdi_timer_sand, listOf(Span(2, 2))),
@@ -46,6 +47,9 @@ enum class WidgetType(val key: String, @StringRes val label: Int, @DrawableRes v
     // Yandex bildiriminden sonraki dönüş ve varış ([NavigationPanel]). Anahtar "nav_turn": eski, kaldırılmış "navigation"
     // kutucuğunun kayıtları bu türe dönüşmesin (o anahtar yüklemede düşer).
     NAVIGATION("nav_turn", R.string.launcher_widget_navigation, R.drawable.ic_sahne_nav, listOf(Span(4, 4))),
+    // Telefon paneli ([PhonePanel]): sesli asistan, favoriler, son aramalar. Anahtar "phone_call": "phone_reminder" telefon
+    // hatırlatma kutucuğunundur ([PhoneTile]).
+    PHONE("phone_call", R.string.launcher_widget_phone_call, R.drawable.ic_sahne_phone, listOf(Span(4, 4))),
     // Direksiyon ısıtma ([SteerHeatTile]): yalnız şerit; yalnız CarConfig 120 izin veren araçta (Tiggo 8) sunulur.
     STEER_HEAT("steer_heat", R.string.launcher_widget_steer_heat, R.drawable.ic_mdi_steering, listOf(Span(2, 2)));
 
@@ -97,6 +101,7 @@ object WidgetFactory {
         WidgetType.SEAT_DRIVER -> SeatTile(activity, driverSeat = true)
         WidgetType.SEAT_PASSENGER -> SeatTile(activity, driverSeat = false)
         WidgetType.TRUNK -> TrunkTile(activity)
+        WidgetType.PHOTO -> PhotoTile(activity, placed.id)
         WidgetType.SCREEN_OFF -> ScreenOffTile(activity)
         WidgetType.BREAK_REMINDER -> BreakTile(activity)
         WidgetType.PHONE_REMINDER -> PhoneTile(activity)
@@ -108,6 +113,7 @@ object WidgetFactory {
         WidgetType.SPLIT_SCREEN -> SplitScreenTile(activity)
         WidgetType.CLUSTER_MIRROR -> ClusterMirrorTile(activity)
         WidgetType.NAVIGATION -> NavigationPanel(activity)
+        WidgetType.PHONE -> PhonePanel(activity)
         WidgetType.STEER_HEAT -> SteerHeatTile(activity)
     }
 }

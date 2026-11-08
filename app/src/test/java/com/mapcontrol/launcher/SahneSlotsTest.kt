@@ -52,7 +52,8 @@ class SahneSlotsTest {
             WidgetType.CONSUMPTION, WidgetType.WEB_PANEL, WidgetType.EQUALIZER, WidgetType.AUTOMATION, WidgetType.SPLIT_SCREEN,
             WidgetType.CLUSTER_MIRROR, WidgetType.STEER_HEAT,
         )
-        val panel = setOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.CONSUMPTION, WidgetType.NAVIGATION)
+        // Telefon yalnız dört panelde (Tiggo 8) ayrı panel; Tiggo 7'de medya kartının arka yüzü (6-7 Kasım).
+        val panel = setOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.CONSUMPTION, WidgetType.NAVIGATION, WidgetType.PHONE)
         assertEquals(strip, SahneForm.STRIP_TYPES.toSet())
         assertEquals(panel, SahneForm.PANEL_TYPES.toSet())
         assertEquals(SahneForm.STRIP_TYPES.size, strip.size) // yinelenen yok
@@ -67,7 +68,7 @@ class SahneSlotsTest {
         assertEquals(SahneForm.STRIP_TYPES - WidgetType.REAR_SPEAKER - WidgetType.STEER_HEAT, SahneForm.offered(SahneSlotKind.STRIP))
         // Arka hoparlör yazması doğrulanmadı: Tiggo 8 seçicisinde de yok (7 Kasım).
         assertEquals(SahneForm.STRIP_TYPES - WidgetType.REAR_SPEAKER - WidgetType.STEER_HEAT, SahneForm.offered(SahneSlotKind.STRIP, quad = true))
-        assertEquals(SahneForm.PANEL_TYPES, SahneForm.offered(SahneSlotKind.PANEL))
+        assertEquals(SahneForm.PANEL_TYPES - WidgetType.PHONE, SahneForm.offered(SahneSlotKind.PANEL))
         assertEquals(SahneForm.PANEL_TYPES, SahneForm.offered(SahneSlotKind.PANEL, quad = true))
     }
 
@@ -75,10 +76,10 @@ class SahneSlotsTest {
     fun appIsStripOnlyAndRemovedPanelTypesAreOut() {
         assertTrue(SahneForm.fitsStrip(WidgetType.APP))
         assertFalse(SahneForm.fitsPanel(WidgetType.APP))
-        listOf(WidgetType.HEALTH, WidgetType.AIR, WidgetType.SEAT_DRIVER, WidgetType.CLOCK).forEach {
+        listOf(WidgetType.PHOTO, WidgetType.HEALTH, WidgetType.AIR, WidgetType.SEAT_DRIVER, WidgetType.CLOCK).forEach {
             assertFalse("$it", SahneForm.fitsPanel(it))
         }
-        assertFalse(SahneForm.fitsStrip(WidgetType.HEALTH))
+        assertFalse(SahneForm.fitsStrip(WidgetType.PHOTO))
     }
 
     @Test
@@ -240,7 +241,7 @@ class SahneSlotsTest {
             right = SahneSlot("trip", WidgetType.TRIP),
             strip = listOf(
                 SahneSlot("trip2", WidgetType.TRIP),
-                SahneSlot("health", WidgetType.HEALTH),
+                SahneSlot("photo", WidgetType.PHOTO),
                 SahneSlot("a1", WidgetType.APP),
                 SahneSlot("a2", WidgetType.APP),
                 SahneSlot("a2", WidgetType.APP),
@@ -252,7 +253,7 @@ class SahneSlotsTest {
         assertNull(c.left) // uygulama panelde olmaz
         assertEquals(WidgetType.TRIP, c.right?.type)
         assertNull(c.strip[0]) // ikinci yolculuk
-        assertNull(c.strip[1]) // sağlık şeritte olmaz
+        assertNull(c.strip[1]) // fotoğraf şeritte olmaz
         assertEquals("a1", c.strip[2]?.id)
         assertEquals("a2", c.strip[3]?.id) // APP birden çok olabilir
         assertNull(c.strip[4]) // aynı kimlik
@@ -294,6 +295,8 @@ class SahneSlotsTest {
         // Biçim kuralları (seçki); Park/Sürüş ayrımı yok, fotoğraf da sürüşte konabilir.
         assertFalse(SahneForm.canPlace(d, right, WidgetType.APP))
         assertTrue(SahneForm.canPlace(d, strip0, WidgetType.APP))
+        assertFalse(SahneForm.canPlace(d, strip0, WidgetType.PHOTO))
+        assertFalse(SahneForm.canPlace(d, right, WidgetType.PHOTO))
         assertFalse(SahneForm.canPlace(d, right, WidgetType.LOCK))     // kilit hiçbir yuvada yok (sahnedeki hap)
         assertFalse(SahneForm.canPlace(d, strip0, WidgetType.LOCK))
         assertFalse(SahneForm.canPlace(d, strip0, WidgetType.HEALTH))  // sağlık yalnızca panelde
@@ -381,8 +384,11 @@ class SahneSlotsTest {
             val d = SahneSlots.defaultsQuad(mode, apps)
             assertTrue(d.quad)
             assertEquals(4, d.panelCount)
-            assertEquals(listOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.NAVIGATION, WidgetType.CONSUMPTION),
+            // 7 Kasım: sağ alt telefon (tüketim yolculuk kartının canlı satırını yineliyordu); medya kartı yalnız medya.
+            assertEquals(listOf(WidgetType.MEDIA, WidgetType.TRIP, WidgetType.NAVIGATION, WidgetType.PHONE),
                 (0..3).map { panel(d, it)?.type })
+            assertFalse(WidgetType.CONSUMPTION in d.types())
+            assertTrue(SahneForm.hasPhonePanel(d))
             assertEquals(SahneSlots.defaults(mode, apps).strip, d.strip)
             assertEquals(d, SahneSlots.sanitize(d))
         }
@@ -422,12 +428,12 @@ class SahneSlotsTest {
         assertEquals(WidgetType.MEDIA, q.left?.type)
         assertEquals(WidgetType.TRIP, q.right?.type)
         assertEquals(WidgetType.NAVIGATION, q.leftLower?.type)
-        assertEquals(WidgetType.CONSUMPTION, q.rightLower?.type)
+        assertEquals(WidgetType.PHONE, q.rightLower?.type)
         assertEquals(old.strip, q.strip)
         // Üstte navigasyon ve tüketim zaten varsa alt yuvalar kalan türleri alır.
         val q2 = SahneSlots.toQuad(SahneSlots.decode("v2|nav_turn~n~|consumption~c~|")!!)
         assertEquals(WidgetType.MEDIA, q2.leftLower?.type)
-        assertEquals(WidgetType.TRIP, q2.rightLower?.type)
+        assertEquals(WidgetType.PHONE, q2.rightLower?.type)
     }
 
     @Test
@@ -435,7 +441,7 @@ class SahneSlotsTest {
         val d = SahneSlots.decode("v2|media~m~|trip~t~||media~m2~|health~h~")!!
         assertTrue(d.quad)
         assertNull(d.leftLower) // ikinci medya atılır
-        assertEquals(WidgetType.CONSUMPTION, d.rightLower?.type) // izinsiz tür sağ alt yedeğe döner
+        assertEquals(WidgetType.PHONE, d.rightLower?.type) // izinsiz tür sağ alt yedeğe döner
         assertNull(SahneSlots.decode("v2|media~m~|trip~t~||x"))
     }
 
@@ -444,7 +450,7 @@ class SahneSlotsTest {
         val d = SahneSlots.defaultsQuad(LayoutMode.PARK, apps)
         val leftLower = SahneSlotRef(SahneSlotKind.PANEL, 2)
         assertFalse(SahneForm.canPlace(d, leftLower, WidgetType.MEDIA))
-        assertFalse(SahneForm.canPlace(d, SahneSlotRef(SahneSlotKind.PANEL, 0), WidgetType.CONSUMPTION)) // tüketim zaten sağ altta
+        assertFalse(SahneForm.canPlace(d, SahneSlotRef(SahneSlotKind.PANEL, 0), WidgetType.PHONE)) // telefon zaten sağ altta
         assertTrue(SahneForm.canPlace(d, leftLower, WidgetType.NAVIGATION))
         val freed = SahneSlots.set(d, SahneSlotRef(SahneSlotKind.PANEL, 3), null)
         assertTrue(SahneForm.canPlace(freed, leftLower, WidgetType.CONSUMPTION))
@@ -467,13 +473,13 @@ class SahneSlotsTest {
         assertFalse(SahneSlots.isLegacy("v3|||"))
     }
 
-    // --- Tiggo 8 eski kayıtları (7 Kasım) ---
+    // --- Tiggo 8 telefon paneli (7 Kasım) ---
 
     @Test
     fun tiggo8SavedRearSpeakerBecomesScreenOff() {
         // 6 Kasım Tiggo 8 Park kaydı: şeritte arka hoparlör → ekranı kapat; Sürüş: aynı.
         val park = SahneSlots.forTiggo8(oldPark(apps, rearSpeaker = true).copy(quad = true,
-            leftLower = SahneSlot("nav_turn", WidgetType.NAVIGATION), rightLower = SahneSlot("consumption", WidgetType.CONSUMPTION)))
+            leftLower = SahneSlot("nav_turn", WidgetType.NAVIGATION), rightLower = SahneSlot("phone", WidgetType.PHONE)))
         assertEquals(WidgetType.SCREEN_OFF, park.strip[2]?.type)
         assertFalse(WidgetType.REAR_SPEAKER in park.types())
         assertEquals(oldPark(apps).strip, park.strip)
@@ -486,6 +492,52 @@ class SahneSlotsTest {
         // Arka hoparlör yoksa aynen.
         val q = SahneSlots.defaultsQuad(LayoutMode.DRIVE, apps)
         assertEquals(q, SahneSlots.forTiggo8(q))
+    }
+
+    @Test
+    fun legacyQuadConsumptionBecomesPhoneOnce() {
+        // 6 Kasım Tiggo 8 varsayılanı (v2): sağ alt tüketim → telefon.
+        val old = "v2|media~media~|trip~trip~|seat_driver~seat_driver~,,,,,|nav_turn~nav_turn~|consumption~consumption~"
+        val d = SahneSlots.decode(old)!!
+        assertEquals(WidgetType.PHONE, d.rightLower?.type)
+        assertEquals(WidgetType.PHONE.key, d.rightLower?.id)
+        assertEquals(WidgetType.MEDIA, d.left?.type)
+        assertEquals(WidgetType.NAVIGATION, d.leftLower?.type)
+        // v1 dört panelli kayıt da geçer.
+        assertEquals(WidgetType.PHONE, SahneSlots.decode("v1|media~m~|trip~t~|,,,,,|nav_turn~n~|consumption~c~")!!.rightLower?.type)
+        // v3 kaydı: kullanıcı tüketimi geçişten sonra bilerek koymuş → dokunulmaz.
+        val again = SahneSlots.encode(d.copy(rightLower = SahneSlot("consumption", WidgetType.CONSUMPTION)))
+        assertTrue(again.startsWith("v3|"))
+        assertEquals(WidgetType.CONSUMPTION, SahneSlots.decode(again)!!.rightLower?.type)
+    }
+
+    @Test
+    fun legacyQuadPhoneMigrationLeavesOtherChoicesAlone() {
+        // Sağ altta başka tür → aynen.
+        assertEquals(WidgetType.NAVIGATION,
+            SahneSlots.decode("v2|media~m~|trip~t~|,,,,,|consumption~c~|nav_turn~n~")!!.rightLower?.type)
+        // Telefon zaten başka yuvadaysa tüketim kalır.
+        val phoneUp = SahneSlots.decode("v2|media~m~|${WidgetType.PHONE.key}~p~|,,,,,|nav_turn~n~|consumption~c~")!!
+        assertEquals(WidgetType.PHONE, phoneUp.right?.type)
+        assertEquals(WidgetType.CONSUMPTION, phoneUp.rightLower?.type)
+        // İki panelli kayıtta sağdaki tüketim değişmez.
+        assertEquals(WidgetType.CONSUMPTION, SahneSlots.decode("v2|media~m~|consumption~c~|,,,,,")!!.right?.type)
+    }
+
+    @Test
+    fun quadKeepsPhonePanelsTiggo7DropsThem() {
+        val quad = SahneLayout(SahneSlot("phone", WidgetType.PHONE), SahneSlot("trip", WidgetType.TRIP), SahneSlots.defaultPark().strip,
+            quad = true, leftLower = SahneSlot("nav_turn", WidgetType.NAVIGATION), rightLower = SahneSlot("media", WidgetType.MEDIA))
+        assertEquals(quad, SahneSlots.migratePhonePanel(quad))
+        assertEquals(quad, SahneSlots.sanitize(quad))
+        assertEquals(WidgetType.PHONE, SahneSlots.decode(SahneSlots.encode(quad))!!.left?.type)
+        // Tiggo 7'de telefon paneli seçilemez ve temizlemede kalmaz.
+        val t7 = SahneSlots.defaultPark(apps)
+        assertFalse(SahneForm.canPlace(t7, SahneSlotRef(SahneSlotKind.PANEL, 1), WidgetType.PHONE))
+        assertTrue(SahneForm.canPlace(SahneSlots.defaultsQuad(LayoutMode.PARK, apps).copy(rightLower = null),
+            SahneSlotRef(SahneSlotKind.PANEL, 3), WidgetType.PHONE))
+        assertNull(SahneSlots.sanitize(t7.copy(right = SahneSlot("phone", WidgetType.PHONE))).right)
+        assertFalse(SahneForm.hasPhonePanel(t7))
     }
 
     @Test
@@ -544,25 +596,25 @@ class SahneSlotsTest {
 
     @Test
     fun legacyQuadRecordDropsRearSpeakerOnce() {
-        // v2 dört panelli Tiggo 8 kaydı: arka hoparlör ekranı kapata döner; v3 yeniden yazımı bunu taşır.
+        // v2 dört panelli Tiggo 8 kaydı: arka hoparlör ekranı kapata döner, telefon sağ alta gelir; v3 yeniden yazımı ikisini taşır.
         val v2 = "v2|media~media~|nav_turn~nav_turn~|rear_speaker~rear_speaker~,,,,,|trip~trip~|consumption~consumption~"
         val d = SahneSlots.decode(v2)!!
         assertFalse(WidgetType.REAR_SPEAKER in d.types())
         assertEquals(WidgetType.SCREEN_OFF, d.strip[0]?.type)
-        assertEquals(WidgetType.CONSUMPTION, d.rightLower?.type)
+        assertEquals(WidgetType.PHONE, d.rightLower?.type)
         val v3 = SahneSlots.encode(d)
         assertTrue(v3.startsWith("v3|"))
         assertFalse(v3.contains("rear_speaker"))
         assertEquals(d, SahneSlots.decode(v3))
         // Ekranı kapat zaten şeritteyse mola hatırlatıcı gelir.
-        val both = SahneSlots.decode("v2|media~media~|nav_turn~nav_turn~|rear_speaker~r~,screen_off~s~,,,,|trip~trip~|consumption~c~")!!
+        val both = SahneSlots.decode("v2|media~media~|nav_turn~nav_turn~|rear_speaker~r~,screen_off~s~,,,,|trip~trip~|phone_call~p~")!!
         assertEquals(WidgetType.BREAK_REMINDER, both.strip[0]?.type)
     }
 
     @Test
     fun v3RecordKeepsRearSpeakerInDecode() {
         // Geçiş yalnız eski kayıtlara: v3 kaydında tür kalır (gösterimde UNVERIFIED korur).
-        val d = SahneSlots.decode("v3|media~media~|nav_turn~nav_turn~|rear_speaker~r~,,,,,|trip~trip~|consumption~c~")!!
+        val d = SahneSlots.decode("v3|media~media~|nav_turn~nav_turn~|rear_speaker~r~,,,,,|trip~trip~|phone_call~p~")!!
         assertEquals(WidgetType.REAR_SPEAKER, d.strip[0]?.type)
     }
 

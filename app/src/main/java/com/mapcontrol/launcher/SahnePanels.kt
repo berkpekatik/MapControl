@@ -18,17 +18,20 @@ import android.widget.TextView
 import com.mapcontrol.R
 
 /**
- * Sahne yan panelindeki widget'ı kurar. Medya, yolculuk ve navigasyon kendi özel düzenleriyle ([MediaCard] Sahne kipi,
- * [SahneTripPanel], [NavigationPanel]); diğer her tür kendi kutucuğunun en büyük boyutuyla (büyük biçimi yoksa büyütülmüş kutucuk)
+ * Sahne yan panelindeki widget'ı kurar. Medya (arka yüzü telefon), yolculuk ve navigasyon kendi özel düzenleriyle
+ * ([MediaPhoneFlip]: [MediaCard] Sahne kipi + [PhonePanel], [SahneTripPanel], [NavigationPanel]); eski kayıtlardaki telefon
+ * paneli için [PhonePanel] de kurulabilir; diğer her tür kendi kutucuğunun en büyük boyutuyla (büyük biçimi yoksa büyütülmüş kutucuk)
  * cam panelin içine konur, kart zemini kaldırılır ve renkler Sahne jetonlarından gelir.
  */
 internal object SahnePanelFactory {
     /** [calm]: Sürüş düzeni; hareketli öğeler (canlı çubuk geçmişi) çizilmez, yalnızca büyük değer ve tek alt satır. */
-    fun create(activity: Activity, slot: SahneSlot, calm: Boolean = false): SizedWidget = when (slot.type) {
-        // Cam zemin paneldedir ([GlassPanel]); kartın kendi zemini ve gölgesi kaldırılır.
-        WidgetType.MEDIA -> MediaCard(activity, sahne = true).also { it.view.background = null; it.view.elevation = 0f }
+    fun create(activity: Activity, slot: SahneSlot, calm: Boolean = false, phonePanel: Boolean = false): SizedWidget = when (slot.type) {
+        // Medya kartının arka yüzü telefon ([MediaPhoneFlip]); düzende ayrı telefon paneli varsa ([phonePanel], yalnız
+        // Tiggo 8'in dört panelli biçimi) kart yalnız medyadır: sayfa simgesi ve kaydırma yok.
+        WidgetType.MEDIA -> MediaPhoneFlip(activity, phonePage = !phonePanel)
         WidgetType.TRIP -> SahneTripPanel(activity)
         WidgetType.NAVIGATION -> NavigationPanel(activity)
+        WidgetType.PHONE -> PhonePanel(activity)
         in VALUE_PANEL_TYPES -> {
             val tile = WidgetFactory.create(activity, PlacedWidget(slot.id, slot.type, SahneForm.panelSpan(slot.type), slot.extra))
             tile.applySpan(SahneForm.panelSpan(slot.type))
@@ -48,7 +51,7 @@ internal object SahnePanelFactory {
 
     /** Özel Sahne düzeni olan türler kendi iç boşluğunu verir; diğerlerine panel bir pay ekler. */
     fun panelPaddingDp(type: WidgetType): Int = when (type) {
-        WidgetType.MEDIA, WidgetType.TRIP, WidgetType.NAVIGATION -> 0
+        WidgetType.MEDIA, WidgetType.TRIP, WidgetType.NAVIGATION, WidgetType.PHONE -> 0
         in VALUE_PANEL_TYPES -> 0
         else -> 12
     }
