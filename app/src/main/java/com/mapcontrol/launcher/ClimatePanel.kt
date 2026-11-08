@@ -194,6 +194,9 @@ internal object ClimatePanelPrefs {
  * ([ClimatePanel.close]).
  */
 internal object ClimatePanelPolicy {
+    /** Koruma yalnız FrostNav launcher modu açıkken karar verir/kapatır; mod kapalıyken OEM paneline asla dokunmaz. */
+    fun mayAct(launcherModeOn: Boolean): Boolean = launcherModeOn
+
     /** Değer değişikliğinden sonra bu süre içinde gelen açılış tuşa basıştan sayılır. */
     const val CHANGE_MATCH_MS = 2_000L
 
@@ -397,6 +400,8 @@ internal object ClimatePanelGuard {
     private var hv9: Int? = null
     private var settingsShown = false
     private var subscribed = false
+    @Volatile private var observer: ContentObserver? = null
+    @Volatile private var thread: HandlerThread? = null
 
     /** Abonelik HVAC 9'u bildirim olarak getirdi mi; getirmiyorsa taze okuma önbelleğe yazılmaz (kimse sıfırlamaz). */
     private var hv9Live = false
@@ -421,15 +426,18 @@ internal object ClimatePanelGuard {
     fun start(context: Context) {
         if (worker != null) return
         val ctx = context.applicationContext
+        if (!ClimatePanelPolicy.mayAct(com.mapcontrol.util.LauncherModeManager.isEnabled(ctx))) return
         app = ctx
-        val thread = HandlerThread("ClimatePanelLock").apply { start() }
-        val h = Handler(thread.looper)
+        val t = HandlerThread("ClimatePanelLock").apply { start() }
+        thread = t
+        val h = Handler(t.looper)
         worker = h
-        val observer = object : ContentObserver(h) {
+        val obs = object : ContentObserver(h) {
             override fun onChange(selfChange: Boolean) = onSettings()
         }
+        observer = obs
         try {
-            ClimatePanelBits.SHOW_KEYS.forEach { ctx.contentResolver.registerContentObserver(Settings.System.getUriFor(it), false, observer) }
+            ClimatePanelBits.SHOW_KEYS.forEach { ctx.contentResolver.registerContentObserver(Settings.System.getUriFor(it), false, obs) }
         } catch (e: RuntimeException) {
             Log.w(TAG, "lock observer failed: ${e.javaClass.simpleName}")
         }
@@ -442,6 +450,30 @@ internal object ClimatePanelGuard {
             subscribe(force = false)
         }
     }
+
+    /** Launcher modu kapanınca: abonelik, ayar gözlemcisi ve iş parçacığı bırakılır, durum sıfırlanır. */
+    @Synchronized
+    fun stop() {
+        val h = worker ?: return
+        val ctx = app
+        worker = null
+        h.removeCallbacksAndMessages(null)
+        observer?.let { o -> runCatching { ctx?.contentResolver?.unregisterContentObserver(o) } }
+        observer = null
+        runCatching { CarInfoProxy.getInstance().unRegCallBack(VDEventCarInfo.MODULE_HVAC, notify) }
+        runCatching { CarInfoProxy.getInstance().unRegServiceConnectListener(connectListener) }
+        thread?.quitSafely()
+        thread = null
+        subscribed = false
+        hv9Live = false
+        hv9 = null
+        settingsShown = false
+        values.clear()
+        app = null
+        Log.i(TAG, "lock stopped (launcher mode off)")
+    }
+
+    private fun modeOn(): Boolean = app?.let { ClimatePanelPolicy.mayAct(com.mapcontrol.util.LauncherModeManager.isEnabled(it)) } ?: false
 
     /** Ana ekrana dönüşte: araç uykusunda düşmüş olabilecek abonelik tazelenir. */
     fun refresh() {
@@ -497,6 +529,7 @@ internal object ClimatePanelGuard {
     private fun showPref(): Boolean = app?.let { runCatching { ClimatePanelPrefs.showOnChange(it) }.getOrDefault(false) } ?: false
 
     private fun onHvac(id: Int, v: IntArray) {
+        if (!modeOn()) return
         if (id == HvacID.ID_AC_DISPLAY_ACTIVE) {
             hv9Live = true
             val wasFront = ClimatePanelBits.frontRow(hv9)
@@ -515,6 +548,7 @@ internal object ClimatePanelGuard {
 
     private fun onSettings() {
         val ctx = app ?: return
+        if (!modeOn()) return
         val wasVisible = visible()
         val was = settingsShown
         settingsShown = ClimatePanel.isShowing(ctx)
@@ -522,11 +556,13 @@ internal object ClimatePanelGuard {
     }
 
     private fun onChange(t: Long, src: String) {
+        if (!modeOn()) return
         val d = lock.change(t, visible(), showPref(), ClimatePanelBits.closeCanAct(hv9))
         if (d != ClimatePanelPolicy.Decision.NONE) act(d, "change", src, t)
     }
 
     private fun onShown(src: String) {
+        if (!modeOn()) return
         val t = now()
         val d = lock.shown(t, showPref(), ClimatePanelBits.closeCanAct(hv9), fromHv9 = src == "hv9")
         if (d != ClimatePanelPolicy.Decision.NONE) act(d, "show", src, t)
@@ -540,6 +576,7 @@ internal object ClimatePanelGuard {
     private fun recheck() {
         val t = now()
         val ctx = app ?: return
+        if (!modeOn()) return
         val wasVisible = visible()
         val fresh = ClimatePanel.readHv9()
         if (fresh != null && hv9Live) hv9 = fresh
@@ -557,6 +594,7 @@ internal object ClimatePanelGuard {
 
     private fun act(d: ClimatePanelPolicy.Decision, on: String, src: String, t: Long) {
         val ctx = app ?: return
+        if (!modeOn()) return
         val outcome = if (d == ClimatePanelPolicy.Decision.CLOSE) {
             worker?.postDelayed({ recheck() }, ClimatePanelPolicy.RECHECK_MS)
             ClimatePanel.close(ctx, hv9)
