@@ -22,6 +22,9 @@ import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Telefonla konuşan HTTP sunucusunun (7462) sahibi. Sunucu artık {@code MainActivity}'ye bağlı değildir: uygulama
@@ -36,6 +39,8 @@ import java.util.ArrayDeque;
  *   <li><b>Bekçi:</b> 30 sn'de bir; açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar.</li>
  *   <li><b>Activity yokken gelen komut:</b> uygulama başlatma ve klavye doğrudan yapılır; link açma, APK kurma ve
  *       silme activity'nin yardımcılarını kullandığı için kuyruğa alınır ve activity öne getirilir.</li>
+ *   <li><b>Açma/kapama:</b> arka plan iş parçacığında yapılır (durdurma 1 sn'ye kadar bekleyebilir, ana iş parçacığı
+ *       bloklanmaz).</li>
  * </ul>
  */
 public final class WebServerHost {
@@ -83,6 +88,12 @@ public final class WebServerHost {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final WebServerManager manager;
     private final ArrayDeque<Pending> pending = new ArrayDeque<>();
+    private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, TAG);
+        t.setDaemon(true);
+        return t;
+    });
+    private final AtomicBoolean restarting = new AtomicBoolean();
 
     private volatile WebServerManager.WebServerListener ui;
     private boolean monitoring;
@@ -117,6 +128,47 @@ public final class WebServerHost {
         return manager;
     }
 
+    /** Telefonun bağlanacağı güncel adres (hotspot sunucudan sonra açılmış olabilir). */
+    public String currentHost() {
+        return manager.currentHost();
+    }
+
+    // ---- elle açma / kapama ---------------------------------------------
+
+    /** Sunucuyu arka planda açar; çalışıyorsa bir şey yapmaz. */
+    public void startServer() {
+        io.execute(() -> {
+            if (!manager.isRunning()) {
+                manager.startServer();
+            }
+            main.post(this::afterStartAttempt);
+        });
+    }
+
+    /** Sunucuyu arka planda kapatır; elle kapatılan sunucu bekçi ya da kontakla kendiliğinden açılmaz. */
+    public void stopServer() {
+        io.execute(() -> {
+            manager.stopServer();
+            // Sürmekte olan bir istek (ör. APK yükleme) sunucu iş parçacığını tutarsa onServerStopped ancak istek
+            // bitince gelir; isRunning() şimdiden false olduğu için arayüz hemen güncellenir (tekrarı zararsız).
+            main.post(() -> {
+                WebServerManager.WebServerListener target = ui;
+                if (target != null && !manager.isRunning()) {
+                    target.onServerStopped();
+                }
+            });
+        });
+    }
+
+    /** Aktar sekmesindeki aç/kapat düğmesi. */
+    public void toggleServer() {
+        if (manager.isRunning()) {
+            stopServer();
+        } else {
+            startServer();
+        }
+    }
+
     // ---- yaşam döngüsü --------------------------------------------------
 
     /**
@@ -138,10 +190,16 @@ public final class WebServerHost {
 
     /** Kullanıcı "otomatik başlat"ı seçtiyse ve sunucu kapalıysa açar; varsayılan kapalı. */
     public void startIfPreferred() {
-        if (!manager.isRunning() && autoStart()) {
-            manager.startServer();
-            afterStartAttempt();
+        if (manager.isRunning() || !autoStart()) {
+            return;
         }
+        // Açma/kapama kilidi (durdurma 1 sn'ye kadar bekleyebilir) ana iş parçacığını tutmasın.
+        io.execute(() -> {
+            if (!manager.isRunning()) {
+                manager.startServer();
+            }
+            main.post(this::afterStartAttempt);
+        });
     }
 
     private boolean autoStart() {
@@ -222,9 +280,20 @@ public final class WebServerHost {
     /** Açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar; adres değiştiyse yayını yeniler. */
     private void check(String reason) {
         if (manager.isDesired() && !manager.isHealthy()) {
-            Log.i(TAG, "Sunucu sağlıklı değil (" + reason + "), yeniden açılıyor");
-            manager.restart();
-            afterStartAttempt();
+            if (restarting.compareAndSet(false, true)) {
+                Log.i(TAG, "Sunucu sağlıklı değil (" + reason + "), yeniden açılıyor");
+                // restart() 1 sn'ye kadar bekleyebilir: arka planda yapılır.
+                io.execute(() -> {
+                    try {
+                        if (manager.isDesired() && !manager.isHealthy()) {
+                            manager.restart();
+                        }
+                    } finally {
+                        restarting.set(false);
+                        main.post(this::afterStartAttempt);
+                    }
+                });
+            }
             return;
         }
         if (manager.isRunning()) {
