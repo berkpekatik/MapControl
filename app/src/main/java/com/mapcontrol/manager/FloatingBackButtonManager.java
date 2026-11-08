@@ -66,7 +66,7 @@ public class FloatingBackButtonManager {
     private View floatingButton;
     private WindowManager.LayoutParams params;
     private boolean isShowing = false;
-    /** Ana ekran (HomeLauncherActivity) öndeyken true: hub gizlenir, ayar ve konum korunur. */
+    /** Ana ekran (HomeLauncherActivity/MiniDashActivity) öndeyken true: hub gizlenir, ayar ve konum korunur. */
     private static volatile boolean sSuppressed;
 
     private LinearLayout cardInner;

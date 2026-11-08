@@ -68,10 +68,14 @@ public final class LauncherModeManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean(KEY_LAUNCHER_MODE_ENABLED, enabled).apply();
         setHomeAliasEnabled(context, enabled);
+        syncMiniDashEntry(context, enabled);
         if (enabled) {
             pinHomeAsDeviceOwner(context);
+            // Bildirim dinleyicisi zaten bağlıysa telefon önceliği izlemesi hemen başlasın (bağlı değilse yoksayılır).
+            com.mapcontrol.media.BtSessionWatcher.start(context);
         } else {
             clearDeviceOwnerHomePin(context);
+            com.mapcontrol.media.BtSessionWatcher.stop();
         }
     }
 
@@ -101,6 +105,26 @@ public final class LauncherModeManager {
     public static void syncAliasWithPreference(Context context) {
         boolean enabled = isEnabled(context);
         setHomeAliasEnabled(context, enabled);
+        syncMiniDashEntry(context, enabled);
+    }
+
+    /**
+     * "Mini gösterge" uygulama listesi simgesini launcher moduyla eşitler: yalnız mod açıkken görünür
+     * ({@link com.mapcontrol.launcher.MiniDashEntry}). Etkinliğin kendisine dokunulmaz.
+     */
+    private static void syncMiniDashEntry(Context context, boolean launcherMode) {
+        try {
+            ComponentName alias = new ComponentName(context.getPackageName(),
+                    com.mapcontrol.launcher.MiniDashEntry.ALIAS_CLASS);
+            PackageManager pm = context.getPackageManager();
+            Integer next = com.mapcontrol.launcher.MiniDashEntry.stateToWrite(
+                    pm.getComponentEnabledSetting(alias), launcherMode);
+            if (next != null) {
+                pm.setComponentEnabledSetting(alias, next, PackageManager.DONT_KILL_APP);
+            }
+        } catch (Exception ignored) {
+            // Alias bileşeni yoksa (eski derleme) sessizce geç.
+        }
     }
 
     private static ComponentName homeAlias(Context context) {
@@ -167,6 +191,7 @@ public final class LauncherModeManager {
      */
     public static void restoreIfEnabled(Context context) {
         boolean enabled = isEnabled(context);
+        syncMiniDashEntry(context, enabled);
         if (!enabled) {
             return;
         }

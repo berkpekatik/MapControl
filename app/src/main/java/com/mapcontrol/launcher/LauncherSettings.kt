@@ -57,6 +57,7 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
 
     private val launcher = LauncherIo.serial()
     private var dialog: Dialog? = null
+    private var dataCheck: DataCheckSheet? = null
 
     /**
      * [appearanceOnly]: "Görünüm" paneli (düzenleme modundaki düğme ve FrostNav'daki bağlantı); yalnızca tema, sürüş rengi,
@@ -72,6 +73,7 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
 
     fun release() {
         dialog?.dismiss()
+        dataCheck?.release()
     }
 
     /** Satırlar araç ekranının yüksekliğini aşabilir (tema + alt çubuk + 4-5 satır): panel kaydırılır. */
@@ -124,10 +126,33 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
 
         if (appearanceOnly) return
 
+        // Alt çubuktan klima değişince OEM paneli (varsayılan Gizle). Yukarı kaydırma paneli her durumda açar.
+        addView(gap(activity, 12, vertical = true))
+        addView(onOffControl(R.string.launcher_climate_oem_panel, ClimatePanelPrefs.showOnChange(activity),
+            R.string.launcher_toggle_show, R.string.launcher_toggle_hide) { value ->
+            d.dismiss()
+            ClimatePanelPrefs.setShowOnChange(activity, value)
+        }, fullWidth())
+        addView(gap(activity, 4, vertical = true))
+        addView(text(activity, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY, maxLines = 2).apply {
+            setText(R.string.launcher_climate_oem_panel_hint)
+        }, fullWidth())
+
         addView(gap(activity, 12, vertical = true))
         addView(text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT_SECONDARY).apply { setText(R.string.launcher_favorite_key) }, fullWidth())
         addView(gap(activity, 12, vertical = true))
         addView(favoriteKeySegments(d), fullWidth())
+
+        // Telefon önceliği (varsayılan açık): telefonda Oynat'a basılınca araç kaynağı Bluetooth'a geçer ([PhonePriority]).
+        addView(gap(activity, 12, vertical = true))
+        addView(onOffControl(R.string.launcher_phone_priority, MediaPrefs.phonePriority(activity)) { value ->
+            d.dismiss()
+            MediaPrefs.setPhonePriority(activity, value)
+        }, fullWidth())
+        addView(gap(activity, 4, vertical = true))
+        addView(text(activity, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY, maxLines = 2).apply {
+            setText(R.string.launcher_phone_priority_hint)
+        }, fullWidth())
 
         addView(gap(activity, 24, vertical = true))
         addView(row(R.drawable.ic_mdi_view_grid, R.string.launcher_edit_title) {
@@ -141,6 +166,11 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
                 openApp(VEHICLE_SETTINGS_PACKAGE)
             }, fullWidth())
         }
+        addView(gap(activity, 12, vertical = true))
+        addView(row(R.drawable.ic_mdi_magnify, R.string.launcher_data_check, R.string.launcher_data_check_hint) {
+            d.dismiss()
+            dataCheck = (dataCheck ?: DataCheckSheet(activity)).also { it.show() }
+        }, fullWidth())
         if (LauncherEdition.HAS_SETTINGS) {
             addView(gap(activity, 12, vertical = true))
             addView(row(R.drawable.ic_mdi_cog, R.string.launcher_mapcontrol_settings) {

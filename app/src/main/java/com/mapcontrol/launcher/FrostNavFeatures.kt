@@ -1,6 +1,7 @@
 package com.mapcontrol.launcher
 
 import android.app.Activity
+import android.content.Intent
 
 /**
  * FrostNav özelliklerine bağlanan dört widget'ın (web paneli, ekolayzer, otomasyon, göstergeye yansıt)
@@ -45,6 +46,39 @@ internal interface FrostNavFeatures {
     /** Otomasyonu FrostNav ayar sekmesinin anahtarıyla aynı yoldan açar/kapatır (yalnızca [AutomationItem.toggleable]). */
     fun setAutomation(id: AutomationId, on: Boolean)
 
+    /** Bölünmüş ekran için FrostNav'da seçili uygulama çifti (paket adları). */
+    fun readSplitPair(): SplitPair
+
+    /** Bölünmüş ekranı seçili çiftle başlatır; [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden. */
+    fun startSplit(done: (String?) -> Unit)
+
+    /**
+     * Mini gösterge solda, son seçilen diğer uygulama (yoksa Yandex Haritalar) sağda yarı yarıya bölünmüş ekran açar;
+     * [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden.
+     */
+    fun startSplitWithMiniDash(done: (String?) -> Unit)
+
+    /**
+     * Sürüş ekranı ([DriveScreen]): Mini gösterge bir yarıda, [mapPkg] (null: "+ Harita ekle" seçicisi) diğer yarıda; [route] verilirse
+     * harita onunla açılır (Ev / İş). [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden.
+     */
+    fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit)
+
+    /** Sürüş ekranındaki haritayı tam ekran yapar; [done] ana iş parçacığında (true = yapıldı). */
+    fun mapFullScreen(pkg: String, done: (Boolean) -> Unit)
+
+    /** Sürüş ekranı bitti: kendi yarılarımızın (Mini gösterge, seçici) görevleri kapatılır. */
+    fun endDriveScreen()
+
+    /** [pkg]'yi tam ekran açar; sürüş ekranından yarıda serbest pencere kalmış görevi tam ekrana taşınır (arka planda). */
+    fun openFullScreen(pkg: String)
+
+    /** Süreç ölümüyle yarıda kalmış sürüş ekranı haritasını tüm alana büyütür; engelleyen çağrı (arka plan iş parçacığında kullanılır). */
+    fun restoreStaleMap(pkg: String) = Unit
+
+    /** Sürüş ekranında haritanın yarısı (ekran koordinatı); bölme yoksa null. */
+    fun driveMapSlot(): android.graphics.Rect?
+
     /** Göstergeye (cluster) yansıtma durumu ve hedef uygulama. */
     fun readCluster(): ClusterState
 
@@ -66,6 +100,14 @@ internal interface FrostNavFeatures {
             override fun setEqualizer(enabled: Boolean, preset: String) = Unit
             override fun readAutomations(): List<AutomationItem> = emptyList()
             override fun setAutomation(id: AutomationId, on: Boolean) = Unit
+            override fun readSplitPair() = SplitPair(null, null)
+            override fun startSplit(done: (String?) -> Unit) = Unit
+            override fun startSplitWithMiniDash(done: (String?) -> Unit) = Unit
+            override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) = Unit
+            override fun mapFullScreen(pkg: String, done: (Boolean) -> Unit) = Unit
+            override fun endDriveScreen() = Unit
+            override fun openFullScreen(pkg: String) = Unit
+            override fun driveMapSlot(): android.graphics.Rect? = null
             override fun readCluster() = ClusterState(open = false, target = null)
             override fun setCluster(open: Boolean) = Unit
             override fun openTab(activity: Activity, tab: FrostNavTab) = Unit
@@ -86,6 +128,8 @@ enum class AutomationId { CLIMATE, SUNROOF, FACE }
 
 /** [toggleable] false: launcher'dan açılamaz (ör. yüz tanıma kamera izni ister), dokunuş FrostNav sekmesini açar. */
 data class AutomationItem(val id: AutomationId, val on: Boolean, val toggleable: Boolean)
+
+data class SplitPair(val first: String?, val second: String?)
 
 /** [target]: göstergede açılacak uygulamanın paketi (FrostNav "Yansıtma" sekmesinde seçilen); yoksa null. */
 data class ClusterState(val open: Boolean, val target: String?)
@@ -114,6 +158,26 @@ object FrostNavWidgetMath {
 
     /** Açık otomasyon sayısı ve toplam. */
     fun automationCount(items: List<AutomationItem>): Pair<Int, Int> = items.count { it.on } to items.size
+
+    /** Bölünmüş ekran başlatılabilir mi: iki farklı uygulama seçili. */
+    fun splitReady(pair: SplitPair): Boolean {
+        val a = pair.first?.trim().orEmpty()
+        val b = pair.second?.trim().orEmpty()
+        return a.isNotEmpty() && b.isNotEmpty() && a != b
+    }
+
+    /** Mini gösterge ile bölünecek varsayılan eş: Yandex Haritalar. */
+    const val SPLIT_DEFAULT_PKG = "ru.yandex.yandexmaps"
+
+    /**
+     * Mini gösterge bölünmüş ekranının diğer uygulaması: son seçilen (paketi hâlâ kuruluysa; "pkg/cls" ise paket kısmı
+     * denetlenir), yoksa kuruluysa varsayılan, o da yoksa null.
+     */
+    fun miniDashSplitOther(last: String?, isInstalled: (String) -> Boolean): String? {
+        val l = last?.trim().orEmpty()
+        if (l.isNotEmpty() && isInstalled(l.substringBefore('/'))) return l
+        return SPLIT_DEFAULT_PKG.takeIf(isInstalled)
+    }
 
     /**
      * Dokunuştan sonra gösterilecek yansıtma durumu: [pending] (istenen hedef) [PENDING_MS] dolana ya da araç onu

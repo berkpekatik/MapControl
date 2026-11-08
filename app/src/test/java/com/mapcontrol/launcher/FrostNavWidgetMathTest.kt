@@ -22,6 +22,17 @@ class FrostNavWidgetMathTest {
         assertFalse(FrostNavWidgetMath.isLoopback("192.168.43.1"))
     }
 
+    @Test fun miniDashSplitOtherPrefersLastThenYandex() {
+        assertEquals("com.spotify.music", FrostNavWidgetMath.miniDashSplitOther("com.spotify.music") { true })
+        assertEquals("a.b/a.b.Main", FrostNavWidgetMath.miniDashSplitOther("a.b/a.b.Main") { it == "a.b" })
+        // Son seçilen kaldırıldı: varsayılana düşülür, o da yoksa null.
+        assertEquals("ru.yandex.yandexmaps", FrostNavWidgetMath.miniDashSplitOther("com.spotify.music") { it == "ru.yandex.yandexmaps" })
+        assertNull(FrostNavWidgetMath.miniDashSplitOther("com.spotify.music") { false })
+        assertEquals("ru.yandex.yandexmaps", FrostNavWidgetMath.miniDashSplitOther(null) { it == "ru.yandex.yandexmaps" })
+        assertEquals("ru.yandex.yandexmaps", FrostNavWidgetMath.miniDashSplitOther(" ") { true })
+        assertNull(FrostNavWidgetMath.miniDashSplitOther(null) { false })
+    }
+
     @Test fun automationCount() {
         val items = listOf(
             AutomationItem(AutomationId.CLIMATE, on = true, toggleable = true),
@@ -30,6 +41,13 @@ class FrostNavWidgetMathTest {
         )
         assertEquals(2 to 3, FrostNavWidgetMath.automationCount(items))
         assertEquals(0 to 0, FrostNavWidgetMath.automationCount(emptyList()))
+    }
+
+    @Test fun splitNeedsTwoDifferentApps() {
+        assertTrue(FrostNavWidgetMath.splitReady(SplitPair("a.maps", "b.music")))
+        assertFalse(FrostNavWidgetMath.splitReady(SplitPair("a.maps", "a.maps")))
+        assertFalse(FrostNavWidgetMath.splitReady(SplitPair("a.maps", null)))
+        assertFalse(FrostNavWidgetMath.splitReady(SplitPair(" ", "b.music")))
     }
 
     @Test fun clusterPendingShownUntilConfirmedOrExpired() {
@@ -43,8 +61,8 @@ class FrostNavWidgetMathTest {
     }
 
     @Test fun frostNavWidgetsFitSahneAndHaveLargeForm() {
-        listOf(WidgetType.WEB_PANEL, WidgetType.EQUALIZER, WidgetType.AUTOMATION, WidgetType.CLUSTER_MIRROR).forEach {
-            assertFalse("$it panel", SahneForm.fitsPanel(it)) // büyük panel yalnız yolculuk/tüketim
+        listOf(WidgetType.WEB_PANEL, WidgetType.EQUALIZER, WidgetType.AUTOMATION, WidgetType.SPLIT_SCREEN, WidgetType.CLUSTER_MIRROR).forEach {
+            assertFalse("$it panel", SahneForm.fitsPanel(it)) // büyük panel yalnız medya/yolculuk/tüketim (4 Kasım kararı)
             assertTrue("$it şerit", SahneForm.fitsStrip(it))
             assertTrue("$it büyük biçim", SahneForm.hasLargeForm(it))
             assertEquals(it, WidgetType.fromKey(it.key))

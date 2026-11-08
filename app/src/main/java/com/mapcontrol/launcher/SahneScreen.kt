@@ -155,6 +155,8 @@ class SahneScreen(
                     widgets = emptyList()
                 } else {
                     val w = SahnePanelFactory.create(activity, slot, calm = mode == LayoutMode.DRIVE)
+                    // Medya panelinde sol üstte sıcak renk ışıması; diğer paneller sakin cam.
+                    panel.setGlow(slot.type == WidgetType.MEDIA)
                     panel.host(w.view, SahnePanelFactory.panelPaddingDp(slot.type), SahneArt.panelBackground(activity, slot.type))
                     widgets = listOf(w)
                 }

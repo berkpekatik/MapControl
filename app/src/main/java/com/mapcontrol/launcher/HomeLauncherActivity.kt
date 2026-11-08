@@ -91,6 +91,13 @@ class HomeLauncherActivity : Activity() {
     private var oemBarForced = false
     private val applyOemBarForced = Runnable { setOemBarForced(true) }
     private var rootLayout: View? = null
+    /** Sürüş ekranının arkasındaki düz zemin ([DriveScreen]); açılırken belirir, ana ekran öne gelince kalkar. */
+    private var driveBackdrop: View? = null
+    /** Zeminin harita yarısındaki "Haritayı aç" ipucu: harita penceresinin arkasında kalır, harita kapatılınca görünür. */
+    private var driveMapHint: View? = null
+    private val showDriveMapHint = Runnable { driveMapHint?.animate()?.alpha(1f)?.setDuration(DRIVE_FADE_MS)?.start() }
+    private val onDriveBackdrop: (Boolean) -> Unit = { show -> showDriveBackdrop(show) }
+
     private var started = false
     private var resumed = false
     /** Kurulumda/tema uygulanırken geçerli olan tercih özeti ([HomeScreenPrefs.signature]). */
@@ -98,6 +105,8 @@ class HomeLauncherActivity : Activity() {
     /** Öne gelirken tercih değiştiği için yeniden kurulma bekleniyor; bu kopya düzenleme moduna girmez. */
     private var recreating = false
     private var sheet: android.app.Dialog? = null
+    /** `--ez launcher_data_check true` ile açılan Veri kontrolü paneli (yalnızca debug). */
+    private var dataCheckExtra: DataCheckSheet? = null
 
     override fun attachBaseContext(newBase: android.content.Context) {
         // Farklı ekranlarda (ör. Tiggo 8) yerleşim 1920x720 tasarımına yakın bir dp genişliğine getirilir.
@@ -105,7 +114,7 @@ class HomeLauncherActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Çökme döngüsü bekçisi: 60 sn içinde iki çökmede uygulama HOME'u aracın launcher'ına geri verir.
+        // Çökme döngüsü bekçisi: 60 sn içinde iki ya da 10 dk içinde üç çökmede uygulama HOME'u aracın launcher'ına geri verir.
         LauncherCrashGuard.onLauncherStart(this)
         if (LauncherCrashGuard.isDebuggable(this) && intent?.getBooleanExtra(LauncherCrashGuard.EXTRA_DEBUG_CRASH, false) == true) {
             throw RuntimeException("launcher_debug_crash (yalnızca debug)")
@@ -118,6 +127,7 @@ class HomeLauncherActivity : Activity() {
         VehicleProfile.resolve(this)
         LauncherDemo.applyPreview(intent, restored = savedInstanceState != null)
         LauncherDemo.applyMoving(intent)
+        dataCheckExtra = DataCheckSheet.applyFrom(this, intent)
         LauncherSafeArea.applyFrom(this, intent)
         LauncherBottomBar.applyFrom(this, intent)
         LauncherTheme.applyFrom(resources.configuration, ThemeMode.read(this))
@@ -184,7 +194,43 @@ class HomeLauncherActivity : Activity() {
                 insets
             }
         }
-        setContentView(root)
+        // İçerik her zaman bir FrameLayout: kök düzen ve sürüş ekranının zemini.
+        // Kök düzene bağlı her şey (rootLayout, tema geçişi, karşılama, iç boşluk dinleyicisi) `root`'u kullanır, içerik görünümünü değil.
+        setContentView(FrameLayout(this).apply {
+            clipChildren = false
+            addView(root, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            // Sürüş ekranı açıkken yarıların arkasında yalnız zemin görünür (kartlar durum çubuğu şeridinden ve kenarlardan sızmaz).
+            // Harita başlıktaki X ile kapatılırsa yarısı boş kalmasın: orada "Haritayı aç" görünür, dokununca sürüş ekranı yeniden açılır.
+            addView(FrameLayout(this@HomeLauncherActivity).apply {
+                background = SahneGround()
+                visibility = View.GONE
+                isClickable = true
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                driveBackdrop = this
+                addView(LinearLayout(this@HomeLauncherActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    alpha = 0f
+                    addView(android.widget.ImageView(this@HomeLauncherActivity).apply {
+                        setImageResource(R.drawable.ic_sahne_plus)
+                        setTint(Sahne.INK_3)
+                    }, LinearLayout.LayoutParams(dp(56), dp(56)))
+                    addView(sahneText(this@HomeLauncherActivity, 28f, Sahne.INK_2, 500).apply {
+                        setText(R.string.launcher_drive_reopen_map)
+                    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dp(12)
+                    })
+                    driveMapHint = this
+                }, FrameLayout.LayoutParams(0, 0))
+                setOnTouchListener { v, e ->
+                    if (e.actionMasked == android.view.MotionEvent.ACTION_UP && inDriveMapSlot(v, e.rawX, e.rawY)) {
+                        DriveScreen.reopenFromBackdrop(this@HomeLauncherActivity)
+                    }
+                    true
+                }
+            }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        })
+        DriveScreen.attachLauncher(onDriveBackdrop)
         loadForMode()
         setupWelcome(root)
         LauncherStartup.begin(window.decorView)
@@ -194,6 +240,8 @@ class HomeLauncherActivity : Activity() {
         if (pendingEdit) openPendingEdit()
         // Favori tuşu: etkinlik ömrü boyunca dinlenir (HOME etkinliği başka uygulama öndeyken de yaşar, yalnızca durur).
         FavoriteKey.sync(this)
+        // Klima tuşlarına kilit: süreç boyunca olay güdümlü dinler (önde başka uygulama varken de).
+        ClimatePanelGuard.start(this)
         DrawTrace.applyFrom(this, intent)
     }
 
@@ -549,6 +597,7 @@ class HomeLauncherActivity : Activity() {
         sahne.onVisible()
         // Ana ekrana dönüş: araç uykusunda düşmüş olabilecek favori tuşu aboneliği tazelenir.
         FavoriteKey.refresh()
+        ClimatePanelGuard.refresh()
     }
 
     override fun onResume() {
@@ -606,7 +655,7 @@ class HomeLauncherActivity : Activity() {
     }
 
     /**
-     * Sürüş ekranı: ana ekran yeniden öne gelince biter ([DriveScreen]). Ana ekran tuşu:
+     * Sürüş ekranı: ana ekran yarılara yerini bırakınca açık sayılır, yeniden öne gelince biter ([DriveScreen]). Ana ekran tuşu:
      * tuşa basıldığında ana ekranımız önde miydi ([HomeKey]; öndeyse aracın kendi ana ekranına çıkılır).
      */
     override fun onTopResumedActivityChanged(isTopResumedActivity: Boolean) {
@@ -615,12 +664,64 @@ class HomeLauncherActivity : Activity() {
         DriveScreen.onLauncherTop(this, isTopResumedActivity)
     }
 
+    private fun showDriveBackdrop(show: Boolean) {
+        val v = driveBackdrop ?: return
+        v.animate().cancel()
+        v.removeCallbacks(showDriveMapHint)
+        if (show) {
+            // Hemen tam görünür: belirme animasyonu ana ekran öndeki yerini yarılara bırakınca yarıda kalabiliyor ve durum
+            // çubuğu şeridinde kartlar görünüyordu. Yarılar zaten kendi açılış animasyonuyla gelir.
+            v.alpha = 1f
+            if (v.visibility != View.VISIBLE) {
+                v.visibility = View.VISIBLE
+                // İpucu açılışta harita yarısında yanıp sönmesin: harita penceresi gelene kadar gizli, sonra (arkasında) belirir.
+                driveMapHint?.let { hint ->
+                    hint.animate().cancel()
+                    hint.alpha = 0f
+                    placeDriveMapHint(v, hint)
+                }
+            }
+            v.postDelayed(showDriveMapHint, DRIVE_HINT_DELAY_MS)
+        } else if (v.visibility == View.VISIBLE) {
+            v.animate().alpha(0f).setDuration(DRIVE_FADE_MS).withEndAction { v.visibility = View.GONE }.start()
+        }
+    }
+
+    /** İpucunu sürüş ekranının harita yarısına (ekran koordinatı, [FrostNavFeatures.driveMapSlot]) yerleştirir. */
+    private fun placeDriveMapHint(backdrop: View, hint: View) {
+        val slot = LauncherEdition.frostNav(this).driveMapSlot()
+        if (slot == null) {
+            hint.visibility = View.GONE
+            return
+        }
+        hint.visibility = View.VISIBLE
+        backdrop.post {
+            val at = IntArray(2).also { backdrop.getLocationOnScreen(it) }
+            hint.layoutParams = (hint.layoutParams as FrameLayout.LayoutParams).apply {
+                width = slot.width()
+                height = slot.height()
+                leftMargin = slot.left - at[0]
+                topMargin = slot.top - at[1]
+            }
+        }
+    }
+
+    /** Dokunuş (ekran koordinatı) sürüş ekranının harita yarısında mı. */
+    private fun inDriveMapSlot(v: View, rawX: Float, rawY: Float): Boolean {
+        if (v.visibility != View.VISIBLE) return false
+        val slot = LauncherEdition.frostNav(this).driveMapSlot() ?: return false
+        return slot.contains(rawX.toInt(), rawY.toInt())
+    }
+
     override fun onDestroy() {
+        DriveScreen.detachLauncher(onDriveBackdrop)
         if (::fixedWidgets.isInitialized) fixedWidgets.forEach { it.release() }
         if (::sahne.isInitialized) sahne.release()
         // Ortak örnek: release() çağrılmaz (güneş çatısı vb. dinleyicileri sönerdi), yalnızca kendi dinleyicimiz çıkar.
         metrics.removeListener(metricsListener)
         settings.release()
+        dataCheckExtra?.release()
+        dataCheckExtra = null
         FavoriteKey.stop(this)
         super.onDestroy()
     }
@@ -848,6 +949,10 @@ class HomeLauncherActivity : Activity() {
         const val DRIVE_TICK_MS = 500L
         /** Soğuk açılışta karşılama için güç sinyalinin en çok beklendiği süre (ekran bu sırada siyah). */
         const val WELCOME_ARM_MS = 1_500L
+        /** Sürüş ekranı zemininin kalkma süresi (ana ekrana dönüşte kartlar yumuşak belirir). */
+        const val DRIVE_FADE_MS = 180L
+        /** Zemindeki "Haritayı aç" ipucu açılıştan bu kadar sonra belirir (o ana dek harita penceresi üstünü örter). */
+        const val DRIVE_HINT_DELAY_MS = 2_500L
         const val RESET_SHEET_WIDTH_DP = 640
         /** Sistem OEM çubuğunu zorla açtı bilgisinin kalıcı sayılması için bekleme (açılıştaki geçici durumu eler). */
         const val OEM_BAR_SETTLE_MS = 300L

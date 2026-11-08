@@ -125,6 +125,10 @@ public class MapControlService extends Service {
         com.mapcontrol.manager.WebServerHost.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
+        // Klima tuşlarına kilit: süreç ana ekran etkinliği olmadan yeniden başlatıldığında da (START_STICKY) çalışsın.
+        if (com.mapcontrol.util.LauncherModeManager.isEnabled(this)) {
+            com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.start(this);
+        }
         SunroofAutomationEngine.getInstance(this).start();
         SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
         if (DmsFaceRecognitionManager.isEnabled(this)

@@ -61,14 +61,11 @@ internal object HomePolicy {
     /** İki yönlendirme arası en kısa süre (OEM ana ekranı art arda olay üretirse tek açılış). */
     const val REDIRECT_DEBOUNCE_MS = 1_000L
 
-    /** OEM klima panelinin paketi. */
-    private const val OEM_CLIMATE_PACKAGE = "com.desaysv.svhvac"
-
     /**
      * Öndeki uygulama sayılmayan geçici pencereler: durum çubuğu / bildirim paneli, sistem iletişim kutuları ve OEM klima paneli
-     * (servisin çizdiği katman). Bunlar açılıp kapanınca "son uygulama" değişmez.
+     * (`com.desaysv.svhvac`, servisin çizdiği katman; [ClimatePanel]). Bunlar açılıp kapanınca "son uygulama" değişmez.
      */
-    val TRANSIENT_PACKAGES: Set<String> = setOf("com.android.systemui", "android", OEM_CLIMATE_PACKAGE)
+    val TRANSIENT_PACKAGES: Set<String> = setOf("com.android.systemui", "android", ClimatePanel.PACKAGE)
 
     /** Öne gelen paket aracın kendi (OEM) ana ekranı mı: sistem varsayılan HOME paketi ve biz değil. */
     fun isOemHome(pkg: String?, oemHomePkg: String?, selfPkg: String): Boolean =

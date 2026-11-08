@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Desay OEM komutlarindan turetilen widget'lar (klima tuslari, isitmalar, lastik, toplamlar, arka hoparlor). -->
 <resources>
+    <string name="launcher_climate_lo">LO</string>
+    <string name="launcher_climate_hi">HI</string>
+    <string name="launcher_trunk_stale">Trunk state changed, tap again</string>
     <string name="launcher_widget_trip_totals">Totals</string>
+    <string name="launcher_widget_rear_speaker">Rear speakers</string>
+    <string name="launcher_rear_on">On</string>
+    <string name="launcher_rear_off">Off</string>
     <string name="launcher_tire_fl">Front left</string>
     <string name="launcher_tire_fr">Front right</string>
     <string name="launcher_tire_rl">Rear left</string>
@@ -10,4 +16,8 @@
     <string name="launcher_totals_fuel_label">Total fuel</string>
     <string name="launcher_totals_time_label">Driving time</string>
     <string name="launcher_totals_odometer">Odometer</string>
+    <string name="launcher_rear_muted_detail">Sound from the front only</string>
+    <string name="launcher_rear_on_detail">All speakers</string>
+    <string name="launcher_rear_denied_detail">System permission required</string>
+    <string name="launcher_rear_assumed_detail">Estimated from last command</string>
 </resources>

@@ -38,22 +38,34 @@ object SahneArt {
         return if (id == 0) null else context.getDrawable(id)
     }
 
-    /** Şerit görseli anahtarı: türün anahtarı. Kaynak yoksa null (vektör ikon kullanılır). Ayrılmış nesne üretmez. */
-    @Suppress("UNUSED_PARAMETER")
+    /**
+     * Duruma bağlı şerit görseli anahtarı (yoksa null): koltukta ısıtma açıkken "seat_heat_on", soğutma açıkken "seat_vent_on",
+     * kapalıyken "seat_off"; diğer türlerde türün anahtarı. Kaynak yoksa null (vektör ikon kullanılır). Ayrılmış nesne üretmez.
+     */
     fun stripKey(context: android.content.Context, type: WidgetType, s: StripState): String? {
-        val key = type.key
+        val key = when (type) {
+            WidgetType.SEAT_DRIVER, WidgetType.SEAT_PASSENGER -> seatKey(s.tone, s.level)
+            else -> type.key
+        }
         return if (resId(context, key) == 0) null else key
     }
 
-    /** Görsel yatay çevrilir mi (karşı taraf için). Bu sürümde hiçbir tür çevrilmez. */
-    @Suppress("UNUSED_PARAMETER")
-    fun mirrored(type: WidgetType): Boolean = false
+    /** Koltuk görseli: ısıtma (turuncu ton) / soğutma (buz tonu) seviyesi varsa kendi görseli, yoksa kapalı koltuk. */
+    fun seatKey(tone: StripTone, level: Int): String = SeatChoice.artKey(when (tone) {
+        StripTone.HEAT -> SeatMode.HEAT
+        StripTone.COOL -> SeatMode.COOL
+        else -> SeatMode.OFF
+    }, level)
+
+    /** Yolcu koltuğu yatay çevrilir (görsel sürücü koltuğuna bakar). */
+    fun mirrored(type: WidgetType): Boolean = type == WidgetType.SEAT_PASSENGER
 
     /**
-     * Görseller [StripState.active] false iken (özellik kapalı) soluk çizilir. Durumu olmayan (null) türler hep tam renktir.
+     * Koltuk görselleri kendi açık/kapalı halini taşır; diğer görseller [StripState.active] false iken (bagaj kapalı, arka
+     * hoparlör kapalı, özellik kapalı) soluk çizilir. Durumu olmayan (null) türler hep tam renktir.
      */
-    @Suppress("UNUSED_PARAMETER")
-    fun dimmed(type: WidgetType, s: StripState): Boolean = s.active == false
+    fun dimmed(type: WidgetType, s: StripState): Boolean =
+        type != WidgetType.SEAT_DRIVER && type != WidgetType.SEAT_PASSENGER && s.active == false
 
     /** Kapalı/pasif görsel (buğu giderme kapalıyken): renksizleştirilmiş. Tek örnek, çizimde ayrılma yok. */
     val DESATURATE: android.graphics.ColorFilter = android.graphics.ColorMatrixColorFilter(
@@ -242,7 +254,14 @@ internal class StripItemView(
         val tint = stripToneColor(s.tone, Sahne.INK)
         val active = s.tone == StripTone.HEAT || s.tone == StripTone.COOL || s.tone == StripTone.ON || s.tone == StripTone.ALERT
         val key = if (s.iconDrawable == null && type != null) SahneArt.stripKey(context, type, s) else null
-        if (s.iconDrawable != null) {
+        // Bagaj: sahnedeki aracın kendisi (seçili boya, açık/kapalı), başka bir araç görseli değil.
+        val trunkKey = if (type == WidgetType.TRUNK && s.iconDrawable == null) TrunkArt.key(context, s.active == true) else null
+        if (trunkKey != null) {
+            if (trunkKey != artKey) { artKey = trunkKey; iconView.setImageDrawable(TrunkArt.drawable(context, s.active == true)) }
+            iconView.imageTintList = null
+            applyArtLook(false, false, lift = false)
+            resizeIcon(SIZE_ART)
+        } else if (s.iconDrawable != null) {
             iconView.setImageDrawable(s.iconDrawable)
             iconView.imageTintList = null
             artKey = null
@@ -287,6 +306,23 @@ internal class StripItemView(
             spot = night
             iconBox.background = if (night) SahneArt.spotlight() else null
         }
+    }
+
+    /** Bagaj görseli araç rengini izler: renk ayarı değişince yeniden çizilir. */
+    private val colorListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+        if (k == CarColorPrefs.KEY) last?.let { st -> last = null; artKey = null; bind(st) }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (type == WidgetType.TRUNK) context.getSharedPreferences(CarColorPrefs.PREFS_NAME, Context.MODE_PRIVATE)
+            .registerOnSharedPreferenceChangeListener(colorListener)
+    }
+
+    override fun onDetachedFromWindow() {
+        if (type == WidgetType.TRUNK) context.getSharedPreferences(CarColorPrefs.PREFS_NAME, Context.MODE_PRIVATE)
+            .unregisterOnSharedPreferenceChangeListener(colorListener)
+        super.onDetachedFromWindow()
     }
 
     private fun resizeIcon(mode: Int) {

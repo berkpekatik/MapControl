@@ -7,6 +7,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -806,6 +807,202 @@ internal class AutomationTile(activity: Activity) :
         val any = state.orEmpty().any { it.on }
         return StripState(activity.getString(labelRes), value, iconRes, if (any) StripTone.ON else StripTone.NORMAL, detail = detail, active = any)
     }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// Bölünmüş ekran
+
+/**
+ * Bölünmüş ekran kutusunun yazı kararları (saf, JVM testli). FrostNav'ın seçili çifti düz paket ("pkg") ya da bileşen
+ * ("pkg/.Sinif") olabilir; bileşende `getApplicationInfo` başarısız olup alt başlıkta ham bileşen adı görünüyordu.
+ */
+internal object SplitTileText {
+    /** Seçimden paket adı: bileşense '/' öncesi; boşsa null. */
+    fun packageOf(entry: String?): String? {
+        val e = entry?.trim().orEmpty()
+        if (e.isEmpty()) return null
+        val i = e.indexOf('/')
+        return (if (i >= 0) e.substring(0, i) else e).trim().ifEmpty { null }
+    }
+
+    /** Bileşendeki tam sınıf adı (".Sinif" paketle tamamlanır); bileşen değilse null. */
+    fun classOf(entry: String?): String? {
+        val e = entry?.trim().orEmpty()
+        val i = e.indexOf('/')
+        if (i <= 0 || i >= e.length - 1) return null
+        val cls = e.substring(i + 1)
+        return if (cls.startsWith(".")) e.substring(0, i) + cls else cls
+    }
+
+    /** Ad çözülemezse gösterilecek yazı: ham bileşen değil, paket adı. */
+    fun display(entry: String?, label: String?): String? = label?.takeIf { it.isNotBlank() } ?: packageOf(entry)
+
+    /** Kendi Mini göstergemizin sınıfı (util/SplitSlot.MINI_DASH_CLASS ile aynı tutulur). */
+    const val MINI_DASH_CLASS = "com.mapcontrol.launcher.MiniDashActivity"
+
+    /** Seçim kendi paketimizin bir bileşeni mi (Mini gösterge ya da harita seçici). */
+    fun isOwn(entry: String?, selfPkg: String): Boolean = classOf(entry) != null && packageOf(entry) == selfPkg
+
+    /** Seçim kendi Mini göstergemiz mi. */
+    fun isMiniDash(entry: String?, selfPkg: String): Boolean = isOwn(entry, selfPkg) && classOf(entry) == MINI_DASH_CLASS
+
+    /**
+     * Kutunun açacağı bölme (7 Kasım kararı: tek bölünmüş ekran deneyimi). FrostNav'da Mini gösterge İÇERMEYEN iki başka uygulama
+     * seçiliyse o çift FrostNav'ın kendi bölmesiyle açılır ([SplitRoute.PAIR]); diğer her durumda (çift yok / eksik, Mini
+     * gösterge + herhangi bir uygulama, kendi bileşenimiz) Navigasyon kartıyla aynı sürüş ekranı ([SplitRoute.DRIVE]; harita
+     * kartın seçimi, [DriveScreen.openDefault]).
+     */
+    fun route(pair: SplitPair, selfPkg: String): SplitRoute {
+        if (!FrostNavWidgetMath.splitReady(pair)) return SplitRoute.DRIVE
+        return if (isOwn(pair.first, selfPkg) || isOwn(pair.second, selfPkg)) SplitRoute.DRIVE else SplitRoute.PAIR
+    }
+}
+
+/** "Bölünmüş ekran" kutusunun açtığı bölme: sürüş ekranı (Mini gösterge + harita) ya da FrostNav'da seçili iki başka uygulama. */
+internal enum class SplitRoute { DRIVE, PAIR }
+
+/**
+ * Seçili çiftin uygulama adları (paket yoksa null), açılacak bölme ve sürüş ekranının harita yarısı ([mapPkg] null = seçici;
+ * [mapLabel] haritanın adı).
+ */
+internal data class SplitLoad(
+    val pair: SplitPair,
+    val firstLabel: String?,
+    val secondLabel: String?,
+    val route: SplitRoute = SplitRoute.DRIVE,
+    val mapPkg: String? = null,
+    val mapLabel: String? = null,
+)
+
+/**
+ * "Bölünmüş ekran": tek dokunuşla Navigasyon kartıyla aynı sürüş ekranı (Mini gösterge + kartın haritası, [DriveScreen]; 7 Kasım
+ * kararı, FrostNav'ın eski Mini gösterge bölmesi artık açılmaz). FrostNav'da Mini gösterge içermeyen iki başka uygulama seçildiyse
+ * o çift FrostNav'ın kendi bölünmüş ekran başlatıcısı ve oranıyla açılır ([SplitTileText.route]). Ayarlar şeritte uzun basışta.
+ * Başlatılamazsa FrostNav'ın kendi mesajı gösterilir.
+ */
+internal class SplitScreenTile(activity: Activity) :
+    FrostNavTile<SplitLoad>(activity, R.string.launcher_widget_split_screen, R.drawable.ic_mdi_view_split, FrostNavTab.SPLIT_SCREEN) {
+
+    private var starting = false
+    private val icons = HashMap<String, Drawable?>()
+
+    override fun load(): SplitLoad {
+        val p = features.readSplitPair()
+        val route = SplitTileText.route(p, activity.packageName)
+        val map = if (route == SplitRoute.DRIVE) DriveScreen.defaultMap(activity) else null
+        return SplitLoad(p, label(p.first), label(p.second), route, map, map?.let { label(it) })
+    }
+
+    /** Seçimin görünen adı: bileşense etkinliğin adı (yoksa uygulamanınki), düz paketse uygulama adı. */
+    private fun label(entry: String?): String? {
+        val pkg = SplitTileText.packageOf(entry) ?: return null
+        val pm = activity.packageManager
+        val cls = SplitTileText.classOf(entry)
+        if (cls != null) {
+            try {
+                return pm.getActivityInfo(android.content.ComponentName(pkg, cls), 0).loadLabel(pm).toString()
+            } catch (e: Exception) {
+                // etkinlik bulunamadı: uygulama adına düşülür
+            }
+        }
+        return try {
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun appIcon(entry: String?): Drawable? {
+        val pkg = SplitTileText.packageOf(entry) ?: return null
+        return icons.getOrPut(pkg) { try { activity.packageManager.getApplicationIcon(pkg) } catch (e: Exception) { null } }
+    }
+
+    /** Alt yazı: "Mini gösterge + Yandex Haritalar" (harita yoksa "+ harita") ya da FrostNav çifti "A + B". */
+    private fun subtitle(): String? {
+        val s = state ?: return null
+        if (s.route == SplitRoute.PAIR) {
+            return "${SplitTileText.display(s.pair.first, s.firstLabel)} + ${SplitTileText.display(s.pair.second, s.secondLabel)}"
+        }
+        val map = SplitTileText.display(s.mapPkg, s.mapLabel)
+        return if (map == null) activity.getString(R.string.launcher_fn_split_drive_map)
+            else activity.getString(R.string.launcher_fn_split_drive, map)
+    }
+
+    /** Dokunuş (kutucuk, şerit, panel düğmesi): sürüş ekranı ya da FrostNav çifti. */
+    private fun start() {
+        if (starting) return
+        val s = state
+        if (s == null || s.route == SplitRoute.DRIVE) {
+            // Navigasyon kartıyla aynı yol: harita kartın seçimi, yoksa "+ Harita ekle" seçicisi; bölme olmazsa harita tam ekran.
+            DriveScreen.openDefault(activity)
+            return
+        }
+        starting = true
+        redraw()
+        features.startSplit { msg ->
+            starting = false
+            redraw()
+            if (msg != null) toast(msg)
+        }
+    }
+
+    private fun startLabel(): String =
+        activity.getString(if (starting) R.string.launcher_fn_split_starting else R.string.launcher_fn_split_start)
+
+    override fun buildCompact(): View = compact(startLabel(), LauncherTheme.ACCENT, subtitle())
+
+    override fun buildLarge(): View = largeFrame(null) {
+        val s = state
+        addView(View(activity), LinearLayout.LayoutParams(1, 0, 1f))
+        if (s != null) {
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                if (s.route == SplitRoute.PAIR) {
+                    addView(app(s.pair.first, s.firstLabel), LinearLayout.LayoutParams(0, WRAP, 1f))
+                    addView(icon(activity, R.drawable.ic_mdi_plus, 28, LauncherTheme.TEXT_SECONDARY))
+                    addView(app(s.pair.second, s.secondLabel), LinearLayout.LayoutParams(0, WRAP, 1f))
+                } else {
+                    addView(app(activity.packageName, activity.getString(R.string.launcher_mini_title)), LinearLayout.LayoutParams(0, WRAP, 1f))
+                    addView(icon(activity, R.drawable.ic_mdi_plus, 28, LauncherTheme.TEXT_SECONDARY))
+                    addView(app(s.mapPkg, s.mapLabel ?: activity.getString(R.string.launcher_fn_split_drive_map)), LinearLayout.LayoutParams(0, WRAP, 1f))
+                }
+            }, LinearLayout.LayoutParams(MATCH, WRAP))
+        }
+        addView(View(activity), LinearLayout.LayoutParams(1, 0, 1f))
+        addView(pill(startLabel(), primary = true) { start() }, LinearLayout.LayoutParams(WRAP, WRAP).apply { gravity = Gravity.CENTER_HORIZONTAL })
+    }
+
+    override fun buildWide(): View = wide(
+        subtitle() ?: activity.getString(labelRes),
+        LauncherTheme.TEXT,
+        null,
+        pill(startLabel(), primary = true) { start() },
+    )
+
+    /** Uygulama ikonu + adı (üstte ikon). */
+    private fun app(pkg: String?, label: String?): View = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        addView(ImageView(activity).apply {
+            setImageDrawable(appIcon(pkg))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(activity.dp(72), activity.dp(72)))
+        addView(text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT).apply { text = SplitTileText.display(pkg, label); gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = activity.dp(8) })
+    }
+
+    override fun onTap() = start()
+
+    override fun strip(): StripState = StripState(
+        activity.getString(labelRes),
+        if (starting) activity.getString(R.string.launcher_fn_split_starting)
+        else subtitle() ?: activity.getString(R.string.launcher_fn_split_drive_map),
+        iconRes,
+        StripTone.NORMAL,
+        detail = null,
+        active = true,
+    )
 }
 
 // ------------------------------------------------------------------------------------------------------------------

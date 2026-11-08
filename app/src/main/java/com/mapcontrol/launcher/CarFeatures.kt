@@ -63,6 +63,8 @@ internal object CarFeatures {
             started = true
         }
         val app = context.applicationContext
+        // Widget yazmalarının servis bağlantısı yeniden denemesi için bağlam ([WidgetWriter.send]).
+        WidgetWriter.attach(app)
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         when (prefs.getInt(KEY_STEER, -1)) {
             0 -> steerHeat = false

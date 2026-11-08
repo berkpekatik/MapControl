@@ -5,6 +5,18 @@
     <string name="launcher_appearance">Appearance</string>
     <string name="launcher_degrees" formatted="true">%1$d°</string>
     <string name="launcher_nav_dialog_cancel">Cancel</string>
+    <string name="launcher_media_idle_hint">Open a music app to start</string>
+    <string name="launcher_media_prev">Previous</string>
+    <string name="launcher_media_radio">Radio</string>
+    <string name="launcher_media_source_title">Audio source</string>
+    <string name="launcher_media_source_change">Change audio source</string>
+    <string name="launcher_media_source_bt">Bluetooth</string>
+    <string name="launcher_media_source_fm">Radio FM</string>
+    <string name="launcher_media_source_am">Radio AM</string>
+    <string name="launcher_media_source_usb">USB</string>
+    <string name="launcher_media_source_current">Playing now</string>
+    <string name="launcher_phone_priority">Phone priority</string>
+    <string name="launcher_phone_priority_hint">When music starts on the phone, the car switches to Bluetooth (otherwise the radio keeps the sound and the phone stops).</string>
     <string name="launcher_percent" formatted="true">%1$d%%</string>
     <string name="launcher_locked">Locked</string>
     <string name="launcher_unlocked">Unlocked</string>
@@ -14,7 +26,10 @@
     <string name="launcher_tires_warning_short">Tire alert</string>
     <string name="launcher_app_empty">Add app</string>
     <string name="launcher_app_pick_title">Choose an app</string>
+    <string name="launcher_widget_media">Media</string>
     <string name="launcher_widget_lock">Door lock</string>
+    <string name="launcher_widget_drive_mode">Drive mode</string>
+    <string name="launcher_widget_steer_heat">Steering heat</string>
     <string name="launcher_drive_eco">Eco</string>
     <string name="launcher_drive_normal">Normal</string>
     <string name="launcher_drive_sport">Sport</string>
@@ -48,6 +63,10 @@
     <string name="launcher_vehicle_settings">Vehicle settings</string>
     <string name="launcher_mapcontrol_settings">MapControl settings</string>
     <string name="launcher_waiting_data">Waiting for car data</string>
+    <string name="launcher_seat_off">Off</string>
+    <string name="launcher_seat_low">Low</string>
+    <string name="launcher_seat_mid">Medium</string>
+    <string name="launcher_seat_high">High</string>
     <string name="launcher_widget_vehicle">Vehicle</string>
     <string name="launcher_doors_closed">Doors closed</string>
     <string name="launcher_part_open" formatted="true">%1$s open</string>
@@ -93,6 +112,14 @@
     <string name="launcher_bar_home">Home</string>
     <string name="launcher_bar_apps">Apps</string>
     <string name="launcher_bar_settings">Settings</string>
+    <string name="launcher_read_only_climate">Read-only: change the climate from the car</string>
+    <string name="launcher_climate_pending">Climate control will open after the car test</string>
+    <string name="launcher_climate_panel_failed">Could not open climate panel</string>
+    <string name="launcher_climate_driver">Driver temperature</string>
+    <string name="launcher_climate_passenger">Passenger temperature</string>
+    <string name="launcher_climate_fan">Fan speed</string>
+    <string name="launcher_climate_increase">Increase</string>
+    <string name="launcher_climate_decrease">Decrease</string>
     <string name="launcher_health_row_battery">Battery</string>
     <string name="launcher_health_all_ok">All normal</string>
     <string name="launcher_health_battery_low">Battery low</string>
@@ -138,6 +165,10 @@
     <string name="launcher_auto_drive_layout_hint">Shows a separate layout while the car is moving.</string>
     <string name="launcher_toggle_on">On</string>
     <string name="launcher_toggle_off">Off</string>
+    <string name="launcher_toggle_show">Show</string>
+    <string name="launcher_toggle_hide">Hide</string>
+    <string name="launcher_climate_oem_panel">Factory climate panel on change</string>
+    <string name="launcher_climate_oem_panel_hint">Hide: changing temperature/fan from the bottom bar does not open the OEM climate panel. Swiping up on the bar always opens it.</string>
     <string name="launcher_wifi_connected">Wi-Fi connected</string>
     <string name="launcher_phone_charging_icon">Phone charging</string>
     <string name="launcher_bt_off">Bluetooth off</string>

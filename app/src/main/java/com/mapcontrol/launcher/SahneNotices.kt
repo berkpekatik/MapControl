@@ -154,12 +154,17 @@ internal fun stripText(context: Context, a: MiniAlerts.Item): String = when (a.k
 private val STRIP_WHEELS = listOf(R.string.launcher_tire_fl, R.string.launcher_tire_fr, R.string.launcher_tire_rl, R.string.launcher_tire_rr)
 
 /**
- * En yakın benzin istasyonu araması: önce Yandex, açılmazsa genel harita (geo:); hiçbiri yoksa kısa bilgi.
+ * En yakın benzin istasyonu araması, başlatıcının harita seçimine göre ([MapAppPrefs]): Google seçiliyse Google Haritalar'da
+ * geo: araması; değilse Yandex. Açılmazsa genel harita (geo:); hiçbiri yoksa kısa bilgi.
  */
 internal fun openNearestStation(context: Context) {
-    for (uri in listOf(NearestStation.yandexUri(), NearestStation.geoUri())) {
+    val google = try { MapAppPrefs.current(context) == MapApp.GOOGLE_MAPS } catch (e: Exception) { false }
+    val tries = if (google) listOf(NearestStation.geoUri() to NavigationSource.GOOGLE_MAPS, NearestStation.geoUri() to null)
+    else listOf(NearestStation.yandexUri() to null, NearestStation.geoUri() to null)
+    for ((uri, pkg) in tries) {
         try {
             context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uri))
+                .apply { if (pkg != null) setPackage(pkg) }
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
             return
         } catch (e: android.content.ActivityNotFoundException) {
