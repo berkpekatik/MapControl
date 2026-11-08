@@ -23,6 +23,10 @@ internal class WifiGlyph(context: Context) : View(context) {
         set(v) { if (field != v) { field = v; invalidate() } }
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
+    /** Spor modunda (karbon zemin) açık metal ton; null iken temanın tonu. */
+    var sportInk: Int? = null
+        set(v) { if (field != v) { field = v; invalidate() } }
+
     fun bind(state: WifiUi) {
         ui = state
         invalidate()
@@ -42,10 +46,11 @@ internal class WifiGlyph(context: Context) : View(context) {
         val h = height.toFloat()
         val stroke = w * 0.085f
         paint.strokeWidth = stroke
-        val on = Sahne.HEADER_ICON
+        val on = sportInk ?: Sahne.HEADER_ICON
         val connectedNow = ui.kind == WifiUi.Kind.CONNECTED
         // Bağlıyken dolmayan dilimler iz renginde; bağlı değilken tüm simge soluk ama zeminden ayırt edilir.
-        val off = if (connectedNow) LauncherTheme.TRACK else (LauncherTheme.TEXT_SECONDARY and 0x00FFFFFF) or 0x80000000.toInt()
+        val off = sportInk?.let { (it and 0x00FFFFFF) or 0x59000000 }
+            ?: if (connectedNow) LauncherTheme.TRACK else (LauncherTheme.TEXT_SECONDARY and 0x00FFFFFF) or 0x80000000.toInt()
         if (ui.kind == WifiUi.Kind.HOTSPOT) {
             drawHotspot(canvas, w, h, stroke)
             return

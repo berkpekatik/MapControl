@@ -51,6 +51,9 @@
     
     <!-- System Alert Window (for SYSTEM_ALERT_WINDOW appops) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Spor hız kadranı: android.car PERF_VEHICLE_SPEED 10 Hz (tehlikeli izin; uygulama durağanken bir kez sorar ya da
+         adb shell pm grant <paket> android.car.permission.CAR_SPEED). Yoksa ReadOnly 119 gösterge hızı kullanılır. -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
     
     <!-- Query all packages permission (Android 11+) - Required to see all installed apps -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 

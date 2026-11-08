@@ -50,6 +50,7 @@ internal object LauncherDemo {
         if (!enabled) main.removeCallbacks(cycle)
         if (!enabled) main.removeCallbacks(roofSim)
         if (!enabled) NavigationSource.setDemo(false)
+        if (!enabled) resetSportPreview()
         if (enabled && intent.hasExtra(VehicleProfile.EXTRA_PROFILE)) VehicleProfile.demoOverride = VehicleProfile.parse(intent.getStringExtra(VehicleProfile.EXTRA_PROFILE))
         if (enabled && intent.hasExtra(EXTRA_WIFI)) wifi = intent.getBooleanExtra(EXTRA_WIFI, false)
         if (enabled && intent.hasExtra(EXTRA_CHARGING)) charging = intent.getBooleanExtra(EXTRA_CHARGING, true)
@@ -60,6 +61,45 @@ internal object LauncherDemo {
         if (enabled && intent.hasExtra(EXTRA_SOURCE)) source = intent.getStringExtra(EXTRA_SOURCE)
         if (enabled && intent.hasExtra(EXTRA_OEM_SOURCE)) oemSource = intent.getIntExtra(EXTRA_OEM_SOURCE, 0).takeIf { it > 0 }
         if (enabled && intent.hasExtra(EXTRA_USB)) usb = intent.getBooleanExtra(EXTRA_USB, false)
+    }
+
+    /**
+     * Spor modu önizlemesi: `--ez launcher_demo_sport true` aracın sürüş modunu beklemeden spor ekranını açar (1 sn bekleme
+     * yine uygulanır), `false` kapatır; verilmezse demo sürüş modu (`launcher_demo_drive_mode 2`) belirler. Açıkken kadranlar
+     * sabit demo değerleri gösterir (96 km/sa, 3400 dev/dk, D4, 9,8 L/100, 0–100 9,6 sn, en yüksek 142 km/sa; `launcher_demo_noise` ile P, 0 km/sa, rölanti).
+     * `--ez launcher_demo_no_g true` ivme sensörü yokmuş gibi G kadranını gizler (sensörsüz yerleşimi görmek için).
+     */
+    const val EXTRA_SPORT = "launcher_demo_sport"
+    const val EXTRA_NO_G = "launcher_demo_no_g"
+
+    @Volatile
+    var sportForced: Boolean? = null
+        private set
+
+    @Volatile
+    var sportNoG = false
+        private set
+
+    /**
+     * Spor küçük kadran seçimi (`--es launcher_demo_sport_dials "clock,avg,cool,range"`; anahtarlar [SportDial.key]):
+     * kayıtlı seçimin yerine geçer (seçicide yapılan değişiklik de demo süresince buraya yazılır).
+     * `--ez launcher_demo_sport_summary true` spor ekranı açılınca sürüş özeti kartını bir kez gösterir.
+     */
+    const val EXTRA_SPORT_DIALS = "launcher_demo_sport_dials"
+    const val EXTRA_SPORT_SUMMARY = "launcher_demo_sport_summary"
+
+    @Volatile
+    var sportDials: String? = null
+
+    @Volatile
+    var sportSummary = false
+
+    /** Spor önizleme ekstralarını varsayılana döndürür (yalnız bellekte; demo hiçbir şeyi kalıcı yazmaz). */
+    internal fun resetSportPreview() {
+        sportForced = null
+        sportNoG = false
+        sportDials = null
+        sportSummary = false
     }
 
     /** Demo şarkı adı (`--es launcher_demo_title "..."`): uzun başlığın kartta sığmasını denemek için. */
@@ -188,6 +228,9 @@ internal object LauncherDemo {
     var noise = false
         private set
 
+    /** Spor kadranındaki demo devri: kıpırtı açıksa rölanti, değilse sabit [SportDemo.RPM]. */
+    fun rpm(): Int = if (noise) 735 + (System.nanoTime() / 1_000 % 51).toInt() else SportDemo.RPM
+
     /** Koltuk seviyesi önizlemesi: `--ei launcher_demo_seat N` (0..3) tüm ısıtma/soğutma koltuklarını N yapar. */
     const val EXTRA_SEAT = "launcher_demo_seat"
 
@@ -226,10 +269,13 @@ internal object LauncherDemo {
     var onBodyChanged: Runnable? = null
 
     /**
-     * [restored]: etkinlik kayıtlı durumdan yeniden kuruldu (tema yenilemesi ya da süreç ölümünden dönüş).
+     * [restored]: etkinlik kayıtlı durumdan yeniden kuruldu (tema yenilemesi ya da süreç ölümünden dönüş). O zaman spor
+     * önizleme ekstraları yeniden uygulanmaz: tema yenilemesinde bellekteki durum zaten sürer, süreç yeniden başladıysa
+     * eski başlatma isteğindeki `launcher_demo_sport` spor ekranını kendiliğinden geri getirmez (geçici önizleme).
      */
     fun applyPreview(intent: Intent?, restored: Boolean = false) {
         if (!enabled || intent == null) return
+        if (!restored) applySportPreview(intent)
         if (intent.hasExtra(EXTRA_OPEN)) {
             openParts = parseOpen(intent.getStringExtra(EXTRA_OPEN))
             alertAdded = emptySet()
@@ -271,6 +317,19 @@ internal object LauncherDemo {
             PhoneDemo.apply(intent)
             PhoneSource.demoChanged()
         }
+    }
+
+    /**
+     * Spor önizleme ekstraları. Yeni bir demo başlatması (`launcher_demo` ekstrası) önceki spor önizlemesini sıfırlar:
+     * ekstrası olmayan sonraki başlatma spor ekranını zorlamaz. Yalnız `launcher_demo_sport*` içeren istek (demo açıkken)
+     * mevcut durumu değiştirir.
+     */
+    private fun applySportPreview(intent: Intent) {
+        if (intent.hasExtra(EXTRA)) resetSportPreview()
+        if (intent.hasExtra(EXTRA_SPORT)) sportForced = intent.getBooleanExtra(EXTRA_SPORT, false)
+        if (intent.hasExtra(EXTRA_NO_G)) sportNoG = intent.getBooleanExtra(EXTRA_NO_G, false)
+        if (intent.hasExtra(EXTRA_SPORT_DIALS)) sportDials = intent.getStringExtra(EXTRA_SPORT_DIALS)
+        if (intent.hasExtra(EXTRA_SPORT_SUMMARY)) sportSummary = intent.getBooleanExtra(EXTRA_SPORT_SUMMARY, false)
     }
 
     /**

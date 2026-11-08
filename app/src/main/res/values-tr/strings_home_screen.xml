@@ -33,4 +33,6 @@
     <string name="home_screen_vehicle_help_auto">Ekran boyutundan otomatik seçilir. Değişiklik ana ekran bir sonraki açılışında uygulanır.</string>
     <string name="home_screen_vehicle_help_t7">12×6 ızgara ve mevcut alt çubuk. Ana ekran bir sonraki açılışında uygulanır.</string>
     <string name="home_screen_vehicle_help_t8">12×8 ızgara ve ince düz alt çubuk; düzenleri Tiggo 7\'den ayrıdır. Ana ekran bir sonraki açılışında uygulanır.</string>
+    <string name="home_screen_sport_mode_help_on">Spor\'da kronograf ekranı açılır (yalnız Sahne düzeni).</string>
+    <string name="home_screen_sport_mode_help_off">Spor\'da da orijinal tema kalır.</string>
 </resources>

@@ -106,6 +106,15 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
         addView(driveModeToggle(d), fullWidth())
 
         addView(gap(activity, 12, vertical = true))
+        addView(sportModeToggle(d), fullWidth())
+
+        // Yalnız spor modu açıkken anlamlı; kapalıyken satır gösterilmez (değişimde pencere zaten kapanıp yeniden kurulur).
+        if (SportModePrefs.enabled(activity)) {
+            addView(gap(activity, 12, vertical = true))
+            addView(sportCloseOemDialogToggle(d), fullWidth())
+        }
+
+        addView(gap(activity, 12, vertical = true))
         addView(text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT_SECONDARY).apply { setText(R.string.launcher_bottom_bar) }, fullWidth())
         addView(gap(activity, 12, vertical = true))
         addView(bottomBarSegments(d), fullWidth())
@@ -125,6 +134,9 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
             LauncherTheme.LABEL_SP, SWATCH_DP) { d.dismiss() }, fullWidth())
 
         if (appearanceOnly) return
+
+        addView(gap(activity, 12, vertical = true))
+        addView(sportAmbientToggle(d), fullWidth())
 
         // Alt çubuktan klima değişince OEM paneli (varsayılan Gizle). Yukarı kaydırma paneli her durumda açar.
         addView(gap(activity, 12, vertical = true))
@@ -262,6 +274,25 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
         }
     }
 
+    /** "Spor modu (deneysel)": Açık | Kapalı. Kapatınca açık spor ekranı sakin geçişle orijinal temaya döner. */
+    private fun sportModeToggle(d: Dialog): View =
+        onOffControl(R.string.launcher_sport_mode, SportModePrefs.enabled(activity)) { value ->
+            d.dismiss()
+            SportModePrefs.setEnabled(activity, value)
+            (activity as? HomeLauncherActivity)?.refreshDrivePrefs()
+        }
+
+    /**
+     * "Sürüş modu penceresini kapat" (varsayılan açık): spor geçişi başlarken aracın sürüş modu penceresi kapatılır
+     * ([OemDriveDialogCloser]); yalnız "Spor modu (deneysel)" açıkken etkisi var.
+     */
+    private fun sportCloseOemDialogToggle(d: Dialog): View =
+        onOffControl(R.string.launcher_sport_close_oem_dialog, SportModePrefs.closeOemDialog(activity)) { value ->
+            d.dismiss()
+            SportModePrefs.setCloseOemDialog(activity, value)
+            (activity as? HomeLauncherActivity)?.refreshDrivePrefs()
+        }
+
     /** Etiket (küçük, ikincil) + iki parçalı Açık | Kapalı; seçili olan vurgu renginde. Değişmeyen seçime dokunmak bir şey yapmaz. */
     private fun onOffControl(
         @StringRes labelRes: Int,
@@ -299,6 +330,19 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
                 }
             }, LinearLayout.LayoutParams(activity.dp(TOGGLE_WIDTH_DP), ViewGroup.LayoutParams.WRAP_CONTENT))
         }
+
+    /**
+     * "Spor modunda ambiyans rengi" (varsayılan kapalı): spor başlarken ambiyans OEM kırmızı-turuncusuna geçer, bitince eski
+     * renk döner ([SportAmbient]). Yazma doğrulanmadığı için kapı kapalıyken seçim saklanır ama araca bir şey gitmez.
+     */
+    private fun sportAmbientToggle(d: Dialog): View {
+        val on = SportAmbient.isOn(activity)
+        val label = if (SportAmbient.enabled) R.string.launcher_sport_ambient else R.string.launcher_sport_ambient_unverified
+        return onOffControl(label, on) { value ->
+            d.dismiss()
+            SportAmbient.setOn(activity, value)
+        }
+    }
 
     /** "Sürüşte ayrı düzen" (varsayılan kapalı): etiket + Açık | Kapalı; değişince ekran yeni seçimle kurulur. */
     private fun autoDriveLayoutToggle(d: Dialog): View {

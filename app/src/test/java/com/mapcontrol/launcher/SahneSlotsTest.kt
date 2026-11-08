@@ -235,6 +235,14 @@ class SahneSlotsTest {
     }
 
     @Test
+    fun removedAwdCardEmptiesItsSlotOnDecode() {
+        // 4x4 widget'ı kaldırıldı: eski kayıttaki "awd" yuvası boşalır, kalanlar korunur.
+        val d = SahneSlots.decode("v2|awd~awd~|trip~trip~|")!!
+        assertNull(d.left)
+        assertEquals(WidgetType.TRIP, d.right?.type)
+    }
+
+    @Test
     fun sanitizeDropsMisfitsAndDuplicates() {
         val raw = SahneLayout(
             left = SahneSlot("app", WidgetType.APP),
@@ -370,7 +378,7 @@ class SahneSlotsTest {
     @Test
     fun removedWidgetKeysResolveToNull() {
         // Kaldırılan kutucukların anahtarları çözülmez; eski Sahne kaydında o yuva boşalır.
-        listOf("range", "tires", "doors", "sunroof", "nope").forEach { assertNull(WidgetType.fromKey(it)) }
+        listOf("range", "tires", "doors", "sunroof", "awd", "nope").forEach { assertNull(WidgetType.fromKey(it)) }
         assertEquals(WidgetType.LOCK, WidgetType.fromKey("lock"))
     }
 

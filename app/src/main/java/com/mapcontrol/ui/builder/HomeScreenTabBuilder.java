@@ -88,6 +88,7 @@ public class HomeScreenTabBuilder {
         content.addView(appearanceGrid);
         createThemeSection(appearanceGrid);
         createDriveAccentSection(appearanceGrid);
+        createSportModeSection(appearanceGrid);
         createBottomBarSection(appearanceGrid);
         createAutoLayoutSection(appearanceGrid);
         createVehicleScreenSection(appearanceGrid);
@@ -220,6 +221,20 @@ public class HomeScreenTabBuilder {
                 on -> {
                     HomeScreenPrefs.setDriveAccent(context, on);
                     callback.log("Ana ekran sürüş rengi: " + on);
+                });
+    }
+
+    /** Spor modu (deneysel, yalnız Sahne): araç Spor'dayken kronograf ekranı; varsayılan kapalı. */
+    private void createSportModeSection(FeatureGridLayout grid) {
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.launcher_sport_mode),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.home_screen_sport_mode_help_on),
+                context.getString(R.string.home_screen_sport_mode_help_off),
+                HomeScreenPrefs.sportMode(context),
+                on -> {
+                    HomeScreenPrefs.setSportMode(context, on);
+                    callback.log("Spor modu (deneysel): " + on);
                 });
     }
 

@@ -33,4 +33,6 @@
     <string name="home_screen_vehicle_help_auto">Chosen automatically from the screen size. Applied the next time the home screen opens.</string>
     <string name="home_screen_vehicle_help_t7">12×6 grid and the current bottom bar. Applied the next time the home screen opens.</string>
     <string name="home_screen_vehicle_help_t8">12×8 grid and a thin flat bottom bar; layouts are separate from Tiggo 7. Applied the next time the home screen opens.</string>
+    <string name="home_screen_sport_mode_help_on">In Sport, a chronograph screen opens (Stage layout only).</string>
+    <string name="home_screen_sport_mode_help_off">Sport keeps the original theme.</string>
 </resources>

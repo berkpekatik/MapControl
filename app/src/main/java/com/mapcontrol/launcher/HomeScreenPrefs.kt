@@ -34,6 +34,10 @@ object HomeScreenPrefs {
 
     @JvmStatic fun setDriveAccent(context: Context, on: Boolean) = DriveAccent.setEnabled(context, on)
 
+    @JvmStatic fun sportMode(context: Context): Boolean = SportModePrefs.enabled(context)
+
+    @JvmStatic fun setSportMode(context: Context, on: Boolean) = SportModePrefs.setEnabled(context, on)
+
     @JvmStatic fun bottomBarIndex(context: Context): Int = LauncherBottomBar.mode(context).ordinal
 
     @JvmStatic fun setBottomBarIndex(context: Context, index: Int) {

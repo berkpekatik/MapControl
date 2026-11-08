@@ -200,7 +200,7 @@ object LauncherTheme {
     const val BODY_SP = 24f
     /** Sürüşte okunur alt sınır; etiketler bunun altına inmez. */
     const val LABEL_SP = 22f
-    /** "Araç verisi bekleniyor" notu: tüm küçük kartlarda aynı boyut (bkz. CenteredTile, TripTiles, AwdTile). */
+    /** "Araç verisi bekleniyor" notu: tüm küçük kartlarda aynı boyut (bkz. CenteredTile, TripTiles). */
     const val WAITING_SP = LABEL_SP
 
     const val PRESS_SCALE = 0.98f

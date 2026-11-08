@@ -233,4 +233,8 @@
     <string name="launcher_favorite_key_yandex_navi">Yandex Navi</string>
     <string name="launcher_favorite_key_yandex_maps">Yandex Maps</string>
     <string name="launcher_favorite_key_missing">%1$s is not installed</string>
+    <string name="launcher_sport_mode">Sport mode (experimental)</string>
+    <string name="launcher_sport_ambient">Sport ambient color</string>
+    <string name="launcher_sport_ambient_unverified">Sport ambient color (not verified yet)</string>
+    <string name="launcher_sport_close_oem_dialog">Close drive mode popup</string>
 </resources>
