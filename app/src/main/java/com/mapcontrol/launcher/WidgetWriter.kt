@@ -10,8 +10,8 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.mapcontrol.R
-import com.mapcontrol.comfort.ComfortPlan
-import com.mapcontrol.comfort.ParkGate
+import com.vnoisy.devfort.ComfortPlan
+import com.vnoisy.devfort.ParkGate
 import com.mapcontrol.vehicle.VehicleQuickControls
 import java.util.concurrent.Executors
 

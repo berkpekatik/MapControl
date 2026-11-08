@@ -185,6 +185,7 @@ public class TripTrackerTest {
         assertEquals(10, TripReading.percent(100));
         assertEquals(69, TripReading.percent(694));
         assertEquals(100, TripReading.percent(1000));
+        assertEquals(100, TripReading.percent(1500));
         assertEquals(TripReading.INVALID, TripReading.percent(-5));
         assertEquals(TripReading.INVALID, TripReading.percent(TripReading.INVALID));
     }

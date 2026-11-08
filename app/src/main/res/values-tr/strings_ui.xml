@@ -529,6 +529,7 @@
     <string name="onboarding_subtitle">Başlamak için dilinizi seçin</string>
     <string name="onboarding_continue">Devam Et</string>
     <string name="installer_confirm_countdown">Kurulum onayı %1$d saniye sonra</string>
+    <string name="home_role_confirm_countdown">Varsayılan ana ekran %1$d saniye sonra ayarlanacak</string>
     <string name="installer_confirm_cancel">İptal</string>
     <string name="settings_permissions_title">Uygulama izinleri</string>
     <string name="settings_permissions_desc">Eksik erişimleri ve bağlantı sorunlarını kontrol edin.</string>
@@ -956,4 +957,7 @@
     <string name="projection_cluster_style_slim">İnce çizgi</string>
     <string name="projection_cluster_style_detail_help">Üstte manevra, altta kalan / varış / süre.</string>
     <string name="projection_cluster_style_slim_help">Manevra ve ETA tek ince satırda.</string>
+    <string name="projection_cluster_style_glass">Launcher camı</string>
+    <string name="projection_cluster_style_glass_help">Aydınlık ve karanlık temaya uyan launcher görünümü: büyük mesafe, altta kalan / varış / süre.</string>
+    <string name="projection_cluster_preview_duration">22 dk</string>
 </resources>

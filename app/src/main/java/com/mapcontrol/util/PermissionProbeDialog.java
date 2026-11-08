@@ -50,7 +50,7 @@ public final class PermissionProbeDialog {
         TextView title = new TextView(activity);
         title.setText(R.string.settings_permissions_dialog_title);
         title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         root.addView(title);
 
@@ -64,7 +64,7 @@ public final class PermissionProbeDialog {
         TextView summary = new TextView(activity);
         summary.setText(R.string.settings_permissions_running);
         summary.setTextSize(15);
-        summary.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(summary, Typeface.BOLD);
         summary.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         summary.setPadding(0, 4, 0, 12);
         root.addView(summary);
@@ -155,7 +155,7 @@ public final class PermissionProbeDialog {
                 : result.status == PermissionProbe.Result.Status.FAIL ? "FAIL" : "SKIP";
         name.setText(mark + "  " + result.name);
         name.setTextSize(15);
-        name.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(name, Typeface.BOLD);
         name.setTextColor(color);
         line.addView(name);
 

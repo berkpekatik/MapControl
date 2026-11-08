@@ -103,7 +103,7 @@ public class FileUploadTabBuilder {
         for (Button b : new Button[]{btnSegmentWeb, btnSegmentPair}) {
             b.setTextColor(UiStyles.color(context, R.color.textPrimary));
             UiStyles.setTextSize(b, R.dimen.text_size_normal);
-            b.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(b, Typeface.BOLD);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             lp.setMargins(0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium) / 2, UiStyles.dimenPx(context, R.dimen.spacing_medium));
             segments.addView(b, lp);
@@ -137,7 +137,7 @@ public class FileUploadTabBuilder {
         fileUploadTitle.setText(R.string.web_mgmt_title);
         UiStyles.setTextSize(fileUploadTitle, R.dimen.text_size_large);
         fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        fileUploadTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(fileUploadTitle, Typeface.BOLD);
         leftCol.addView(fileUploadTitle);
 
         TextView fileUploadDesc = new TextView(context);
@@ -151,8 +151,8 @@ public class FileUploadTabBuilder {
         btnWebServerToggle.setText(R.string.web_server_start);
         btnWebServerToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(btnWebServerToggle, R.dimen.text_size_normal);
-        btnWebServerToggle.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnWebServerToggle, UiStyles.color(context, R.color.buttonPrimary));
+        UiStyles.setFontStyle(btnWebServerToggle, Typeface.BOLD);
+        UiStyles.styleOemButton(btnWebServerToggle, UiStyles.color(context, R.color.buttonCta));
         btnWebServerToggle.setPadding(dp(16), dp(16), dp(16), dp(16));
         LinearLayout.LayoutParams webServerToggleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -190,7 +190,7 @@ public class FileUploadTabBuilder {
         webServerStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         webServerStatusText.setGravity(Gravity.CENTER);
         webServerStatusText.setPadding(dp(8), dp(4), dp(8), dp(4));
-        webServerStatusText.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(webServerStatusText, Typeface.BOLD);
         rightCol.addView(webServerStatusText, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -217,7 +217,7 @@ public class FileUploadTabBuilder {
         TextView betaBannerTitle = new TextView(context);
         betaBannerTitle.setText(R.string.phone_pair_banner_title);
         UiStyles.setTextSize(betaBannerTitle, R.dimen.text_size_small);
-        betaBannerTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(betaBannerTitle, Typeface.BOLD);
         betaBannerTitle.setTextColor(UiStyles.color(context, R.color.statusWarning));
         betaBanner.addView(betaBannerTitle);
         TextView betaBannerText = new TextView(context);
@@ -247,7 +247,7 @@ public class FileUploadTabBuilder {
         pairTitle.setText(R.string.phone_pair_title);
         UiStyles.setTextSize(pairTitle, R.dimen.text_size_large);
         pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        pairTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(pairTitle, Typeface.BOLD);
         pairLeft.addView(pairTitle);
 
         TextView pairDesc = new TextView(context);
@@ -270,8 +270,8 @@ public class FileUploadTabBuilder {
         btnPairRegenerate.setText(R.string.phone_pair_regenerate);
         btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_normal);
-        btnPairRegenerate.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonPrimary));
+        UiStyles.setFontStyle(btnPairRegenerate, Typeface.BOLD);
+        UiStyles.styleOemButton(btnPairRegenerate, UiStyles.color(context, R.color.buttonCta));
         btnPairRegenerate.setPadding(dp(16), dp(16), dp(16), dp(16));
         btnPairRegenerate.setOnClickListener(v -> {
             pairKey.setText(PhoneAccess.regenerate(context));
@@ -297,12 +297,12 @@ public class FileUploadTabBuilder {
         gpsTitle.setText(R.string.gps_link_title);
         UiStyles.setTextSize(gpsTitle, R.dimen.text_size_normal);
         gpsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        gpsTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(gpsTitle, Typeface.BOLD);
         pairLeft.addView(gpsTitle);
 
         gpsStatusText = new TextView(context);
         UiStyles.setTextSize(gpsStatusText, R.dimen.text_size_normal);
-        gpsStatusText.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(gpsStatusText, Typeface.BOLD);
         gpsStatusText.setPadding(0, dp(4), 0, 0);
         pairLeft.addView(gpsStatusText);
 
@@ -335,7 +335,7 @@ public class FileUploadTabBuilder {
         pairStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         pairStatusText.setGravity(Gravity.CENTER);
         pairStatusText.setPadding(dp(8), dp(4), dp(8), dp(4));
-        pairStatusText.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(pairStatusText, Typeface.BOLD);
         pairRight.addView(pairStatusText, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 

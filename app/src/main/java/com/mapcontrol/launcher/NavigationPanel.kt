@@ -32,7 +32,7 @@ import kotlin.math.sin
  * Sahne Navigasyon paneli. Üç hâl:
  *  - Rota var ([NavigationState.active]): büyük manevra oku (kendi vektör çizimimiz, [ManeuverArrowView]), büyük mesafe,
  *    sokak adı ve altta "Varış 14:52 · 18 km". Dokununca sürüş ekranı açılır ([DriveScreen]: Mini gösterge + seçili harita, bölünmüş;
- *    FrostNav'sız derlemede harita tam ekran).
+ *    MapControl'sız derlemede harita tam ekran).
  *  - Rota yok: başlık, iki büyük kısayol "Ev" / "İş" (konum ayarlıysa seçili uygulamada rota kurar; uzun basınca konum
  *    ayarı) ve "Haritayı aç".
  * Başlığın sağındaki küçük "Google ▾" / "Yandex ▾" çipi harita uygulamasını seçer ([MapAppPrefs]; yalnız kurulu olanlar
@@ -48,8 +48,8 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     private var visible = false
     private var current = NavigationState.NONE
     private val io = LauncherIo.serial()
-    /** Sürüş ekranı (ve harita yokken seçicisi) bu derlemede var mı (FrostNav). */
-    private val drivePicker by lazy { LauncherEdition.frostNav(context).available }
+    /** Sürüş ekranı (ve harita yokken seçicisi) bu derlemede var mı (MapControl). */
+    private val drivePicker by lazy { LauncherEdition.mapcontrol(context).available }
     /** Etkin harita uygulaması (kurulu seçenek yoksa null); görünür olunca ve seçim değişince yenilenir. */
     private var mapApp: MapApp? = null
     private var mapChoices: List<MapApp> = emptyList()
@@ -269,7 +269,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         homeTile.bind()
         workTile.bind()
         val installed = driveMap() != null
-        // FrostNav'da harita yoksa düğme sürüş ekranını "+ Harita ekle" seçicisiyle açar.
+        // MapControl'da harita yoksa düğme sürüş ekranını "+ Harita ekle" seçicisiyle açar.
         val canPick = !installed && drivePicker
         (mapButton.getChildAt(1) as TextView).setText(when {
             installed -> R.string.launcher_nav_open_map
@@ -282,7 +282,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
 
     // --- Harita uygulamasına geçiş ---
 
-    /** Seçimi (kurulu set + FrostNav hedefi + kayıt) yeniden okur; çipi ve kartın bildirim kaynağını günceller. */
+    /** Seçimi (kurulu set + MapControl hedefi + kayıt) yeniden okur; çipi ve kartın bildirim kaynağını günceller. */
     private fun refreshMapApp() {
         val installed = MapAppPrefs.installedSet(context)
         mapChoices = MapAppChoice.choices(installed)
@@ -338,7 +338,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     /** Sürüş ekranının harita yarısı: kartın paketi, yoksa seçicide seçilen diğer uygulama; ikisi de yoksa null (seçici). */
     private fun driveMap(): String? = DrivePolicy.mapSlot(mapPackage(), DriveMapPrefs.other(context), ::installed)
 
-    /** Kart / "Haritayı aç": sürüş ekranı. FrostNav yoksa eskisi gibi harita tam ekran. */
+    /** Kart / "Haritayı aç": sürüş ekranı. MapControl yoksa eskisi gibi harita tam ekran. */
     private fun openMap() {
         val pkg = driveMap()
         DriveScreen.open(context, pkg, null) { openMapFull(pkg) }
@@ -351,7 +351,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
 
     /**
      * Ayarlı konuma rota (Yandex: yandexmaps:// / yandexnavi://, Google: google.navigation:, diğer: geo:); konum yoksa [label]
-     * araması. Rota sürüş ekranının harita yarısında açılır; FrostNav yoksa harita tam ekran.
+     * araması. Rota sürüş ekranının harita yarısında açılır; MapControl yoksa harita tam ekran.
      */
     private fun openPlace(place: String, label: String) {
         val pkg = driveMap()

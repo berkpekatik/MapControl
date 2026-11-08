@@ -106,7 +106,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         titleView.setTag("header_title");
         titleView.setText(R.string.side_rail_wifi);
         UiStyles.setTextSize(titleView, R.dimen.text_size_medium);
-        titleView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, Typeface.BOLD);
         titleView.setGravity(Gravity.CENTER_VERTICAL);
         titleView.setSingleLine(true);
         titleView.setMinHeight(dp(44));
@@ -175,7 +175,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         }
         brandView.setText(brand);
         UiStyles.setTextSize(brandView, R.dimen.text_size_small);
-        brandView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(brandView, Typeface.BOLD);
         brandView.setGravity(Gravity.CENTER);
         brandView.setTextDirection(View.TEXT_DIRECTION_LTR);
         brandView.setClickable(false);
@@ -228,7 +228,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         TextView label = new TextView(context);
         label.setText(text);
         label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        label.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(accentColor);
         label.setSingleLine(true);
         chip.addView(label, new LinearLayout.LayoutParams(-2, -2));

@@ -91,6 +91,12 @@ grant_permission "pm grant com.mapcontrol android.permission.RECEIVE_BOOT_COMPLE
 grant_permission "pm grant com.mapcontrol android.permission.INTERACT_ACROSS_USERS_FULL" "INTERACT_ACROSS_USERS_FULL"
 grant_permission "pm grant com.mapcontrol android.permission.DELETE_PACKAGES" "DELETE_PACKAGES"
 grant_permission "pm grant com.mapcontrol android.permission.BIND_ACCESSIBILITY_SERVICE" "BIND_ACCESSIBILITY_SERVICE"
+# Launcher: telefon paneli ve spor hız kadranı
+grant_permission "pm grant com.mapcontrol android.permission.READ_CONTACTS" "READ_CONTACTS"
+grant_permission "pm grant com.mapcontrol android.permission.READ_CALL_LOG" "READ_CALL_LOG"
+grant_permission "pm grant com.mapcontrol android.permission.CALL_PHONE" "CALL_PHONE"
+grant_permission "pm grant com.mapcontrol android.permission.ANSWER_PHONE_CALLS" "ANSWER_PHONE_CALLS"
+grant_permission "pm grant com.mapcontrol android.car.permission.CAR_SPEED" "CAR_SPEED"
 
 # AccessibilityService otomatik etkinleştirme
 echo "🔧 AccessibilityService etkinleştiriliyor..."

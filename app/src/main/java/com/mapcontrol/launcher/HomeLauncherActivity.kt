@@ -1,6 +1,7 @@
 package com.mapcontrol.launcher
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.Gravity
 import android.util.Log
@@ -93,7 +94,7 @@ class HomeLauncherActivity : Activity() {
     /** Orta alan ile [ourBar] arasındaki boşluk; çubukla birlikte gizlenir. */
     private var ourBarGap: View? = null
     /**
-     * Sistem OEM çubuğunu zorla gösteriyor (FrostNav bölünmüş ekranı/serbest pencere açık): bizim çubuğumuz gizlenir, alt kenar
+     * Sistem OEM çubuğunu zorla gösteriyor (MapControl bölünmüş ekranı/serbest pencere açık): bizim çubuğumuz gizlenir, alt kenar
      * OEM çubuğunundur; bölme bitince geri gelir. Bkz. [BottomBarMode.oemBarForced].
      */
     private var oemBarForced = false
@@ -158,7 +159,7 @@ class HomeLauncherActivity : Activity() {
         dataCheckExtra = DataCheckSheet.applyFrom(this, intent)
         LauncherSafeArea.applyFrom(this, intent)
         LauncherBottomBar.applyFrom(this, intent)
-        LauncherTheme.applyFrom(resources.configuration, ThemeMode.read(this))
+        LauncherTheme.applyFrom(systemConfig, ThemeMode.read(this))
         // Sürüş modu vurgusu: seçenek kapalıysa varsayılan vurgu; demo isteği ilk kurulumda hemen uygulanır.
         refreshDrivePrefs()
         if (!driveAccentOn) LauncherTheme.driveMode = DriveAccent.NORMAL
@@ -180,7 +181,7 @@ class HomeLauncherActivity : Activity() {
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
         hideSystemBars()
 
-        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel)
+        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair)
         // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir; OEM çubuğu yokken "Orijinal" de
         // bizim çubuğa düşer. "Gizli"de çubuk yok.
         ourBar = if (BottomBarMode.drawsOurBar(LauncherBottomBar.mode(this), oemBar)) OurBottomBar(this, onPhoneTap = ::onPhoneButton) else null
@@ -309,7 +310,7 @@ class HomeLauncherActivity : Activity() {
         }
     }
 
-    /** FrostNav Ayarlar'daki "Ana ekran görünümü" bağlantısı: [EXTRA_OPEN_APPEARANCE] ile gelince Görünüm panelini açar. */
+    /** MapControl Ayarlar'daki "Ana ekran görünümü" bağlantısı: [EXTRA_OPEN_APPEARANCE] ile gelince Görünüm panelini açar. */
     private fun consumeAppearanceExtra(intent: android.content.Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_APPEARANCE, false) != true) return
         intent.removeExtra(EXTRA_OPEN_APPEARANCE)
@@ -317,7 +318,7 @@ class HomeLauncherActivity : Activity() {
     }
 
     /**
-     * FrostNav "Ana ekran" sekmesindeki "Ana ekranı düzenle": [HomeScreenPrefs.EXTRA_OPEN_EDIT] ile gelince düzenleme moduna girer.
+     * MapControl "Ana ekran" sekmesindeki "Ana ekranı düzenle": [HomeScreenPrefs.EXTRA_OPEN_EDIT] ile gelince düzenleme moduna girer.
      * İstek [pendingEdit] ile tutulur: öne gelirken tercih değişikliği yüzünden etkinlik yeniden kurulursa yeni kopya girer.
      */
     private fun consumeEditExtra(intent: android.content.Intent?) {
@@ -365,8 +366,7 @@ class HomeLauncherActivity : Activity() {
         welcomeArmUntil = 0L
         refreshDrivePrefs()
         if (!driveAccentOn) LauncherTheme.driveMode = DriveAccent.NORMAL
-        LauncherTheme.applyFrom(resources.configuration, ThemeMode.read(this))
-        syncAutoNight()
+        LauncherTheme.applyFrom(systemConfig, ThemeMode.read(this))
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
         rootLayout?.setBackgroundColor(LauncherTheme.GROUND)
 
@@ -721,31 +721,45 @@ class HomeLauncherActivity : Activity() {
         LauncherEdition.onLauncherShown(this)
         resumed = true
         DriveScreen.onLauncherResumed(this)
-        syncAutoNight()
-        // FrostNav "Ana ekran" sekmesinde tema/alt çubuk/düzen tercihleri değiştiyse (renkler ve çubuklar kurulumda okunur) yeniden kur.
+        // MapControl "Ana ekran" sekmesinde tema/alt çubuk/düzen tercihleri değiştiyse (renkler ve çubuklar kurulumda okunur) yeniden kur.
         val sig = HomeScreenPrefs.signature(this)
         if (appliedSignature.isNotEmpty() && sig != appliedSignature) {
             appliedSignature = sig
             recreating = true
             if (editing) pendingEdit = true
             ThemeTransition.recreate(this)
+        } else {
+            syncSystemTheme()
         }
     }
 
-    /**
-     * Otomatik temada araç lambası/ışık sensörü izlenir; düzenlerken ya da bir sayfa açıkken geçiş beklenir.
-     * Yalnızca AUTO iken dinleyici ve döngü kurulur; tema modu değişince ([applyThemeInPlace]) yeniden eşitlenir.
-     */
-    private fun syncAutoNight() {
-        if (!resumed) return
-        LauncherTheme.startAutoNight(this, { !editing && sheet == null }) { ThemeTransition.retheme(this) }
+    /** Sistemin güncel yapılandırması: [LauncherScale] etkinliğin kendisininkini sabitleyebildiği için uygulamanınki okunur. */
+    private val systemConfig: Configuration get() = applicationContext.resources.configuration
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        syncSystemTheme()
+    }
+
+    private val systemThemeRetry = Runnable { syncSystemTheme() }
+
+    /** Otomatik temada sistemin gündüz/gecesine uyar; düzenlerken ya da bir sayfa açıkken geçiş bitene kadar bekler. */
+    private fun syncSystemTheme() {
+        val decor = window.decorView
+        decor.removeCallbacks(systemThemeRetry)
+        if (isFinishing || isDestroyed || !::sahne.isInitialized || ThemeMode.read(this) != ThemeMode.AUTO) return
+        if (LauncherTheme.isNight(systemConfig.uiMode) == LauncherTheme.night) return
+        if (editing || sheet != null) {
+            decor.postDelayed(systemThemeRetry, SYSTEM_THEME_RETRY_MS)
+            return
+        }
+        ThemeTransition.retheme(this)
     }
 
     override fun onPause() {
         resumed = false
         welcome?.finish()
         welcomeArmUntil = 0L
-        LauncherTheme.stopAutoNight()
         LauncherEdition.setHomeForeground(false)
         super.onPause()
     }
@@ -804,9 +818,9 @@ class HomeLauncherActivity : Activity() {
         }
     }
 
-    /** İpucunu sürüş ekranının harita yarısına (ekran koordinatı, [FrostNavFeatures.driveMapSlot]) yerleştirir. */
+    /** İpucunu sürüş ekranının harita yarısına (ekran koordinatı, [MapControlFeatures.driveMapSlot]) yerleştirir. */
     private fun placeDriveMapHint(backdrop: View, hint: View) {
-        val slot = LauncherEdition.frostNav(this).driveMapSlot()
+        val slot = LauncherEdition.mapcontrol(this).driveMapSlot()
         if (slot == null) {
             hint.visibility = View.GONE
             return
@@ -826,7 +840,7 @@ class HomeLauncherActivity : Activity() {
     /** Dokunuş (ekran koordinatı) sürüş ekranının harita yarısında mı. */
     private fun inDriveMapSlot(v: View, rawX: Float, rawY: Float): Boolean {
         if (v.visibility != View.VISIBLE) return false
-        val slot = LauncherEdition.frostNav(this).driveMapSlot() ?: return false
+        val slot = LauncherEdition.mapcontrol(this).driveMapSlot() ?: return false
         return slot.contains(rawX.toInt(), rawY.toInt())
     }
 
@@ -1124,8 +1138,8 @@ class HomeLauncherActivity : Activity() {
     }
 
     /**
-     * Arama sayfası için "ana ekran biz miyiz": sistem varsayılanı biz ya da FrostNav launcher modu açık (araçta varsayılan HOME
-     * OEM launcher kalıyor, Ana ekran tuşunu FrostNav yakalıyor; araç testinde OEM arama ekranı önde kaldı).
+     * Arama sayfası için "ana ekran biz miyiz": sistem varsayılanı biz ya da MapControl launcher modu açık (araçta varsayılan HOME
+     * OEM launcher kalıyor, Ana ekran tuşunu MapControl yakalıyor; araç testinde OEM arama ekranı önde kaldı).
      */
     private fun isHomeForCalls(): Boolean = defaultHome || LauncherEdition.launcherModeOn(this)
 
@@ -1179,7 +1193,7 @@ class HomeLauncherActivity : Activity() {
             this, LauncherEdition.wifiBackend(this),
             driving = { activeMode == LayoutMode.DRIVE || LauncherSafeArea.isMoving(metrics.currentSnapshot()) },
             onSettings = { LauncherEdition.openWifi(this) },
-            features = LauncherEdition.frostNav(this),
+            features = LauncherEdition.mapcontrol(this),
             onWebState = { header.setWebRunning(it) },
         ).also { wifiPanel = it }
         panel.show(anchor)
@@ -1191,6 +1205,13 @@ class HomeLauncherActivity : Activity() {
         val panel = bluetoothPanel ?: BluetoothPanel(this, AndroidBluetoothBackend(this), onSettings = { openOemBluetooth(this) })
             .also { bluetoothPanel = it }
         panel.show(anchor)
+    }
+
+    /** Telefon eşleme simgesi: launcher'dan çıkmadan eşleşme QR sayfası. */
+    private fun openPhonePair() {
+        if (editing) return
+        sheet?.dismiss()
+        sheet = showPhonePairSheet(this, LauncherEdition.mapcontrol(this)) { sheet = null }
     }
 
     private fun openProfiles() {
@@ -1250,7 +1271,7 @@ class HomeLauncherActivity : Activity() {
 
     private companion object {
         const val EDIT_EXIT_KMH = 5
-        /** FrostNav Ayarlar'dan gelir (bkz. SettingsTabBuilder): açılışta Görünüm panelini gösterir. */
+        /** MapControl Ayarlar'dan gelir (bkz. SettingsTabBuilder): açılışta Görünüm panelini gösterir. */
         const val EXTRA_OPEN_APPEARANCE = "launcher_open_appearance"
         const val FADE_OUT_MS = 120L
         const val FADE_IN_MS = 200L
@@ -1260,7 +1281,7 @@ class HomeLauncherActivity : Activity() {
         private const val NOTICE_FADE_MS = 250L
         private const val EDIT_SWAP_OUT_MS = 80L
         private const val EDIT_SWAP_IN_MS = 120L
-        /** FrostNav'dan gelen "düzenleme modunda aç" isteği; yeniden kurulma arasında kaybolmasın diye statik. */
+        /** MapControl'dan gelen "düzenleme modunda aç" isteği; yeniden kurulma arasında kaybolmasın diye statik. */
         @Volatile var pendingEdit = false
         const val DRIVE_STABLE_MS = 2_000L
         const val DRIVE_TICK_MS = 500L
@@ -1286,6 +1307,7 @@ class HomeLauncherActivity : Activity() {
         const val CALL_TAG = "PhoneUi"
         /** Sistem OEM çubuğunu zorla açtı bilgisinin kalıcı sayılması için bekleme (açılıştaki geçici durumu eler). */
         const val OEM_BAR_SETTLE_MS = 300L
+        const val SYSTEM_THEME_RETRY_MS = 2_000L
         const val TAG = "HomeLauncher"
     }
 }

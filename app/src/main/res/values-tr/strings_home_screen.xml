@@ -3,8 +3,13 @@
     <string name="side_rail_home_screen">Ana ekran</string>
     <string name="settings_home_screen_link">Ana ekran ayarları \u2192</string>
     <string name="home_screen_off_hint">Ana ekran ayarlarını değiştirmek için Tam ekran ana sayfa\'yı aç.</string>
+    <string name="home_screen_climate_scale">Klima derece hesabı</string>
+    <string name="home_screen_climate_scale_half">Yarım derece</string>
+    <string name="home_screen_climate_scale_whole">Tam derece</string>
+    <string name="home_screen_climate_scale_help_half">Çoğu araç: 0,5 °C adım, en üstte HI.</string>
+    <string name="home_screen_climate_scale_help_whole">Klima HI yerine 23,5\'te kalıyorsa bunu seçin (1 °C adım).</string>
     <string name="home_screen_appearance_title">Görünüm</string>
-    <string name="home_screen_theme_help_auto">Aracın ışık sensörünü izler.</string>
+    <string name="home_screen_theme_help_auto">Araç sisteminin gece/gündüz modunu izler.</string>
     <string name="home_screen_theme_help_day">Hep aydınlık görünüm.</string>
     <string name="home_screen_theme_help_night">Hep karanlık görünüm.</string>
     <string name="home_screen_bottom_bar_help_original">Aracın kendi alt çubuğu görünür kalır.</string>

@@ -54,6 +54,9 @@ public final class DisplayHelper {
      * ekranda durabildiği için sürekli çizim RenderThread/GPU'yu boşuna meşgul ediyordu.
      */
     private static final long SPLASH_ANIMATION_MAX_MS = 4_000L;
+    private static final int SPLASH_LOGO_RADIUS_DP = 60;
+    private static final int SPLASH_LOGO_LIFT_DP = 44;
+    private static final int SPLASH_TEXT_DROP_DP = 76;
     /** Uygulama içi açılış/onboarding splash animasyonları (cluster'dan ayrı tutulur). */
     private static final List<android.animation.Animator> appSplashAnimators = new ArrayList<>();
 
@@ -160,7 +163,7 @@ public final class DisplayHelper {
         title.setText(R.string.splash_preparing_title);
         title.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setLetterSpacing(0.02f);
         title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
@@ -515,40 +518,32 @@ public final class DisplayHelper {
 
     private static View buildBootSplashOverlay(Context ctx) {
         FrameLayout root = new FrameLayout(ctx);
+        UiStyles.setRootBackground(root);
 
-        // Katman 1: soft, renkler arası lerp yapan gradient
-        AnimatedGradientView bgGradient = new AnimatedGradientView(ctx);
-        bgGradient.setId(R.id.boot_splash_gradient);
-        root.addView(bgGradient, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        // Katman 2: hareketli harita grid'i
-        MapGridView grid = new MapGridView(ctx);
-        grid.setId(R.id.boot_splash_grid);
-        root.addView(grid, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        // Katman 3: merkezde parlayan halo (radial)
+        // Logonun arkasında çok hafif ışık (gece en parlak piksel içerik kalsın)
         View halo = new View(ctx);
         halo.setId(R.id.boot_splash_halo);
         android.content.res.Resources res = ctx.getResources();
         halo.setBackground(new RadialHaloDrawable(
-                UiStyles.color(ctx, R.color.accentColor),
+                UiStyles.color(ctx, R.color.oemAccent),
                 UiStyles.color(ctx, R.color.transparent),
                 res.getInteger(R.integer.boot_splash_halo_center_alpha),
                 res.getInteger(R.integer.boot_splash_halo_mid_alpha)));
-        int haloSize = dp(ctx, 480);
+        int haloSize = dp(ctx, 420);
         FrameLayout.LayoutParams haloLp = new FrameLayout.LayoutParams(haloSize, haloSize);
         haloLp.gravity = Gravity.CENTER;
+        haloLp.bottomMargin = 2 * dp(ctx, SPLASH_LOGO_LIFT_DP);
         root.addView(halo, haloLp);
 
-        // Katman 4: merkez içerik
-        LinearLayout center = new LinearLayout(ctx);
+        FrameLayout center = new FrameLayout(ctx);
         center.setId(R.id.boot_splash_center);
-        center.setOrientation(LinearLayout.VERTICAL);
-        center.setGravity(Gravity.CENTER);
+
+        // Radar halkaları ve blip
+        RadarBlipView radar = new RadarBlipView(ctx);
+        radar.setId(R.id.boot_splash_bar);
+        center.addView(radar, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
 
         ImageView logo = new ImageView(ctx);
         logo.setId(R.id.boot_splash_logo);
@@ -562,60 +557,59 @@ public final class DisplayHelper {
             launcher = ContextCompat.getDrawable(ctx, R.mipmap.ic_launcher);
         }
         logo.setImageDrawable(launcher);
-        int logoSize = dp(ctx, 96);
-        LinearLayout.LayoutParams logoLp = new LinearLayout.LayoutParams(logoSize, logoSize);
-        logoLp.gravity = Gravity.CENTER_HORIZONTAL;
-        logo.setLayoutParams(logoLp);
-        center.addView(logo);
+        logo.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline outline) {
+                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+            }
+        });
+        logo.setClipToOutline(true);
+        int logoSize = 2 * dp(ctx, SPLASH_LOGO_RADIUS_DP);
+        FrameLayout.LayoutParams logoLp = new FrameLayout.LayoutParams(logoSize, logoSize);
+        logoLp.gravity = Gravity.CENTER;
+        logoLp.bottomMargin = 2 * dp(ctx, SPLASH_LOGO_LIFT_DP);
+        center.addView(logo, logoLp);
+
+        LinearLayout texts = new LinearLayout(ctx);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setGravity(Gravity.CENTER_HORIZONTAL);
 
         TextView wordmark = new TextView(ctx);
         wordmark.setId(R.id.boot_splash_wordmark);
         wordmark.setText("MapControl");
         wordmark.setTextColor(UiStyles.color(ctx, R.color.textPrimary));
-        wordmark.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32);
-        wordmark.setTypeface(null, Typeface.BOLD);
-        wordmark.setLetterSpacing(0.18f);
+        wordmark.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34);
+        wordmark.setTypeface(com.mapcontrol.launcher.SahneFonts.INSTANCE.get(ctx, 300));
+        wordmark.setLetterSpacing(0.22f);
         wordmark.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams wmLp = new LinearLayout.LayoutParams(
+        texts.addView(wordmark, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        wmLp.topMargin = dp(ctx, 22);
-        wordmark.setLayoutParams(wmLp);
-        center.addView(wordmark);
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView tagline = new TextView(ctx);
         tagline.setId(R.id.boot_splash_tagline);
         tagline.setText(R.string.splash_map_waiting);
-        tagline.setTextColor(UiStyles.color(ctx, R.color.textSecondaryCool));
+        tagline.setTextColor(UiStyles.color(ctx, R.color.textHint));
         tagline.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        tagline.setTypeface(com.mapcontrol.launcher.SahneFonts.INSTANCE.get(ctx, 500));
         tagline.setLetterSpacing(0.12f);
         tagline.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams tagLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        tagLp.topMargin = dp(ctx, 10);
-        tagline.setLayoutParams(tagLp);
-        center.addView(tagline);
+        tagLp.topMargin = dp(ctx, 6);
+        texts.addView(tagline, tagLp);
 
-        // Konum pini + radar dalgaları
-        RadarPinView radar = new RadarPinView(ctx,
-                UiStyles.color(ctx, R.color.accentColor));
-        radar.setId(R.id.boot_splash_bar);
-        int radarW = dp(ctx, 96);
-        int radarH = dp(ctx, 96);
-        LinearLayout.LayoutParams radarLp = new LinearLayout.LayoutParams(radarW, radarH);
-        radarLp.gravity = Gravity.CENTER_HORIZONTAL;
-        radarLp.topMargin = dp(ctx, 24);
-        radar.setLayoutParams(radarLp);
-        center.addView(radar);
-
-        FrameLayout.LayoutParams centerLp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams textsLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        centerLp.gravity = Gravity.CENTER;
-        center.setLayoutParams(centerLp);
-        root.addView(center);
+        textsLp.gravity = Gravity.CENTER;
+        textsLp.topMargin = 2 * dp(ctx, SPLASH_TEXT_DROP_DP);
+        center.addView(texts, textsLp);
 
+        root.addView(center, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
         return root;
     }
 
@@ -631,35 +625,11 @@ public final class DisplayHelper {
         root.setAlpha(0f);
         root.animate().alpha(1f).setDuration(360).start();
 
-        View gradient = root.findViewById(R.id.boot_splash_gradient);
-        View grid = root.findViewById(R.id.boot_splash_grid);
         View halo = root.findViewById(R.id.boot_splash_halo);
         View center = root.findViewById(R.id.boot_splash_center);
         View bar = root.findViewById(R.id.boot_splash_bar);
         View logo = root.findViewById(R.id.boot_splash_logo);
         View tagline = root.findViewById(R.id.boot_splash_tagline);
-
-        if (gradient instanceof AnimatedGradientView) {
-            ValueAnimator flow = ValueAnimator.ofFloat(0f, 1f);
-            flow.setDuration(10_000);
-            flow.setRepeatCount(ValueAnimator.INFINITE);
-            flow.setInterpolator(new LinearInterpolator());
-            final AnimatedGradientView g = (AnimatedGradientView) gradient;
-            flow.addUpdateListener(a -> g.setProgress((float) a.getAnimatedValue()));
-            flow.start();
-            own.add(flow);
-        }
-
-        if (grid instanceof MapGridView) {
-            ValueAnimator scroll = ValueAnimator.ofFloat(0f, 1f);
-            scroll.setDuration(8000);
-            scroll.setRepeatCount(ValueAnimator.INFINITE);
-            scroll.setInterpolator(new LinearInterpolator());
-            final MapGridView g = (MapGridView) grid;
-            scroll.addUpdateListener(a -> g.setProgress((float) a.getAnimatedValue()));
-            scroll.start();
-            own.add(scroll);
-        }
 
         if (halo != null) {
             halo.setAlpha(0.0f);
@@ -669,20 +639,6 @@ public final class DisplayHelper {
             fadeIn.start();
             own.add(fadeIn);
 
-            ObjectAnimator pulseX = ObjectAnimator.ofFloat(halo, View.SCALE_X, 0.95f, 1.08f);
-            ObjectAnimator pulseY = ObjectAnimator.ofFloat(halo, View.SCALE_Y, 0.95f, 1.08f);
-            ObjectAnimator pulseA = ObjectAnimator.ofFloat(halo, View.ALPHA, 0.65f, 0.95f);
-            for (ObjectAnimator a : new ObjectAnimator[]{pulseX, pulseY, pulseA}) {
-                a.setDuration(2200);
-                a.setStartDelay(900);
-                a.setInterpolator(new AccelerateDecelerateInterpolator());
-                a.setRepeatCount(ValueAnimator.INFINITE);
-                a.setRepeatMode(ValueAnimator.REVERSE);
-            }
-            AnimatorSet pulse = new AnimatorSet();
-            pulse.playTogether(pulseX, pulseY, pulseA);
-            pulse.start();
-            own.add(pulse);
         }
 
         if (center != null) {
@@ -698,13 +654,10 @@ public final class DisplayHelper {
         }
 
         if (logo != null) {
-            ObjectAnimator floatY = ObjectAnimator.ofFloat(logo, View.TRANSLATION_Y,
-                    0f, -dp(root.getContext(), 4), 0f);
-            floatY.setDuration(3200);
-            floatY.setRepeatCount(ValueAnimator.INFINITE);
-            floatY.setInterpolator(new AccelerateDecelerateInterpolator());
-            floatY.start();
-            own.add(floatY);
+            logo.setScaleX(0.92f);
+            logo.setScaleY(0.92f);
+            logo.animate().scaleX(1f).scaleY(1f).setStartDelay(220).setDuration(620)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
         }
 
         if (tagline != null) {
@@ -717,23 +670,15 @@ public final class DisplayHelper {
             own.add(blink);
         }
 
-        if (bar instanceof RadarPinView) {
-            final RadarPinView radar = (RadarPinView) bar;
+        final RadarBlipView radar = bar instanceof RadarBlipView ? (RadarBlipView) bar : null;
+        if (radar != null) {
             ValueAnimator pulse = ValueAnimator.ofFloat(0f, 1f);
-            pulse.setDuration(2200);
+            pulse.setDuration(2400);
             pulse.setRepeatCount(ValueAnimator.INFINITE);
             pulse.setInterpolator(new LinearInterpolator());
             pulse.addUpdateListener(a -> radar.setProgress((float) a.getAnimatedValue()));
             pulse.start();
             own.add(pulse);
-
-            ObjectAnimator pinBounce = ObjectAnimator.ofFloat(radar, View.TRANSLATION_Y,
-                    0f, -dp(root.getContext(), 3), 0f);
-            pinBounce.setDuration(1800);
-            pinBounce.setRepeatCount(ValueAnimator.INFINITE);
-            pinBounce.setInterpolator(new AccelerateDecelerateInterpolator());
-            pinBounce.start();
-            own.add(pinBounce);
         }
         out.addAll(own);
         // Sonsuz animasyon sürekli çizim demek: cluster splash'i saatlerce ekranda kalabiliyor ve
@@ -743,6 +688,9 @@ public final class DisplayHelper {
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             cancelAll(own);
             out.removeAll(own);
+            if (radar != null) {
+                radar.settle();
+            }
         }, SPLASH_ANIMATION_MAX_MS);
         root.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
@@ -770,167 +718,6 @@ public final class DisplayHelper {
             }
         }
         animators.clear();
-    }
-
-    /**
-     * Soft çok-renkli gradient — progress 0→1 ile renkler ve açı kayar (light/dark palette).
-     */
-    private static final class AnimatedGradientView extends View {
-        private final int[] palette;
-        private final int[] frameColors = new int[4];
-        private final android.graphics.drawable.GradientDrawable drawable =
-                new android.graphics.drawable.GradientDrawable();
-        private float progress;
-
-        AnimatedGradientView(Context ctx) {
-            super(ctx);
-            palette = new int[]{
-                    UiStyles.color(ctx, R.color.boot_splash_grad_a),
-                    UiStyles.color(ctx, R.color.boot_splash_grad_b),
-                    UiStyles.color(ctx, R.color.boot_splash_grad_c),
-                    UiStyles.color(ctx, R.color.boot_splash_grad_d),
-                    UiStyles.color(ctx, R.color.boot_splash_grad_accent),
-            };
-            drawable.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-            drawable.setGradientType(android.graphics.drawable.GradientDrawable.LINEAR_GRADIENT);
-            setBackground(drawable);
-            setProgress(0f);
-        }
-
-        void setProgress(float p) {
-            progress = p - (float) Math.floor(p);
-            int n = palette.length;
-            float phase = progress * n;
-            int i0 = (int) phase % n;
-            int i1 = (i0 + 1) % n;
-            int i2 = (i0 + 2) % n;
-            int i3 = (i0 + 3) % n;
-            float t = phase - (int) phase;
-            // Smoothstep
-            t = t * t * (3f - 2f * t);
-            frameColors[0] = lerpColor(palette[i0], palette[i1], t);
-            frameColors[1] = lerpColor(palette[i1], palette[i2], t);
-            frameColors[2] = lerpColor(palette[i2], palette[i3], t);
-            frameColors[3] = lerpColor(palette[i3], palette[(i0) % n], t);
-            drawable.setColors(frameColors);
-            // Açı da yavaşça döner — daha canlı geçiş
-            float angle = (progress * 360f) % 360f;
-            drawable.setOrientation(orientationForAngle(angle));
-            invalidate();
-        }
-
-        private static android.graphics.drawable.GradientDrawable.Orientation orientationForAngle(
-                float degrees) {
-            int sector = ((int) ((degrees + 22.5f) / 45f)) % 8;
-            switch (sector) {
-                case 1:
-                    return android.graphics.drawable.GradientDrawable.Orientation.TL_BR;
-                case 2:
-                    return android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM;
-                case 3:
-                    return android.graphics.drawable.GradientDrawable.Orientation.TR_BL;
-                case 4:
-                    return android.graphics.drawable.GradientDrawable.Orientation.RIGHT_LEFT;
-                case 5:
-                    return android.graphics.drawable.GradientDrawable.Orientation.BR_TL;
-                case 6:
-                    return android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP;
-                case 7:
-                    return android.graphics.drawable.GradientDrawable.Orientation.BL_TR;
-                case 0:
-                default:
-                    return android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT;
-            }
-        }
-
-        private static int lerpColor(int a, int b, float t) {
-            t = Math.max(0f, Math.min(1f, t));
-            int aA = (a >> 24) & 0xFF;
-            int aR = (a >> 16) & 0xFF;
-            int aG = (a >> 8) & 0xFF;
-            int aB = a & 0xFF;
-            int bA = (b >> 24) & 0xFF;
-            int bR = (b >> 16) & 0xFF;
-            int bG = (b >> 8) & 0xFF;
-            int bB = b & 0xFF;
-            int rA = Math.round(aA + (bA - aA) * t);
-            int rR = Math.round(aR + (bR - aR) * t);
-            int rG = Math.round(aG + (bG - aG) * t);
-            int rB = Math.round(aB + (bB - aB) * t);
-            return (rA << 24) | (rR << 16) | (rG << 8) | rB;
-        }
-    }
-
-    /** Hareketli izometrik harita grid'i — boot splash arkaplanı için. */
-    private static final class MapGridView extends View {
-        private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint vignettePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private float progress = 0f;
-        private final int spacingDp = 56;
-        private final int vignetteTransparent;
-        private final int vignetteEdge;
-        private final int glowPulseAlphaMax;
-
-        MapGridView(Context ctx) {
-            super(ctx);
-            linePaint.setStyle(Paint.Style.STROKE);
-            linePaint.setStrokeWidth(dp(ctx, 1));
-            linePaint.setColor(UiStyles.color(ctx, R.color.map_grid_line_accent));
-
-            glowPaint.setStyle(Paint.Style.STROKE);
-            glowPaint.setStrokeWidth(dp(ctx, 1));
-            glowPaint.setColor(UiStyles.color(ctx, R.color.map_grid_glow_accent));
-
-            vignettePaint.setStyle(Paint.Style.FILL);
-            vignetteTransparent = UiStyles.color(ctx, R.color.transparent);
-            vignetteEdge = UiStyles.color(ctx, R.color.map_grid_vignette_edge);
-            glowPulseAlphaMax = ctx.getResources().getInteger(R.integer.map_grid_glow_pulse_alpha_max);
-        }
-
-        void setProgress(float p) {
-            this.progress = p;
-            invalidate();
-        }
-
-        @Override
-        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            super.onSizeChanged(w, h, oldw, oldh);
-            // Kenarlardan merkeze koyu vignette
-            RadialGradient vg = new RadialGradient(
-                    w / 2f, h / 2f,
-                    Math.max(w, h) * 0.7f,
-                    new int[]{vignetteTransparent, vignetteEdge},
-                    new float[]{0.55f, 1f},
-                    Shader.TileMode.CLAMP);
-            vignettePaint.setShader(vg);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            int w = getWidth();
-            int h = getHeight();
-            int spacing = dp(getContext(), spacingDp);
-            float offset = progress * spacing;
-
-            // Diyagonal grid (izometrik his)
-            for (float x = -h + offset; x < w + h; x += spacing) {
-                canvas.drawLine(x, 0, x + h, h, linePaint);
-            }
-            for (float x = -h - offset; x < w + h; x += spacing) {
-                canvas.drawLine(x, h, x + h, 0, linePaint);
-            }
-
-            // Pulse eden ışıklı çizgi (rotation effekti)
-            float t = (progress * 2f) % 1f;
-            float gx = -h + t * (w + h);
-            glowPaint.setAlpha((int) (glowPulseAlphaMax * (1f - Math.abs(0.5f - t) * 2f)));
-            canvas.drawLine(gx, 0, gx + h, h, glowPaint);
-
-            // Vignette
-            canvas.drawRect(0, 0, w, h, vignettePaint);
-        }
     }
 
     /** Merkezi parlayan radial halo. */
@@ -978,86 +765,103 @@ public final class DisplayHelper {
         @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 
-    /** Konum pin'i + dışa doğru genişleyen radar dalgaları. */
-    private static final class RadarPinView extends View {
-        private final Paint wavePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint pinFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint pinDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint pinShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /**
+     * Logodan yukarı doğru yayılan radar: sabit ince halkalar, dışa giden tarama halkası ve tarama değince parlayan blip.
+     * Halkalar aşağı doğru söner; yazıların üstünden geçmez.
+     */
+    private static final class RadarBlipView extends View {
+        private static final int RING_ALPHA = 66;
+        private static final int PING_ALPHA = 170;
+        private static final float BLIP_ANGLE_DEG = -38f;
+        private static final float BLIP_RING = 1;
+
+        private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint pingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint blipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final int accent;
-        private final int radarWaveAlphaMax;
-        private final android.graphics.Path pinPath = new android.graphics.Path();
-        private float progress = 0f;
+        private final float logoRadius;
+        private final float[] rings;
+        private final float maxRadius;
+        private final float lift;
+        private final float blipRadius;
+        private final float blipHitT;
+        private float progress;
+        private boolean settled;
 
-        RadarPinView(Context ctx, int accent) {
+        RadarBlipView(Context ctx) {
             super(ctx);
-            this.accent = accent;
-            this.radarWaveAlphaMax = ctx.getResources().getInteger(R.integer.boot_splash_radar_wave_alpha_max);
-            wavePaint.setStyle(Paint.Style.STROKE);
-            wavePaint.setStrokeWidth(dp(ctx, 2));
-            wavePaint.setColor(accent);
-
-            pinFillPaint.setStyle(Paint.Style.FILL);
-            pinFillPaint.setColor(accent);
-
-            pinDotPaint.setStyle(Paint.Style.FILL);
-            pinDotPaint.setColor(UiStyles.color(ctx, R.color.boot_splash_pin_dot));
-
-            pinShadowPaint.setStyle(Paint.Style.FILL);
-            pinShadowPaint.setColor(UiStyles.color(ctx, R.color.boot_splash_pin_shadow));
+            accent = UiStyles.color(ctx, R.color.oemAccent);
+            logoRadius = dp(ctx, SPLASH_LOGO_RADIUS_DP);
+            rings = new float[]{dp(ctx, 100), dp(ctx, 146), dp(ctx, 198)};
+            maxRadius = dp(ctx, 250);
+            lift = dp(ctx, SPLASH_LOGO_LIFT_DP);
+            blipRadius = dp(ctx, 5);
+            float strokeWidth = Math.max(1f, dp(ctx, 1));
+            ringPaint.setStyle(Paint.Style.STROKE);
+            ringPaint.setStrokeWidth(strokeWidth);
+            pingPaint.setStyle(Paint.Style.STROKE);
+            pingPaint.setStrokeWidth(strokeWidth * 1.5f);
+            blipPaint.setStyle(Paint.Style.FILL);
+            blipPaint.setColor(UiStyles.color(ctx, R.color.accentColor));
+            glowPaint.setStyle(Paint.Style.FILL);
+            glowPaint.setColor(accent);
+            // Tarama halkası blip'in halkasına eased ilerlemeyle hangi anda varır.
+            float fraction = (rings[(int) BLIP_RING] - logoRadius) / (maxRadius - logoRadius);
+            blipHitT = 1f - (float) Math.sqrt(1f - fraction);
         }
 
         void setProgress(float p) {
-            this.progress = p;
+            progress = p - (float) Math.floor(p);
             invalidate();
+        }
+
+        /** Animasyon sınırı dolunca son poz: tarama yok, blip sabit yanar (sürekli çizim olmasın). */
+        void settle() {
+            settled = true;
+            invalidate();
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            float cy = h / 2f - lift;
+            int clear = accent & 0x00FFFFFF;
+            Shader fade = new android.graphics.LinearGradient(0f, cy - maxRadius, 0f, cy + logoRadius,
+                    new int[]{accent, accent, clear}, new float[]{0f, 0.62f, 1f}, Shader.TileMode.CLAMP);
+            ringPaint.setShader(fade);
+            pingPaint.setShader(fade);
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float w = getWidth();
-            float h = getHeight();
-            float cx = w / 2f;
-            float cy = h * 0.62f;
-            float maxR = Math.min(w, h) * 0.46f;
-
-            // Üç kademeli radar dalgası
-            for (int i = 0; i < 3; i++) {
-                float t = (progress + i / 3f) % 1f;
-                float r = maxR * t;
-                int alpha = (int) (radarWaveAlphaMax * (1f - t));
-                if (alpha <= 0) continue;
-                wavePaint.setAlpha(alpha);
-                canvas.drawCircle(cx, cy, r, wavePaint);
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f - lift;
+            ringPaint.setAlpha(RING_ALPHA);
+            for (float r : rings) {
+                canvas.drawCircle(cx, cy, r, ringPaint);
             }
-
-            // Yer gölgesi (pin'in altına oval)
-            float shadowSquish = 0.25f + 0.08f * (float) Math.sin(progress * Math.PI * 2);
-            float shadowR = maxR * 0.22f;
-            canvas.save();
-            canvas.scale(1f, shadowSquish, cx, cy + maxR * 0.25f);
-            canvas.drawCircle(cx, cy + maxR * 0.25f, shadowR, pinShadowPaint);
-            canvas.restore();
-
-            // Klasik konum pini (damla şekli)
-            float pinR = dp(getContext(), 13);
-            float pinTipY = cy + pinR * 1.55f;
-            float pinTopY = cy - pinR;
-            // Path her karede yeniden ayrılmaz; alan yeniden kullanılır (rewind).
-            final android.graphics.Path pin = pinPath;
-            pin.rewind();
-            pin.addCircle(cx, cy, pinR, android.graphics.Path.Direction.CW);
-            pin.moveTo(cx - pinR * 0.78f, cy + pinR * 0.55f);
-            pin.lineTo(cx, pinTipY);
-            pin.lineTo(cx + pinR * 0.78f, cy + pinR * 0.55f);
-            pin.close();
-            canvas.drawPath(pin, pinFillPaint);
-
-            // İç boşluk (delik)
-            canvas.drawCircle(cx, cy - pinR * 0.05f, pinR * 0.42f, pinDotPaint);
-
-            // Suppress unused warning
-            if (pinTopY < 0) { /* no-op */ }
+            float blipLevel = 1f;
+            if (!settled) {
+                float eased = 1f - (1f - progress) * (1f - progress);
+                float r = logoRadius + (maxRadius - logoRadius) * eased;
+                int alpha = (int) (PING_ALPHA * (1f - eased));
+                if (alpha > 0) {
+                    pingPaint.setAlpha(alpha);
+                    canvas.drawCircle(cx, cy, r, pingPaint);
+                }
+                float sinceHit = (progress - blipHitT + 1f) % 1f;
+                blipLevel = 0.3f + 0.7f * (float) Math.exp(-sinceHit * 4.5f);
+            }
+            double angle = Math.toRadians(BLIP_ANGLE_DEG);
+            float radius = rings[(int) BLIP_RING];
+            float bx = cx + (float) Math.cos(angle) * radius;
+            float by = cy + (float) Math.sin(angle) * radius;
+            glowPaint.setAlpha((int) (70 * blipLevel));
+            canvas.drawCircle(bx, by, blipRadius * (2f + blipLevel), glowPaint);
+            blipPaint.setAlpha((int) (255 * blipLevel));
+            canvas.drawCircle(bx, by, blipRadius, blipPaint);
         }
     }
 }

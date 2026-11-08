@@ -168,7 +168,7 @@ public final class DisplayRunningAppsOverlay {
         TextView titleView = new TextView(themedContext);
         titleView.setText(title != null ? title : appContext.getString(R.string.floating_qa_open_apps));
         titleView.setTextSize(20);
-        titleView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, Typeface.BOLD);
         titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);

@@ -33,7 +33,7 @@ import java.util.Date
 
 /**
  * Mini gösterge: bölünmüş ekranın bir yarısında (navigasyonun yanında, serbest pencere) ya da tam ekran açılan ayrı etkinlik
- * (karar §5). Ana ekran (launcher) kendisi bölünemediği için bu etkinlik FrostNav'ın bölme düğmesinden ya da uygulama
+ * (karar §5). Ana ekran (launcher) kendisi bölünemediği için bu etkinlik MapControl'ın bölme düğmesinden ya da uygulama
  * listesinden açılır.
  *
  * Yan panele göz atan sürücü için önem sırası: (1) saat, menzil ve yakıt büyük; (2) ana ekranın araç sahnesi ([SahneStage],

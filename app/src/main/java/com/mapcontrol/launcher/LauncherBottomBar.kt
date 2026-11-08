@@ -43,7 +43,7 @@ enum class BottomBarMode(val key: String, @StringRes val label: Int) {
 
         /**
          * Sistem OEM çubuğunu zorla mı gösteriyor: Bizimki/Gizli'de gezinme çubuğunu gizlemiştik ama pencere inset'i onu görünür
-         * bildiriyor. Android 11 serbest pencere (FrostNav bölünmüş ekranı, Mini gösterge) görünürken sistem çubuklarını zorla açar;
+         * bildiriyor. Android 11 serbest pencere (MapControl bölünmüş ekranı, Mini gösterge) görünürken sistem çubuklarını zorla açar;
          * o sürece alt kenar OEM çubuğunundur, bizimki çizilmez. Alttan kaydırmayla geçici gösterim uygulamaya görünmez
          * bildirildiği için burada sayılmaz. Orijinal'de OEM çubuğu zaten görünür; bu kural yalnızca gizleyen seçeneklerde işler.
          */

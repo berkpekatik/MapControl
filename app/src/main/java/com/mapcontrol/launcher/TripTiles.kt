@@ -827,7 +827,7 @@ internal class HealthTile(context: Context) :
 }
 
 /**
- * ReadOnly kimlikleri: FrostNav'ın `ReadOnlyID` jar'ında bulunmayan, yeni Desay yazılımının eklediği sinyaller. Eski yazılımlı araçta okunamaz: bütün çağıranlar null'u kaldırır.
+ * ReadOnly kimlikleri: MapControl'ın `ReadOnlyID` jar'ında bulunmayan, yeni Desay yazılımının eklediği sinyaller. Eski yazılımlı araçta okunamaz: bütün çağıranlar null'u kaldırır.
  */
 internal object ReadOnlyIds {
     const val TIRE_PRESSURE = 140

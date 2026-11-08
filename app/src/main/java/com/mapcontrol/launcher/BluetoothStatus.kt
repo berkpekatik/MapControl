@@ -81,8 +81,8 @@ internal class BluetoothStatus(context: Context, private val onChange: (BtUi) ->
     private fun connected(adapter: BluetoothAdapter, profile: Int) =
         adapter.getProfileConnectionState(profile) == BluetoothProfile.STATE_CONNECTED
 
-    private companion object {
-        const val SETTLE_MS = 300L
+    internal companion object {
+        private const val SETTLE_MS = 300L
         const val ACTION_A2DP_SINK_STATE = "android.bluetooth.a2dp-sink.profile.action.CONNECTION_STATE_CHANGED"
         const val ACTION_HFP_CLIENT_STATE = "android.bluetooth.headsetclient.profile.action.CONNECTION_STATE_CHANGED"
     }

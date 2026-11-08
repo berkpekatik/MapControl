@@ -1,4 +1,4 @@
-package com.mapcontrol.comfort
+package com.vnoisy.devfort
 
 import com.mapcontrol.launcher.TrunkMath
 import org.junit.Assert.assertEquals

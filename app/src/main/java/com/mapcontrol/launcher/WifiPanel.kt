@@ -28,9 +28,9 @@ import com.mapcontrol.R
 
 /**
  * Başlıktaki Wi-Fi simgesine dokununca açılan, simgenin altına bağlı Wi-Fi paneli (macOS menü çubuğu gibi):
- * aç/kapa, bağlı ağ ("Bağlantıyı kes"), yakındaki ağlar, yeni şifreli ağ için şifre penceresi, "Web paneli" satırı (FrostNav web
+ * aç/kapa, bağlı ağ ("Bağlantıyı kes"), yakındaki ağlar, yeni şifreli ağ için şifre penceresi, "Web paneli" satırı (MapControl web
  * sunucusu; açıkken QR ve adres) ve "Wi-Fi ayarları…". Wi-Fi işleri [WifiBackend] üzerinden gider ve yalnızca açıkken tarama/ağ
- * yayınlarıyla yenilenir; web paneli durumu panel açıkken değişince ([FrostNavFeatures.watchWebPanel]) ve yedek olarak
+ * yayınlarıyla yenilenir; web paneli durumu panel açıkken değişince ([MapControlFeatures.watchWebPanel]) ve yedek olarak
  * [WEB_POLL_MS]'de bir arka planda okunur. "Web paneli" anahtarı sunucuyu yerinde açıp kapatır.
  *
  * Sürüşte ([driving] true) en çok [WifiListShaper.MAX_VISIBLE] ağ, kaydırma yok ve şifre girilemez; park halinde liste kayar.
@@ -40,8 +40,8 @@ internal class WifiPanel(
     private val backend: WifiBackend,
     private val driving: () -> Boolean,
     private val onSettings: () -> Unit,
-    /** FrostNav web paneli arka ucu (yoksa satır gösterilmez) ve durum değişince başlıktaki noktayı güncelleyen geri çağrı. */
-    private val features: FrostNavFeatures = FrostNavFeatures.NONE,
+    /** MapControl web paneli arka ucu (yoksa satır gösterilmez) ve durum değişince başlıktaki noktayı güncelleyen geri çağrı. */
+    private val features: MapControlFeatures = MapControlFeatures.NONE,
     private val onWebState: (Boolean) -> Unit = {},
 ) {
     private val main = Handler(Looper.getMainLooper())
@@ -286,7 +286,7 @@ internal class WifiPanel(
 
     /**
      * Sunucuyu yerinde açar/kapatır; durum değişikliği izleyiciyle gelir. Başlatılamazsa (ör. port kullanımda) kısa bir
-     * mesajla FrostNav'ın Aktar sekmesi açılır, ayrıntılı hata orada görünür.
+     * mesajla MapControl'ın Aktar sekmesi açılır, ayrıntılı hata orada görünür.
      */
     private fun toggleWeb() {
         features.setWebPanel(web?.running != true) { msg ->
@@ -294,7 +294,7 @@ internal class WifiPanel(
             if (msg != null) {
                 android.widget.Toast.makeText(activity, msg, android.widget.Toast.LENGTH_LONG).show()
                 dismiss()
-                features.openTab(activity, FrostNavTab.WEB)
+                features.openTab(activity, MapControlTab.WEB)
             }
         }
     }

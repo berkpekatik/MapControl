@@ -143,7 +143,7 @@ public class DriveModeTabBuilder {
         driveModeTitle.setText(R.string.drive_modes_title);
         UiStyles.setTextSize(driveModeTitle, R.dimen.text_size_large);
         driveModeTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        driveModeTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(driveModeTitle, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams titleRowTextLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleRowTextLp.setMargins((int) (12 * density), 0, 0, 0);
@@ -259,7 +259,7 @@ public class DriveModeTabBuilder {
             modeTitle.setText(modeName);
             modeTitle.setTextColor(UiStyles.color(context, isSelected ? R.color.textPrimary : R.color.textPrimary85));
             UiStyles.setTextSize(modeTitle, R.dimen.text_size_small);
-            modeTitle.setTypeface(null, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+            UiStyles.setFontStyle(modeTitle, isSelected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             modeTitle.setGravity(Gravity.CENTER);
             modeTitle.setMaxLines(2);
             modeTitle.setEllipsize(TextUtils.TruncateAt.END);
@@ -498,7 +498,7 @@ public class DriveModeTabBuilder {
         card.setSelected(selected);
         icon.setImageTintList(ColorStateList.valueOf(accent));
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        UiStyles.setFontStyle(title, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
 
         GradientDrawable indBg = new GradientDrawable();
         indBg.setCornerRadius(2 * density);

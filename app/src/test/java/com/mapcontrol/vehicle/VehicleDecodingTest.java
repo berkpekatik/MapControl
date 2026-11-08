@@ -64,7 +64,7 @@ public class VehicleDecodingTest {
         assertEquals("SPORT", DriveModeStyle.shortLabel(2));
         assertEquals("SNOW", DriveModeStyle.shortLabel(3));
         assertEquals("MUD", DriveModeStyle.shortLabel(4));
-        // FrostNav eşlemesi: Offroad=5, Sand=7. Launcher araçta ölçülen Sand=5 / Offroad=6
+        // MapControl eşlemesi: Offroad=5, Sand=7. Launcher araçta ölçülen Sand=5 / Offroad=6
         // değerlerini DriveModes içinde ayrıca kullanır.
         assertEquals("OFFROAD", DriveModeStyle.shortLabel(5));
         assertNull(DriveModeStyle.shortLabel(6));

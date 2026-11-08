@@ -34,7 +34,7 @@ internal data class SoundFieldReading(val balance: Int? = null, val fade: Int? =
  *
  * TODO (OEM yolu, araştırılacak): OEM `SoundSettingModel` DSP HAL'e `Dsp setSoundField(balance, fader)` çağırıyor (araç günlüğü:
  * `dsp_hal|Dsp setSoundField: balance index B, fader index F`). Normal uygulama (untrusted_app) DSP servisine SELinux yüzünden
- * erişemiyor ([SoundFieldIo]); tam FrostNav derlemesi bu yola başka biçimde ulaşabilir.
+ * erişemiyor ([SoundFieldIo]); tam MapControl derlemesi bu yola başka biçimde ulaşabilir.
  */
 internal object SoundFieldMath {
 

@@ -19,7 +19,7 @@ import com.mapcontrol.util.WifiController
  * Launcher'ın araca komut gönderen ve MapControl'e bağlanan tek noktası.
  */
 internal object LauncherEdition {
-    /** FrostNav launcher modu açık mı (Ana ekran tuşunu FrostNav yakalıyor; sistem varsayılan HOME OEM olabilir). */
+    /** MapControl launcher modu açık mı (Ana ekran tuşunu MapControl yakalıyor; sistem varsayılan HOME OEM olabilir). */
     fun launcherModeOn(context: Context): Boolean = com.mapcontrol.util.LauncherModeManager.isEnabled(context)
 
 
@@ -35,7 +35,7 @@ internal object LauncherEdition {
     @Suppress("UNUSED_PARAMETER")
     fun init(context: Context) = Unit
 
-    /** Launcher (ana ekran / Mini gösterge) öndeyken yüzen FrostNav geri okunu gizler; başka uygulama önde iken eskisi gibi. */
+    /** Launcher (ana ekran / Mini gösterge) öndeyken yüzen MapControl geri okunu gizler; başka uygulama önde iken eskisi gibi. */
     fun setHomeForeground(front: Boolean) = com.mapcontrol.manager.FloatingBackButtonManager.setSuppressed(front)
 
     /** Ana ekran göründü: açılışta (MapControlService) istenen arayüz açılmış sayılır ve yeniden başlatılmaz. */
@@ -68,8 +68,8 @@ internal object LauncherEdition {
     fun setCentralLock(context: Context, locked: Boolean): Boolean = WidgetWriter.sendLock(context, locked)
 
     /**
-     * FrostNav'ı doğrudan "Ana ekran" sekmesinde açar. Launcher kendi görev ilişkisinde (taskAffinity) çalışır;
-     * CLEAR_TOP|SINGLE_TOP FrostNav'ı açıksa öne getirip onNewIntent ile sekmeyi iletir.
+     * MapControl'ı doğrudan "Ana ekran" sekmesinde açar. Launcher kendi görev ilişkisinde (taskAffinity) çalışır;
+     * CLEAR_TOP|SINGLE_TOP MapControl'ı açıksa öne getirip onNewIntent ile sekmeyi iletir.
      */
     fun openSettings(activity: Activity) {
         activity.startActivity(
@@ -79,7 +79,7 @@ internal object LauncherEdition {
         )
     }
 
-    /** FrostNav'ı doğrudan "Wi-Fi" sekmesinde açar (yakındaki ağları tarar, listeler ve bağlanır). */
+    /** MapControl'ı doğrudan "Wi-Fi" sekmesinde açar (yakındaki ağları tarar, listeler ve bağlanır). */
     fun openWifi(activity: Activity) {
         activity.startActivity(
             Intent(activity, MainActivity::class.java)
@@ -88,11 +88,11 @@ internal object LauncherEdition {
         )
     }
 
-    /** Wi-Fi paneli arka ucu: FrostNav'ın Wi-Fi sekmesiyle paylaşılan [WifiController] (tara, bağlan, kes, aç/kapa). */
+    /** Wi-Fi paneli arka ucu: MapControl'ın Wi-Fi sekmesiyle paylaşılan [WifiController] (tara, bağlan, kes, aç/kapa). */
     fun wifiBackend(context: Context): WifiBackend = AppWifiBackend(context.applicationContext)
 
-    /** FrostNav widget'larının arka ucu: FrostNav'ın kendi yöneticileri, tercihleri ve servisi ([AppFrostNavFeatures]). */
-    fun frostNav(context: Context): FrostNavFeatures = AppFrostNavFeatures(context.applicationContext)
+    /** MapControl widget'larının arka ucu: MapControl'ın kendi yöneticileri, tercihleri ve servisi ([AppMapControlFeatures]). */
+    fun mapcontrol(context: Context): MapControlFeatures = AppMapControlFeatures(context.applicationContext)
 }
 
 private class AppWifiBackend(private val context: Context) : WifiBackend {

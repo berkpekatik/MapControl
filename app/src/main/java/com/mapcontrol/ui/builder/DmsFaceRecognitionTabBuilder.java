@@ -96,7 +96,7 @@ public final class DmsFaceRecognitionTabBuilder {
         TextView title = new TextView(activity);
         title.setText("Koltuk Hafıza Tipi Seçimi");
         UiStyles.setTextSize(title, R.dimen.text_size_large);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         title.setGravity(Gravity.CENTER);
         centerCard.addView(title);
@@ -131,7 +131,7 @@ public final class DmsFaceRecognitionTabBuilder {
         TextView screenTitle = new TextView(activity);
         screenTitle.setText("Multimedya Ekranı Üzerinde");
         UiStyles.setTextSize(screenTitle, R.dimen.text_size_medium);
-        screenTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(screenTitle, Typeface.BOLD);
         screenTitle.setTextColor(0xFFFFFFFF);
         screenTitle.setGravity(Gravity.CENTER);
         screenCard.addView(screenTitle);
@@ -154,7 +154,7 @@ public final class DmsFaceRecognitionTabBuilder {
         TextView doorTitle = new TextView(activity);
         doorTitle.setText("Araç Kapısı Üzerinde");
         UiStyles.setTextSize(doorTitle, R.dimen.text_size_medium);
-        doorTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(doorTitle, Typeface.BOLD);
         doorTitle.setTextColor(0xFFFFFFFF);
         doorTitle.setGravity(Gravity.CENTER);
         doorCard.addView(doorTitle);
@@ -202,7 +202,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         activeModeLabel = new TextView(activity);
         UiStyles.setTextSize(activeModeLabel, R.dimen.text_size_small);
-        activeModeLabel.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(activeModeLabel, Typeface.BOLD);
         activeModeLabel.setTextColor(0xFF60A5FA);
         topBar.addView(activeModeLabel, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -235,7 +235,7 @@ public final class DmsFaceRecognitionTabBuilder {
         title.setText(R.string.dms_recognition_title);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(activity, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         mainCard.addView(title);
 
         description = new TextView(activity);
@@ -258,7 +258,7 @@ public final class DmsFaceRecognitionTabBuilder {
 
         toggleLabel = new TextView(activity);
         UiStyles.setTextSize(toggleLabel, R.dimen.text_size_normal);
-        toggleLabel.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(toggleLabel, Typeface.BOLD);
         toggleLabel.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         toggleRow.addView(toggleLabel, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -298,7 +298,7 @@ public final class DmsFaceRecognitionTabBuilder {
         profilesButton.setText(R.string.dms_recognition_manage_profiles);
         profilesButton.setAllCaps(false);
         UiStyles.setTextSize(profilesButton, R.dimen.text_size_normal);
-        profilesButton.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(profilesButton, Typeface.BOLD);
         profilesButton.setTextColor(0xFFFFFFFF);
         UiStyles.applySolidRoundedBackgroundDp(profilesButton,
                 UiStyles.color(activity, R.color.buttonPrimary), 12f);
@@ -322,7 +322,7 @@ public final class DmsFaceRecognitionTabBuilder {
         TextView profilesTitle = new TextView(activity);
         profilesTitle.setText(R.string.log_dms_face_profiles);
         UiStyles.setTextSize(profilesTitle, R.dimen.text_size_normal);
-        profilesTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(profilesTitle, Typeface.BOLD);
         profilesTitle.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         profilesCard.addView(profilesTitle);
 
@@ -439,7 +439,7 @@ public final class DmsFaceRecognitionTabBuilder {
             TextView nameTv = new TextView(activity);
             nameTv.setText((i + 1) + ". " + p.name);
             UiStyles.setTextSize(nameTv, R.dimen.text_size_normal);
-            nameTv.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(nameTv, Typeface.BOLD);
             nameTv.setTextColor(UiStyles.color(activity, R.color.textPrimary));
             row.addView(nameTv, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -453,7 +453,7 @@ public final class DmsFaceRecognitionTabBuilder {
                     badge.setText("Koltuk Hafızası " + p.seatMemory);
                 }
                 UiStyles.setTextSize(badge, R.dimen.text_size_small);
-                badge.setTypeface(null, Typeface.BOLD);
+                UiStyles.setFontStyle(badge, Typeface.BOLD);
                 badge.setTextColor(UiStyles.color(activity, R.color.textAccent));
                 badge.setGravity(Gravity.END);
                 row.addView(badge);

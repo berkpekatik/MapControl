@@ -436,7 +436,7 @@ public final class SunroofGestureOverlayManager {
             TextView tvTitle = new TextView(appContext);
             tvTitle.setText(title);
             tvTitle.setTextSize(16);
-            tvTitle.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(tvTitle, Typeface.BOLD);
             tvTitle.setTextColor(Color.WHITE);
             textCol.addView(tvTitle);
 
@@ -498,7 +498,7 @@ public final class SunroofGestureOverlayManager {
         TextView label = new TextView(appContext);
         label.setText("👈 Tavan Kapat | 👉 Tavan Aç | 👆 Perde Kapat | 👇 Perde Aç");
         label.setTextSize(11);
-        label.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(0x88FFFFFF);
         strip.addView(label);
 
@@ -525,7 +525,7 @@ public final class SunroofGestureOverlayManager {
         TextView label = new TextView(appContext);
         label.setText(" Hızlı Jest");
         label.setTextSize(12);
-        label.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(Color.WHITE);
         pill.addView(label);
 

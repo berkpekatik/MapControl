@@ -54,7 +54,7 @@ public final class OnboardingHelper {
         content.addView(logo, new LinearLayout.LayoutParams(dp(ctx, 88), dp(ctx, 88)));
 
         TextView title = text(ctx, ctx.getString(R.string.onboarding_title), 30, R.color.textPrimary);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setLetterSpacing(0.12f);
         content.addView(title, lp(dp(ctx, 20), 0));
 
@@ -77,9 +77,9 @@ public final class OnboardingHelper {
 
         TextView next = text(ctx, ctx.getString(R.string.onboarding_continue), 17, R.color.textPrimary);
         next.setTextColor(Color.WHITE);
-        next.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(next, Typeface.BOLD);
         next.setPadding(dp(ctx, 48), dp(ctx, 14), dp(ctx, 48), dp(ctx, 14));
-        next.setBackground(pill(UiStyles.color(ctx, R.color.accentColor), 0, 0));
+        next.setBackground(pill(UiStyles.color(ctx, R.color.buttonPrimary), 0, 0));
         next.setClickable(true);
         next.setOnClickListener(v -> onContinue.run());
         content.addView(next, lp(dp(ctx, 36), 0));
@@ -110,9 +110,9 @@ public final class OnboardingHelper {
     private static TextView languageChip(Activity activity, String label, String tag, boolean selected) {
         Context ctx = activity;
         TextView chip = text(ctx, label, 16, R.color.textPrimary);
-        chip.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(chip, Typeface.BOLD);
         chip.setPadding(dp(ctx, 28), dp(ctx, 12), dp(ctx, 28), dp(ctx, 12));
-        int accent = UiStyles.color(ctx, R.color.accentColor);
+        int accent = UiStyles.color(ctx, R.color.buttonPrimary);
         if (selected) {
             chip.setTextColor(Color.WHITE);
             chip.setBackground(pill(accent, 0, 0));

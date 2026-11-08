@@ -410,7 +410,7 @@ public class Camera360TabBuilder {
         TextView title = new TextView(context);
         title.setText(titleRes);
         title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(themeColor(R.color.textPrimary));
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
@@ -460,7 +460,7 @@ public class Camera360TabBuilder {
         TextView title = new TextView(context);
         title.setText(R.string.camera360_title);
         title.setTextSize(24);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(themeColor(R.color.textPrimary));
         headingText.addView(title);
         TextView subtitle = new TextView(context);
@@ -509,7 +509,7 @@ public class Camera360TabBuilder {
         menuRecBanner = new TextView(context);
         menuRecBanner.setText(R.string.camera360_rec_banner);
         menuRecBanner.setTextSize(15);
-        menuRecBanner.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(menuRecBanner, Typeface.BOLD);
         menuRecBanner.setTextColor(COLOR_REC);
         menuRecBanner.setGravity(Gravity.CENTER);
         menuRecBanner.setPadding(dp(20), dp(10), dp(20), dp(10));
@@ -571,7 +571,7 @@ public class Camera360TabBuilder {
         TextView title = new TextView(context);
         title.setText(titleRes);
         title.setTextSize(21);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(themeColor(R.color.textPrimary));
         texts.addView(title);
 
@@ -605,7 +605,7 @@ public class Camera360TabBuilder {
         LinearLayout header = buildHeader(R.string.camera360_menu_live);
         liveCountView = new TextView(context);
         liveCountView.setTextSize(14);
-        liveCountView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(liveCountView, Typeface.BOLD);
         liveCountView.setTextColor(themeColor(R.color.textPrimary));
         liveCountView.setPadding(dp(12), dp(6), dp(14), dp(6));
         liveCountView.setBackground(roundRect(themeColor(R.color.surfaceCardInner), 16));
@@ -668,7 +668,7 @@ public class Camera360TabBuilder {
 
                 TextView name = overlayPill(camName(cam));
                 name.setTextSize(15);
-                name.setTypeface(null, Typeface.BOLD);
+                UiStyles.setFontStyle(name, Typeface.BOLD);
                 nameDots[cam] = attachDot(name, COLOR_IDLE, 9);
                 FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
@@ -701,7 +701,7 @@ public class Camera360TabBuilder {
 
         TextView backAll = overlayPill(context.getString(R.string.camera360_all));
         backAll.setTextSize(15);
-        backAll.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(backAll, Typeface.BOLD);
         backAll.setGravity(Gravity.CENTER_VERTICAL);
         backAll.setPadding(dp(14), 0, dp(16), 0);
         attachIcon(backAll, R.drawable.ic_mdi_view_grid, Color.WHITE, 18);
@@ -715,7 +715,7 @@ public class Camera360TabBuilder {
 
         bigName = overlayPill("");
         bigName.setTextSize(15);
-        bigName.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(bigName, Typeface.BOLD);
         bigNameDot = attachDot(bigName, COLOR_IDLE, 9);
         FrameLayout.LayoutParams bnP = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
@@ -865,7 +865,7 @@ public class Camera360TabBuilder {
         TextView heroTitle = new TextView(context);
         heroTitle.setText(R.string.camera360_usb_title2);
         heroTitle.setTextSize(17);
-        heroTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(heroTitle, Typeface.BOLD);
         heroTitle.setTextColor(themeColor(R.color.textPrimary));
         titles.addView(heroTitle);
 
@@ -894,7 +894,7 @@ public class Camera360TabBuilder {
 
         usbStateView = new TextView(context);
         usbStateView.setTextSize(13);
-        usbStateView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(usbStateView, Typeface.BOLD);
         statePill.addView(usbStateView);
         setDot(COLOR_IDLE);
 
@@ -991,7 +991,7 @@ public class Camera360TabBuilder {
             TextView label = new TextView(context);
             label.setText(camShortName(cam));
             label.setTextSize(15);
-            label.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(label, Typeface.BOLD);
             label.setTextColor(themeColor(R.color.textPrimary));
             label.setSingleLine(true);
             top.addView(label);
@@ -1104,7 +1104,7 @@ public class Camera360TabBuilder {
         usbAutoColumn.addView(autoNote);
         usbAutoStatus = new TextView(context);
         usbAutoStatus.setTextSize(13);
-        usbAutoStatus.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(usbAutoStatus, Typeface.BOLD);
         usbAutoStatus.setPadding(labelInset, dp(6), labelInset, 0);
         usbAutoStatus.setVisibility(View.GONE);
         usbAutoColumn.addView(usbAutoStatus);
@@ -1142,7 +1142,7 @@ public class Camera360TabBuilder {
         recButton = new Button(context);
         recButton.setAllCaps(false);
         recButton.setTextSize(17);
-        recButton.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(recButton, Typeface.BOLD);
         recButton.setTextColor(new ColorStateList(
                 new int[][]{{-android.R.attr.state_enabled}, {}},
                 new int[]{0x99FFFFFF, Color.WHITE}));
@@ -1164,7 +1164,7 @@ public class Camera360TabBuilder {
         usbBlockedNote = new TextView(context);
         usbBlockedNote.setText(R.string.camera360_usb_blocked_internal);
         usbBlockedNote.setTextSize(13);
-        usbBlockedNote.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(usbBlockedNote, Typeface.BOLD);
         usbBlockedNote.setGravity(Gravity.CENTER);
         usbBlockedNote.setTextColor(COLOR_WAIT);
         usbBlockedNote.setPadding(dp(12), dp(8), dp(12), dp(8));
@@ -1232,7 +1232,7 @@ public class Camera360TabBuilder {
         TextView value = new TextView(context);
         value.setText("-");
         value.setTextSize(19);
-        value.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(value, Typeface.BOLD);
         value.setGravity(Gravity.CENTER);
         value.setSingleLine(true);
         value.setTextColor(themeColor(R.color.textPrimary));
@@ -2013,7 +2013,7 @@ public class Camera360TabBuilder {
     private TextView noSignalChip() {
         TextView tv = overlayPill(context.getString(R.string.camera360_connecting));
         tv.setTextSize(15);
-        tv.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tv, Typeface.BOLD);
         tv.setTextColor(COLOR_NO_SIGNAL);
         tv.setPadding(dp(16), dp(8), dp(16), dp(8));
         GradientDrawable bg = roundRect(OVERLAY_BG, 18);

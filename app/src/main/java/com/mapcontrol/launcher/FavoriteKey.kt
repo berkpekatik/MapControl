@@ -89,7 +89,7 @@ object FavoriteKeyPrefs {
 }
 
 /**
- * Launcher'ın kendi favori tuşu dinleyicisi: VDBus SMS tuş olayına yalnızca tip {19} ile abone olur. FrostNav'ın
+ * Launcher'ın kendi favori tuşu dinleyicisi: VDBus SMS tuş olayına yalnızca tip {19} ile abone olur. MapControl'ın
  * VDBusManager'ı ayrı callback'le kendi tuşlarına abone kalır; sunucu tip listesini callback başına tuttuğu için
  * ikisi birbirini ezmez. Bağlanma/yeniden abone olma mantığı VDBusManager'ın aynısı; araç uykusu tuş listesini
  * sessizce düşürebildiği için dinlerken 30 sn'de bir abonelik yenilenir.

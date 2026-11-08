@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 public class NotificationAccessSelfGrantTest {
-    private static final String ME = "com.frostnav/com.frostnav.media.LauncherMediaNotificationListener";
+    private static final String ME = "com.mapcontrol/com.mapcontrol.media.LauncherMediaNotificationListener";
     private static final String MAPS = "com.google.android.apps.maps/com.google.android.apps.maps.MusicNotificationListenerService";
 
     @Test public void emptyOrNullListBecomesJustUs() {

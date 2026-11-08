@@ -299,8 +299,9 @@ class OurBottomBar(
             main.post {
                 if (activity.isFinishing || activity.isDestroyed || entries.isEmpty()) return@post
                 appsDialog = showLauncherSheet(activity, R.string.launcher_bar_apps, APPS_SHEET_WIDTH_DP) { d ->
+                    // Ağırlık: pencere 440 dp'ye yetmezse (araçta OEM alanları) liste kısalır ve kayar; yoksa alttan kesilir.
                     addView(appsGrid(entries, d), LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, context.dp(APPS_HEIGHT_DP)))
+                        ViewGroup.LayoutParams.MATCH_PARENT, context.dp(APPS_HEIGHT_DP), 1f))
                 }.apply { setOnDismissListener { appsDialog = null } }
             }
         }
@@ -383,8 +384,8 @@ class OurBottomBar(
         private const val APP_CELL_DP = 140
         private const val APP_ICON_DP = 64
 
-        /** Sıcaklık: °C = 15,5 + ham/2 (araçta ekranla karşılaştırıldı: 21 → 26,0); ham 0 = LO (15,5), 30 = HI (30,5); aralık dışı "—". */
-        fun decodeTemp(raw: Int): Double? = (ClimateMath.LO_TEMP + raw / 2.0).takeIf { raw in ClimateMath.RAW_LO..ClimateMath.RAW_HI }
+        /** Sıcaklık, etkin ölçeğe göre ([ClimateTempScale]); aralık dışı "—". */
+        fun decodeTemp(raw: Int): Double? = ClimateMath.decodeTemp(raw)
 
         /** Fan kademesi doğrudan okunur; makul aralık (0..[ClimateMath.FAN_MAX]) dışı "—". Araçta en çok 10 okundu. */
         fun decodeFan(raw: Int): Int? = raw.takeIf { it in 0..ClimateMath.FAN_MAX }

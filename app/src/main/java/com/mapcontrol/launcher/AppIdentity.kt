@@ -24,8 +24,8 @@ object AppIdentity {
     val OVERRIDES: Map<String, Override> = mapOf(
         "com.desaysv.vehiclesetting" to Override(R.string.launcher_app_vehicle_settings, R.drawable.ic_mdi_car_cog),
         "com.desaysv.bluetooth.phone" to Override(R.string.launcher_app_phone, R.drawable.ic_mdi_phone),
-        // FrostNav'ın ikonu kendi markası: yalnız ad yazılır, ikon olduğu gibi kalır.
-        FrostNavLink.PRIMARY_PACKAGE to Override(R.string.launcher_app_frostnav),
+        // MapControl'ın ikonu kendi markası: yalnız ad yazılır, ikon olduğu gibi kalır.
+        MapControlLink.PRIMARY_PACKAGE to Override(R.string.launcher_app_mapcontrol),
     )
 
     /** Etiket paket adının kendisi ya da ona benziyor mu: boş, ya da noktalı ve boşluksuz. */

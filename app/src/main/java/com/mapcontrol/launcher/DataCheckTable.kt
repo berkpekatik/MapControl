@@ -122,13 +122,12 @@ internal object DataCheckTable {
     /** Isıtma/soğutma kademesi 0..3. */
     val seatLevel: (Int) -> String? = { v -> if (v in 0..3) (if (v == 0) "Kapalı" else "Kademe $v") else null }
 
-    /** Klima sıcaklığı: 15,5 + ham/2 (OurBottomBar ile aynı); ham 0 = LO, 30 = HI, üstü geçersiz. */
+    /** Klima sıcaklığı, etkin ölçeğe göre (OurBottomBar ile aynı); üst sınırın üstü geçersiz. */
     val climateTemp: (Int) -> String? = { v ->
         when {
             v == ClimateMath.RAW_LO -> "LO"
-            v == ClimateMath.RAW_HI -> "HI"
-            v in 1 until ClimateMath.RAW_HI -> String.format(java.util.Locale.US, "%.1f °C", 15.5 + v / 2.0)
-            else -> null
+            v == ClimateMath.scale.rawHi -> "HI"
+            else -> ClimateMath.decodeTemp(v)?.let { String.format(java.util.Locale.US, "%.1f °C", it) }
         }
     }
 

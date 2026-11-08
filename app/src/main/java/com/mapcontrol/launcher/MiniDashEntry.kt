@@ -4,7 +4,7 @@ import android.content.pm.PackageManager
 
 /**
  * "Mini gösterge" uygulama listesi simgesi ([ALIAS_CLASS], manifestte varsayılan kapalı activity-alias). Simge yalnız
- * FrostNav launcher modu açıkken görünür; mod kapanınca kalkar. [MiniDashActivity]'nin kendisi hep etkindir: bölünmüş
+ * MapControl launcher modu açıkken görünür; mod kapanınca kalkar. [MiniDashActivity]'nin kendisi hep etkindir: bölünmüş
  * ekran ve sürüş ekranı onu bileşen adıyla açar, simgeye bağlı değildir. Uygulayan: `util/LauncherModeManager`.
  * Saf karar, JVM'de sınanır.
  */

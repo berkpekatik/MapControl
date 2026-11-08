@@ -28,6 +28,6 @@ object DefaultApps {
         "com.desaysv.bluetooth.phone",
         "com.desaysv.vehiclesetting",
         "com.desaysv.videoapp",
-        "com.frostnav",
+        "com.mapcontrol",
     )
 }

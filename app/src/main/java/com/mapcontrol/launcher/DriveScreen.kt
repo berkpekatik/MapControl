@@ -12,7 +12,7 @@ import android.widget.Toast
 
 /**
  * Sürüş ekranı: Navigasyon kartına (ya da "Haritayı aç", Ev / İş) dokununca ekran ikiye bölünür, bir yarıda Mini gösterge, diğerinde
- * seçili harita (Tiggo 7 sol/sağ, Tiggo 8 üst/alt; bölme FrostNav'ın kendi başlatıcısıyla, [FrostNavFeatures.startDriveScreen]).
+ * seçili harita (Tiggo 7 sol/sağ, Tiggo 8 üst/alt; bölme MapControl'ın kendi başlatıcısıyla, [MapControlFeatures.startDriveScreen]).
  * Harita seçilmemişse harita yarısında "+ Harita ekle" seçicisi açılır.
  *
  * Tek ekran gibi görünsün diye: yarıların arkasında kalan ana ekranımız, sürüş ekranı açıkken kartlarını gizleyip yalnız Sahne zeminini
@@ -66,13 +66,13 @@ internal object DriveScreen {
     }
 
     /**
-     * Navigasyon kartından sürüş ekranını açar. FrostNav yoksa ([FrostNavFeatures.NONE]) ya da bölme başlatılamazsa [fallback] (eski davranış:
+     * Navigasyon kartından sürüş ekranını açar. MapControl yoksa ([MapControlFeatures.NONE]) ya da bölme başlatılamazsa [fallback] (eski davranış:
      * harita tam ekran; Ev / İş'te rota intent'i). [route]: Ev / İş rotası (yalnız [mapPkg] verilmişse; harita yarısı onunla açılır).
      * Bölme başarısızsa ve harita varsa ([DrivePolicy.fallbackOnFailure]) yine [fallback]: dokunuş boşa gitmez; yarıda açılmış Mini
      * gösterge oturumla birlikte kapanır ([DrivePolicy.next]).
      */
     fun open(context: Context, mapPkg: String?, route: Intent?, fallback: () -> Unit) {
-        val features = LauncherEdition.frostNav(context)
+        val features = LauncherEdition.mapcontrol(context)
         if (!features.available) {
             fallback()
             return
@@ -135,7 +135,7 @@ internal object DriveScreen {
      */
     fun openLeftover(context: Context, pkg: String): Boolean {
         if (!DriveMapPrefs.takeLeftover(context, pkg)) return false
-        val features = LauncherEdition.frostNav(context)
+        val features = LauncherEdition.mapcontrol(context)
         if (!features.available) return false
         Log.i(TAG, "leftover map -> full")
         features.openFullScreen(pkg)
@@ -156,7 +156,7 @@ internal object DriveScreen {
         Thread {
             try {
                 Log.i(TAG, "stale drive session -> restore map")
-                LauncherEdition.frostNav(app).restoreStaleMap(pkg)
+                LauncherEdition.mapcontrol(app).restoreStaleMap(pkg)
             } catch (t: Throwable) {
                 Log.w(TAG, "stale restore failed: ${t.javaClass.simpleName}")
             }
@@ -185,7 +185,7 @@ internal object DriveScreen {
         Thread {
             try {
                 Log.i(TAG, "launcher resumed with half map -> restore")
-                LauncherEdition.frostNav(app).restoreStaleMap(pkg)
+                LauncherEdition.mapcontrol(app).restoreStaleMap(pkg)
             } catch (t: Throwable) {
                 Log.w(TAG, "resume restore failed: ${t.javaClass.simpleName}")
             }
@@ -195,7 +195,7 @@ internal object DriveScreen {
     /** Harita tam ekran: yarıda kalmışsa taşınır, değilse başlatıcıyla açılır. */
     private fun openFullScreen(context: Context, pkg: String) {
         if (openLeftover(context, pkg)) return
-        LauncherEdition.frostNav(context).openFullScreen(pkg)
+        LauncherEdition.mapcontrol(context).openFullScreen(pkg)
     }
 
     /** Ana ekran en üstteki etkin pencere oldu / olmaktan çıktı (`onTopResumedActivityChanged`). */
@@ -214,7 +214,7 @@ internal object DriveScreen {
      */
     fun mapFullScreen(context: Context, done: (Boolean) -> Unit) {
         val pkg = mapPackage ?: return done(false)
-        LauncherEdition.frostNav(context).mapFullScreen(pkg) { ok ->
+        LauncherEdition.mapcontrol(context).mapFullScreen(pkg) { ok ->
             Log.i(TAG, "map full -> $ok")
             if (ok) { mapFull = true; appContext?.let { DriveMapPrefs.clearSession(it); DriveMapPrefs.clearPlaced(it) } }
             done(ok)
@@ -263,7 +263,7 @@ internal object DriveScreen {
                     mapPackage = null
                     // Bitiş: kendi yarılarımız (Mini gösterge, seçici) kapanır; harita görevi tam ekran ana ekranın arkasında kalır.
                     // Açılış yarıda kaldıysa da (Mini açıldı, harita açılamadı) tek başına Mini yarısı kalmasın.
-                    if (ctx != null) LauncherEdition.frostNav(ctx).endDriveScreen()
+                    if (ctx != null) LauncherEdition.mapcontrol(ctx).endDriveScreen()
                     if (reopenPending && ctx != null) {
                         reopenPending = false
                         openDefault(ctx)

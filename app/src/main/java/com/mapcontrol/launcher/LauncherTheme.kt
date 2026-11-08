@@ -1,10 +1,6 @@
 package com.mapcontrol.launcher
 
-import android.content.Context
 import android.content.res.Configuration
-import android.os.Handler
-import android.os.Looper
-import com.mapcontrol.vehicle.VehicleLightSensorManager
 
 /**
  * Etkinlik yeniden kurulmadan tema değişimini (gündüz/gece, sürüş vurgusu) uygulayabilen widget/görünüm.
@@ -92,79 +88,19 @@ object LauncherTheme {
     val ALERT_SURFACE: Int get() = if (night) NIGHT_ALERT_SURFACE else DAY_ALERT_SURFACE
 
     /**
-     * Görünümü seçer. [ThemeMode.AUTO] sistemin gündüz/gece durumunu izler; bilinmeyen durum gece sayılır
-     * (araçta güvenli varsayılan). Diğer iki seçenek sistemi yok sayar.
+     * Görünümü seçer. [ThemeMode.AUTO] sistemin gündüz/gece durumunu izler (MapControl Ayarlar'daki Otomatik ile aynı kaynak);
+     * bilinmeyen durum gece sayılır (araçta güvenli varsayılan). Diğer iki seçenek sistemi yok sayar.
      */
     fun applyFrom(config: Configuration, mode: ThemeMode = ThemeMode.AUTO) {
         night = when (mode) {
             ThemeMode.DAY -> false
             ThemeMode.NIGHT -> true
-            // Araç verisinden son uygulanan otomatik durum varsa o; yoksa (emülatör, ilk açılış) sistem.
-            ThemeMode.AUTO -> lastAutoNight
-                ?: ((config.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_NO)
+            ThemeMode.AUTO -> isNight(config.uiMode)
         }
     }
 
-    /** Otomatik modda son uygulanan gündüz/gece (araç verisi); yeniden kurulumda korunur. */
-    @Volatile
-    private var lastAutoNight: Boolean? = null
-
-    private const val AUTO_STABLE_MS = 10_000L
-    private const val AUTO_TICK_MS = 2_000L
-    /** Gerçek bir ışık sensörü bu değerin altını okuduysa karanlık (kestirim en az 800 lx verir). */
-    private const val DARK_LUX = 200f
-
-    private var autoRunner: Runnable? = null
-    private var autoListener: VehicleLightSensorManager.Listener? = null
-    private var autoManager: VehicleLightSensorManager? = null
-    private val autoHandler = Handler(Looper.getMainLooper())
-    private val autoPolicy = AutoNightPolicy(AUTO_STABLE_MS)
-
-    /**
-     * Otomatik temayı aracın farlarına/ışık sensörüne bağlar. onResume'da çağrılır, onPause'da [stopAutoNight].
-     * [canSwitch] false iken (ör. düzenleme modu, ayarlar açık) geçiş ertelenir; [onSwitch] tema değişince
-     * çağrılır (etkinlik `ThemeTransition.recreate` yapmalı). Yalnızca ThemeMode.AUTO iken kurulur; mod değişince yeniden çağrılmalıdır (bkz. HomeLauncherActivity.syncAutoNight).
-     */
-    @JvmStatic
-    fun startAutoNight(context: Context, canSwitch: () -> Boolean, onSwitch: () -> Unit) {
-        stopAutoNight()
-        val app = context.applicationContext
-        // Gündüz/Gece sabitken sensör dinleyicisi ve 2 sn'lik döngü hiç kurulmaz; mod değişince çağıran yeniden başlatır.
-        if (ThemeMode.read(app) != ThemeMode.AUTO) return
-        val manager = try { VehicleLightSensorManager.getInstance(app) } catch (t: Throwable) { null }
-        val listener = VehicleLightSensorManager.Listener { _, _, _ -> }
-        manager?.addListener(listener)
-        autoManager = manager
-        autoListener = listener
-        autoPolicy.reset(night)
-        val runner = object : Runnable {
-            override fun run() {
-                if (ThemeMode.read(app) == ThemeMode.AUTO && manager != null && manager.hasVehicleLampData()) {
-                    val dark = manager.isParkingLampActive ||
-                        manager.effectiveLux < DARK_LUX
-                    val switchTo = autoPolicy.update(System.currentTimeMillis(), dark, canSwitch())
-                    if (switchTo != null) {
-                        night = switchTo
-                        lastAutoNight = switchTo
-                        onSwitch()
-                    }
-                }
-                // Geçiş sırasında yeniden başlatıldıysa (syncAutoNight) bu eski döngü kendini yeniden kurmaz.
-                if (autoRunner === this) autoHandler.postDelayed(this, AUTO_TICK_MS)
-            }
-        }
-        autoRunner = runner
-        autoHandler.postDelayed(runner, AUTO_TICK_MS)
-    }
-
-    @JvmStatic
-    fun stopAutoNight() {
-        autoRunner?.let { autoHandler.removeCallbacks(it) }
-        autoRunner = null
-        autoListener?.let { autoManager?.removeListener(it) }
-        autoListener = null
-        autoManager = null
-    }
+    /** `Configuration.uiMode` değerinden gece mi; yalnızca açıkça gündüz bildirilirse false. */
+    fun isNight(uiMode: Int): Boolean = (uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_NO
 
     const val CARD_RADIUS_DP = 20f
     /** Boşluk ölçeği: bitişik öğeler S, grup arası M, bölüm arası L. */
@@ -206,34 +142,4 @@ object LauncherTheme {
     const val PRESS_SCALE = 0.98f
     const val PRESS_DURATION_MS = 120L
     const val CROSSFADE_MS = 150L
-}
-
-/**
- * Otomatik gece/gündüz için saf histerezis: aday durum [stableMs] boyunca değişmeden kalırsa ve geçişe izin
- * varsa yeni değeri döndürür (yoksa null). Aday değişirse ya da geçerli duruma dönerse sayaç sıfırlanır.
- */
-class AutoNightPolicy(private val stableMs: Long) {
-    private var applied = true
-    private var candidate: Boolean? = null
-    private var since = 0L
-
-    fun reset(current: Boolean) {
-        applied = current
-        candidate = null
-    }
-
-    fun update(now: Long, desired: Boolean, canSwitch: Boolean): Boolean? {
-        if (desired == applied) {
-            candidate = null
-            return null
-        }
-        if (candidate != desired) {
-            candidate = desired
-            since = now
-        }
-        if (now - since < stableMs || !canSwitch) return null
-        applied = desired
-        candidate = null
-        return desired
-    }
 }

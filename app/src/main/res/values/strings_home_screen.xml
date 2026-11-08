@@ -3,8 +3,13 @@
     <string name="side_rail_home_screen">Home screen</string>
     <string name="settings_home_screen_link">Home screen settings \u2192</string>
     <string name="home_screen_off_hint">Turn on full-screen home to change the home screen settings.</string>
+    <string name="home_screen_climate_scale">Climate temperature scale</string>
+    <string name="home_screen_climate_scale_half">Half degree</string>
+    <string name="home_screen_climate_scale_whole">Whole degree</string>
+    <string name="home_screen_climate_scale_help_half">Most cars: 0.5 °C steps, HI at the top.</string>
+    <string name="home_screen_climate_scale_help_whole">Choose this if the climate stops at 23.5 instead of HI (1 °C steps).</string>
     <string name="home_screen_appearance_title">Appearance</string>
-    <string name="home_screen_theme_help_auto">Follows the car\'s light sensor.</string>
+    <string name="home_screen_theme_help_auto">Follows the car system\'s day and night mode.</string>
     <string name="home_screen_theme_help_day">Always the light look.</string>
     <string name="home_screen_theme_help_night">Always the dark look.</string>
     <string name="home_screen_bottom_bar_help_original">The car\'s own bottom bar stays visible.</string>

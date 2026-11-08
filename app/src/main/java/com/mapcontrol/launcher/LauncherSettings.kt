@@ -60,7 +60,7 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
     private var dataCheck: DataCheckSheet? = null
 
     /**
-     * [appearanceOnly]: "Görünüm" paneli (düzenleme modundaki düğme ve FrostNav'daki bağlantı); yalnızca tema, sürüş rengi,
+     * [appearanceOnly]: "Görünüm" paneli (düzenleme modundaki düğme ve MapControl'daki bağlantı); yalnızca tema, sürüş rengi,
      * alt çubuk, otomatik sürüş düzeni ve araç rengi. Tam panel yalnızca [LauncherEdition.HAS_SETTINGS] false iken başlık düğmesinde açılır.
      */
     fun show(appearanceOnly: Boolean = false) {
@@ -91,10 +91,10 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
     }
 
     private fun LinearLayout.buildPanel(d: Dialog, appearanceOnly: Boolean) {
-        frostNavPackage()?.takeIf { !appearanceOnly }?.let { pkg ->
-            addView(row(R.drawable.ic_mdi_open_in_new, R.string.launcher_open_frostnav, R.string.launcher_open_frostnav_hint) {
+        mapcontrolPackage()?.takeIf { !appearanceOnly }?.let { pkg ->
+            addView(row(R.drawable.ic_mdi_open_in_new, R.string.launcher_open_mapcontrol, R.string.launcher_open_mapcontrol_hint) {
                 d.dismiss()
-                openFrostNav(pkg)
+                openMapControl(pkg)
             }, fullWidth())
             addView(gap(activity, 24, vertical = true))
         }
@@ -476,20 +476,20 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
         }
     }
 
-    /** Launcher FrostNav'ın dışında çalışıyorsa ve FrostNav kuruluysa açılacak paket; yoksa null. */
-    private fun frostNavPackage(): String? = FrostNavLink.choosePackage(
+    /** Launcher MapControl'ın dışında çalışıyorsa ve MapControl kuruluysa açılacak paket; yoksa null. */
+    private fun mapcontrolPackage(): String? = MapControlLink.choosePackage(
         activity.packageName,
-        listOf(FrostNavLink.PRIMARY_PACKAGE, FrostNavLink.FALLBACK_PACKAGE).filter { isInstalled(it) }.toSet(),
+        listOf(MapControlLink.PRIMARY_PACKAGE, MapControlLink.FALLBACK_PACKAGE).filter { isInstalled(it) }.toSet(),
     )
 
-    private fun openFrostNav(packageName: String) {
+    private fun openMapControl(packageName: String) {
         val intent = activity.packageManager.getLaunchIntentForPackage(packageName)
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             if (intent == null) throw ActivityNotFoundException(packageName)
             activity.startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(activity, R.string.launcher_open_frostnav_failed, Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity, R.string.launcher_open_mapcontrol_failed, Toast.LENGTH_SHORT).show()
         }
     }
 

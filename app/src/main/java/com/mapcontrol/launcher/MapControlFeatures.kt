@@ -4,26 +4,26 @@ import android.app.Activity
 import android.content.Intent
 
 /**
- * FrostNav özelliklerine bağlanan dört widget'ın (web paneli, ekolayzer, otomasyon, göstergeye yansıt)
- * arka ucu. Widget'lar yalnızca bu arayüzü bilir; gerçek sürüm ([LauncherEdition.frostNav]) FrostNav'ın kendi
- * yöneticilerini, tercihlerini ve servislerini çağırır, özelliklerin iç işleyişine dokunmaz. FrostNav'sız bir derlemede
+ * MapControl özelliklerine bağlanan dört widget'ın (web paneli, ekolayzer, otomasyon, göstergeye yansıt)
+ * arka ucu. Widget'lar yalnızca bu arayüzü bilir; gerçek sürüm ([LauncherEdition.mapcontrol]) MapControl'ın kendi
+ * yöneticilerini, tercihlerini ve servislerini çağırır, özelliklerin iç işleyişine dokunmaz. MapControl'sız bir derlemede
  * [NONE] her şeyi "yok" döner ve hiçbir şey yapmaz.
  *
- * Bu widget'lar aracın hareketini değil, uygulama/cihaz durumunu değiştirir; FrostNav'ın kendisi kısıtlamadığı için sürüşte
+ * Bu widget'lar aracın hareketini değil, uygulama/cihaz durumunu değiştirir; MapControl'ın kendisi kısıtlamadığı için sürüşte
  * de çalışır (araca yazma politikası yalnızca araç sinyali yazmaları içindir; park kapısı orada bagaj, kilit ve sürüş moduna uygulanır).
  *
  * Okuma çağrıları (adı `read` ile başlayanlar) G/Ç yapabilir: arka plan iş parçacığında çağrılır.
  */
-internal interface FrostNavFeatures {
+internal interface MapControlFeatures {
 
-    /** FrostNav bu derlemede var mı (yoksa widget'lar "Yalnızca FrostNav'da" der). */
+    /** MapControl bu derlemede var mı (yoksa widget'lar "Yalnızca MapControl'da" der). */
     val available: Boolean
 
-    /** Web yönetim paneli durumu: sunucu açık mı ve FrostNav'ın gösterdiği adres. */
+    /** Web yönetim paneli durumu: sunucu açık mı ve MapControl'ın gösterdiği adres. */
     fun readWebPanel(): WebPanelState
 
     /**
-     * Web sunucusunu FrostNav'ın Aktar sekmesiyle aynı örnek üzerinden açar/kapatır (sunucu FrostNav ekranına bağlı değildir).
+     * Web sunucusunu MapControl'ın Aktar sekmesiyle aynı örnek üzerinden açar/kapatır (sunucu MapControl ekranına bağlı değildir).
      * [done] ana iş parçacığında: null = istek yerine getirildi, yoksa kullanıcıya gösterilecek kısa neden (başlatılamadı).
      */
     fun setWebPanel(on: Boolean, done: (String?) -> Unit)
@@ -31,22 +31,25 @@ internal interface FrostNavFeatures {
     /** Web paneli durumu değişince [onChange] ana iş parçacığında çağrılır; dönen işlev aboneliği bitirir. */
     fun watchWebPanel(onChange: () -> Unit): () -> Unit
 
+    /** Telefon eşleşme adresi (QR içeriği, anahtarı taşır); sunucu kapalıysa ya da araç bir ağda değilse null. */
+    fun readPairingUri(): String?
+
     /** [text] için QR modül matrisi (kenar boşluksuz); üretilemezse null. */
     fun qr(text: String): QrMatrix?
 
-    /** FrostNav ekolayzerinin kayıtlı durumu ve hazır ayar listesi. */
+    /** MapControl ekolayzerinin kayıtlı durumu ve hazır ayar listesi. */
     fun readEqualizer(): EqState
 
-    /** Ekolayzeri FrostNav'ın kendi yolundan ([EqState.presets] içinden bir hazır ayarla) günceller. */
+    /** Ekolayzeri MapControl'ın kendi yolundan ([EqState.presets] içinden bir hazır ayarla) günceller. */
     fun setEqualizer(enabled: Boolean, preset: String)
 
-    /** FrostNav'ın aç/kapa otomasyonları, sabit sırayla. */
+    /** MapControl'ın aç/kapa otomasyonları, sabit sırayla. */
     fun readAutomations(): List<AutomationItem>
 
-    /** Otomasyonu FrostNav ayar sekmesinin anahtarıyla aynı yoldan açar/kapatır (yalnızca [AutomationItem.toggleable]). */
+    /** Otomasyonu MapControl ayar sekmesinin anahtarıyla aynı yoldan açar/kapatır (yalnızca [AutomationItem.toggleable]). */
     fun setAutomation(id: AutomationId, on: Boolean)
 
-    /** Bölünmüş ekran için FrostNav'da seçili uygulama çifti (paket adları). */
+    /** Bölünmüş ekran için MapControl'da seçili uygulama çifti (paket adları). */
     fun readSplitPair(): SplitPair
 
     /** Bölünmüş ekranı seçili çiftle başlatır; [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden. */
@@ -82,19 +85,20 @@ internal interface FrostNavFeatures {
     /** Göstergeye (cluster) yansıtma durumu ve hedef uygulama. */
     fun readCluster(): ClusterState
 
-    /** Yansıtmayı FrostNav servisinin aç/kapa giriş noktasıyla başlatır/durdurur. */
+    /** Yansıtmayı MapControl servisinin aç/kapa giriş noktasıyla başlatır/durdurur. */
     fun setCluster(open: Boolean)
 
-    /** FrostNav'ı ilgili ayar sekmesinde açar. */
-    fun openTab(activity: Activity, tab: FrostNavTab)
+    /** MapControl'ı ilgili ayar sekmesinde açar. */
+    fun openTab(activity: Activity, tab: MapControlTab)
 
     companion object {
-        /** FrostNav'sız derleme: hiçbir şey yok, hiçbir şey yapılmaz. */
-        val NONE: FrostNavFeatures = object : FrostNavFeatures {
+        /** MapControl'sız derleme: hiçbir şey yok, hiçbir şey yapılmaz. */
+        val NONE: MapControlFeatures = object : MapControlFeatures {
             override val available = false
             override fun readWebPanel() = WebPanelState(running = false, url = null, reachable = false)
             override fun setWebPanel(on: Boolean, done: (String?) -> Unit) = Unit
             override fun watchWebPanel(onChange: () -> Unit): () -> Unit = {}
+            override fun readPairingUri(): String? = null
             override fun qr(text: String): QrMatrix? = null
             override fun readEqualizer() = EqState(supported = false, enabled = false, preset = "", presets = emptyList())
             override fun setEqualizer(enabled: Boolean, preset: String) = Unit
@@ -110,15 +114,15 @@ internal interface FrostNavFeatures {
             override fun driveMapSlot(): android.graphics.Rect? = null
             override fun readCluster() = ClusterState(open = false, target = null)
             override fun setCluster(open: Boolean) = Unit
-            override fun openTab(activity: Activity, tab: FrostNavTab) = Unit
+            override fun openTab(activity: Activity, tab: MapControlTab) = Unit
         }
     }
 }
 
-/** Widget'ların açabildiği FrostNav sekmeleri; gerçek sekme numaraları [LauncherEdition]'da eşlenir. */
-enum class FrostNavTab { WEB, EQUALIZER, CLIMATE_AUTOMATION, SUNROOF_AUTOMATION, FACE_RECOGNITION, SPLIT_SCREEN, PROJECTION }
+/** Widget'ların açabildiği MapControl sekmeleri; gerçek sekme numaraları [LauncherEdition]'da eşlenir. */
+enum class MapControlTab { WEB, EQUALIZER, CLIMATE_AUTOMATION, SUNROOF_AUTOMATION, FACE_RECOGNITION, SPLIT_SCREEN, PROJECTION }
 
-/** [url]: sunucu açıkken FrostNav'ın gösterdiği "http://ip:port"; [reachable] false ise adres yalnızca yerel (127.x). */
+/** [url]: sunucu açıkken MapControl'ın gösterdiği "http://ip:port"; [reachable] false ise adres yalnızca yerel (127.x). */
 data class WebPanelState(val running: Boolean, val url: String?, val reachable: Boolean)
 
 /** [preset]: kayıtlı hazır ayar kimliği ("flat", "bass", … ya da elle ayar için "custom"). */
@@ -126,12 +130,12 @@ data class EqState(val supported: Boolean, val enabled: Boolean, val preset: Str
 
 enum class AutomationId { CLIMATE, SUNROOF, FACE }
 
-/** [toggleable] false: launcher'dan açılamaz (ör. yüz tanıma kamera izni ister), dokunuş FrostNav sekmesini açar. */
+/** [toggleable] false: launcher'dan açılamaz (ör. yüz tanıma kamera izni ister), dokunuş MapControl sekmesini açar. */
 data class AutomationItem(val id: AutomationId, val on: Boolean, val toggleable: Boolean)
 
 data class SplitPair(val first: String?, val second: String?)
 
-/** [target]: göstergede açılacak uygulamanın paketi (FrostNav "Yansıtma" sekmesinde seçilen); yoksa null. */
+/** [target]: göstergede açılacak uygulamanın paketi (MapControl "Yansıtma" sekmesinde seçilen); yoksa null. */
 data class ClusterState(val open: Boolean, val target: String?)
 
 /** Kare QR modül matrisi; [get] true = koyu modül. */
@@ -140,13 +144,13 @@ class QrMatrix(val size: Int, private val bits: BooleanArray) {
     operator fun get(x: Int, y: Int): Boolean = bits[y * size + x]
 }
 
-/** FrostNav widget'larının saf kuralları (JVM'de sınanır). */
-object FrostNavWidgetMath {
+/** MapControl widget'larının saf kuralları (JVM'de sınanır). */
+object MapControlWidgetMath {
 
-    /** FrostNav web sunucusunun sabit portu (WebServerManager.startServer). */
+    /** MapControl web sunucusunun sabit portu (WebServerManager.startServer). */
     const val WEB_PORT = 7462
 
-    /** FrostNav'ın gösterdiği biçimde panel adresi; adres yoksa null. */
+    /** MapControl'ın gösterdiği biçimde panel adresi; adres yoksa null. */
     fun webUrl(host: String?, port: Int = WEB_PORT): String? {
         val h = host?.trim().orEmpty()
         if (h.isEmpty() || port <= 0) return null

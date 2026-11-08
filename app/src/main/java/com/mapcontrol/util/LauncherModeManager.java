@@ -145,7 +145,7 @@ public final class LauncherModeManager {
     }
 
     /**
-     * Cihaz sahibiyse (araçta FrostNav böyle kurulu) HOME'u iletişim kutusu olmadan bu uygulamaya
+     * Cihaz sahibiyse (araçta MapControl böyle kurulu) HOME'u iletişim kutusu olmadan bu uygulamaya
      * sabitler: {@code addPersistentPreferredActivity} ile MAIN+HOME+DEFAULT filtresi alias'a bağlanır.
      * Bu kayıt RoleManager'dan bağımsızdır; uygulama güncellenince/yeniden kurulunca rol düşse bile
      * HOME bizim launcher'a çözülür. İşlem idempotenttir, arka plandan çağrılması güvenlidir.
@@ -187,7 +187,7 @@ public final class LauncherModeManager {
      * hiçbir arayüz başlatmaz): tercih açıksa alias'ı etkinleştirir ve cihaz sahibiyse HOME'u sabitler.
      *
      * <p>Neden: paket güncellenince (özellikle araçtaki kurucu kaldır+kur yaparsa) sistem HOME
-     * rolünü/tercihini düşürebilir; bunu yeniden kurmak için kullanıcının FrostNav'ı elle açmasını
+     * rolünü/tercihini düşürebilir; bunu yeniden kurmak için kullanıcının MapControl'ı elle açmasını
      * beklemeyelim. Cihaz sahibi değilsek rol ancak kullanıcı onayıyla alınabilir; bu
      * {@link #requestHomeRoleOncePerVersion} ile ön plandayken yapılır.
      */
@@ -269,6 +269,7 @@ public final class LauncherModeManager {
                 RoleManager roleManager = activity.getSystemService(RoleManager.class);
                 if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)
                         && !roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
+                    InstallerConfirmClicker.armHomeRole(activity);
                     activity.startActivityForResult(
                             roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME), requestCode);
                     return true;

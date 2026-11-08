@@ -12,7 +12,7 @@ enum class MapApp(val key: String, val packageName: String, val label: String, v
     YANDEX_NAVI("yandex_navi", NavigationSource.YANDEX_NAVI, "Yandex Navi", "Yandex Navigator");
 
     companion object {
-        /** Varsayılan sıra (FrostNav hedefi uygun değilse): Google Haritalar, Yandex Haritalar, Yandex Navigator. */
+        /** Varsayılan sıra (MapControl hedefi uygun değilse): Google Haritalar, Yandex Haritalar, Yandex Navigator. */
         @JvmField val ORDER: List<MapApp> = listOf(GOOGLE_MAPS, YANDEX_MAPS, YANDEX_NAVI)
 
         fun fromKey(key: String?): MapApp? = values().firstOrNull { it.key == key }

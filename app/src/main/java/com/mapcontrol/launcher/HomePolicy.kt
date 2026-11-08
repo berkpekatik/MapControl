@@ -9,10 +9,10 @@ import android.util.Log
 import android.view.accessibility.AccessibilityWindowInfo
 
 /**
- * Ana ekran tuşu ve açılış ekranı (FrostNav launcher modu açıkken; kapalıyken hiçbir şey değişmez). Kural bilerek dar tutuldu:
+ * Ana ekran tuşu ve açılış ekranı (MapControl launcher modu açıkken; kapalıyken hiçbir şey değişmez). Kural bilerek dar tutuldu:
  *
- * 1. Araç / uygulama açılınca FrostNav bizim ana ekranımızda ([HomeLauncherActivity]) açılır, FrostNav ayarlarında değil.
- * 2. FrostNav'ın kendi ekranları öndeyken (ayarlar sekmeleri, harita seçici, kamera, Mini gösterge…; bizim ana ekranımız hariç)
+ * 1. Araç / uygulama açılınca MapControl bizim ana ekranımızda ([HomeLauncherActivity]) açılır, MapControl ayarlarında değil.
+ * 2. MapControl'ın kendi ekranları öndeyken (ayarlar sekmeleri, harita seçici, kamera, Mini gösterge…; bizim ana ekranımız hariç)
  *    aracın Ana ekran tuşu bizim ana ekranımıza getirir.
  * 3. Sürüş ekranı ([DriveScreen]) sürerken yarılardan ya da tam ekran haritadan basılan Ana ekran tuşu da bizim ana ekranımıza getirir.
  * 4. Başka her durumda araç kendi bildiği gibi davranır: üçüncü taraf uygulamadan (Google Haritalar, müzik…) ya da bizim ana
@@ -27,7 +27,7 @@ internal enum class HomeAction {
     /** Bu olayla ilgili bir şey yapılmaz. */
     NONE,
 
-    /** Ana ekran tuşu FrostNav ekranında (ya da sürüş ekranında) basıldı: bizim ana ekranımız öne gelir. */
+    /** Ana ekran tuşu MapControl ekranında (ya da sürüş ekranında) basıldı: bizim ana ekranımız öne gelir. */
     REDIRECT_TO_LAUNCHER,
 
     /** Ana ekran tuşu bizim ana ekranımızdayken basıldı: aracın kendi ana ekranında kalınır (yalnız günlük için ayrı). */
@@ -42,7 +42,7 @@ internal enum class FrontApp {
     /** Bizim ana ekranımız ([HomeLauncherActivity]). */
     OUR_LAUNCHER,
 
-    /** FrostNav'ın kendi başka bir ekranı (ayarlar, harita seçici, kamera, Mini gösterge…). */
+    /** MapControl'ın kendi başka bir ekranı (ayarlar, harita seçici, kamera, Mini gösterge…). */
     OUR_SCREEN,
 
     /** Aracın kendi ana ekranı. */
@@ -73,7 +73,7 @@ internal object HomePolicy {
 
     /**
      * Pencere olayı "öndeki uygulama" değişimi sayılmaz mı: geçici sistem pencereleri, klavye (`...SoftInputWindow`; klavye kendi
-     * paketinden olay gönderir, FrostNav ayarlarında yazarken Ana ekran tuşu yine bize dönmeli) ya da kendi paketimizin etkinlik
+     * paketinden olay gönderir, MapControl ayarlarında yazarken Ana ekran tuşu yine bize dönmeli) ya da kendi paketimizin etkinlik
      * olmayan pencereleri (yüzen geri oku, gösterge katmanları; sınıf adları `...Activity` ile bitmez).
      */
     fun isTransient(pkg: String, className: String?, selfPkg: String): Boolean {
@@ -92,7 +92,7 @@ internal object HomePolicy {
     /**
      * OEM ana ekranı öne geldi: ne yapılır.
      *
-     * @param launcherModeOn FrostNav launcher modu ([com.mapcontrol.util.LauncherModeManager.isEnabled]); kapalıysa hiç dokunulmaz.
+     * @param launcherModeOn MapControl launcher modu ([com.mapcontrol.util.LauncherModeManager.isEnabled]); kapalıysa hiç dokunulmaz.
      * @param before OEM ana ekranından hemen önce öndeki uygulama.
      * @param driveActive sürüş ekranı açık ya da açılıyor ([DriveScreen.active]): yarılardaki / tam ekran haritadaki tuş da bize döner.
      * @param sinceLastRedirectMs son yönlendirmeden bu yana geçen süre (yakınsa OEM'in art arda olayı: hiçbir şey).
@@ -112,7 +112,7 @@ internal object HomePolicy {
     fun bootScreen(launcherModeOn: Boolean): StartScreen = if (launcherModeOn) StartScreen.LAUNCHER else StartScreen.SETTINGS
 
     /**
-     * FrostNav simgesinden açılış (MAIN + LAUNCHER, kendine özgü istek yok, yeniden kurulum değil): launcher modu açıksa bizim ana
+     * MapControl simgesinden açılış (MAIN + LAUNCHER, kendine özgü istek yok, yeniden kurulum değil): launcher modu açıksa bizim ana
      * ekranımız açılır. Ayarlar düğmesi, sekme / seçici istekleri ve kurulum sonuçları ayarlara gider.
      */
     fun appStartScreen(launcherModeOn: Boolean, iconLaunch: Boolean, hasOwnRequest: Boolean, restored: Boolean): StartScreen =
@@ -211,7 +211,7 @@ object HomeKey {
     /**
      * Erişilebilirlik hizmetinden (ana iş parçacığı): `TYPE_WINDOW_STATE_CHANGED` olayının paketi, sınıfı ve pencere kimliği.
      * Başka paketin penceresi (bizim ve OEM ana ekranı dışında) yalnız gerçek uygulama penceresiyse öndeki uygulama sayılır
-     * ([isAppWindow]); klavye ve başka açılır pencereler FrostNav ekranındaki Ana ekran tuşunu bozmaz.
+     * ([isAppWindow]); klavye ve başka açılır pencereler MapControl ekranındaki Ana ekran tuşunu bozmaz.
      */
     @JvmStatic
     fun onWindowStateChanged(service: AccessibilityService, pkg: CharSequence?, className: CharSequence?, windowId: Int) {
@@ -283,7 +283,7 @@ object HomeKey {
     }
 
     /**
-     * FrostNav simgesinden açılış ([com.mapcontrol.ui.activity.MainActivity.onCreate]): kural ([HomePolicy.appStartScreen]) ana ekranı
+     * MapControl simgesinden açılış ([com.mapcontrol.ui.activity.MainActivity.onCreate]): kural ([HomePolicy.appStartScreen]) ana ekranı
      * gösteriyorsa onu açar ve true döner (çağıran kendini kapatır).
      */
     @JvmStatic

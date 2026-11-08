@@ -1,6 +1,7 @@
 package com.mapcontrol.util;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
@@ -28,6 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Paket yükleyici onay penceresinde 5 sn bekler, sonra INSTALL düğmesine basar.
+ * Aynı geri sayımla, uygulamanın kendi açtığı "varsayılan ana ekran" rol penceresinde de
+ * kendi satırını seçip onaylar ({@link #armHomeRole}); araçta kullanıcı bu pencereye dokunamıyor.
  * Yalnızca packageinstaller / permissioncontroller pencereleri.
  */
 public final class InstallerConfirmClicker {
@@ -49,6 +52,17 @@ public final class InstallerConfirmClicker {
             "ok_button", "install_confirm", "install_button"
     };
 
+    /** Rol penceresinin onay düğmesi; önce {@code android:id/button1} denenir. */
+    private static final String[] HOME_CONFIRM_LABELS = {
+            "设为默认应用", "設為預設應用程式", "set as default", "varsayılan olarak ayarla"
+    };
+    /** Rol isteği başlatıldıktan sonra pencerenin gelmesi için beklenen en uzun süre. */
+    private static final long HOME_ARM_WINDOW_MS = 30_000L;
+    private static final int HOME_CLICK_ATTEMPTS = 12;
+    private static final long HOME_CLICK_RETRY_MS = 300L;
+    /** Onaydan sonra sistemin HOME çözümünü güncellemesi için beklenen süre. */
+    private static final long HOME_VERIFY_DELAY_MS = 1500L;
+
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
     // Window root sorgulari senkron binder cagrisidir; hedef uygulama mesgulse
     // saniyelerce bloklar. Main thread'de yapilirsa ANR olur -> arka thread sart.
@@ -63,6 +77,10 @@ public final class InstallerConfirmClicker {
     private static boolean lastConfirmLogged;
     private static long cooldownUntil;
     private static boolean pendingArm;
+    private static long homeArmedUntil;
+    private static Context homeContext;
+    /** Gösterilen şerit ana ekran rolü için mi (false: kurulum onayı). */
+    private static boolean homeStrip;
     private static boolean stripShowing;
     private static boolean sawInstallerWhileStrip;
     private static boolean userDismissed;
@@ -78,15 +96,19 @@ public final class InstallerConfirmClicker {
                 return;
             }
             if (secondsLeft <= 1) {
+                boolean home = homeStrip;
                 dismissStrip();
                 AccessibilityService service = GlobalBackService.getInstance();
+                if (service == null && home) {
+                    reportHomeFailure(null, "geri sayım bitti, erişilebilirlik hizmeti kopuk");
+                }
                 if (service != null) {
                     SCAN_EXEC.execute(() -> {
-                        boolean clicked = clickInstall(service);
+                        boolean clicked = home ? confirmHomeRole(service) : clickInstall(service);
                         if (clicked) {
                             cooldownUntil = SystemClock.uptimeMillis() + COOLDOWN_MS;
                         }
-                        Log.i(TAG, "INSTALL click=" + clicked);
+                        Log.i(TAG, (home ? "HOME" : "INSTALL") + " click=" + clicked);
                     });
                 }
                 return;
@@ -94,6 +116,14 @@ public final class InstallerConfirmClicker {
             secondsLeft--;
             updateCountdownText();
             HANDLER.postDelayed(this, 1000L);
+        }
+    };
+
+    /** Rol penceresi hiç algılanmadıysa (hizmet kapalı ya da olay gelmedi) teşhis bırakır. */
+    private static final Runnable HOME_ARM_TIMEOUT = () -> {
+        if (homeArmedUntil != 0L) {
+            homeArmedUntil = 0L;
+            reportHomeFailure(GlobalBackService.getInstance(), "rol penceresi algılanmadı");
         }
     };
 
@@ -113,8 +143,24 @@ public final class InstallerConfirmClicker {
         showStrip(service);
     }
 
+    /** Ana iş parçacığından, rol penceresi başlatılmadan hemen önce çağrılır; bir sonraki sistem penceresine geri sayım başlar. */
+    public static void armHomeRole(Context context) {
+        homeContext = context.getApplicationContext();
+        homeArmedUntil = SystemClock.uptimeMillis() + HOME_ARM_WINDOW_MS;
+        HANDLER.removeCallbacks(HOME_ARM_TIMEOUT);
+        HANDLER.postDelayed(HOME_ARM_TIMEOUT, HOME_ARM_WINDOW_MS);
+    }
+
+    private static void reportHomeFailure(AccessibilityService service, String reason) {
+        Context context = homeContext;
+        if (context != null) {
+            SCAN_EXEC.execute(() -> HomeRoleDiag.report(context, service, reason));
+        }
+    }
+
     public static void disarm() {
         pendingArm = false;
+        homeArmedUntil = 0L;
         userDismissed = false;
         sawInstallerWhileStrip = false;
         dismissStrip();
@@ -132,6 +178,7 @@ public final class InstallerConfirmClicker {
                 Log.i(TAG, "yükleyici olayı type=" + event.getEventType() + " pkg=" + pkg
                         + " inFlight=" + SCAN_IN_FLIGHT.get() + " strip=" + stripShowing);
             }
+            maybeShowHomeStrip(service, event);
         }
         if (event != null && event.getEventType() == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             CharSequence pkg = event.getPackageName();
@@ -193,6 +240,97 @@ public final class InstallerConfirmClicker {
             }
             boolean found = confirm;
             HANDLER.post(() -> handleScanResult(service, found));
+        });
+    }
+
+    /** Rol isteği bekleniyorken sistem penceresi geldiyse geri sayımı başlatır (olay bilgisi yeter, binder çağrısı yok). */
+    private static void maybeShowHomeStrip(AccessibilityService service, android.view.accessibility.AccessibilityEvent event) {
+        if (homeArmedUntil == 0L || stripShowing
+                || event.getEventType() != android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || !isInstallerPackage(event.getPackageName())) {
+            return;
+        }
+        boolean live = SystemClock.uptimeMillis() < homeArmedUntil;
+        homeArmedUntil = 0L;
+        if (!live) {
+            return;
+        }
+        Log.i(TAG, "rol penceresi algılandı: " + event.getClassName());
+        HANDLER.removeCallbacks(HOME_ARM_TIMEOUT);
+        homeStrip = true;
+        showStrip(service);
+        if (!stripShowing) {
+            homeStrip = false;
+            reportHomeFailure(service, "geri sayım şeridi açılamadı");
+        }
+    }
+
+    /** Arka plandan: kendi satırımızı seçer, onay düğmesi etkinleşince basar. Satır seçilmeden onaylanmaz (başka uygulama varsayılan olmasın). */
+    private static boolean confirmHomeRole(AccessibilityService service) {
+        String label = service.getApplicationInfo().loadLabel(service.getPackageManager())
+                .toString().trim().toLowerCase(Locale.ROOT);
+        boolean rowClicked = false;
+        for (int i = 0; i < HOME_CLICK_ATTEMPTS; i++) {
+            rowClicked = clickHomeRow(service, label);
+            SystemClock.sleep(HOME_CLICK_RETRY_MS);
+            if (rowClicked && clickHomeConfirm(service)) {
+                SystemClock.sleep(HOME_VERIFY_DELAY_MS);
+                if (LauncherModeManager.isDefaultHome(service)) {
+                    HomeRoleDiag.clear(service);
+                } else {
+                    HomeRoleDiag.report(service, service, "onaya basıldı ama HOME değişmedi");
+                }
+                return true;
+            }
+        }
+        HomeRoleDiag.report(service, service, rowClicked
+                ? "satır seçildi, onay düğmesine basılamadı"
+                : "uygulama satırı seçilemedi");
+        return false;
+    }
+
+    private static boolean clickHomeRow(AccessibilityService service, String label) {
+        return anyInstallerRoot(service, root -> {
+            List<AccessibilityNodeInfo> nodes = findByText(root, label);
+            if (nodes == null) {
+                return false;
+            }
+            try {
+                for (AccessibilityNodeInfo node : nodes) {
+                    // Başlık da adı içerir; yalnız adın kendisi olan satır seçilir.
+                    if (node != null && label.equals(nodeLabel(node)) && activate(node)) {
+                        return true;
+                    }
+                }
+                return false;
+            } finally {
+                recycle(nodes);
+            }
+        });
+    }
+
+    private static boolean clickHomeConfirm(AccessibilityService service) {
+        if (clickViewId(service, "android:id/button1", true)) {
+            return true;
+        }
+        return anyInstallerRoot(service, root -> {
+            for (String confirm : HOME_CONFIRM_LABELS) {
+                List<AccessibilityNodeInfo> nodes = findByText(root, confirm);
+                if (nodes == null) {
+                    continue;
+                }
+                try {
+                    for (AccessibilityNodeInfo node : nodes) {
+                        if (node != null && node.isEnabled()
+                                && matches(nodeLabel(node), HOME_CONFIRM_LABELS) && activate(node)) {
+                            return true;
+                        }
+                    }
+                } finally {
+                    recycle(nodes);
+                }
+            }
+            return false;
         });
     }
 
@@ -311,7 +449,8 @@ public final class InstallerConfirmClicker {
         if (text == null || service == null) {
             return;
         }
-        text.setText(service.getString(R.string.installer_confirm_countdown, secondsLeft));
+        text.setText(service.getString(
+                homeStrip ? R.string.home_role_confirm_countdown : R.string.installer_confirm_countdown, secondsLeft));
     }
 
     private static void cancelInstall() {
@@ -325,6 +464,7 @@ public final class InstallerConfirmClicker {
 
     private static void dismissStrip() {
         HANDLER.removeCallbacks(TICK);
+        homeStrip = false;
         View view = stripView;
         WindowManager wm = windowManager;
         stripView = null;
@@ -571,7 +711,7 @@ public final class InstallerConfirmClicker {
             }
             if (current.isEnabled() && current.isClickable()
                     && current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                Log.i(TAG, "INSTALL tıklandı id=" + current.getViewIdResourceName());
+                Log.i(TAG, "tıklandı id=" + current.getViewIdResourceName());
                 if (current != start) {
                     current.recycle();
                 }
@@ -655,7 +795,7 @@ public final class InstallerConfirmClicker {
         }
     }
 
-    private static boolean isInstallerPackage(CharSequence packageName) {
+    static boolean isInstallerPackage(CharSequence packageName) {
         if (packageName == null) {
             return false;
         }

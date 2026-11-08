@@ -8,7 +8,7 @@ internal data class WifiScan(val ssid: String, val level: Int, val capabilities:
 /** Panelde gösterilen bir satır. */
 internal data class WifiRow(val scan: WifiScan, val saved: Boolean)
 
-/** Panelin Wi-Fi'ye dokunan tek yüzü; uygulamada FrostNav'ın WifiController'ı kullanılır. */
+/** Panelin Wi-Fi'ye dokunan tek yüzü; uygulamada MapControl'ın WifiController'ı kullanılır. */
 internal interface WifiBackend {
     /** Yakındaki ağlar taranıp bağlanılabiliyor mu (false: yalnızca aç/kapa + geçerli ağ). */
     val canList: Boolean
@@ -105,7 +105,7 @@ internal object WifiAccess {
     }
 
     /**
-     * Bu süreçte konum izni en az bir kez reddedildi mi (başlatıcı paneli ve FrostNav sekmesi ortak; izin uygulamaya ait).
+     * Bu süreçte konum izni en az bir kez reddedildi mi (başlatıcı paneli ve MapControl sekmesi ortak; izin uygulamaya ait).
      * Pencere açılmadan önce değil sonuçta işlenir: dışına dokunup kapatmak ya da yarıda kesilmek düğmeyi "Ayarları aç"a çevirmez.
      */
     @Volatile private var deniedBefore = false

@@ -500,7 +500,7 @@ public class SideRailBuilder {
         tv.setSingleLine(true);
         tv.setEllipsize(TextUtils.TruncateAt.END);
         UiStyles.setTextSize(tv, R.dimen.text_size_tiny);
-        tv.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tv, Typeface.BOLD);
         tv.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tv.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
@@ -677,7 +677,7 @@ public class SideRailBuilder {
 
         TextView textView = new TextView(context);
         textView.setText(text);
-        UiStyles.setTextSize(textView, R.dimen.text_size_large);
+        UiStyles.setTextSize(textView, R.dimen.text_size_medium);
         textView.setTextColor(UiStyles.color(context, R.color.textSecondary));
         textView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
@@ -749,7 +749,7 @@ public class SideRailBuilder {
             }
             if (label != null) {
                 label.setTextColor(UiStyles.color(context, R.color.oemAccent));
-                label.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(label, android.graphics.Typeface.BOLD);
             }
         } else {
             row.setBackgroundColor(Color.TRANSPARENT);
@@ -758,7 +758,7 @@ public class SideRailBuilder {
             }
             if (label != null) {
                 label.setTextColor(UiStyles.color(context, R.color.textSecondary));
-                label.setTypeface(null, android.graphics.Typeface.NORMAL);
+                UiStyles.setFontStyle(label, android.graphics.Typeface.NORMAL);
             }
         }
     }

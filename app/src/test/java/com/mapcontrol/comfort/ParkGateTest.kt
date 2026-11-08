@@ -1,4 +1,4 @@
-package com.mapcontrol.comfort
+package com.vnoisy.devfort
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

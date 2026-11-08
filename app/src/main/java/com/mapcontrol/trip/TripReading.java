@@ -43,7 +43,7 @@ public final class TripReading {
         return value != INVALID && value >= 0;
     }
 
-    /** Depo değeri her zaman onda bir yüzdedir (694 → %69); ekranla aynı yuvarlama ({@link VehicleMetricsSnapshot#fuelPercentRounded(int)}). */
+    /** Depo yüzdesi her zaman onda birdir (694 → %69); tek kural {@link VehicleMetricsSnapshot#fuelPercentRounded}. */
     static int percent(int raw) {
         int rounded = VehicleMetricsSnapshot.fuelPercentRounded(raw);
         return rounded < 0 ? INVALID : rounded;

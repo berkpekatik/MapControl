@@ -61,9 +61,12 @@ public class WifiTabBuilder {
 
     private void applyControlButtonStyle(Button button, int backgroundColorArgb) {
         UiStyles.applySolidRoundedBackground(button, backgroundColorArgb);
+        ((android.graphics.drawable.GradientDrawable) button.getBackground()).setStroke(
+                Math.max(1, Math.round(button.getResources().getDisplayMetrics().density)),
+                UiStyles.color(button.getContext(), R.color.outline));
         UiStyles.setTextSize(button, R.dimen.text_size_normal);
         button.setTextColor(UiStyles.textOnColor(backgroundColorArgb));
-        button.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(button, android.graphics.Typeface.BOLD);
         button.setAllCaps(false);
         button.setSingleLine(true);
         button.setGravity(android.view.Gravity.CENTER);
@@ -118,7 +121,7 @@ public class WifiTabBuilder {
 
         btnWifiToggle = new Button(context);
         btnWifiToggle.setText(R.string.wifi_turn_on);
-        applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
+        applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonCta));
         btnWifiToggle.setOnClickListener(v -> toggleWifi());
         LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
         toggleParams.setMargins(0, 0, gap / 2, 0);
@@ -126,7 +129,7 @@ public class WifiTabBuilder {
 
         btnScanWifi = new Button(context);
         btnScanWifi.setText(R.string.wifi_refresh);
-        applyControlButtonStyle(btnScanWifi, UiStyles.color(context, R.color.oemAccent));
+        applyControlButtonStyle(btnScanWifi, UiStyles.color(context, R.color.buttonCta));
         btnScanWifi.setOnClickListener(v -> scanWifiNetworks());
         LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
         scanParams.setMargins(gap / 2, 0, gap / 2, 0);
@@ -134,7 +137,7 @@ public class WifiTabBuilder {
 
         Button btnSavedNetworks = new Button(context);
         btnSavedNetworks.setText(R.string.wifi_saved_networks);
-        applyControlButtonStyle(btnSavedNetworks, UiStyles.color(context, R.color.primaryDarkColor));
+        applyControlButtonStyle(btnSavedNetworks, UiStyles.color(context, R.color.buttonCta));
         btnSavedNetworks.setOnClickListener(v -> showSavedNetworksDialog());
         LinearLayout.LayoutParams savedParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
         savedParams.setMargins(gap / 2, 0, 0, 0);
@@ -180,10 +183,10 @@ public class WifiTabBuilder {
 
             if (isWifiEnabled) {
                 btnWifiToggle.setText(R.string.wifi_turn_off);
-                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
+                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonCta));
             } else {
                 btnWifiToggle.setText(R.string.wifi_turn_on);
-                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.primaryDarkColor));
+                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonCta));
             }
 
             callback.log("Wi-Fi durumu güncellendi: " + (isWifiEnabled ? "AÇIK" : "KAPALI"));
@@ -503,7 +506,7 @@ public class WifiTabBuilder {
         ssidText.setText(ssid);
         ssidText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(ssidText, R.dimen.text_size_medium);
-        ssidText.setTypeface(null, android.graphics.Typeface.NORMAL);
+        UiStyles.setFontStyle(ssidText, android.graphics.Typeface.NORMAL);
         infoContainer.addView(ssidText);
 
         LinearLayout detailRow = new LinearLayout(context);
@@ -646,7 +649,7 @@ public class WifiTabBuilder {
         titleView.setText(R.string.wifi_password_title);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(titleView, R.dimen.text_size_large);
-        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, android.graphics.Typeface.BOLD);
         titleView.setPadding(0, 0, 0, 20);
         dialogLayout.addView(titleView);
 
@@ -654,7 +657,7 @@ public class WifiTabBuilder {
         networkName.setText(result.SSID);
         networkName.setTextColor(UiStyles.color(context, R.color.accentHighlight));
         UiStyles.setTextSize(networkName, R.dimen.text_size_medium);
-        networkName.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(networkName, android.graphics.Typeface.BOLD);
         networkName.setPadding(0, 0, 0, 20);
         dialogLayout.addView(networkName);
 
@@ -690,12 +693,12 @@ public class WifiTabBuilder {
             if (pos != null) {
                 pos.setTextColor(UiStyles.color(context, R.color.buttonSuccessBright));
                 UiStyles.setTextSize(pos, R.dimen.text_size_medium);
-                pos.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(pos, android.graphics.Typeface.BOLD);
             }
             if (neg != null) {
                 neg.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                 UiStyles.setTextSize(neg, R.dimen.text_size_medium);
-                neg.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(neg, android.graphics.Typeface.BOLD);
             }
         });
         dialog.show();
@@ -752,7 +755,7 @@ public class WifiTabBuilder {
         titleView.setText(R.string.wifi_saved_title);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(titleView, R.dimen.text_size_large);
-        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, android.graphics.Typeface.BOLD);
         dialogLayout.addView(titleView);
 
         TextView subtitleView = new TextView(context);
@@ -815,7 +818,7 @@ public class WifiTabBuilder {
             if (pos != null) {
                 pos.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
                 UiStyles.setTextSize(pos, R.dimen.text_size_medium);
-                pos.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(pos, android.graphics.Typeface.BOLD);
                 // Seçim yokken pencere kapanmasın.
                 pos.setOnClickListener(v -> {
                     List<NetworkWifiHelper.SavedNetwork> selected = new ArrayList<>();
@@ -835,7 +838,7 @@ public class WifiTabBuilder {
             if (neg != null) {
                 neg.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
                 UiStyles.setTextSize(neg, R.dimen.text_size_medium);
-                neg.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(neg, android.graphics.Typeface.BOLD);
             }
         });
         dialog.show();

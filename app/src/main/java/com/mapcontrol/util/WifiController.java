@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Wi-Fi tarama / bağlanma / bağlantıyı kesme / aç-kapa mantığı. FrostNav'ın Wi-Fi sekmesi ({@code WifiTabBuilder}) ve
+ * Wi-Fi tarama / bağlanma / bağlantıyı kesme / aç-kapa mantığı. MapControl'ın Wi-Fi sekmesi ({@code WifiTabBuilder}) ve
  * launcher'ın Wi-Fi açılır paneli aynı kodu kullanır. Bağlanma WifiConfiguration + addNetwork/enableNetwork ile yapılır;
  * bu, araçta uygulama cihaz sahibi olduğu için çalışır (Android 10+ sıradan uygulamada ağ eklenemez).
  * Hiçbir yöntem arayüzle ilgilenmez; sonuçlar {@link Outcome} olarak döner. Ağ/IPC çağıran iş parçacığında yapılır.

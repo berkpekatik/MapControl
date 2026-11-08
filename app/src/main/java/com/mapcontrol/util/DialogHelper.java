@@ -156,7 +156,7 @@ public class DialogHelper {
         titleView.setText(title);
         titleView.setTextSize(20);
         titleView.setTextColor(UiStyles.color(context, R.color.accentHighlight));
-        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, android.graphics.Typeface.BOLD);
         titleView.setGravity(android.view.Gravity.CENTER);
         dialogLayout.addView(titleView);
 
@@ -224,17 +224,17 @@ public class DialogHelper {
         if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.buttonSuccessBright));
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextSize(17);
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(dialog.getButton(AlertDialog.BUTTON_POSITIVE), android.graphics.Typeface.BOLD);
         }
         if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.statusErrorBright));
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextSize(17);
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(dialog.getButton(AlertDialog.BUTTON_NEGATIVE), android.graphics.Typeface.BOLD);
         }
         if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(UiStyles.color(context, R.color.textLoading));
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextSize(17);
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(dialog.getButton(AlertDialog.BUTTON_NEUTRAL), android.graphics.Typeface.BOLD);
         }
     }
 
@@ -255,7 +255,7 @@ public class DialogHelper {
         titleView.setText(title);
         titleView.setTextSize(24);
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, android.graphics.Typeface.BOLD);
         titleContainer.addView(titleView);
 
         TextView subtitleView = new TextView(context);
@@ -293,7 +293,7 @@ public class DialogHelper {
             if (positiveButton != null) {
                 positiveButton.setTextColor(UiStyles.color(dialog.getContext(), R.color.textPrimary));
                 positiveButton.setTextSize(16);
-                positiveButton.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(positiveButton, android.graphics.Typeface.BOLD);
                 android.graphics.drawable.GradientDrawable positiveBg = new android.graphics.drawable.GradientDrawable();
                 positiveBg.setColor(UiStyles.color(dialog.getContext(), R.color.buttonPrimary));
                 positiveBg.setCornerRadius(12);
@@ -304,7 +304,7 @@ public class DialogHelper {
                 negativeButton.setTextColor(UiStyles.color(dialog.getContext(), R.color.textSecondary));
                 negativeButton.setBackgroundColor(UiStyles.color(dialog.getContext(), R.color.transparent));
                 negativeButton.setTextSize(16);
-                negativeButton.setTypeface(null, android.graphics.Typeface.NORMAL);
+                UiStyles.setFontStyle(negativeButton, android.graphics.Typeface.NORMAL);
             }
         });
     }

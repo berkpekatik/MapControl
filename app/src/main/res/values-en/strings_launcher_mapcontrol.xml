@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FrostNav özelliklerini süren launcher widget'ları: web paneli, ekolayzer, otomasyon, bölünmüş ekran, göstergeye yansıt. -->
+<!-- MapControl özelliklerini süren launcher widget'ları: web paneli, ekolayzer, otomasyon, bölünmüş ekran, göstergeye yansıt. -->
 <resources>
     <string name="launcher_widget_web_panel">Web panel</string>
     <string name="launcher_widget_equalizer">Equalizer</string>
     <string name="launcher_widget_automation">Automation</string>
     <string name="launcher_widget_split_screen">Split screen</string>
     <string name="launcher_widget_cluster_mirror">Mirror to cluster</string>
-    <string name="launcher_fn_only">FrostNav only</string>
-    <string name="launcher_fn_unavailable_toast">This feature works in the FrostNav build</string>
+    <string name="launcher_fn_only">MapControl only</string>
+    <string name="launcher_fn_unavailable_toast">This feature works in the MapControl build</string>
     <string name="launcher_fn_web_start">Start</string>
     <string name="launcher_fn_web_starting">Starting…</string>
     <string name="launcher_fn_web_start_failed">Couldn\'t start the web panel</string>
-    <string name="launcher_fn_web_needs_frostnav">Open FrostNav once and accept the notice first</string>
-    <string name="launcher_fn_web_manage">Manage in FrostNav</string>
+    <string name="launcher_fn_web_needs_mapcontrol">Open MapControl once and accept the notice first</string>
+    <string name="launcher_fn_web_manage">Manage in MapControl</string>
     <string name="launcher_fn_web_scan">Scan with your phone camera</string>
     <string name="launcher_fn_web_local">The car is not on a network</string>
     <string name="launcher_fn_web_off_detail">Web management is off</string>
+    <string name="launcher_phone_pair_title">Pair phone</string>
+    <string name="launcher_phone_pair_off">The web server must be on to show the QR code</string>
     <string name="launcher_fn_qr_desc">Web panel QR code</string>
     <string name="launcher_fn_eq_unsupported">Not supported on this device</string>
     <string name="launcher_fn_auto_climate">Climate</string>

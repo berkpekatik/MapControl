@@ -184,7 +184,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         title.setText("Akıllı Cam Tavan Otomasyonu");
         UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         heading.addView(title);
 
         TextView subtitle = new TextView(context);
@@ -216,13 +216,13 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView tvCondLabel = new TextView(context);
         tvCondLabel.setText("ANLIK HAVA VE IŞIK DURUMU");
         UiStyles.setTextSize(tvCondLabel, R.dimen.text_size_tiny);
-        tvCondLabel.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvCondLabel, Typeface.BOLD);
         tvCondLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         conditionBox.addView(tvCondLabel);
 
         tvConditionTitle = new TextView(context);
         UiStyles.setTextSize(tvConditionTitle, R.dimen.text_size_medium);
-        tvConditionTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvConditionTitle, Typeface.BOLD);
         tvConditionTitle.setTextColor(UiStyles.color(context, R.color.oemAccent));
         tvConditionTitle.setPadding(0, dp(3, density), 0, dp(1, density));
         conditionBox.addView(tvConditionTitle);
@@ -230,7 +230,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         // Anlık Ölçülen Lux Değeri
         tvLiveLux = new TextView(context);
         UiStyles.setTextSize(tvLiveLux, R.dimen.text_size_small);
-        tvLiveLux.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvLiveLux, Typeface.BOLD);
         tvLiveLux.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tvLiveLux.setPadding(0, dp(1, density), 0, dp(2, density));
         conditionBox.addView(tvLiveLux);
@@ -304,7 +304,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView tvVal = new TextView(context);
         tvVal.setText(initialValue);
         UiStyles.setTextSize(tvVal, R.dimen.text_size_small);
-        tvVal.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvVal, Typeface.BOLD);
         tvVal.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tvVal.setGravity(Gravity.CENTER);
         badge.addView(tvVal);
@@ -334,7 +334,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView masterTitle = new TextView(context);
         masterTitle.setText("Otomatik Cam Tavan");
         UiStyles.setTextSize(masterTitle, R.dimen.text_size_normal);
-        masterTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(masterTitle, Typeface.BOLD);
         masterTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         masterTextCol.addView(masterTitle);
 
@@ -519,11 +519,11 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         if (selected) {
             btn.setBackgroundResource(R.drawable.bg_segment_thumb);
             btn.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            btn.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(btn, Typeface.BOLD);
         } else {
             btn.setBackgroundColor(Color.TRANSPARENT);
             btn.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-            btn.setTypeface(null, Typeface.NORMAL);
+            UiStyles.setFontStyle(btn, Typeface.NORMAL);
         }
     }
 
@@ -718,13 +718,13 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         tvSub.setText(subtext);
         UiStyles.setTextSize(tvSub, R.dimen.text_size_tiny);
         tvSub.setTextColor(0xCC000000 | (color & 0x00FFFFFF));
-        tvSub.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvSub, Typeface.BOLD);
         textCol.addView(tvSub);
 
         TextView tvTitle = new TextView(context);
         tvTitle.setText(actionTitle);
         UiStyles.setTextSize(tvTitle, R.dimen.text_size_small);
-        tvTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvTitle, Typeface.BOLD);
         tvTitle.setTextColor(0xFFFFFFFF);
         textCol.addView(tvTitle);
 
@@ -791,7 +791,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView tvTitle = new TextView(context);
         tvTitle.setText(title);
         UiStyles.setTextSize(tvTitle, R.dimen.text_size_small);
-        tvTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvTitle, Typeface.BOLD);
         tvTitle.setTextColor(selected ? UiStyles.color(context, R.color.oemAccent) : UiStyles.color(context, R.color.textPrimary));
         card.addView(tvTitle);
 
@@ -943,7 +943,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView tv = new TextView(context);
         tv.setText(text);
         UiStyles.setTextSize(tv, R.dimen.text_size_normal);
-        tv.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tv, Typeface.BOLD);
         tv.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tv.setPadding(0, 0, 0, dp(8, density));
         return tv;
@@ -964,7 +964,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         TextView tvVal = new TextView(context);
         tvVal.setText(initialValue);
         UiStyles.setTextSize(tvVal, R.dimen.text_size_small);
-        tvVal.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tvVal, Typeface.BOLD);
         tvVal.setTextColor(UiStyles.color(context, R.color.textPrimary));
         row.addView(tvVal);
 
@@ -997,12 +997,12 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             bg.setColor(UiStyles.color(context, R.color.oemAccent));
             bg.setStroke(0, Color.TRANSPARENT);
             btn.setTextColor(Color.WHITE);
-            btn.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(btn, Typeface.BOLD);
         } else {
             bg.setColor(UiStyles.color(context, R.color.surfaceCardInner));
             bg.setStroke(dp(1, density), UiStyles.color(context, R.color.automationCardStroke));
             btn.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            btn.setTypeface(null, Typeface.NORMAL);
+            UiStyles.setFontStyle(btn, Typeface.NORMAL);
         }
         btn.setBackground(bg);
     }
@@ -1012,7 +1012,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         btn.setText(text);
         btn.setTextColor(Color.WHITE);
         UiStyles.setTextSize(btn, R.dimen.text_size_small);
-        btn.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(btn, Typeface.BOLD);
 
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(color);

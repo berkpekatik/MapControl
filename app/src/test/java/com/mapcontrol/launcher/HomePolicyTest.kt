@@ -27,7 +27,7 @@ class HomePolicyTest {
         }
     }
 
-    @Test fun onlyFrostNavScreensRedirect() {
+    @Test fun onlyMapControlScreensRedirect() {
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OUR_SCREEN, false, Long.MAX_VALUE))
         assertEquals(HomeAction.STAY_ON_OEM, HomePolicy.decide(true, FrontApp.OUR_LAUNCHER, false, Long.MAX_VALUE))
         assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.OTHER_APP, false, Long.MAX_VALUE))
@@ -81,7 +81,7 @@ class HomePolicyTest {
 
     // --- tracker: car scenarios ---
 
-    @Test fun homeFromFrostNavSettingsReturnsToLauncher() {
+    @Test fun homeFromMapControlSettingsReturnsToLauncher() {
         val t = tracker()
         t.onLauncherTop(true)
         t.onLauncherTop(false)
@@ -91,7 +91,7 @@ class HomePolicyTest {
         assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 20_300, oem, true))
     }
 
-    @Test fun homeFromOtherFrostNavScreensReturnsToLauncher() {
+    @Test fun homeFromOtherMapControlScreensReturnsToLauncher() {
         val t = tracker()
         t.onWindow(self, picker, 10_000, oem, true)
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 11_000, oem, true))
@@ -119,7 +119,7 @@ class HomePolicyTest {
         t.onLauncherTop(false)
         t.onWindow(maps, "MapsActivity", 10_000, oem, true)
         assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 20_000, oem, true))
-        // FrostNav ayarlarından açılan müzik de üçüncü taraf: dokunulmaz.
+        // MapControl ayarlarından açılan müzik de üçüncü taraf: dokunulmaz.
         t.onWindow(self, settings, 30_000, oem, true)
         t.onWindow(music, "MusicActivity", 31_000, oem, true)
         assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 40_000, oem, true))
@@ -133,8 +133,8 @@ class HomePolicyTest {
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 12_000, oem, true))
     }
 
-    @Test fun keyboardOrForeignPopupOverFrostNavSettingsStillReturnsToLauncher() {
-        // FrostNav ayarlarında alana yazarken klavye açıldı: klavye kendi paketinden olay gönderir.
+    @Test fun keyboardOrForeignPopupOverMapControlSettingsStillReturnsToLauncher() {
+        // MapControl ayarlarında alana yazarken klavye açıldı: klavye kendi paketinden olay gönderir.
         val t = tracker()
         t.onWindow(self, settings, 10_000, oem, true)
         t.onWindow("com.google.android.inputmethod.latin", "android.inputmethodservice.SoftInputWindow", 11_000, oem, true)
@@ -190,7 +190,7 @@ class HomePolicyTest {
         assertEquals(HomeAction.NONE, t2.onWindow(oem, "Main", 10_000, oem, true))
     }
 
-    @Test fun serviceConnectedOnFrostNavScreenRedirects() {
+    @Test fun serviceConnectedOnMapControlScreenRedirects() {
         val t = tracker()
         t.onServiceConnected(self, oem)
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 10_000, oem, true))

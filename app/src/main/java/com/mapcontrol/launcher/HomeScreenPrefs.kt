@@ -4,17 +4,18 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * FrostNav'ın "Ana ekran" sekmesi için Java'dan çağrılan ince katman: launcher ayarlarını aynı tercih
+ * MapControl'ın "Ana ekran" sekmesi için Java'dan çağrılan ince katman: launcher ayarlarını aynı tercih
  * anahtarlarıyla (ThemeMode, DriveAccent, LauncherBottomBar, DriveLayoutPrefs, SahneStore, VehicleProfile) okur ve yazar.
  * Launcher bu değerlerin [signature]'ı değişmişse öne gelirken kendini yeniden kurar (bkz. HomeLauncherActivity.onResume).
  */
 object HomeScreenPrefs {
 
-    /** FrostNav "Ana ekran" sekmesinden gelir: launcher açılışta düzenleme moduna girer (bir kez tüketilir). */
+    /** MapControl "Ana ekran" sekmesinden gelir: launcher açılışta düzenleme moduna girer (bir kez tüketilir). */
     const val EXTRA_OPEN_EDIT = "launcher_open_edit"
     private const val PREFS_NAME = "launcher_settings"
     private const val KEY_LAYOUT_RESET_GEN = "layout_reset_gen"
     private const val KEY_VEHICLE_PROFILE = "vehicle_profile"
+    private const val KEY_CLIMATE_WHOLE_DEGREE = "climate_whole_degree"
 
     /** "Araç ekranı": 0 = Otomatik (ekrandan), 1 = Tiggo 7, 2 = Tiggo 8. Launcher bir sonraki öne gelişinde yeniden kurulur. */
     @JvmStatic fun vehicleProfileIndex(context: Context): Int =
@@ -23,6 +24,18 @@ object HomeScreenPrefs {
     @JvmStatic fun setVehicleProfileIndex(context: Context, index: Int) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_VEHICLE_PROFILE, index.coerceIn(0, 2)).apply()
     }
+
+    /** "Klima derece hesabı": true = tam derece ölçeği (en üst ham 16 = HI), false = yarım derece (varsayılan). */
+    @JvmStatic fun climateWholeDegree(context: Context): Boolean =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_CLIMATE_WHOLE_DEGREE, false)
+
+    @JvmStatic fun setClimateWholeDegree(context: Context, whole: Boolean) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_CLIMATE_WHOLE_DEGREE, whole).apply()
+        ClimateMath.scale = if (whole) ClimateTempScale.WHOLE else ClimateTempScale.HALF
+    }
+
+    /** Süreç açılışında kayıtlı ölçeği uygular. */
+    @JvmStatic fun applyClimateScale(context: Context) = setClimateWholeDegree(context, climateWholeDegree(context))
 
     @JvmStatic fun themeIndex(context: Context): Int = ThemeMode.read(context).ordinal
 

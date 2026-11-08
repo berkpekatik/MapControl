@@ -1,5 +1,6 @@
 package com.mapcontrol.ui.activity;
 
+import com.mapcontrol.ui.theme.UiStyles;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
@@ -87,7 +88,7 @@ final class DmsClusterPreview {
         prompt = new TextView(displayContext);
         prompt.setTextColor(0xFFFFFFFF);
         prompt.setTextSize(32);
-        prompt.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(prompt, Typeface.BOLD);
         prompt.setGravity(Gravity.CENTER);
         prompt.setShadowLayer(8f * density, 0f, 2f * density, 0xCC000000);
         prompt.setVisibility(View.GONE);

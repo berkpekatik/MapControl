@@ -35,6 +35,9 @@ public final class UiStyles {
     @Nullable
     private static volatile Configuration uiModeOverride;
 
+    private static final java.util.Map<Context, UiModeContext> UI_MODE_CONTEXTS =
+            new java.util.WeakHashMap<>();
+
     private UiStyles() {
     }
 
@@ -63,15 +66,41 @@ public final class UiStyles {
         }
         Configuration override = uiModeOverride;
         if (override != null) {
-            Configuration cfg = new Configuration(context.getResources().getConfiguration());
             int night = override.uiMode & Configuration.UI_MODE_NIGHT_MASK;
             if (night != 0) {
-                cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
-                return context.createConfigurationContext(cfg);
+                return cachedUiModeContext(context, night);
             }
         }
         Context app = context.getApplicationContext();
         return app != null ? app : context;
+    }
+
+    /** Sayfa kurulumunda yüzlerce renk çözülür; her çağrıda yeni Context kurmak tema geçişini takıltıyordu. */
+    private static Context cachedUiModeContext(Context context, int night) {
+        Configuration current = context.getResources().getConfiguration();
+        synchronized (UI_MODE_CONTEXTS) {
+            UiModeContext entry = UI_MODE_CONTEXTS.get(context);
+            if (entry != null && entry.night == night && entry.source.equals(current)) {
+                return entry.context;
+            }
+            Configuration cfg = new Configuration(current);
+            cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
+            Context themed = context.createConfigurationContext(cfg);
+            UI_MODE_CONTEXTS.put(context, new UiModeContext(new Configuration(current), night, themed));
+            return themed;
+        }
+    }
+
+    private static final class UiModeContext {
+        final Configuration source;
+        final int night;
+        final Context context;
+
+        UiModeContext(Configuration source, int night, Context context) {
+            this.source = source;
+            this.night = night;
+            this.context = context;
+        }
     }
 
     @ColorInt
@@ -122,15 +151,28 @@ public final class UiStyles {
 
     /** Choose a readable foreground for the actual button fill in either theme. */
     public static int textOnColor(int backgroundColorArgb) {
-        return androidx.core.graphics.ColorUtils.calculateLuminance(backgroundColorArgb) > 0.179
+        // Launcher kuralı: vurgu ve uyarı dolgularının üstünde beyaz; yalnız açık yüzeylerde koyu yazı.
+        return androidx.core.graphics.ColorUtils.calculateLuminance(backgroundColorArgb) > 0.35
                 ? Color.BLACK : Color.WHITE;
+    }
+
+    /** Yazıyı launcher'ın Manrope ailesine alır; {@code setTypeface(null, style)} sistem yazısına düşerdi. */
+    public static void setFontStyle(TextView view, int style) {
+        boolean bold = (style & android.graphics.Typeface.BOLD) != 0;
+        view.setTypeface(com.mapcontrol.launcher.SahneFonts.INSTANCE.get(view.getContext(), bold ? 600 : 400));
     }
 
     public static void styleOemButton(Button button, int backgroundColorArgb) {
         applySolidRoundedBackground(button, backgroundColorArgb);
+        ((GradientDrawable) button.getBackground()).setStroke(
+                Math.max(1, Math.round(button.getResources().getDisplayMetrics().density)),
+                color(button.getContext(), R.color.outline));
         setTextSize(button, R.dimen.text_size_normal);
         button.setTextColor(textOnColor(backgroundColorArgb));
         button.setAllCaps(false);
+        button.setTypeface(com.mapcontrol.launcher.SahneFonts.INSTANCE.get(button.getContext(), 600));
+        button.setStateListAnimator(android.animation.AnimatorInflater.loadStateListAnimator(
+                button.getContext(), R.animator.oem_button_press));
         int inset = dimenPx(button.getContext(), R.dimen.spacing_medium);
         button.setPadding(inset, inset / 4, inset, inset / 4);
         button.setMinHeight(dimenPx(button.getContext(), R.dimen.button_height));
@@ -246,7 +288,7 @@ public final class UiStyles {
         heading.setText(title);
         heading.setTag("feature_toggle_title");
         setTextSize(heading, R.dimen.text_size_medium);
-        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(heading, android.graphics.Typeface.BOLD);
         heading.setTextColor(color(context, R.color.textPrimary));
         final boolean[] state = {initialLeftSelected};
         TextView help = new TextView(context);
@@ -340,14 +382,14 @@ public final class UiStyles {
                     bg.setCornerRadius(16 * density);
                     if (isSelected) {
                         bg.setColor(color(context, R.color.assistCardActive));
-                        bg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
+                        bg.setStroke(Math.max(1, Math.round(density)), color(context, R.color.selectionStroke));
                         langTvs[i].setTextColor(color(context, R.color.textPrimary));
-                        langTvs[i].setTypeface(null, android.graphics.Typeface.BOLD);
+                        UiStyles.setFontStyle(langTvs[i], android.graphics.Typeface.BOLD);
                     } else {
                         bg.setColor(color(context, R.color.assistCardIdle));
                         bg.setStroke(Math.round(1 * density), color(context, R.color.outline));
                         langTvs[i].setTextColor(color(context, R.color.textSecondary));
-                        langTvs[i].setTypeface(null, android.graphics.Typeface.NORMAL);
+                        UiStyles.setFontStyle(langTvs[i], android.graphics.Typeface.NORMAL);
                     }
                     langCards[i].setBackground(bg);
                 }
@@ -374,9 +416,9 @@ public final class UiStyles {
             LinearLayout card = new LinearLayout(context);
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setGravity(Gravity.CENTER_VERTICAL);
-            card.setPadding(Math.round(16 * density), Math.round(14 * density),
-                    Math.round(16 * density), Math.round(14 * density));
-            card.setMinimumHeight(Math.round(64 * density));
+            card.setPadding(Math.round(20 * density), Math.round(16 * density),
+                    Math.round(20 * density), Math.round(16 * density));
+            card.setMinimumHeight(Math.round(72 * density));
             card.setClickable(true);
             card.setFocusable(true);
 
@@ -400,8 +442,8 @@ public final class UiStyles {
             labels.addView(help);
 
             androidx.appcompat.widget.AppCompatCheckBox choice = new androidx.appcompat.widget.AppCompatCheckBox(context);
-            choice.setButtonDrawable(R.drawable.bg_choice_control);
-            tintChoice(choice, context);
+            final SwitchDrawable switchDrawable = new SwitchDrawable(density);
+            choice.setButtonDrawable(switchDrawable);
             choice.setFocusable(false);
             choice.setClickable(false);
             card.addView(choice);
@@ -419,20 +461,19 @@ public final class UiStyles {
             right = choice;
 
             refresh = () -> {
+                switchDrawable.setColors(color(context, R.color.oemAccent),
+                        color(context, R.color.switchTrackOff), color(context, R.color.switchKnob));
                 choice.setChecked(state[0]);
-                tintChoice(choice, context);
 
                 GradientDrawable cardBg = new GradientDrawable();
                 cardBg.setCornerRadius(16 * density);
+                cardBg.setColor(color(context, R.color.assistCardIdle));
+                cardBg.setStroke(Math.max(1, Math.round(density)), color(context, R.color.outline));
                 if (state[0]) {
-                    cardBg.setColor(color(context, R.color.assistCardActive));
-                    cardBg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
-                    heading.setTypeface(null, android.graphics.Typeface.BOLD);
+                    UiStyles.setFontStyle(heading, android.graphics.Typeface.BOLD);
                     heading.setTextColor(color(context, R.color.textPrimary));
                 } else {
-                    cardBg.setColor(color(context, R.color.assistCardIdle));
-                    cardBg.setStroke(Math.round(1 * density), color(context, R.color.outline));
-                    heading.setTypeface(null, android.graphics.Typeface.NORMAL);
+                    UiStyles.setFontStyle(heading, android.graphics.Typeface.NORMAL);
                     heading.setTextColor(color(context, R.color.textSecondary));
                 }
                 card.setBackground(cardBg);
@@ -487,7 +528,7 @@ public final class UiStyles {
         rowTitle.setText(title);
         rowTitle.setTextSize(15);
         rowTitle.setTextColor(color(context, R.color.textPrimary));
-        rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(rowTitle, android.graphics.Typeface.BOLD);
         textCol.addView(rowTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -524,10 +565,10 @@ public final class UiStyles {
             TextView idle = on ? right : left;
             setBackgroundRes(active, R.drawable.bg_segment_thumb);
             active.setTextColor(color(context, R.color.textPrimary));
-            active.setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(active, android.graphics.Typeface.BOLD);
             idle.setBackgroundColor(Color.TRANSPARENT);
             idle.setTextColor(color(context, R.color.textSecondary));
-            idle.setTypeface(null, android.graphics.Typeface.NORMAL);
+            UiStyles.setFontStyle(idle, android.graphics.Typeface.NORMAL);
             help.setText(on ? leftHelp : rightHelp);
         };
 
@@ -641,7 +682,7 @@ public final class UiStyles {
             rowTitle.setText(title);
             setTextSize(rowTitle, R.dimen.text_size_medium);
             rowTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            rowTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(rowTitle, android.graphics.Typeface.BOLD);
             int hPad = dimenPx(context, R.dimen.spacing_medium);
             rowTitle.setPadding(hPad, dimenPx(context, R.dimen.spacing_medium), hPad,
                     dimenPx(context, R.dimen.spacing_small));
@@ -726,14 +767,14 @@ public final class UiStyles {
 
                 if (isSelected) {
                     bg.setColor(color(context, R.color.assistCardActive));
-                    bg.setStroke(Math.round(2 * density), color(context, R.color.assistStrokeActive));
+                    bg.setStroke(Math.max(1, Math.round(density)), color(context, R.color.selectionStroke));
                     tv.setTextColor(color(context, R.color.textPrimary));
-                    tv.setTypeface(null, android.graphics.Typeface.BOLD);
+                    UiStyles.setFontStyle(tv, android.graphics.Typeface.BOLD);
                 } else {
                     bg.setColor(color(context, R.color.assistCardIdle));
                     bg.setStroke(Math.round(1 * density), color(context, R.color.outline));
                     tv.setTextColor(color(context, R.color.textSecondary));
-                    tv.setTypeface(null, android.graphics.Typeface.NORMAL);
+                    UiStyles.setFontStyle(tv, android.graphics.Typeface.NORMAL);
                 }
                 card.setBackground(bg);
             }

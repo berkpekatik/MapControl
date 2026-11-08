@@ -78,7 +78,7 @@ public class LogTabBuilder {
         logTitle.setText(R.string.log_system_logs);
         logTitle.setTextSize(20);
         logTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(logTitle, android.graphics.Typeface.BOLD);
         logHeader.addView(logTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -103,7 +103,7 @@ public class LogTabBuilder {
         btnCameraTest.setText(R.string.log_camera_test);
         btnCameraTest.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnCameraTest.setTextSize(14);
-        UiStyles.styleOemButton(btnCameraTest, UiStyles.color(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnCameraTest, UiStyles.color(context, R.color.buttonCta));
         btnCameraTest.setPadding(16, 8, 16, 8);
         UiStyles.setButtonStartIconTinted(btnCameraTest, R.drawable.ic_mdi_camera,
                 UiStyles.color(context, R.color.textPrimary),
@@ -150,8 +150,8 @@ public class LogTabBuilder {
         btnWelcome.setText(R.string.log_welcome);
         btnWelcome.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnWelcome.setTextSize(14);
-        btnWelcome.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnWelcome, UiStyles.color(context, R.color.buttonWelcome));
+        UiStyles.setFontStyle(btnWelcome, Typeface.BOLD);
+        UiStyles.styleOemButton(btnWelcome, UiStyles.color(context, R.color.buttonCta));
         btnWelcome.setPadding(16, 8, 16, 8);
         UiStyles.setButtonStartIconTinted(btnWelcome, R.drawable.ic_mdi_bell,
                 UiStyles.color(context, R.color.textPrimary),
@@ -222,8 +222,8 @@ public class LogTabBuilder {
         btnReadAloud.setText(R.string.log_read_aloud);
         btnReadAloud.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnReadAloud.setTextSize(15);
-        btnReadAloud.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnReadAloud, UiStyles.color(context, R.color.buttonPrimary));
+        UiStyles.setFontStyle(btnReadAloud, Typeface.BOLD);
+        UiStyles.styleOemButton(btnReadAloud, UiStyles.color(context, R.color.buttonCta));
         btnReadAloud.setPadding(20, 12, 20, 12);
         btnReadAloud.setOnClickListener(v -> {
             CharSequence cs = ttsInput.getText();

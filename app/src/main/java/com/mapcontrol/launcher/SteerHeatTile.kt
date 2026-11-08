@@ -18,7 +18,7 @@ import com.desaysv.ivi.extra.project.carinfo.CarSettingID
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.mapcontrol.R
-import com.mapcontrol.comfort.ComfortPlan
+import com.vnoisy.devfort.ComfortPlan
 
 /**
  * Direksiyon ısıtmanın saf kuralları (JVM'de sınanır). CS 160 okunur: 1 açık, diğerleri kapalı (araçta ölçüldü). Yazma bir

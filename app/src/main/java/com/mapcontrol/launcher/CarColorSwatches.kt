@@ -11,7 +11,7 @@ import android.widget.TextView
 
 /**
  * "Araç rengi" seçicisi: altı yuvarlak renk örneği ve altında adı; seçili olanın çevresinde vurgu halkası. Launcher'ın
- * Görünüm paneli ve FrostNav'ın "Ana ekran" sekmesi aynı satırı kullanır (renkleri çağıran verir). Seçim
+ * Görünüm paneli ve MapControl'ın "Ana ekran" sekmesi aynı satırı kullanır (renkleri çağıran verir). Seçim
  * [CarColorPrefs]'e yazılır; açık Sahne aracı tercih dinleyicisiyle hemen yeni renge geçer.
  */
 object CarColorSwatches {

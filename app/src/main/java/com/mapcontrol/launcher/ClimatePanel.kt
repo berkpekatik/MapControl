@@ -194,7 +194,7 @@ internal object ClimatePanelPrefs {
  * ([ClimatePanel.close]).
  */
 internal object ClimatePanelPolicy {
-    /** Koruma yalnız FrostNav launcher modu açıkken karar verir/kapatır; mod kapalıyken OEM paneline asla dokunmaz. */
+    /** Koruma yalnız MapControl launcher modu açıkken karar verir/kapatır; mod kapalıyken OEM paneline asla dokunmaz. */
     fun mayAct(launcherModeOn: Boolean): Boolean = launcherModeOn
 
     /** Değer değişikliğinden sonra bu süre içinde gelen açılış tuşa basıştan sayılır. */

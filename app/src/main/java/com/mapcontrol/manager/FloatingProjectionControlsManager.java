@@ -266,7 +266,7 @@ public class FloatingProjectionControlsManager {
         b.setAllCaps(false);
         b.setIncludeFontPadding(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
-        b.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(b, Typeface.BOLD);
         b.setTextColor(UiStyles.color(context, R.color.textPrimary));
         b.setMaxLines(2);
         b.setGravity(Gravity.CENTER);

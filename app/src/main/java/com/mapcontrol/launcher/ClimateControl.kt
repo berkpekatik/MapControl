@@ -555,8 +555,12 @@ internal class ClimateControl(
         }
     }
 
-    /** Uçlar "LO" / "HI" yazılır (derece işareti yok); aradaki değerler 0,5 °C adımlı. */
-    private fun format(c: Double): String = endLabel(c) ?: String.format(Locale.getDefault(), "%.1f°", c)
+    /** Tam derece ölçeğinde ondalık yazılmaz (OEM ekranı gibi "24"). */
+    private fun number(c: Double): String =
+        String.format(Locale.getDefault(), if (ClimateMath.scale == ClimateTempScale.WHOLE) "%.0f" else "%.1f", c)
+
+    /** Uçlar "LO" / "HI" yazılır (derece işareti yok). */
+    private fun format(c: Double): String = endLabel(c) ?: "${number(c)}°"
 
     private fun endLabel(c: Double): String? = when {
         ClimateMath.isLo(c) -> context.getString(R.string.launcher_climate_lo)
@@ -567,7 +571,7 @@ internal class ClimateControl(
     /** Ekran değeri: derece işareti küçük ve ikincil tonda, rakamlar tam boy. */
     private fun styled(c: Double): CharSequence {
         endLabel(c)?.let { return it }
-        val num = String.format(Locale.getDefault(), "%.1f", c)
+        val num = number(c)
         return SpannableStringBuilder(num).append('°').apply {
             setSpan(RelativeSizeSpan(DEGREE_SCALE), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             setSpan(android.text.style.SuperscriptSpan(), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)

@@ -21,6 +21,7 @@ public final class MapControlApplication extends Application {
         GlitchTip.start(this);
         guardLauncherCrashLoop();
         AppLocaleManager.applyStoredLocale(this);
+        com.mapcontrol.launcher.HomeScreenPrefs.applyClimateScale(this);
         ClusterTrackRelay.install(this);
         try {
             com.mapcontrol.launcher.DriveScreen.INSTANCE.recoverStale(this);
@@ -41,6 +42,8 @@ public final class MapControlApplication extends Application {
                 lastNightModeUiBits = night;
                 UiStyles.setUiModeOverride(newConfig);
                 DisplayHelper.refreshBootSplashAfterConfigurationChange(MapControlApplication.this);
+                com.mapcontrol.nav.GoogleMapsClusterNavOverlay.getInstance(MapControlApplication.this).restyle();
+                com.mapcontrol.nav.YandexClusterNavOverlay.getInstance(MapControlApplication.this).restyle();
             }
 
             @Override

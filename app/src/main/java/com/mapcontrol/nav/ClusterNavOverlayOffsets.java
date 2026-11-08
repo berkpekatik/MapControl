@@ -41,10 +41,11 @@ public final class ClusterNavOverlayOffsets {
         YANDEX
     }
 
-    /** Kart görünümü: ayrıntılı kart veya ince çizgi. */
+    /** Kart görünümü: ayrıntılı kart, ince çizgi veya launcher camı (aydınlık/karanlığa uyar). */
     public enum Style {
         DETAIL,
-        SLIM
+        SLIM,
+        GLASS
     }
 
     private static final String GOOGLE_STYLE = "google_cluster_nav_card_style";

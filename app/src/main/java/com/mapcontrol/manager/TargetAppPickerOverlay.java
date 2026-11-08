@@ -122,7 +122,7 @@ public final class TargetAppPickerOverlay {
         TextView title = new TextView(themedContext);
         title.setText(R.string.target_picker_title);
         title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -186,7 +186,7 @@ public final class TargetAppPickerOverlay {
         TextView btnClear = new TextView(themedContext);
         btnClear.setText(R.string.common_clear);
         btnClear.setTextSize(30);
-        btnClear.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(btnClear, Typeface.BOLD);
         btnClear.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
         int fp = (int) (12 * density);
         btnClear.setPadding(fp, fp, fp, fp);

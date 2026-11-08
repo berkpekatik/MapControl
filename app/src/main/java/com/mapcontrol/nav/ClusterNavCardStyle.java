@@ -2,6 +2,7 @@ package com.mapcontrol.nav;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.launcher.SahneFonts;
 import com.mapcontrol.ui.theme.UiStyles;
 
 /**
@@ -25,6 +27,8 @@ final class ClusterNavCardStyle {
     /** Konum sınırlarını hesaplamak için tahmini kart yükseklikleri (dp). */
     static final int DETAIL_HEIGHT_DP = 150;
     static final int SLIM_HEIGHT_DP = 46;
+    static final int GLASS_HEIGHT_DP = 164;
+    private static final int GLASS_RADIUS_DP = 24;
     private static final int YANDEX_TOP_MARGIN_DP = 80;
     private static final int GOOGLE_TOP_MARGIN_DP = 110;
 
@@ -34,7 +38,14 @@ final class ClusterNavCardStyle {
     }
 
     static int heightDp(ClusterNavOverlayOffsets.Style style) {
-        return style == ClusterNavOverlayOffsets.Style.SLIM ? SLIM_HEIGHT_DP : DETAIL_HEIGHT_DP;
+        switch (style) {
+            case SLIM:
+                return SLIM_HEIGHT_DP;
+            case GLASS:
+                return GLASS_HEIGHT_DP;
+            default:
+                return DETAIL_HEIGHT_DP;
+        }
     }
     static final int CARD_MIN_HEIGHT_DP = 120;
     private static final int CARD_PADDING_H_DP = 16;
@@ -75,8 +86,98 @@ final class ClusterNavCardStyle {
     }
 
     static NavCard createNavCard(Context ctx, ClusterNavOverlayOffsets.Style style) {
-        return style == ClusterNavOverlayOffsets.Style.SLIM
-                ? createSlimCard(ctx) : createDetailCard(ctx);
+        switch (style) {
+            case SLIM:
+                return createSlimCard(ctx);
+            case GLASS:
+                return createGlassCard(ctx);
+            default:
+                return createDetailCard(ctx);
+        }
+    }
+
+    /** Launcher camı: tema renkli zemin, ince büyük mesafe, altta değer üstte / etiket altta üç sütun. */
+    private static NavCard createGlassCard(Context ctx) {
+        NavCard c = new NavCard();
+
+        c.card = new LinearLayout(ctx);
+        c.card.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
+                UiStyles.color(ctx, R.color.cluster_nav_glass_top),
+                UiStyles.color(ctx, R.color.cluster_nav_glass_bottom)});
+        bg.setCornerRadius(dp(ctx, GLASS_RADIUS_DP));
+        bg.setStroke(Math.max(1, dp(ctx, 1)), UiStyles.color(ctx, R.color.cluster_nav_glass_stroke));
+        c.card.setBackground(bg);
+        int pad = dp(ctx, 18);
+        c.card.setPadding(pad, dp(ctx, 16), pad, dp(ctx, 16));
+        c.card.setMinimumHeight(dp(ctx, CARD_MIN_HEIGHT_DP));
+
+        c.maneuverSection = new LinearLayout(ctx);
+        c.maneuverSection.setOrientation(LinearLayout.VERTICAL);
+        c.distance = glassText(ctx, 36, 300, R.color.cluster_nav_glass_numeral);
+        c.distance.setSingleLine(true);
+        c.maneuverSection.addView(c.distance, wrapLp());
+
+        c.street = glassText(ctx, 15, 500, R.color.cluster_nav_glass_text);
+        c.street.setMaxLines(2);
+        LinearLayout.LayoutParams streetLp = wrapLp();
+        streetLp.topMargin = dp(ctx, 2);
+        c.maneuverSection.addView(c.street, streetLp);
+
+        c.status = glassText(ctx, 12, 400, R.color.cluster_nav_glass_subtext);
+        c.status.setMaxLines(2);
+        LinearLayout.LayoutParams statusLp = wrapLp();
+        statusLp.topMargin = dp(ctx, 2);
+        c.maneuverSection.addView(c.status, statusLp);
+        c.card.addView(c.maneuverSection, matchWrapLp());
+
+        c.divider = new View(ctx);
+        c.divider.setBackgroundColor(UiStyles.color(ctx, R.color.cluster_nav_glass_hair));
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Math.max(1, dp(ctx, 1)));
+        divLp.topMargin = dp(ctx, 12);
+        divLp.bottomMargin = dp(ctx, 12);
+        c.card.addView(c.divider, divLp);
+
+        c.etaSection = new LinearLayout(ctx);
+        c.etaSection.setOrientation(LinearLayout.VERTICAL);
+        c.metricsRow = new LinearLayout(ctx);
+        c.metricsRow.setOrientation(LinearLayout.HORIZONTAL);
+        c.etaDistance = addGlassMetric(c.metricsRow, ctx, R.string.cluster_nav_eta_remaining);
+        c.etaArrival = addGlassMetric(c.metricsRow, ctx, R.string.cluster_nav_eta_arrival);
+        c.etaTime = addGlassMetric(c.metricsRow, ctx, R.string.cluster_nav_eta_duration);
+        c.etaSection.addView(c.metricsRow, matchWrapLp());
+
+        c.etaStatus = glassText(ctx, 12, 400, R.color.cluster_nav_glass_subtext);
+        c.etaStatus.setMaxLines(2);
+        c.etaSection.addView(c.etaStatus, wrapLp());
+        c.card.addView(c.etaSection, matchWrapLp());
+        return c;
+    }
+
+    private static MetricRow addGlassMetric(LinearLayout parent, Context ctx, int labelResId) {
+        LinearLayout col = new LinearLayout(ctx);
+        col.setOrientation(LinearLayout.VERTICAL);
+
+        TextView valueView = glassText(ctx, 17, 600, R.color.cluster_nav_glass_text);
+        valueView.setSingleLine(true);
+        col.addView(valueView, wrapLp());
+
+        TextView labelView = glassText(ctx, 11, 400, R.color.cluster_nav_glass_subtext);
+        labelView.setText(labelResId);
+        labelView.setSingleLine(true);
+        col.addView(labelView, wrapLp());
+
+        parent.addView(col, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return new MetricRow(col, valueView);
+    }
+
+    private static TextView glassText(Context ctx, int sp, int weight, int colorRes) {
+        TextView tv = createText(ctx, sp, false, colorRes);
+        tv.setTypeface(SahneFonts.INSTANCE.get(ctx, weight));
+        tv.setFontFeatureSettings("tnum");
+        return tv;
     }
 
     /** İnce çizgi: tek satır — mesafe, sokak | kalan, varış, süre. Durum metinleri gösterilmez. */
@@ -225,7 +326,7 @@ final class ClusterNavCardStyle {
         tv.setGravity(Gravity.START);
         tv.setEllipsize(TextUtils.TruncateAt.END);
         if (bold) {
-            tv.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(tv, Typeface.BOLD);
         }
         tv.setTextColor(UiStyles.color(ctx, colorRes));
         return tv;

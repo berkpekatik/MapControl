@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       (QR adresi) güncellenir; açık olması istenen sunucu düşmüşse yeniden açılır.</li>
  *   <li><b>Bekçi:</b> 30 sn'de bir; açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar.</li>
  *   <li><b>Activity yokken gelen komut:</b> uygulama başlatma, klavye, link açma ve silme doğrudan
- *       yapılır (launcher üstüne FrostNav açılmaz); APK kurma activity ister, kuyruğa alınır ve activity öne
+ *       yapılır (launcher üstüne MapControl açılmaz); APK kurma activity ister, kuyruğa alınır ve activity öne
  *       getirilir.</li>
  *   <li><b>Başka ekranlar (launcher):</b> {@link #addStateListener} ile durumu dinler, {@link #startServer} /
  *       {@link #stopServer} ile açıp kapatır; açma/kapama arka plan iş parçacığında yapılır (durdurma 1 sn'ye kadar
@@ -550,7 +550,7 @@ public final class WebServerHost {
                 target.onOpenMapUrl(url);
                 return;
             }
-            // Launcher modunda FrostNav ekranı öne getirilmez: Geri tuşu haritadan launcher'a dönsün.
+            // Launcher modunda MapControl ekranı öne getirilmez: Geri tuşu haritadan launcher'a dönsün.
             main.post(() -> LinkOpener.open(app, url, msg -> Log.d(TAG, msg)));
         }
 

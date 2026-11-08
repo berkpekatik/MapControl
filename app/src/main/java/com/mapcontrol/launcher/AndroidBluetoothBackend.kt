@@ -14,7 +14,7 @@ import java.lang.reflect.InvocationTargetException
 
 /**
  * Cihazın Bluetooth'u: eşleşmiş cihazlar, profil vekilleri (panel açıkken) ve gizli `connect`/`disconnect`.
- * Bağlanma/kesme gizli API'dir; Android 11'de çoğunlukla BLUETOOTH_PRIVILEGED ister (tam sürümde FrostNav'ın adb izinleriyle
+ * Bağlanma/kesme gizli API'dir; Android 11'de çoğunlukla BLUETOOTH_PRIVILEGED ister (tam sürümde MapControl'ın adb izinleriyle
  * gelebilir). Yoksa false döner ya da SecurityException atar; ikisi de yakalanır, panel yedek yolu önerir. Hiçbir çağrı çökmez.
  */
 @Suppress("DEPRECATION")

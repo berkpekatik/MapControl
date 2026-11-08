@@ -294,7 +294,7 @@ public class MainActivity extends AppCompatActivity {
             finish();
             return;
         }
-        // Launcher modunda FrostNav simgesinden açılış bizim ana ekranımızda başlar (HomePolicy.appStartScreen); ana ekranın
+        // Launcher modunda MapControl simgesinden açılış bizim ana ekranımızda başlar (HomePolicy.appStartScreen); ana ekranın
         // ayarlar düğmesi (sekme isteği) ve diğer özel istekler ayarları açar.
         Intent startIntent = getIntent();
         boolean ownRequest = startIntent != null
@@ -1522,7 +1522,7 @@ public class MainActivity extends AppCompatActivity {
         LauncherModeManager.setEnabled(this, false);
         applyLauncherChrome(false);
         syncLauncherModeSettingsUi();
-        // Alias devre dışı kalınca sistem, kökü bu alias olan görevi (launcher görevi) kapatır. FrostNav
+        // Alias devre dışı kalınca sistem, kökü bu alias olan görevi (launcher görevi) kapatır. MapControl
         // ekranı o görevin içinde açılmışsa (bazı cihazlarda) onunla birlikte kapanır ve kullanıcı sistem
         // launcher'ına düşer. Kapanmışsa aynı sekmede ayrı görevde yeniden aç.
         handler.postDelayed(() -> {
@@ -1691,8 +1691,10 @@ public class MainActivity extends AppCompatActivity {
         lastNightModeUiBits = night;
         // AppCompat Activity Resources yapışmasın diye çözümlemeyi newConfig'e kilitle.
         UiStyles.setUiModeOverride(newConfig);
-        applyThemedWindowBackground();
-        reapplyUiModeTheme();
+        com.mapcontrol.launcher.ThemeTransition.INSTANCE.applyInPlace(this, () -> {
+            applyThemedWindowBackground();
+            reapplyUiModeTheme();
+        });
     }
 
     /**
@@ -1723,8 +1725,12 @@ public class MainActivity extends AppCompatActivity {
             getDelegate().setLocalNightMode(mode);
         } catch (Throwable ignored) {
         }
-        applyThemedWindowBackground();
-        reapplyUiModeTheme();
+        com.mapcontrol.launcher.ThemeTransition.INSTANCE.applyInPlace(this, () -> {
+            applyThemedWindowBackground();
+            reapplyUiModeTheme();
+        });
+        com.mapcontrol.nav.GoogleMapsClusterNavOverlay.getInstance(this).restyle();
+        com.mapcontrol.nav.YandexClusterNavOverlay.getInstance(this).restyle();
     }
 
     /** Sistem light/dark değişince chrome + aktif sekmeyi anında yeniler; diğer sekmeler lazy kurulur. */
@@ -1769,6 +1775,8 @@ public class MainActivity extends AppCompatActivity {
             shellHost.removeView(sideRail);
         }
         sideRail = portraitShell ? sideRailBuilder.buildPortrait() : sideRailBuilder.build();
+        // Alt dok önbellekten gelir; tema değişince yeni renkleri alması için ayrıca uygulanır.
+        sideRailBuilder.reapplyTheme();
         LinearLayout.LayoutParams railParams = portraitShell
                 ? new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,

@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 
 /**
  * Telefondan gelen bağlantıyı açar: Google Haritalar, Yandex ve YouTube bağlantıları doğrudan uygulamasına verilir,
- * gerisi sistemin seçtiği uygulamaya. Yalnızca bir {@link Context} ister; FrostNav ekranı açık olmasa da (launcher
+ * gerisi sistemin seçtiği uygulamaya. Yalnızca bir {@link Context} ister; MapControl ekranı açık olmasa da (launcher
  * modunda) çalışır, ekranı öne getirmez. Ana iş parçacığında çağrılır.
  */
 public final class LinkOpener {

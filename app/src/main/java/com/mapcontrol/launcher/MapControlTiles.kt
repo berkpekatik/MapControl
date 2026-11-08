@@ -18,6 +18,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.DrawableRes
@@ -25,18 +26,18 @@ import androidx.annotation.StringRes
 import com.mapcontrol.R
 
 /**
- * FrostNav'ın var olan özelliklerini süren widget'ların ortak gövdesi. Sahne'de şerit öğesi ([StripSource]) ve panel (4 sütunlu büyük biçim; panel kutucuğun kart zeminini kaldırır) olarak
- * çalışır. Durum [FrostNavFeatures] üzerinden, görünürken [POLL_MS]'de bir arka planda okunur; yalnızca değişince çizilir.
- * Uzun basış (şerit) FrostNav'ın ilgili ayar sekmesini açar.
+ * MapControl'ın var olan özelliklerini süren widget'ların ortak gövdesi. Sahne'de şerit öğesi ([StripSource]) ve panel (4 sütunlu büyük biçim; panel kutucuğun kart zeminini kaldırır) olarak
+ * çalışır. Durum [MapControlFeatures] üzerinden, görünürken [POLL_MS]'de bir arka planda okunur; yalnızca değişince çizilir.
+ * Uzun basış (şerit) MapControl'ın ilgili ayar sekmesini açar.
  */
-internal abstract class FrostNavTile<S : Any>(
+internal abstract class MapControlTile<S : Any>(
     protected val activity: Activity,
     @StringRes protected val labelRes: Int,
     @DrawableRes protected val iconRes: Int,
-    private val settingsTab: FrostNavTab,
+    private val settingsTab: MapControlTab,
 ) : SizedWidget, Themeable, StripSource {
 
-    protected val features: FrostNavFeatures = LauncherEdition.frostNav(activity)
+    protected val features: MapControlFeatures = LauncherEdition.mapcontrol(activity)
     protected val main = Handler(Looper.getMainLooper())
     private val io = LauncherIo.serial()
     private var startup: LauncherStartup.Deferred? = null
@@ -164,7 +165,7 @@ internal abstract class FrostNavTile<S : Any>(
         }
     }
 
-    /** FrostNav'sız derlemede dokunuş sessiz kalmasın: kısa bir bilgi gösterilir. */
+    /** MapControl'sız derlemede dokunuş sessiz kalmasın: kısa bir bilgi gösterilir. */
     private fun notAvailableToast() {
         android.widget.Toast.makeText(activity, R.string.launcher_fn_unavailable_toast, android.widget.Toast.LENGTH_SHORT).show()
     }
@@ -172,10 +173,10 @@ internal abstract class FrostNavTile<S : Any>(
     protected fun openSettings() = openTab(settingsTab)
 
     /**
-     * FrostNav'ın [tab] sekmesini açar. Açık sayfa önce kapanır: FrostNav'dan geri dönülünce ana ekranda eski sayfa
+     * MapControl'ın [tab] sekmesini açar. Açık sayfa önce kapanır: MapControl'dan geri dönülünce ana ekranda eski sayfa
      * (ör. Otomasyon'da "Yüz tanıma" satırından gidilince) açık kalmasın.
      */
-    protected fun openTab(tab: FrostNavTab) {
+    protected fun openTab(tab: MapControlTab) {
         sheet?.dismiss()
         features.openTab(activity, tab)
     }
@@ -185,7 +186,12 @@ internal abstract class FrostNavTile<S : Any>(
         if (sheet?.isShowing == true) return
         sheet = showLauncherSheet(activity, labelRes, widthDp) { dialog ->
             val box = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-            addView(box, sheetFullWidth())
+            // Pencere içeriğe yetmezse (araçta OEM alanları) son satırlar kesilmesin: başlık sabit, içerik kayar.
+            addView(ScrollView(activity).apply {
+                isVerticalScrollBarEnabled = false
+                overScrollMode = View.OVER_SCROLL_NEVER
+                addView(box)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             sheetBox = box
             buildSheet(box, dialog)
             dialog.setOnDismissListener { sheetBox = null; sheet = null }
@@ -301,7 +307,7 @@ internal abstract class FrostNavTile<S : Any>(
         trailingText: String? = null,
         switchOn: Boolean? = null,
         enabled: Boolean = true,
-        /** Satır FrostNav'a götürür: sağda ok. */
+        /** Satır MapControl'a götürür: sağda ok. */
         opens: Boolean = false,
         onClick: (() -> Unit)?,
     ): View = LinearLayout(activity).apply {
@@ -473,13 +479,13 @@ internal class QrView(context: Context) : View(context) {
 internal data class WebLoad(val state: WebPanelState, val qr: QrMatrix?)
 
 /**
- * "Web paneli": FrostNav web yönetim sunucusunun durumu; açıkken adresin QR'ı ve adres. Kapalıyken dokunuş (ve paneldeki
- * "Başlat") sunucuyu yerinde başlatır; başlatılamazsa kısa mesajla FrostNav'ın "Aktar" sekmesi açılır. Yönetim (durdurma,
- * eşleme) "FrostNav'da yönet" ile. Durum değişince izleyiciyle ([FrostNavFeatures.watchWebPanel]) hemen yenilenir.
+ * "Web paneli": MapControl web yönetim sunucusunun durumu; açıkken adresin QR'ı ve adres. Kapalıyken dokunuş (ve paneldeki
+ * "Başlat") sunucuyu yerinde başlatır; başlatılamazsa kısa mesajla MapControl'ın "Aktar" sekmesi açılır. Yönetim (durdurma,
+ * eşleme) "MapControl'da yönet" ile. Durum değişince izleyiciyle ([MapControlFeatures.watchWebPanel]) hemen yenilenir.
  * Şerit: durum + küçük QR simgesi; açıkken dokunuş büyük QR sayfasını açar. Panel: büyük QR.
  */
 internal class WebPanelTile(activity: Activity) :
-    FrostNavTile<WebLoad>(activity, R.string.launcher_widget_web_panel, R.drawable.ic_mdi_web, FrostNavTab.WEB) {
+    MapControlTile<WebLoad>(activity, R.string.launcher_widget_web_panel, R.drawable.ic_mdi_web, MapControlTab.WEB) {
 
     private var qrUrl: String? = null
     private var qrCache: QrMatrix? = null
@@ -498,7 +504,7 @@ internal class WebPanelTile(activity: Activity) :
         super.onHidden()
     }
 
-    /** Sunucuyu yerinde başlatır; olmazsa nedeni söyleyip FrostNav'ın Aktar sekmesini açar. */
+    /** Sunucuyu yerinde başlatır; olmazsa nedeni söyleyip MapControl'ın Aktar sekmesini açar. */
     private fun start() {
         if (starting) return
         starting = true
@@ -545,7 +551,7 @@ internal class WebPanelTile(activity: Activity) :
             leading = if (state?.qr != null) qrView() else null)
     }
 
-    /** Panel başlığının sağı: durum ve (açıkken) FrostNav'da yönet düğmesi; QR'a en çok yer kalsın diye ayrı satır yok. */
+    /** Panel başlığının sağı: durum ve (açıkken) MapControl'da yönet düğmesi; QR'a en çok yer kalsın diye ayrı satır yok. */
     private fun largeTrailing(): View = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -620,7 +626,7 @@ internal class WebPanelTile(activity: Activity) :
 
     private companion object {
         /**
-         * Sayfadaki QR kenarı. 320'de 720 px yüksek ekranda (Tiggo 7, 160 dpi) sayfa ekrana sığmıyor, "FrostNav'da yönet"
+         * Sayfadaki QR kenarı. 320'de 720 px yüksek ekranda (Tiggo 7, 160 dpi) sayfa ekrana sığmıyor, "MapControl'da yönet"
          * düğmesi alttan kesiliyordu; 240 başlık + QR + adres + not + düğmeyi sığdırır, telefon kamerası yine rahat okur.
          */
         const val SHEET_QR_DP = 240
@@ -631,11 +637,11 @@ internal class WebPanelTile(activity: Activity) :
 // Ekolayzer
 
 /**
- * "Ekolayzer": FrostNav ekolayzerinin etkin hazır ayarı. Küçük biçim ve şerit dokununca hazır ayar sayfası açılır; panelde
- * hazır ayarlar büyük seçilebilir satırlardır. Seçim FrostNav'ın ekolayzer sekmesiyle aynı yoldan kaydedilir ve ekolayzeri açar.
+ * "Ekolayzer": MapControl ekolayzerinin etkin hazır ayarı. Küçük biçim ve şerit dokununca hazır ayar sayfası açılır; panelde
+ * hazır ayarlar büyük seçilebilir satırlardır. Seçim MapControl'ın ekolayzer sekmesiyle aynı yoldan kaydedilir ve ekolayzeri açar.
  */
 internal class EqualizerTile(activity: Activity) :
-    FrostNavTile<EqState>(activity, R.string.launcher_widget_equalizer, R.drawable.ic_mdi_equalizer, FrostNavTab.EQUALIZER) {
+    MapControlTile<EqState>(activity, R.string.launcher_widget_equalizer, R.drawable.ic_mdi_equalizer, MapControlTab.EQUALIZER) {
 
     override fun load(): EqState = features.readEqualizer()
 
@@ -742,12 +748,12 @@ internal class EqualizerTile(activity: Activity) :
 // Otomasyon
 
 /**
- * "Otomasyon": FrostNav'ın aç/kapa otomasyonları (klima otomasyonu, cam tavan otomasyonu; yüz tanıma yalnızca durum).
- * Küçük biçim ve şerit dokununca anahtar sayfası açılır; panelde her biri bir anahtar satırıdır. Anahtarlar FrostNav ayar
+ * "Otomasyon": MapControl'ın aç/kapa otomasyonları (klima otomasyonu, cam tavan otomasyonu; yüz tanıma yalnızca durum).
+ * Küçük biçim ve şerit dokununca anahtar sayfası açılır; panelde her biri bir anahtar satırıdır. Anahtarlar MapControl ayar
  * sekmelerinin ana anahtarlarıyla aynı yoldan yazılır.
  */
 internal class AutomationTile(activity: Activity) :
-    FrostNavTile<List<AutomationItem>>(activity, R.string.launcher_widget_automation, R.drawable.ic_mdi_restart, FrostNavTab.CLIMATE_AUTOMATION) {
+    MapControlTile<List<AutomationItem>>(activity, R.string.launcher_widget_automation, R.drawable.ic_mdi_restart, MapControlTab.CLIMATE_AUTOMATION) {
 
     override fun load(): List<AutomationItem> = features.readAutomations()
 
@@ -758,9 +764,9 @@ internal class AutomationTile(activity: Activity) :
     })
 
     private fun tabOf(id: AutomationId) = when (id) {
-        AutomationId.CLIMATE -> FrostNavTab.CLIMATE_AUTOMATION
-        AutomationId.SUNROOF -> FrostNavTab.SUNROOF_AUTOMATION
-        AutomationId.FACE -> FrostNavTab.FACE_RECOGNITION
+        AutomationId.CLIMATE -> MapControlTab.CLIMATE_AUTOMATION
+        AutomationId.SUNROOF -> MapControlTab.SUNROOF_AUTOMATION
+        AutomationId.FACE -> MapControlTab.FACE_RECOGNITION
     }
 
     private fun toggle(item: AutomationItem) {
@@ -781,7 +787,7 @@ internal class AutomationTile(activity: Activity) :
 
     private fun summary(): Pair<String, String?> {
         val items = state.orEmpty()
-        val (on, _) = FrostNavWidgetMath.automationCount(items)
+        val (on, _) = MapControlWidgetMath.automationCount(items)
         if (on == 0) return activity.getString(R.string.launcher_toggle_off) to null
         return activity.getString(R.string.launcher_fn_auto_on_count, on) to items.filter { it.on }.joinToString(" · ") { name(it.id) }
     }
@@ -813,7 +819,7 @@ internal class AutomationTile(activity: Activity) :
 // Bölünmüş ekran
 
 /**
- * Bölünmüş ekran kutusunun yazı kararları (saf, JVM testli). FrostNav'ın seçili çifti düz paket ("pkg") ya da bileşen
+ * Bölünmüş ekran kutusunun yazı kararları (saf, JVM testli). MapControl'ın seçili çifti düz paket ("pkg") ya da bileşen
  * ("pkg/.Sinif") olabilir; bileşende `getApplicationInfo` başarısız olup alt başlıkta ham bileşen adı görünüyordu.
  */
 internal object SplitTileText {
@@ -847,18 +853,18 @@ internal object SplitTileText {
     fun isMiniDash(entry: String?, selfPkg: String): Boolean = isOwn(entry, selfPkg) && classOf(entry) == MINI_DASH_CLASS
 
     /**
-     * Kutunun açacağı bölme (7 Kasım kararı: tek bölünmüş ekran deneyimi). FrostNav'da Mini gösterge İÇERMEYEN iki başka uygulama
-     * seçiliyse o çift FrostNav'ın kendi bölmesiyle açılır ([SplitRoute.PAIR]); diğer her durumda (çift yok / eksik, Mini
+     * Kutunun açacağı bölme (7 Kasım kararı: tek bölünmüş ekran deneyimi). MapControl'da Mini gösterge İÇERMEYEN iki başka uygulama
+     * seçiliyse o çift MapControl'ın kendi bölmesiyle açılır ([SplitRoute.PAIR]); diğer her durumda (çift yok / eksik, Mini
      * gösterge + herhangi bir uygulama, kendi bileşenimiz) Navigasyon kartıyla aynı sürüş ekranı ([SplitRoute.DRIVE]; harita
      * kartın seçimi, [DriveScreen.openDefault]).
      */
     fun route(pair: SplitPair, selfPkg: String): SplitRoute {
-        if (!FrostNavWidgetMath.splitReady(pair)) return SplitRoute.DRIVE
+        if (!MapControlWidgetMath.splitReady(pair)) return SplitRoute.DRIVE
         return if (isOwn(pair.first, selfPkg) || isOwn(pair.second, selfPkg)) SplitRoute.DRIVE else SplitRoute.PAIR
     }
 }
 
-/** "Bölünmüş ekran" kutusunun açtığı bölme: sürüş ekranı (Mini gösterge + harita) ya da FrostNav'da seçili iki başka uygulama. */
+/** "Bölünmüş ekran" kutusunun açtığı bölme: sürüş ekranı (Mini gösterge + harita) ya da MapControl'da seçili iki başka uygulama. */
 internal enum class SplitRoute { DRIVE, PAIR }
 
 /**
@@ -876,12 +882,12 @@ internal data class SplitLoad(
 
 /**
  * "Bölünmüş ekran": tek dokunuşla Navigasyon kartıyla aynı sürüş ekranı (Mini gösterge + kartın haritası, [DriveScreen]; 7 Kasım
- * kararı, FrostNav'ın eski Mini gösterge bölmesi artık açılmaz). FrostNav'da Mini gösterge içermeyen iki başka uygulama seçildiyse
- * o çift FrostNav'ın kendi bölünmüş ekran başlatıcısı ve oranıyla açılır ([SplitTileText.route]). Ayarlar şeritte uzun basışta.
- * Başlatılamazsa FrostNav'ın kendi mesajı gösterilir.
+ * kararı, MapControl'ın eski Mini gösterge bölmesi artık açılmaz). MapControl'da Mini gösterge içermeyen iki başka uygulama seçildiyse
+ * o çift MapControl'ın kendi bölünmüş ekran başlatıcısı ve oranıyla açılır ([SplitTileText.route]). Ayarlar şeritte uzun basışta.
+ * Başlatılamazsa MapControl'ın kendi mesajı gösterilir.
  */
 internal class SplitScreenTile(activity: Activity) :
-    FrostNavTile<SplitLoad>(activity, R.string.launcher_widget_split_screen, R.drawable.ic_mdi_view_split, FrostNavTab.SPLIT_SCREEN) {
+    MapControlTile<SplitLoad>(activity, R.string.launcher_widget_split_screen, R.drawable.ic_mdi_view_split, MapControlTab.SPLIT_SCREEN) {
 
     private var starting = false
     private val icons = HashMap<String, Drawable?>()
@@ -917,7 +923,7 @@ internal class SplitScreenTile(activity: Activity) :
         return icons.getOrPut(pkg) { try { activity.packageManager.getApplicationIcon(pkg) } catch (e: Exception) { null } }
     }
 
-    /** Alt yazı: "Mini gösterge + Yandex Haritalar" (harita yoksa "+ harita") ya da FrostNav çifti "A + B". */
+    /** Alt yazı: "Mini gösterge + Yandex Haritalar" (harita yoksa "+ harita") ya da MapControl çifti "A + B". */
     private fun subtitle(): String? {
         val s = state ?: return null
         if (s.route == SplitRoute.PAIR) {
@@ -928,7 +934,7 @@ internal class SplitScreenTile(activity: Activity) :
             else activity.getString(R.string.launcher_fn_split_drive, map)
     }
 
-    /** Dokunuş (kutucuk, şerit, panel düğmesi): sürüş ekranı ya da FrostNav çifti. */
+    /** Dokunuş (kutucuk, şerit, panel düğmesi): sürüş ekranı ya da MapControl çifti. */
     private fun start() {
         if (starting) return
         val s = state
@@ -1012,12 +1018,12 @@ internal class SplitScreenTile(activity: Activity) :
 internal data class ClusterLoad(val open: Boolean, val targetLabel: String?)
 
 /**
- * "Göstergeye yansıt": FrostNav'ın gösterge yansıtmasını (Yansıtma sekmesinde seçilen uygulama göstergede) başlatır/durdurur.
- * Yalnızca FrostNav servisinin aç/kapa giriş noktası çağrılır; gezinme, HUD ve gösterge çizimi koduna dokunulmaz.
- * Dokunuştan sonra istenen durum, servis bildirene dek ([FrostNavWidgetMath.PENDING_MS]) gösterilir.
+ * "Göstergeye yansıt": MapControl'ın gösterge yansıtmasını (Yansıtma sekmesinde seçilen uygulama göstergede) başlatır/durdurur.
+ * Yalnızca MapControl servisinin aç/kapa giriş noktası çağrılır; gezinme, HUD ve gösterge çizimi koduna dokunulmaz.
+ * Dokunuştan sonra istenen durum, servis bildirene dek ([MapControlWidgetMath.PENDING_MS]) gösterilir.
  */
 internal class ClusterMirrorTile(activity: Activity) :
-    FrostNavTile<ClusterLoad>(activity, R.string.launcher_widget_cluster_mirror, R.drawable.ic_mdi_speedometer, FrostNavTab.PROJECTION) {
+    MapControlTile<ClusterLoad>(activity, R.string.launcher_widget_cluster_mirror, R.drawable.ic_mdi_speedometer, MapControlTab.PROJECTION) {
 
     private var pending: Boolean? = null
     private var pendingAt = 0L
@@ -1032,7 +1038,7 @@ internal class ClusterMirrorTile(activity: Activity) :
     }
 
     private val open: Boolean
-        get() = FrostNavWidgetMath.clusterShown(state?.open == true, pending, SystemClock.uptimeMillis() - pendingAt)
+        get() = MapControlWidgetMath.clusterShown(state?.open == true, pending, SystemClock.uptimeMillis() - pendingAt)
 
     private fun toggle() {
         val want = !open
@@ -1040,7 +1046,7 @@ internal class ClusterMirrorTile(activity: Activity) :
         pendingAt = SystemClock.uptimeMillis()
         redraw()
         main.removeCallbacks(settle)
-        main.postDelayed(settle, FrostNavWidgetMath.PENDING_MS)
+        main.postDelayed(settle, MapControlWidgetMath.PENDING_MS)
         act { features.setCluster(want) }
     }
 

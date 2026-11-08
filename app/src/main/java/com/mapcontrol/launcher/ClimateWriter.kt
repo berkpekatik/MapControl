@@ -9,20 +9,28 @@ import kotlin.math.roundToInt
 internal enum class ClimateSide { DRIVER, PASSENGER }
 
 /**
+ * Klima ham değerinin ölçeği; hangisi olduğu araca göre değişir (OEM klima uygulaması `SVHvac` da ikisini ayırır).
+ * [HALF]: ham 0 = LO, 1..29 = 16,0..30,0 °C (0,5 adım), 30 = HI. [WHOLE]: ham 0 = LO, 1..15 = 16..30 °C (1 adım), 16 = HI.
+ */
+internal enum class ClimateTempScale(val rawHi: Int) { HALF(30), WHOLE(16) }
+
+/**
  * Klima sürüklemesinin saf hesapları (arayüzden bağımsız, birim testli): sürükleme mesafesi → adım,
  * sınırlama, ham kodlama.
  */
 internal object ClimateMath {
-    /**
-     * Sıcaklık adımı. Geçerli aralık (OEM: ham = (°C - 15,5) * 2): ham 0 = LO, 1..29 = 16,0..30,0 °C, ham 30 = HI.
-     * 30 °C üstü (ham 31..33) OEM'de yoktur ve yazılmaz.
-     */
+    /** Etkin ölçek; "Ana ekran" sekmesindeki seçimden gelir ([HomeScreenPrefs.applyClimateScale]). */
+    @Volatile
+    var scale: ClimateTempScale = ClimateTempScale.HALF
+
+    /** [ClimateTempScale.HALF] sıcaklık adımı. 30 °C üstü (ham 31..33) OEM'de yoktur ve yazılmaz. */
     const val TEMP_STEP = 0.5
 
-    /** LO ve HI uçları; sıcaklık hep bu ikisi arasındadır. LO = ham 0, HI = ham 30 (sıcaklık değeri değil, uç işaretidir). */
+    /** LO ve HI uçları; sıcaklık hep bu ikisi arasındadır. Ölçekten bağımsız, sıcaklık değeri değil uç işaretidir. */
     const val LO_TEMP = 15.5
     const val HI_TEMP = 30.5
     const val RAW_LO = 0
+    /** Ölçeklerin en yükseği (yazma izin listesi); etkin üst değer `scale.rawHi`. */
     const val RAW_HI = 30
 
     const val FAN_MIN = 1
@@ -51,7 +59,8 @@ internal object ClimateMath {
     fun isHi(c: Double): Boolean = c >= HI_TEMP
 
     /** [start] sıcaklığından [steps] adım sonra hedef (sınırlı). */
-    fun targetTemp(start: Double, steps: Int): Double = clampTemp(start + steps * TEMP_STEP)
+    fun targetTemp(start: Double, steps: Int): Double =
+        decodeTemp((encodeTemp(start) + steps).coerceIn(RAW_LO, scale.rawHi)) ?: start
 
     /**
      * Fan hedefi. 0 (kapalı) yalnızca dokunarak ya da sola kaydırmadan gelir: sürüklemede 1..10'a sıkışır,
@@ -63,8 +72,28 @@ internal object ClimateMath {
         else -> (start + steps).coerceIn(FAN_MIN, FAN_MAX)
     }
 
-    /** Ham değer: °C = 15,5 + ham/2 ([OurBottomBar.decodeTemp]'in tersi); LO = 0, HI = 30. */
-    fun encodeTemp(c: Double): Int = ((clampTemp(c) - LO_TEMP) * 2).roundToInt()
+    /** Ham değerden sıcaklık (uçlar [LO_TEMP] / [HI_TEMP]); etkin ölçeğin dışındaysa null. */
+    fun decodeTemp(raw: Int): Double? {
+        val s = scale
+        return when {
+            raw !in RAW_LO..s.rawHi -> null
+            raw == RAW_LO -> LO_TEMP
+            raw == s.rawHi -> HI_TEMP
+            s == ClimateTempScale.WHOLE -> raw + 15.0
+            else -> LO_TEMP + raw / 2.0
+        }
+    }
+
+    /** [decodeTemp]'in tersi. */
+    fun encodeTemp(c: Double): Int {
+        val s = scale
+        return when {
+            s == ClimateTempScale.HALF -> ((clampTemp(c) - LO_TEMP) * 2).roundToInt()
+            isLo(c) -> RAW_LO
+            isHi(c) -> s.rawHi
+            else -> (c - 15.0).roundToInt().coerceIn(1, s.rawHi - 1)
+        }
+    }
 
     /** Klima gücü (HVAC 18): okuma 1 = açık; yazma 1 aç / 2 kapat (araçta ölçüldü). */
     const val POWER_ON = 1
@@ -94,7 +123,7 @@ internal object ClimateMath {
      */
     fun encodeFan(level: Int): Int = level.coerceIn(1, FAN_MAX)
 
-    /** A/C (HVAC 1) ve otomatik (HVAC 4): 1 aç / 2 kapat; 0 yazılmaz (aracın klima paneliyle aynı sıra, FrostNav ClimateAutomationWrites). */
+    /** A/C (HVAC 1) ve otomatik (HVAC 4): 1 aç / 2 kapat; 0 yazılmaz (aracın klima paneliyle aynı sıra, MapControl ClimateAutomationWrites). */
     const val AC_ON = 1
     const val AC_OFF = 2
 
@@ -102,7 +131,7 @@ internal object ClimateMath {
     const val POWER_FOLLOW_UP_MS = 150L
 
     /**
-     * Klimayı açma/kapatma yazma planı (HVAC kimliği → ham değer), FrostNav konfor otomasyonuyla aynı
+     * Klimayı açma/kapatma yazma planı (HVAC kimliği → ham değer), MapControl konfor otomasyonuyla aynı
      * (ClimateAutomationWrites CLIMATE; eşitlik JVM testiyle korunur):
      *  - Aç: önce [first] = 18 ← 1, [POWER_FOLLOW_UP_MS] sonra [followUp] = 1 ← 1, 4 ← 1.
      *  - Kapat: [first] = 1 ← 2, 18 ← 2, 4 ← 2; [followUp] boş.
@@ -193,7 +222,7 @@ internal object ClimateWriter {
     }
 
     /**
-     * Klimayı açar/kapatır, FrostNav ile aynı sıra ([ClimateMath.powerPlan]). Arka planda çağrılır (açmada 150 ms bekler).
+     * Klimayı açar/kapatır, MapControl ile aynı sıra ([ClimateMath.powerPlan]). Arka planda çağrılır (açmada 150 ms bekler).
      * Kapalıyken (yazma kapısı) ya da servis yokken false döner; ilk yazma reddedilirse devam yazmaları gönderilmez.
      */
     fun setPower(on: Boolean): Boolean {

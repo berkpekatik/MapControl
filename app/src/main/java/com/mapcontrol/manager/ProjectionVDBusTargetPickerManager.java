@@ -232,7 +232,7 @@ public final class ProjectionVDBusTargetPickerManager {
         titleView = new TextView(themedContext);
         titleView.setText(R.string.target_picker_title);
         titleView.setTextSize(20);
-        titleView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, Typeface.BOLD);
         titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -284,7 +284,7 @@ public final class ProjectionVDBusTargetPickerManager {
         clearBtn = new TextView(themedContext);
         clearBtn.setText(R.string.common_clear);
         clearBtn.setTextSize(15);
-        clearBtn.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(clearBtn, Typeface.BOLD);
         clearBtn.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
         int fp = (int) (12 * density);
         clearBtn.setPadding(fp, fp, fp, fp);

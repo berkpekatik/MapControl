@@ -29,7 +29,7 @@ import java.util.Locale
 
 /**
  * Fotoğraf widget'ının saf (Android'siz) mantığı; birim testle doğrulanır.
- * FrostNav web paneli dosyaları cihazın İndirilenler klasörüne yükler; buradan yalnızca resimler seçilir.
+ * MapControl web paneli dosyaları cihazın İndirilenler klasörüne yükler; buradan yalnızca resimler seçilir.
  */
 object PhotoFiles {
     /** Seçicide en fazla bu kadar küçük resim listelenir (yavaş ünitede çözme sayısı sınırlı kalsın). */

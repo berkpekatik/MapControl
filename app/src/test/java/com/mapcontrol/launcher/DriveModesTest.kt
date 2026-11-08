@@ -39,7 +39,7 @@ class DriveModesTest {
             listOf(DriveMode.ECO, DriveMode.NORMAL, DriveMode.SPORT, DriveMode.SNOW, DriveMode.MUD, DriveMode.OFFROAD, DriveMode.SAND).map { it.trName })
     }
 
-    @Test fun writeValuesMatchFrostNavDriveModeStyle() {
+    @Test fun writeValuesMatchMapControlDriveModeStyle() {
         assertEquals(DriveModeStyle.SAND, DriveMode.SAND.value)
         assertEquals(DriveModeStyle.OFFROAD, DriveMode.OFFROAD.value)
         assertEquals(setOf(0, 1, 2, 3, 4, 5, 7), DriveModes.WRITE_VALUES)

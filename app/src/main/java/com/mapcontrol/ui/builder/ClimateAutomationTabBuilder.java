@@ -83,7 +83,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         title.setText(R.string.climate_auto_title);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         heading.addView(title);
 
         TextView subtitle = new TextView(context);
@@ -136,14 +136,14 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView sensorLabel = new TextView(context);
         sensorLabel.setText(R.string.climate_auto_sensor_label);
         UiStyles.setTextSize(sensorLabel, R.dimen.text_size_tiny);
-        sensorLabel.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(sensorLabel, Typeface.BOLD);
         sensorLabel.setLetterSpacing(0.08f);
         sensorLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         statusTextColumn.addView(sensorLabel);
 
         liveStatusView = new TextView(context);
         UiStyles.setTextSize(liveStatusView, R.dimen.text_size_medium);
-        liveStatusView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(liveStatusView, Typeface.BOLD);
         liveStatusView.setTextColor(UiStyles.color(context, R.color.automationText));
         LinearLayout.LayoutParams liveStatusLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -181,7 +181,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView masterTitle = new TextView(context);
         masterTitle.setText(R.string.climate_auto_master);
         UiStyles.setTextSize(masterTitle, R.dimen.text_size_normal);
-        masterTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(masterTitle, Typeface.BOLD);
         masterTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         masterText.addView(masterTitle);
         SwitchCompat masterSwitch = new SwitchCompat(context);
@@ -259,14 +259,14 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(context.getString(sectionTitleRes));
         UiStyles.setTextSize(sectionTitle, R.dimen.text_size_normal);
-        sectionTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(sectionTitle, Typeface.BOLD);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         headerRow.addView(sectionTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView seatBadge = new TextView(context);
         seatBadge.setText(heatId.contains("driver") ? "SÜRÜCÜ" : "YOLCU");
         UiStyles.setTextSize(seatBadge, R.dimen.text_size_tiny);
-        seatBadge.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(seatBadge, Typeface.BOLD);
         seatBadge.setTextColor(UiStyles.color(context, R.color.oemAccent));
         seatBadge.setPadding(dp(8, density), dp(3, density), dp(8, density), dp(3, density));
         GradientDrawable badgeBg = new GradientDrawable();
@@ -321,7 +321,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(R.string.climate_auto_other_section);
         UiStyles.setTextSize(sectionTitle, R.dimen.text_size_normal);
-        sectionTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(sectionTitle, Typeface.BOLD);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         sectionTitle.setPadding(dp(4, density), 0, dp(4, density), dp(12, density));
         outerCard.addView(sectionTitle);
@@ -427,7 +427,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView name = new TextView(context);
         name.setText(titleRes);
         UiStyles.setTextSize(name, R.dimen.text_size_small);
-        name.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(name, Typeface.BOLD);
         name.setTextColor(UiStyles.color(context, R.color.automationText));
         name.setGravity(Gravity.CENTER);
         name.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
@@ -475,7 +475,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         TextView compareChip = new TextView(context);
         UiStyles.setTextSize(compareChip, R.dimen.text_size_small);
-        compareChip.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(compareChip, Typeface.BOLD);
         compareChip.setPadding(dp(14, density), dp(6, density), dp(14, density), dp(6, density));
         compareChip.setTextColor(accentColor);
         GradientDrawable compareBg = new GradientDrawable();
@@ -504,7 +504,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         // Çakışma Bilgilendirme Uyarı Metni (Kullanıcı çakışan derece seçerse görünür)
         TextView conflictNote = new TextView(context);
         UiStyles.setTextSize(conflictNote, R.dimen.text_size_tiny);
-        conflictNote.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(conflictNote, Typeface.BOLD);
         conflictNote.setTextColor(0xFFFF4D4F); // Belirgin kırmızı/turuncu uyarı
         conflictNote.setPadding(0, dp(6, density), 0, 0);
         conflictNote.setVisibility(View.GONE);

@@ -784,7 +784,7 @@ internal class SportPanelDrawable(
         val ir = (r - fw).coerceAtLeast(0f)
         c.drawRoundRect(RectF(rect.left + fw / 2f + 0.5f, rect.top + fw / 2f + 0.5f, rect.right - fw / 2f - 0.5f, rect.bottom - fw / 2f - 0.5f), ir, ir, edge)
         // Üst kenardaki ince parlak çizgi yalnız düz kısmın içinde: iki uçta [HIGHLIGHT_END_DP] önce saydamlaşır (sağ uçtaki
-        // FrostNav okunun altına uzanmaz; köşeye taşmaz), çubuğun içinde biter.
+        // MapControl okunun altına uzanmaz; köşeye taşmaz), çubuğun içinde biter.
         val x0 = rect.left + r + context.dpF(HIGHLIGHT_END_DP)
         val x1 = rect.right - r - context.dpF(HIGHLIGHT_END_DP)
         if (x1 > x0) {

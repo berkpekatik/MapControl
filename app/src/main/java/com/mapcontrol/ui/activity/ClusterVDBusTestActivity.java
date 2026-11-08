@@ -57,7 +57,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         Button btnBack = new Button(this);
         btnBack.setText(R.string.cluster_test_back);
         btnBack.setTextColor(UiStyles.color(this, R.color.textPrimary));
-        UiStyles.styleOemButton(btnBack, UiStyles.color(this, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnBack, UiStyles.color(this, R.color.buttonCta));
         btnBack.setOnClickListener(v -> finish());
         backBar.addView(btnBack);
         root.addView(backBar);
@@ -115,7 +115,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         temperatureTestButton.setText(R.string.cluster_test_temperature_button);
         temperatureTestButton.setTextColor(UiStyles.color(this, R.color.textPrimary));
         temperatureTestButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        UiStyles.styleOemButton(temperatureTestButton, UiStyles.color(this, R.color.buttonPrimary));
+        UiStyles.styleOemButton(temperatureTestButton, UiStyles.color(this, R.color.buttonCta));
         temperatureTestButton.setOnClickListener(v -> {
             temperatureTestButton.setEnabled(false);
             temperatureTestButton.setText(R.string.cluster_test_temperature_running);
@@ -231,7 +231,7 @@ public class ClusterVDBusTestActivity extends AppCompatActivity implements Clust
         powerProbeButton = new Button(this);
         powerProbeButton.setTextColor(UiStyles.color(this, R.color.textPrimary));
         powerProbeButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        UiStyles.styleOemButton(powerProbeButton, UiStyles.color(this, R.color.buttonPrimary));
+        UiStyles.styleOemButton(powerProbeButton, UiStyles.color(this, R.color.buttonCta));
         syncPowerProbeButton();
         powerProbeButton.setOnClickListener(v -> {
             if (powerProbe.isRunning()) {

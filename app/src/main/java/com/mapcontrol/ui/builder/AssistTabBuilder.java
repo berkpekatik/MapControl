@@ -66,7 +66,7 @@ public class AssistTabBuilder {
         assistTitle.setText(R.string.assist_title);
         UiStyles.setTextSize(assistTitle, R.dimen.text_size_large);
         assistTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        assistTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(assistTitle, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleLp.setMargins((int) (12 * densityTitle), 0, 0, 0);
@@ -185,7 +185,7 @@ public class AssistTabBuilder {
             UiStyles.setTextSize(titleView, R.dimen.text_size_normal);
             titleView.setGravity(android.view.Gravity.START);
             titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            titleView.setTypeface(null, isActiveRef[0] ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+            UiStyles.setFontStyle(titleView, isActiveRef[0] ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
             titleView.setPadding(0, (int) (8 * density), 0, (int) (4 * density));
             titleViews[cardIndex] = titleView;
             labels.addView(titleView);
@@ -289,7 +289,7 @@ public class AssistTabBuilder {
         cardContainers[cardIndex].setBackground(newBg);
         iconViews[cardIndex].setImageTintList(ColorStateList.valueOf(UiStyles.color(context,
                 isActive ? R.color.textPrimary : R.color.textPrimary70)));
-        titleViews[cardIndex].setTypeface(null, isActive ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        UiStyles.setFontStyle(titleViews[cardIndex], isActive ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
         statusViews[cardIndex].setText(getStatusText(settingKey, isActive));
         ((android.widget.CompoundButton) onChips[cardIndex]).setChecked(isActive);
     }

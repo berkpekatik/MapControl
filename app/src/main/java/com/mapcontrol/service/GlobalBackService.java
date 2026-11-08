@@ -76,7 +76,7 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Launcher modunda Ana ekran tuşu: FrostNav'ın kendi ekranlarında ya da sürüş ekranında basıldıysa bizim ana ekranımıza
+        // Launcher modunda Ana ekran tuşu: MapControl'ın kendi ekranlarında ya da sürüş ekranında basıldıysa bizim ana ekranımıza
         // döner; başka uygulamalarda ve bizim ana ekranımızda araç kendi ana ekranına çıkar (HomePolicy; mod kapalıyken hiçbir şey).
         if (event != null && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             com.mapcontrol.launcher.HomeKey.onWindowStateChanged(

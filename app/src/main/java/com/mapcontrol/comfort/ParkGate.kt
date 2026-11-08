@@ -1,4 +1,4 @@
-package com.mapcontrol.comfort
+package com.vnoisy.devfort
 
 /**
  * Park kapısı kararı (saf). Girdi: gösterge hızı (ID_SPEED_GAUGE_DISPLAY 119) ve eski hız (ID_CAR_SPEED 0).

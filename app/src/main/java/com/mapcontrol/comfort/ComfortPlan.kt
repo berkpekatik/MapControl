@@ -1,4 +1,4 @@
-package com.mapcontrol.comfort
+package com.vnoisy.devfort
 
 /**
  * Konfor yazma testi (tavan perdesi, buğu giderme, direksiyon ısıtma) için SAF kod: VDBus'a, Android'e dokunmaz,

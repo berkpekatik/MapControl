@@ -180,7 +180,7 @@ public final class WelcomeSoundScreenBuilder {
         TextView title = new TextView(context);
         title.setText(R.string.welcome_sound_title);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         headingText.addView(title);
         TextView subtitle = new TextView(context);
@@ -232,7 +232,7 @@ public final class WelcomeSoundScreenBuilder {
 
         TextView savedLine = new TextView(context);
         UiStyles.setTextSize(savedLine, R.dimen.text_size_normal);
-        savedLine.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(savedLine, Typeface.BOLD);
         savedLine.setTextColor(UiStyles.color(context, R.color.textPrimary));
         savedLine.setVisibility(View.GONE);
         apiBlock.addView(savedLine);
@@ -388,7 +388,7 @@ public final class WelcomeSoundScreenBuilder {
         btnPreview.setText(R.string.welcome_design_preview);
         UiStyles.setTextSize(btnPreview, R.dimen.text_size_normal);
         btnPreview.setTextColor(primary);
-        UiStyles.styleOemButton(btnPreview, UiStyles.color(context, R.color.buttonPrimary));
+        UiStyles.styleOemButton(btnPreview, UiStyles.color(context, R.color.buttonCta));
         btnPreview.setPadding(24, 16, 24, 16);
         parent.addView(btnPreview, buttonParams(context));
         return new DesignSection(btnPreview, lineInput);
@@ -407,7 +407,7 @@ public final class WelcomeSoundScreenBuilder {
                     UiStyles.color(context, selected ? R.color.oemAccent : R.color.outline));
             rows[i].setBackground(bg);
             TextView title = (TextView) rows[i].getChildAt(0);
-            title.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
+            UiStyles.setFontStyle(title, selected ? Typeface.BOLD : Typeface.NORMAL);
             title.setTextColor(UiStyles.color(context,
                     selected ? R.color.textPrimary : R.color.textSecondary));
         }
@@ -445,7 +445,7 @@ public final class WelcomeSoundScreenBuilder {
         TextView title = new TextView(context);
         title.setText(titleRes);
         UiStyles.setTextSize(title, R.dimen.text_size_medium);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         texts.addView(title);
         TextView sub = new TextView(context);
@@ -481,7 +481,7 @@ public final class WelcomeSoundScreenBuilder {
         TextView label = new TextView(context);
         label.setText(R.string.welcome_sound_title);
         UiStyles.setTextSize(label, R.dimen.text_size_normal);
-        label.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(UiStyles.color(context, R.color.textPrimary));
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -541,7 +541,7 @@ public final class WelcomeSoundScreenBuilder {
         TextView title = new TextView(context);
         title.setText(textRes);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setPadding(0, 0, 0, dp(context, 8));
         return title;
@@ -688,7 +688,7 @@ public final class WelcomeSoundScreenBuilder {
         TextView title = new TextView(context);
         title.setText(titleRes);
         UiStyles.setTextSize(title, R.dimen.text_size_normal);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         title.setMaxLines(2);
         title.setEllipsize(TextUtils.TruncateAt.END);

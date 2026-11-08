@@ -123,6 +123,7 @@ public class MapControlService extends Service {
         startGpsLink();
         // Telefon sunucusu (7462): kontak, ağ ve bekçi izlemesi burada başlar; sunucu activity kapansa da ayakta kalır.
         com.mapcontrol.manager.WebServerHost.get(this).start();
+        com.mapcontrol.launcher.BtAutoConnect.start(this);
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
         // Klima tuşlarına kilit: süreç ana ekran etkinliği olmadan yeniden başlatıldığında da (START_STICKY) çalışsın.
@@ -409,6 +410,7 @@ public class MapControlService extends Service {
                         lastPowerMode = currentPowerMode;
                         com.mapcontrol.dvr.DvrController.get(MapControlService.this)
                                 .onPowerMode(currentPowerMode);
+                        com.mapcontrol.launcher.BtAutoConnect.onPowerMode(currentPowerMode);
 
                         // Power mode 2 = Araç çalışıyor (ON)
                         // Power mode 1 = Araç power aldı (STANDBY)

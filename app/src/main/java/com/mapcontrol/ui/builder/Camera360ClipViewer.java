@@ -400,7 +400,7 @@ final class Camera360ClipViewer {
         Button b = new Button(ui.context);
         b.setAllCaps(false);
         b.setTextSize(14);
-        b.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(b, Typeface.BOLD);
         b.setTextColor(Color.WHITE);
         b.setSingleLine(true);
         UiStyles.styleOemButton(b, fill);

@@ -4,7 +4,7 @@ import com.desaysv.ivi.extra.project.carinfo.CarSettingID
 import com.desaysv.ivi.extra.project.carinfo.HvacID
 import com.desaysv.ivi.extra.project.carinfo.NewEnergyID
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
-import com.mapcontrol.comfort.ParkGate
+import com.vnoisy.devfort.ParkGate
 import com.mapcontrol.vehicle.VehicleQuickControls
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

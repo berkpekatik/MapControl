@@ -6,8 +6,8 @@ import com.desaysv.ivi.extra.project.carinfo.NewEnergyID
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.desaysv.ivi.vdb.event.id.dsp.VDEventDsp
-import com.mapcontrol.comfort.ComfortPlan
-import com.mapcontrol.comfort.ParkGate
+import com.vnoisy.devfort.ComfortPlan
+import com.vnoisy.devfort.ParkGate
 
 /**
  * Launcher widget'larından araca yazmanın SAF kuralları (JVM'de sınanır): beyaz liste, doğrulama bayrağı, park kapısı,
@@ -92,7 +92,7 @@ internal object WidgetWritePolicy {
         // Klima gücü (HVAC 18): 1 aç / 2 kapat. Panel yolunda sıcaklık/fan yazmadan önce otomatik 1 de buradan geçer (dock yolunda gönderilmez).
         Entry("ClimatePower", HV, HvacID.ID_AC_WORKING, setOf(ClimateMath.POWER_ON, ClimateMath.POWER_OFF),
             listOf(sig("hvac18_power", HV, HvacID.ID_AC_WORKING)), verified = false),
-        // Klima aç/kapat, FrostNav sırası (ClimateMath.powerPlan): açmada 18 ← 1'den ~150 ms sonra A/C 1 ← 1 ve otomatik 4 ← 1;
+        // Klima aç/kapat, MapControl sırası (ClimateMath.powerPlan): açmada 18 ← 1'den ~150 ms sonra A/C 1 ← 1 ve otomatik 4 ← 1;
         // kapatmada üçü de 2. 0 yazılmaz (aracın klima paneliyle aynı sıra).
         Entry("ClimateAc", HV, HvacID.ID_AC_STATE, setOf(ClimateMath.AC_ON, ClimateMath.AC_OFF),
             listOf(sig("hvac1_ac_state", HV, HvacID.ID_AC_STATE), sig("hvac18_power", HV, HvacID.ID_AC_WORKING)), verified = false),
@@ -125,7 +125,7 @@ internal object WidgetWritePolicy {
         // Merkezi kilit: VehicleQuickControls.centralLockValue → 2 kilitle, 1 aç. Yalnızca park halinde ([LOCK_WRITE_VERIFIED]).
         Entry("Lock", CS, CarSettingID.ID_CAR_IVI_LOCK, setOf(1, 2),
             listOf(sig("cs169_ivi_lock", CS, CarSettingID.ID_CAR_IVI_LOCK)), verified = LOCK_WRITE_VERIFIED),
-        // Sürüş modu: NewEnergy 4 YAZMA değerleri (FrostNav'ın araçta çalışan yazması, OEM seçicisi): Eko 0, Normal 1, Spor 2,
+        // Sürüş modu: NewEnergy 4 YAZMA değerleri (MapControl'ın araçta çalışan yazması, OEM seçicisi): Eko 0, Normal 1, Spor 2,
         // Kar 3, Çamur 4, Arazi 5, Kum 7 ([DriveModes]; okunan değerler aynı). Araçta doğrulandı; sürüşte de çalışır.
         Entry("DriveMode", NE, NewEnergyID.ID_DRIVE_MODE, DriveModes.WRITE_VALUES,
             listOf(sig("ne4_drive_mode", NE, NewEnergyID.ID_DRIVE_MODE)), verified = DRIVE_MODE_WRITE_VERIFIED),
@@ -177,7 +177,7 @@ internal object WidgetWritePolicy {
         else -> ConnectStep.CONNECT_AND_RETRY
     }
 
-    /** CarInfoProxy.init'ten sonra yeniden bakmadan önce bekleme (FrostNav sürüş modu yazmasıyla aynı: 500 ms). */
+    /** CarInfoProxy.init'ten sonra yeniden bakmadan önce bekleme (MapControl sürüş modu yazmasıyla aynı: 500 ms). */
     const val CONNECT_RETRY_MS = 500L
 
     /** Özellik kapısı: yalnızca doğrulanmış VE yazmalar açıksa ([LauncherEdition.WRITES_ON]). Doğrulanmamış girdi asla geçmez. */

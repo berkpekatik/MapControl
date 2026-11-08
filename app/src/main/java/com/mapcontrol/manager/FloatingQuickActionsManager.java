@@ -174,7 +174,7 @@ public class FloatingQuickActionsManager {
         btnToggle.setAllCaps(false);
         btnToggle.setIncludeFontPadding(false);
         btnToggle.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
-        btnToggle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(btnToggle, Typeface.BOLD);
         btnToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         btnToggle.setText(context.getString(R.string.floating_qa_label_toggle));
         btnToggle.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));
@@ -352,7 +352,7 @@ public class FloatingQuickActionsManager {
         b.setText(context.getString(labelRes));
         b.setIncludeFontPadding(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, FloatingOverlayBarSpec.ROW_TEXT_SIZE_SP);
-        b.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(b, Typeface.BOLD);
         b.setTextColor(UiStyles.color(context, R.color.textPrimary));
         b.setMaxLines(2);
         b.setCompoundDrawablePadding(FloatingOverlayBarSpec.compoundDrawablePaddingPx(context));

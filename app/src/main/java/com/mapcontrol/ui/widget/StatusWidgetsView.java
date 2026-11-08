@@ -198,7 +198,7 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
             label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12.5f);
             value = new TextView(context);
             value.setTag(tag + "_value");
-            value.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(value, Typeface.BOLD);
             value.setIncludeFontPadding(true);
             value.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16.5f);
             arrange(compactCells);

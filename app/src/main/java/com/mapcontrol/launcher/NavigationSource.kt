@@ -45,7 +45,7 @@ object NavigationSource {
     /** Etkin seçimin paketleri (varsayılan eski davranış: Yandex). Dinleyici bağlanınca ve seçim değişince güncellenir. */
     @Volatile private var accepted: Set<String> = MapAppChoice.notificationPackages(null)
     @Volatile private var acceptedResolved = false
-    /** Son seçim okuması (worker); kullanıcı seçmediyse seçim FrostNav hedef paketine bağlıdır, bu yüzden ara ara yenilenir. */
+    /** Son seçim okuması (worker); kullanıcı seçmediyse seçim MapControl hedef paketine bağlıdır, bu yüzden ara ara yenilenir. */
     private var acceptedReadAtMs = 0L
     private const val ACCEPTED_REFRESH_MS = 5_000L
 
@@ -163,7 +163,7 @@ object NavigationSource {
         if (sbn == null || sbn.packageName !in PACKAGES) return
         serviceRef = WeakReference(service)
         worker.post {
-            // Panel açılmadan da (mini gösterge) FrostNav hedefi değişince seçim eskimesin: ara ara yeniden oku.
+            // Panel açılmadan da (mini gösterge) MapControl hedefi değişince seçim eskimesin: ara ara yeniden oku.
             val stale = !acceptedResolved || SystemClock.elapsedRealtime() - acceptedReadAtMs > ACCEPTED_REFRESH_MS
             if (stale && refreshAccepted(service)) {
                 worker.removeCallbacks(confirmRemoved)

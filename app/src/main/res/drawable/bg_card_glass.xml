@@ -1,9 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/glassFill" />
-    <corners android:radius="@dimen/oem_card_radius" />
-    <stroke
-        android:width="1dp"
-        android:color="@color/glassStroke" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:endColor="@color/glassBottom"
+                android:startColor="@color/glassTop"
+                android:type="linear" />
+            <corners android:radius="@dimen/oem_card_radius" />
+            <stroke
+                android:width="1dp"
+                android:color="@color/glassStroke" />
+        </shape>
+    </item>
+    <!-- Launcher cami: ust kenardan asagi sonen isik -->
+    <item
+        android:height="@dimen/oem_card_radius"
+        android:gravity="top|fill_horizontal">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/glassHighlight"
+                android:type="linear" />
+            <corners
+                android:topLeftRadius="@dimen/oem_card_radius"
+                android:topRightRadius="@dimen/oem_card_radius" />
+        </shape>
+    </item>
+</layer-list>

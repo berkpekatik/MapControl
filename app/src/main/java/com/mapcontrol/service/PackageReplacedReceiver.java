@@ -8,7 +8,7 @@ import com.mapcontrol.util.LauncherModeManager;
 
 /**
  * Uygulama güncellendikten hemen sonra ({@code MY_PACKAGE_REPLACED}) Launcher Modu'nu geri kurar.
- * Kullanıcının FrostNav'ı elle açmasına gerek kalmadan HOME tuşu launcher'a gitsin diye. Arayüz
+ * Kullanıcının MapControl'ı elle açmasına gerek kalmadan HOME tuşu launcher'a gitsin diye. Arayüz
  * başlatmaz (Android 10+ arka plan kısıtı); yalnızca alias + cihaz sahibi HOME sabitlemesi.
  */
 public class PackageReplacedReceiver extends BroadcastReceiver {

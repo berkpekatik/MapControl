@@ -152,14 +152,14 @@ public class EqualizerTabBuilder {
         gainTitle.setText(R.string.equalizer_gain_title);
         UiStyles.setTextSize(gainTitle, R.dimen.text_size_medium);
         gainTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        gainTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(gainTitle, Typeface.BOLD);
         gainHeader.addView(gainTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         gainValue = new TextView(context);
         gainValue.setText(formatDb(gainMb, false));
         UiStyles.setTextSize(gainValue, R.dimen.text_size_medium);
         gainValue.setTextColor(UiStyles.color(context, R.color.oemAccent));
-        gainValue.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(gainValue, Typeface.BOLD);
         gainHeader.addView(gainValue);
         card.addView(gainHeader, matchWrap());
 
@@ -203,13 +203,13 @@ public class EqualizerTabBuilder {
         presetsTitle.setText(R.string.equalizer_presets_title);
         UiStyles.setTextSize(presetsTitle, R.dimen.text_size_medium);
         presetsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        presetsTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(presetsTitle, Typeface.BOLD);
         presetsHeader.addView(presetsTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         presetStatusBadge = new TextView(context);
         UiStyles.setTextSize(presetStatusBadge, R.dimen.text_size_small);
         presetStatusBadge.setTextColor(UiStyles.color(context, R.color.oemAccent));
-        presetStatusBadge.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(presetStatusBadge, Typeface.BOLD);
         presetsHeader.addView(presetStatusBadge);
         card.addView(presetsHeader, matchWrap());
 
@@ -314,11 +314,11 @@ public class EqualizerTabBuilder {
             if (selected) {
                 UiStyles.setBackgroundRes(chip, R.drawable.bg_segment_thumb);
                 chip.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                chip.setTypeface(null, Typeface.BOLD);
+                UiStyles.setFontStyle(chip, Typeface.BOLD);
             } else {
                 chip.setBackgroundColor(Color.TRANSPARENT);
                 chip.setTextColor(UiStyles.color(context, R.color.textSecondary));
-                chip.setTypeface(null, Typeface.NORMAL);
+                UiStyles.setFontStyle(chip, Typeface.NORMAL);
             }
         }
         if (presetStatusBadge != null) {
@@ -355,14 +355,14 @@ public class EqualizerTabBuilder {
             hz.setText(hzText + subName);
             UiStyles.setTextSize(hz, R.dimen.text_size_normal);
             hz.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            hz.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(hz, Typeface.BOLD);
             bandHeader.addView(hz, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
             bandValues[i] = new TextView(context);
             bandValues[i].setText(formatDb(bandLevels[i], true));
             UiStyles.setTextSize(bandValues[i], R.dimen.text_size_normal);
             bandValues[i].setTextColor(UiStyles.color(context, R.color.oemAccent));
-            bandValues[i].setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(bandValues[i], Typeface.BOLD);
             bandHeader.addView(bandValues[i]);
 
             bandContainer.addView(bandHeader, matchWrap());
@@ -464,7 +464,7 @@ public class EqualizerTabBuilder {
         title.setText(textRes);
         UiStyles.setTextSize(title, R.dimen.text_size_medium);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         int h = UiStyles.dimenPx(context, R.dimen.spacing_small);
         title.setPadding(h, UiStyles.dimenPx(context, R.dimen.spacing_medium), h, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
         parent.addView(title, matchWrap());

@@ -41,7 +41,7 @@ internal object WifiStateMap {
 
 /**
  * Wi-Fi durumunu olaylarla izler (zamanlayıcı yok): [ConnectivityManager.NetworkCallback] (bağlandı/koptu) ile sinyal,
- * Wi-Fi açık/kapalı ve hotspot yayınları. FrostNav'ın HeaderStatusMonitor'ü ile aynı mantık (Wi-Fi açık + Wi-Fi ağı var = bağlı);
+ * Wi-Fi açık/kapalı ve hotspot yayınları. MapControl'ın HeaderStatusMonitor'ü ile aynı mantık (Wi-Fi açık + Wi-Fi ağı var = bağlı);
  * launcher'ın kendi küçük ve olay güdümlü sürümü.
  * [start]/[stop] eşleşmelidir; her ikisi de ana iş parçacığında çağrılır.
  */

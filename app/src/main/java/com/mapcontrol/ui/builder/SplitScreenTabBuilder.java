@@ -116,7 +116,7 @@ public class SplitScreenTabBuilder {
 
         statusText = new TextView(context);
         statusText.setTextSize(14);
-        statusText.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(statusText, Typeface.BOLD);
         statusText.setPadding(16, 0, 16, 4);
         card.addView(statusText, matchWrap());
         noteText = new TextView(context);
@@ -194,7 +194,7 @@ public class SplitScreenTabBuilder {
 
         TextView name = new TextView(context);
         name.setTextSize(18);
-        name.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(name, Typeface.BOLD);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         texts.addView(name, matchWrap());
@@ -281,7 +281,7 @@ public class SplitScreenTabBuilder {
                 Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
-            // Mini gösterge bir launcher özelliğidir: yalnız FrostNav launcher modu açıkken seçilebilir.
+            // Mini gösterge bir launcher özelliğidir: yalnız MapControl launcher modu açıkken seçilebilir.
             boolean mini = com.mapcontrol.util.LauncherModeManager.isEnabled(context);
             int off = mini ? 1 : 0;
             String[] items = new String[rows.size() + off];
@@ -373,7 +373,7 @@ public class SplitScreenTabBuilder {
         startButton.setText(R.string.split_start);
         startButton.setAllCaps(false);
         startButton.setTextSize(17);
-        startButton.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(startButton, Typeface.BOLD);
         startButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.styleOemButton(startButton, UiStyles.color(context, R.color.buttonPrimary));
         UiStyles.setButtonStartIconTinted(startButton, R.drawable.ic_mdi_view_split,
@@ -450,7 +450,7 @@ public class SplitScreenTabBuilder {
             TextView header = new TextView(context);
             header.setText(context.getString(R.string.split_gesture_row_fingers, fingers));
             header.setTextSize(15);
-            header.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(header, Typeface.BOLD);
             header.setTextColor(UiStyles.color(context, R.color.textPrimary));
             header.setPadding(16, 8, 16, 6);
             parent.addView(header, matchWrap());
@@ -572,7 +572,7 @@ public class SplitScreenTabBuilder {
             int tint = isSelected ? accent : idle;
             cell.icon.setTint(tint);
             cell.label.setTextColor(tint);
-            cell.label.setTypeface(null, isSelected ? Typeface.BOLD : Typeface.NORMAL);
+            UiStyles.setFontStyle(cell.label, isSelected ? Typeface.BOLD : Typeface.NORMAL);
         }
         rebuildGestureInfo(selected);
     }
@@ -620,7 +620,7 @@ public class SplitScreenTabBuilder {
         title.setText(context.getString(R.string.split_gesture_selected_title,
                 describeGesture(selected)));
         title.setTextSize(17);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         texts.addView(title, matchWrap());
 
@@ -658,7 +658,7 @@ public class SplitScreenTabBuilder {
         TextView warn = new TextView(context);
         warn.setText(text);
         warn.setTextSize(13);
-        warn.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(warn, Typeface.BOLD);
         warn.setTextColor(UiStyles.color(context, R.color.textLoading));
         warn.setPadding(0, Math.round(10 * context.getResources().getDisplayMetrics().density), 0, 0);
         gestureInfo.addView(warn, matchWrap());
@@ -714,7 +714,7 @@ public class SplitScreenTabBuilder {
         title.setText(textRes);
         title.setTextSize(18);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setPadding(16, topPad, 16, 8);
         parent.addView(title, matchWrap());
     }

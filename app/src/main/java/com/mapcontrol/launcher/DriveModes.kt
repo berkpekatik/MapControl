@@ -8,7 +8,7 @@ import com.mapcontrol.vehicle.DriveModeStyle
  * Sürüş modlarının TEK kaynağı (saf; JVM'de sınanır): NewEnergy 4 (ID_DRIVE_MODE) için okunan ve yazılan değer AYNIDIR.
  *
  * 7 Kasım araç ölçümü (fiziksel düğmeyle, OEM Container driveModeValue): Eko 0, Normal 1, Spor 2, Kar 3, Çamur 4, Arazi 5, Kum 7;
- * 6 hiç görülmedi (bilinmeyen sayılır). FrostNav'ın yazması ve aracın sürüş modu ekranındaki seçici (öğe kimliği = gönderilen değer)
+ * 6 hiç görülmedi (bilinmeyen sayılır). MapControl'ın yazması ve aracın sürüş modu ekranındaki seçici (öğe kimliği = gönderilen değer)
  * aynı tabloyu kullanır ([DriveModeStyle] sabitleri). 29 Ekim'deki ayrı okuma haritası (5 = Kum, 6 = Arazi) yanlıştı.
  *
  * [DriveAccent], [DriveModeTile] ve veri denetimi tablosu değeri buradan çözer.

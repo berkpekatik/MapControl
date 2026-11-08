@@ -13,7 +13,7 @@ import kotlin.math.abs
  * Bölünmüş ekran açılırken ([com.mapcontrol.util.SplitScreenLauncher]) üst yarılar başlık kadar yukarıdan başlatılır, başlık durum
  * çubuğunun altında kalır. Sistem bu sınırları kırpıp pencereyi yine durum çubuğunun hemen altına koyarsa başlık görünür kalır;
  * o durumda başlık bu etkinlikte gizlenir, içerik pencerenin tamamını alır. Pencere kenarından boyut değiştirme (sistem işi)
- * etkilenmez; yalnızca başlıktan sürükleyip taşıma ve iki simge gider (bölmeyi FrostNav/Mini gösterge düğmeleri yönetir).
+ * etkilenmez; yalnızca başlıktan sürükleyip taşıma ve iki simge gider (bölmeyi MapControl/Mini gösterge düğmeleri yönetir).
  */
 internal object FreeformCaption {
 

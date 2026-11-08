@@ -27,7 +27,9 @@ import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.media.LauncherMediaController;
+import com.mapcontrol.launcher.SahneFonts;
 import com.mapcontrol.nav.ClusterNavOverlayOffsets;
+import com.mapcontrol.nav.ClusterNavStylePreview;
 import com.mapcontrol.nav.GoogleMapsClusterNavOverlay;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.nav.GoogleMapsNavSnapshot;
@@ -46,6 +48,10 @@ import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.util.UsageAccessHelper;
 
 public class ProjectionTabBuilder {
+    private static final int CLUSTER_STYLE_PREVIEW_HEIGHT_DP = 104;
+    private static final int HERO_WIDE_MIN_DP = 1000;
+    private static final int HERO_ACTIONS_WIDTH_DP = 440;
+
     public interface ProjectionCallback {
         void onOpenCluster();
         void onCloseCluster();
@@ -69,6 +75,9 @@ public class ProjectionTabBuilder {
     private LinearLayout projectionTabContent;
     private TextView targetAppLabel;
     private TextView projectionStatusText;
+    private View projectionStatusDot;
+    private Button heroAction;
+    private boolean heroActionBusy;
     private TextView googleMapsNavSummaryText;
 
     public ProjectionTabBuilder(Context context, SharedPreferences prefs, ProjectionCallback callback) {
@@ -102,15 +111,15 @@ public class ProjectionTabBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        createClusterControlCard(projectionTabContent);
+
         FeatureGridLayout grid = new FeatureGridLayout(context);
         projectionTabContent.addView(grid, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        createClusterControlCard(grid);
         createPowerModeCard(grid);
-        createAutoCloseCard(grid);
-        createMapKeyCard(grid);
+        addStackedToggleCards(grid);
         createGoogleMapsNavCard(grid);
         createMapSwipeCard(grid);
         createGoogleMapsClusterCard(grid);
@@ -119,6 +128,24 @@ public class ProjectionTabBuilder {
         handler.post(this::refreshProjectionStatusUi);
 
         return scrollView;
+    }
+
+    /** Tek satırlık iki anahtar, yüksek "Başlatma" kartının yanında üst üste durur; böylece kartlar boş uzamaz. */
+    private void addStackedToggleCards(FeatureGridLayout grid) {
+        LinearLayout stack = new LinearLayout(context);
+        stack.setOrientation(LinearLayout.VERTICAL);
+        createAutoCloseCard(stack);
+        createMapKeyCard(stack);
+        int gap = Math.round(12 * context.getResources().getDisplayMetrics().density);
+        for (int i = 0; i < stack.getChildCount(); i++) {
+            LinearLayout.LayoutParams lp =
+                    (LinearLayout.LayoutParams) stack.getChildAt(i).getLayoutParams();
+            lp.height = 0;
+            lp.weight = 1f;
+            lp.topMargin = i == 0 ? 0 : gap;
+            lp.bottomMargin = 0;
+        }
+        grid.addCard(stack);
     }
 
     private LinearLayout createProjectionCard(FeatureGridLayout grid) {
@@ -136,7 +163,7 @@ public class ProjectionTabBuilder {
         title.setText(titleRes);
         UiStyles.setTextSize(title, R.dimen.text_size_medium);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_tiny));
         card.addView(title, matchWrap());
 
@@ -156,133 +183,141 @@ public class ProjectionTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
-    private void createClusterControlCard(FeatureGridLayout grid) {
-        LinearLayout card = createProjectionCard(grid);
-        addCardHeading(card, R.string.projection_title, -1);
+    /** Sayfanın odak noktası: kadran görseli, büyük yansıtma durumu, hedef uygulama ve tek ana eylem. */
+    private void createClusterControlCard(LinearLayout parent) {
+        float density = context.getResources().getDisplayMetrics().density;
+        boolean wide = context.getResources().getConfiguration().screenWidthDp >= HERO_WIDE_MIN_DP;
+
+        LinearLayout hero = new LinearLayout(context);
+        hero.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        hero.setGravity(wide ? Gravity.CENTER_VERTICAL : Gravity.START);
+        int padH = Math.round(28 * density);
+        int padV = Math.round(24 * density);
+        hero.setPadding(padH, padV, padH, padV);
+        UiStyles.setGlassCardBackground(hero);
+        LinearLayout.LayoutParams heroLp = matchWrap();
+        // FeatureGridLayout kartlarının 6 dp dış boşluğuyla hizalı.
+        int heroEdge = Math.round(6 * density);
+        heroLp.setMargins(heroEdge, 0, heroEdge, heroEdge);
+        parent.addView(hero, heroLp);
+
+        if (wide) {
+            ImageView art = new ImageView(context);
+            art.setImageResource(R.drawable.launcher_art_cluster_mirror);
+            art.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            art.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LinearLayout.LayoutParams artLp = new LinearLayout.LayoutParams(
+                    Math.round(210 * density), Math.round(112 * density));
+            artLp.setMarginEnd(Math.round(28 * density));
+            hero.addView(art, artLp);
+        }
+
+        LinearLayout info = new LinearLayout(context);
+        info.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout statusRow = new LinearLayout(context);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        projectionStatusDot = new View(context);
+        int dotPx = Math.round(12 * density);
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dotPx, dotPx);
+        dotLp.setMarginEnd(Math.round(14 * density));
+        statusRow.addView(projectionStatusDot, dotLp);
 
         projectionStatusText = new TextView(context);
         projectionStatusText.setText(R.string.projection_status_off);
-        UiStyles.setTextSize(projectionStatusText, R.dimen.text_size_small);
-        projectionStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
-        projectionStatusText.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_small));
-        card.addView(projectionStatusText, matchWrap());
+        projectionStatusText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 40f);
+        projectionStatusText.setTypeface(SahneFonts.INSTANCE.get(context, 300));
+        projectionStatusText.setSingleLine(true);
+        projectionStatusText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        projectionStatusText.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        statusRow.addView(projectionStatusText, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        info.addView(statusRow, matchWrap());
 
-        LinearLayout controlButtonContainer = new LinearLayout(context);
-        controlButtonContainer.setOrientation(LinearLayout.HORIZONTAL);
-        controlButtonContainer.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
-
-        Button btnOpen = new Button(context);
-        btnOpen.setText(R.string.projection_open);
-        btnOpen.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.setTextSize(btnOpen, R.dimen.text_size_normal);
-        btnOpen.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnOpen, UiStyles.color(context, R.color.buttonPrimary));
-        btnOpen.setPadding(16, 20, 16, 20);
-        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        openParams.setMargins(0, 0, 8, 0);
-        btnOpen.setId(View.generateViewId());
-        controlButtonContainer.addView(btnOpen, openParams);
-
-        Button btnClose = new Button(context);
-        btnClose.setText(R.string.projection_stop);
-        btnClose.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.setTextSize(btnClose, R.dimen.text_size_normal);
-        btnClose.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnClose, UiStyles.color(context, R.color.statusErrorBright));
-        btnClose.setPadding(16, 20, 16, 20);
-        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        btnClose.setId(View.generateViewId());
-        controlButtonContainer.addView(btnClose, closeParams);
-
-        card.addView(controlButtonContainer, matchWrap());
-
-        btnOpen.setOnClickListener(v -> {
-            callback.onOpenCluster();
-            refreshProjectionStatusUi();
-            handleButtonClickWithDelay(btnOpen,
-                    context.getString(R.string.projection_open),
-                    context.getString(R.string.projection_projecting));
-        });
-
-        btnClose.setOnClickListener(v -> {
-            callback.onCloseCluster();
-            refreshProjectionStatusUi();
-            handleButtonClickWithDelay(btnClose,
-                    context.getString(R.string.projection_stop),
-                    context.getString(R.string.projection_stopping));
-        });
-
-        LinearLayout appInfo = new LinearLayout(context);
-        appInfo.setOrientation(LinearLayout.HORIZONTAL);
-        appInfo.setGravity(Gravity.CENTER_VERTICAL);
-        appInfo.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0, UiStyles.dimenPx(context, R.dimen.spacing_small));
-
-        LinearLayout iconBox = new LinearLayout(context);
-        iconBox.setOrientation(LinearLayout.VERTICAL);
-        UiStyles.applySolidRoundedBackgroundDp(iconBox,
-                UiStyles.color(context, R.color.surfaceCardInner), 12f);
-        iconBox.setGravity(Gravity.CENTER);
-        int iconBoxPx = Math.round(52 * context.getResources().getDisplayMetrics().density);
-        LinearLayout.LayoutParams iconBoxParams = new LinearLayout.LayoutParams(iconBoxPx, iconBoxPx);
-        iconBoxParams.setMargins(0, 0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0);
-
+        LinearLayout targetRow = new LinearLayout(context);
+        targetRow.setOrientation(LinearLayout.HORIZONTAL);
+        targetRow.setGravity(Gravity.CENTER_VERTICAL);
+        targetRow.setPadding(0, Math.round(8 * density), 0, 0);
         AppCompatImageView mapIcon = new AppCompatImageView(context);
         mapIcon.setImageResource(R.drawable.ic_mdi_map);
         mapIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        int mapIconPx = Math.round(30 * context.getResources().getDisplayMetrics().density);
-        mapIcon.setLayoutParams(new LinearLayout.LayoutParams(mapIconPx, mapIconPx));
-        mapIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textPrimary)));
-        iconBox.addView(mapIcon);
-        appInfo.addView(iconBox, iconBoxParams);
-
-        LinearLayout textInfo = new LinearLayout(context);
-        textInfo.setOrientation(LinearLayout.VERTICAL);
+        mapIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textHint)));
+        int mapIconPx = Math.round(22 * density);
+        LinearLayout.LayoutParams mapIconLp = new LinearLayout.LayoutParams(mapIconPx, mapIconPx);
+        mapIconLp.setMarginEnd(Math.round(10 * density));
+        targetRow.addView(mapIcon, mapIconLp);
 
         targetAppLabel = new TextView(context);
         targetAppLabel.setText(R.string.common_not_selected);
-        targetAppLabel.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.setTextSize(targetAppLabel, R.dimen.text_size_medium);
-        targetAppLabel.setTypeface(null, Typeface.BOLD);
-        textInfo.addView(targetAppLabel, matchWrap());
+        targetAppLabel.setTextColor(UiStyles.color(context, R.color.textHint));
+        UiStyles.setTextSize(targetAppLabel, R.dimen.text_size_small);
+        targetAppLabel.setSingleLine(true);
+        targetAppLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        targetRow.addView(targetAppLabel, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        info.addView(targetRow, matchWrap());
 
-        TextView appDesc = new TextView(context);
-        appDesc.setText(R.string.projection_app_desc);
-        appDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        UiStyles.setTextSize(appDesc, R.dimen.text_size_small);
-        textInfo.addView(appDesc, matchWrap());
+        hero.addView(info, wide
+                ? new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                : matchWrap());
 
-        appInfo.addView(textInfo, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        card.addView(appInfo, matchWrap());
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams actionsLp = wide
+                ? new LinearLayout.LayoutParams(Math.round(HERO_ACTIONS_WIDTH_DP * density),
+                        LinearLayout.LayoutParams.WRAP_CONTENT)
+                : matchWrap();
+        if (wide) {
+            actionsLp.setMarginStart(Math.round(28 * density));
+        } else {
+            actionsLp.topMargin = Math.round(16 * density);
+        }
+        hero.addView(card, actionsLp);
+
+        heroAction = new Button(context);
+        card.addView(heroAction, matchWrap());
+        applyHeroAction(ClusterNavigationState.getLastKnownOpen());
+        heroAction.setOnClickListener(v -> {
+            boolean open = ClusterNavigationState.getLastKnownOpen();
+            heroActionBusy = true;
+            heroAction.setEnabled(false);
+            heroAction.setAlpha(0.6f);
+            heroAction.setText(open ? R.string.projection_stopping : R.string.projection_projecting);
+            if (open) {
+                callback.onCloseCluster();
+            } else {
+                callback.onOpenCluster();
+            }
+            handler.postDelayed(() -> {
+                heroActionBusy = false;
+                heroAction.setEnabled(true);
+                heroAction.setAlpha(1f);
+                refreshProjectionStatusUi();
+            }, 2500);
+        });
 
         LinearLayout appButtons = new LinearLayout(context);
         appButtons.setOrientation(LinearLayout.HORIZONTAL);
-        appButtons.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_tiny), 0, 0);
+        appButtons.setPadding(0, Math.round(10 * density), 0, 0);
 
         Button btnSelectApp = new Button(context);
         btnSelectApp.setText(R.string.projection_change_app);
-        btnSelectApp.setTextColor(UiStyles.color(context, R.color.textPrimary80));
-        UiStyles.setTextSize(btnSelectApp, R.dimen.text_size_small);
-        btnSelectApp.setTypeface(null, Typeface.NORMAL);
         UiStyles.styleOemButton(btnSelectApp, UiStyles.color(context, R.color.surfaceCardInner));
-        btnSelectApp.setPadding(16, 14, 16, 14);
+        UiStyles.setTextSize(btnSelectApp, R.dimen.text_size_small);
         LinearLayout.LayoutParams selectParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        selectParams.setMargins(0, 0, 6, 0);
+        selectParams.setMarginEnd(Math.round(5 * density));
         appButtons.addView(btnSelectApp, selectParams);
         btnSelectApp.setOnClickListener(v -> selectTargetApp());
 
         Button btnLaunchOnCluster = new Button(context);
         btnLaunchOnCluster.setText(R.string.projection_launch_cluster);
-        btnLaunchOnCluster.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.styleOemButton(btnLaunchOnCluster, UiStyles.color(context, R.color.surfaceCardInner));
         UiStyles.setTextSize(btnLaunchOnCluster, R.dimen.text_size_small);
-        btnLaunchOnCluster.setTypeface(null, Typeface.BOLD);
-        UiStyles.styleOemButton(btnLaunchOnCluster, UiStyles.color(context, R.color.buttonPrimary));
-        btnLaunchOnCluster.setPadding(16, 14, 16, 14);
         LinearLayout.LayoutParams launchParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        launchParams.setMargins(6, 0, 0, 0);
+        launchParams.setMarginStart(Math.round(5 * density));
         appButtons.addView(btnLaunchOnCluster, launchParams);
         btnLaunchOnCluster.setOnClickListener(v -> {
             String pkg = callback.getTargetPackage();
@@ -337,7 +372,7 @@ public class ProjectionTabBuilder {
         handler.post(() -> powerHandle[0].syncVisualFromModeId(prefs.getInt("powerModeSetting", 2)));
     }
 
-    private void createAutoCloseCard(FeatureGridLayout grid) {
+    private void createAutoCloseCard(android.view.ViewGroup grid) {
         UiStyles.addBinarySegmentedControl(context, grid,
                 context.getString(R.string.projection_stop_section),
                 context.getString(R.string.common_yes),
@@ -353,7 +388,7 @@ public class ProjectionTabBuilder {
                 });
     }
 
-    private void createMapKeyCard(FeatureGridLayout grid) {
+    private void createMapKeyCard(android.view.ViewGroup grid) {
         UiStyles.addBinarySegmentedControl(context, grid,
                 context.getString(R.string.projection_map_key_title),
                 context.getString(R.string.common_on),
@@ -534,13 +569,32 @@ public class ProjectionTabBuilder {
                 () -> YandexClusterNavOverlay.getInstance(context).applyStoredOffsets());
     }
 
+    private void applyHeroAction(boolean open) {
+        heroAction.setText(open ? R.string.projection_stop : R.string.projection_open);
+        UiStyles.styleOemButton(heroAction,
+                UiStyles.color(context, open ? R.color.buttonCta : R.color.buttonPrimary));
+        heroAction.setMinHeight(UiStyles.dimenPx(context, R.dimen.button_height) + Math.round(
+                16 * context.getResources().getDisplayMetrics().density));
+    }
+
     public void refreshProjectionStatusUi() {
         if (projectionStatusText == null) {
             return;
         }
-        projectionStatusText.setText(ClusterNavigationState.getLastKnownOpen()
+        boolean open = ClusterNavigationState.getLastKnownOpen();
+        projectionStatusText.setText(open
                 ? R.string.projection_status_on
                 : R.string.projection_status_off);
+        if (projectionStatusDot != null) {
+            android.graphics.drawable.GradientDrawable dot =
+                    new android.graphics.drawable.GradientDrawable();
+            dot.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            dot.setColor(UiStyles.color(context, open ? R.color.statusSuccess : R.color.switchTrackOff));
+            projectionStatusDot.setBackground(dot);
+        }
+        if (heroAction != null && !heroActionBusy) {
+            applyHeroAction(open);
+        }
     }
 
     public void updateGoogleMapsNavSummary(GoogleMapsNavSnapshot snapshot) {
@@ -568,32 +622,132 @@ public class ProjectionTabBuilder {
         return googleMapsNavSummaryText.getContext().getText(resId);
     }
 
+    /** Kart tasarımı seçici: her seçenek gerçek kartın küçültülmüş önizlemesi ve adıyla bir kutu. */
+    private void addClusterStylePicker(LinearLayout parent,
+            ClusterNavOverlayOffsets.Provider provider, Runnable onChanged) {
+        final ClusterNavOverlayOffsets.Style[] styles = {
+                ClusterNavOverlayOffsets.Style.DETAIL,
+                ClusterNavOverlayOffsets.Style.SLIM,
+                ClusterNavOverlayOffsets.Style.GLASS};
+        final int[] names = {
+                R.string.projection_cluster_style_detail,
+                R.string.projection_cluster_style_slim,
+                R.string.projection_cluster_style_glass};
+        final int[] helps = {
+                R.string.projection_cluster_style_detail_help,
+                R.string.projection_cluster_style_slim_help,
+                R.string.projection_cluster_style_glass_help};
+        float density = context.getResources().getDisplayMetrics().density;
+        int gap = Math.round(8f * density);
+
+        TextView heading = new TextView(context);
+        heading.setText(R.string.projection_cluster_style_title);
+        UiStyles.setTextSize(heading, R.dimen.text_size_medium);
+        UiStyles.setFontStyle(heading, android.graphics.Typeface.BOLD);
+        heading.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        heading.setPadding(0, gap, 0, gap);
+        parent.addView(heading);
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        parent.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView help = new TextView(context);
+        UiStyles.setTextSize(help, R.dimen.text_size_small);
+        help.setTextColor(UiStyles.color(context, R.color.textHint));
+        help.setPadding(0, gap, 0, gap);
+        parent.addView(help);
+
+        final LinearLayout[] tiles = new LinearLayout[styles.length];
+        final TextView[] labels = new TextView[styles.length];
+        final Runnable refresh = () -> {
+            ClusterNavOverlayOffsets.Style current =
+                    ClusterNavOverlayOffsets.getStyle(context, provider);
+            for (int i = 0; i < styles.length; i++) {
+                boolean selected = styles[i] == current;
+                android.graphics.drawable.GradientDrawable bg =
+                        new android.graphics.drawable.GradientDrawable();
+                bg.setCornerRadius(16f * density);
+                bg.setColor(UiStyles.color(context,
+                        selected ? R.color.assistCardActive : R.color.assistCardIdle));
+                bg.setStroke(Math.round((selected ? 2f : 1f) * density), UiStyles.color(context,
+                        selected ? R.color.assistStrokeActive : R.color.outline));
+                tiles[i].setBackground(bg);
+                tiles[i].setSelected(selected);
+                labels[i].setTextColor(UiStyles.color(context,
+                        selected ? R.color.textPrimary : R.color.textSecondary));
+                UiStyles.setFontStyle(labels[i], selected
+                        ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+                if (selected) {
+                    help.setText(helps[i]);
+                }
+            }
+        };
+
+        int pad = Math.round(10f * density);
+        for (int i = 0; i < styles.length; i++) {
+            final ClusterNavOverlayOffsets.Style style = styles[i];
+            LinearLayout tile = new LinearLayout(context);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER_HORIZONTAL);
+            tile.setPadding(pad, pad, pad, pad);
+            tile.setClickable(true);
+            tile.setFocusable(true);
+            tile.setContentDescription(context.getString(names[i]));
+
+            tile.addView(new ClusterNavStylePreview(context, style),
+                    new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            Math.round(CLUSTER_STYLE_PREVIEW_HEIGHT_DP * density)));
+
+            TextView label = new TextView(context);
+            label.setText(names[i]);
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            label.setGravity(Gravity.CENTER);
+            UiStyles.setTextSize(label, R.dimen.text_size_small);
+            label.setPadding(0, gap, 0, 0);
+            tile.addView(label, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            tile.setOnClickListener(v -> {
+                if (ClusterNavOverlayOffsets.getStyle(context, provider) == style) {
+                    return;
+                }
+                ClusterNavOverlayOffsets.setStyle(context, provider, style);
+                refresh.run();
+                onChanged.run();
+            });
+            tiles[i] = tile;
+            labels[i] = label;
+
+            LinearLayout.LayoutParams tileLp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            if (i > 0) {
+                tileLp.setMarginStart(gap);
+            }
+            row.addView(tile, tileLp);
+        }
+        refresh.run();
+    }
+
     private void addClusterOverlayLayoutSection(LinearLayout parent, int titleResId,
             ClusterNavOverlayOffsets.Provider provider, Runnable applyOverlay) {
         final java.util.List<ClusterCardSliderUi> sliderUis = new java.util.ArrayList<>();
-        UiStyles.addBinarySegmentedControl(context, parent,
-                context.getString(R.string.projection_cluster_style_title),
-                context.getString(R.string.projection_cluster_style_detail),
-                context.getString(R.string.projection_cluster_style_slim),
-                context.getString(R.string.projection_cluster_style_detail_help),
-                context.getString(R.string.projection_cluster_style_slim_help),
-                ClusterNavOverlayOffsets.getStyle(context, provider)
-                        == ClusterNavOverlayOffsets.Style.DETAIL,
-                detail -> {
-                    ClusterNavOverlayOffsets.setStyle(context, provider, detail
-                            ? ClusterNavOverlayOffsets.Style.DETAIL
-                            : ClusterNavOverlayOffsets.Style.SLIM);
-                    if (provider == ClusterNavOverlayOffsets.Provider.GOOGLE) {
-                        GoogleMapsClusterNavOverlay.getInstance(context).restyle();
-                    } else {
-                        YandexClusterNavOverlay.getInstance(context).restyle();
-                    }
-                    // Kart boyutu değişti: kaydırıcı sınırlarını güncelle.
-                    for (ClusterCardSliderUi ui : sliderUis) {
-                        ui.syncFromPrefs();
-                    }
-                    applyOverlay.run();
-                });
+        addClusterStylePicker(parent, provider, () -> {
+            if (provider == ClusterNavOverlayOffsets.Provider.GOOGLE) {
+                GoogleMapsClusterNavOverlay.getInstance(context).restyle();
+            } else {
+                YandexClusterNavOverlay.getInstance(context).restyle();
+            }
+            // Kart boyutu değişti: kaydırıcı sınırlarını güncelle.
+            for (ClusterCardSliderUi ui : sliderUis) {
+                ui.syncFromPrefs();
+            }
+            applyOverlay.run();
+        });
         Button layoutToggle = new Button(context);
         layoutToggle.setText(context.getString(titleResId) + " ↓");
         UiStyles.styleOemButton(layoutToggle, UiStyles.color(context, R.color.surfaceCardInner));
@@ -707,7 +861,7 @@ public class ProjectionTabBuilder {
         cardTitle.setText(cardTitleResId);
         UiStyles.setTextSize(cardTitle, R.dimen.text_size_small);
         cardTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        cardTitle.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(cardTitle, Typeface.BOLD);
         cardTitle.setPadding(0, 12, 0, 4);
         parent.addView(cardTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -920,18 +1074,6 @@ public class ProjectionTabBuilder {
                 UiStyles.dimenPx(context, R.dimen.equalizer_slider_height));
         lp.setMargins(0, 0, 0, h);
         return lp;
-    }
-
-    private void handleButtonClickWithDelay(Button button, String originalText, String loadingText) {
-        if (button == null) return;
-        button.setEnabled(false);
-        button.setText(loadingText);
-        button.setAlpha(0.6f);
-        handler.postDelayed(() -> {
-            button.setText(originalText);
-            button.setAlpha(1.0f);
-            button.setEnabled(true);
-        }, 2500);
     }
 
     private void refreshTargetLabel() {

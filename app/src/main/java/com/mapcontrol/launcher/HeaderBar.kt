@@ -28,6 +28,8 @@ class HeaderBar(
     private val onWifi: (View) -> Unit = {},
     /** Bluetooth yarısına dokunma: launcher içindeki Bluetooth paneli (simgenin altında); verilmezse eski yol (OEM uygulaması). */
     private val onBluetooth: ((View) -> Unit)? = null,
+    /** Telefon eşleme simgesine dokunma: eşleşme QR sayfası. */
+    private val onPhonePair: (() -> Unit)? = null,
 ) : LauncherWidget, Themeable {
 
     private val time = text(context, LauncherTheme.TIME_SP, medium = true)
@@ -64,11 +66,11 @@ class HeaderBar(
     private val wifiStatus = WifiStatus(context) { if (it != wifiUi) bindWifi(it) }
 
     /**
-     * FrostNav web paneli sunucusu çalışıyorsa Wi-Fi simgesinde küçük nokta. Durum sunucunun sahibinden okunur
-     * ([FrostNavFeatures.readWebPanel]); başlık görünürken değişince hemen ([FrostNavFeatures.watchWebPanel]), yedek olarak
+     * MapControl web paneli sunucusu çalışıyorsa Wi-Fi simgesinde küçük nokta. Durum sunucunun sahibinden okunur
+     * ([MapControlFeatures.readWebPanel]); başlık görünürken değişince hemen ([MapControlFeatures.watchWebPanel]), yedek olarak
      * [WEB_POLL_MS]'de bir, arka planda.
      */
-    private val features = LauncherEdition.frostNav(context)
+    private val features = LauncherEdition.mapcontrol(context)
     private val webIo = LauncherIo.serial()
     private var webUnwatch: (() -> Unit)? = null
     private val webHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -112,6 +114,16 @@ class HeaderBar(
         isClickable = true
         isFocusable = true
         setOnClickListener { v -> onBluetooth?.invoke(v) ?: openOemBluetooth(context) }
+        pressFeedback()
+    }
+
+    private val pairImage = icon(context, R.drawable.ic_sahne_qr, LauncherTheme.ICON_M_DP + 4)
+    private val pairButton = LinearLayout(context).apply {
+        gravity = Gravity.CENTER
+        isClickable = true
+        isFocusable = true
+        contentDescription = context.getString(R.string.launcher_phone_pair_title)
+        setOnClickListener { onPhonePair?.invoke() }
         pressFeedback()
     }
 
@@ -349,11 +361,15 @@ class HeaderBar(
         // Yerinde tema yenilemesinde düğmeler hâlâ eski kapsüldedir: önce oradan çıkarılır (yoksa yeniden kurulum gerekirdi).
         (wifiButton.parent as? android.view.ViewGroup)?.removeView(wifiButton)
         (btButton.parent as? android.view.ViewGroup)?.removeView(btButton)
+        (pairButton.parent as? android.view.ViewGroup)?.removeView(pairButton)
+        (pairImage.parent as? android.view.ViewGroup)?.removeView(pairImage)
         wifiButton.removeAllViews()
         btButton.removeAllViews()
         chargeBox.removeAllViews()
         wifiButton.addView(wifiGlyph, LinearLayout.LayoutParams(glyph, glyph))
         btButton.addView(btImage, LinearLayout.LayoutParams(glyph, glyph))
+        pairButton.addView(pairImage, LinearLayout.LayoutParams(glyph, glyph))
+        pairImage.imageTintList = android.content.res.ColorStateList.valueOf(if (sport) SportInk.ICON else Sahne.HEADER_ICON)
         chargeBox.addView(chargeImage, LinearLayout.LayoutParams(glyph, glyph))
         chargeImage.setImageResource(R.drawable.ic_sahne_charge_fill)
         chargeImage.imageTintList = android.content.res.ColorStateList.valueOf(if (sport) SportInk.ICON else Sahne.HEADER_ICON)
@@ -377,6 +393,10 @@ class HeaderBar(
             addView(wifiButton, half())
             addView(divider())
             addView(btButton, half())
+            if (onPhonePair != null) {
+                addView(divider())
+                addView(pairButton, half())
+            }
             addView(chargeDivider)
             addView(chargeBox, half())
         }

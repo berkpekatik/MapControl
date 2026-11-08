@@ -40,7 +40,7 @@ public class SettingsTabBuilder {
         void onLocaleChanged();
         void onNightModeChanged(int mode);
         default void onHeaderPositionChanged(boolean isBottom) {}
-        /** "Ana ekran ayarları" bağlantısı: FrostNav'ın Ana ekran sekmesini açar. */
+        /** "Ana ekran ayarları" bağlantısı: MapControl'ın Ana ekran sekmesini açar. */
         default void onOpenHomeScreenTab() {}
     }
 
@@ -211,7 +211,7 @@ public class SettingsTabBuilder {
         sectionTitle.setText(R.string.settings_permissions_title);
         UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(sectionTitle, android.graphics.Typeface.BOLD);
         sectionTitle.setPadding(0, 0, 0, 8);
         parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -314,7 +314,7 @@ public class SettingsTabBuilder {
         appInfoTitle.setText(R.string.settings_app_about_title);
         UiStyles.setTextSize(appInfoTitle, R.dimen.text_size_medium);
         appInfoTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        appInfoTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(appInfoTitle, android.graphics.Typeface.BOLD);
         appInfoTitle.setPadding(16, 24, 16, 8);
         parentContainer.addView(appInfoTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -324,7 +324,7 @@ public class SettingsTabBuilder {
         versionTitle.setText(R.string.settings_version_title);
         UiStyles.setTextSize(versionTitle, R.dimen.text_size_normal);
         versionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        versionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(versionTitle, android.graphics.Typeface.BOLD);
         versionTitle.setPadding(16, 16, 16, 8);
         parentContainer.addView(versionTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -358,7 +358,7 @@ public class SettingsTabBuilder {
         freeInstallTitle.setText(R.string.settings_install_title);
         UiStyles.setTextSize(freeInstallTitle, R.dimen.text_size_normal);
         freeInstallTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        freeInstallTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(freeInstallTitle, android.graphics.Typeface.BOLD);
         freeInstallTitle.setPadding(16, 16, 16, 8);
         parentContainer.addView(freeInstallTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -377,7 +377,7 @@ public class SettingsTabBuilder {
         changelogTitle.setText(R.string.settings_changelog_title);
         UiStyles.setTextSize(changelogTitle, R.dimen.text_size_normal);
         changelogTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        changelogTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(changelogTitle, android.graphics.Typeface.BOLD);
         changelogTitle.setPadding(16, 16, 16, 8);
         parentContainer.addView(changelogTitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

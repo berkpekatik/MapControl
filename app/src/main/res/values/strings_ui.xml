@@ -510,6 +510,7 @@
     <string name="onboarding_subtitle">Choose your language to get started</string>
     <string name="onboarding_continue">Continue</string>
     <string name="installer_confirm_countdown">Installing automatically in %1$d s</string>
+    <string name="home_role_confirm_countdown">Setting default home in %1$d s</string>
     <string name="installer_confirm_cancel">Cancel</string>
     <string name="settings_permissions_title">App permissions</string>
     <string name="settings_permissions_desc">Check missing access and connection issues.</string>
@@ -937,4 +938,7 @@
     <string name="projection_cluster_style_slim">Thin line</string>
     <string name="projection_cluster_style_detail_help">Maneuver on top, remaining / arrival / duration below.</string>
     <string name="projection_cluster_style_slim_help">Single slim line with maneuver and ETA.</string>
+    <string name="projection_cluster_style_glass">Launcher glass</string>
+    <string name="projection_cluster_style_glass_help">Theme-aware launcher look: large distance with remaining, arrival and duration below.</string>
+    <string name="projection_cluster_preview_duration">22 min</string>
 </resources>

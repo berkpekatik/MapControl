@@ -56,7 +56,7 @@ class SplitTileRouteTest {
         assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair(mini, picker), self))
     }
 
-    @Test fun twoOtherAppsKeepFrostNavSplit() {
+    @Test fun twoOtherAppsKeepMapControlSplit() {
         assertEquals(SplitRoute.PAIR, SplitTileText.route(SplitPair("ru.yandex.yandexmaps", "com.spotify.music"), self))
         // Başka paketin aynı adlı sınıfı bizim Mini göstergemiz değildir.
         assertEquals(SplitRoute.PAIR, SplitTileText.route(SplitPair("other.pkg/com.mapcontrol.launcher.MiniDashActivity", "com.spotify.music"), self))

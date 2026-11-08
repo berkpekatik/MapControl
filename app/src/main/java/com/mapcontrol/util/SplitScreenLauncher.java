@@ -185,7 +185,7 @@ public final class SplitScreenLauncher {
     }
 
     /**
-     * Açılış ayrıntıları. FrostNav bölmesi ({@link #DEFAULT}) eskisi gibidir; sürüş ekranı ({@link #startDriveScreen}) başlığı
+     * Açılış ayrıntıları. MapControl bölmesi ({@link #DEFAULT}) eskisi gibidir; sürüş ekranı ({@link #startDriveScreen}) başlığı
      * durum çubuğu altına itmez, harita kutusuna rota intent'i verebilir ve Mini göstergeye "sürüş ekranı" işaretini geçirir.
      */
     static final class LaunchOpts {
@@ -669,7 +669,7 @@ public final class SplitScreenLauncher {
     /**
      * Sürüş ekranı: Mini gösterge ilk yarıda (Tiggo 7 sol, Tiggo 8 üst), [mapSlot] diğer yarıda, yarı yarıya. [mapSlot] bir
      * harita paketi ya da harita seçicimiz ({@link SplitSlot#mapPicker}); [route] verilirse harita onunla (Ev/İş rotası) açılır.
-     * FrostNav bölmesinden farkı: başlık durum çubuğu altına itilmez, Mini göstergeye sürüş ekranı işareti gider.
+     * MapControl bölmesinden farkı: başlık durum çubuğu altına itilmez, Mini göstergeye sürüş ekranı işareti gider.
      */
     public static void startDriveScreen(
             @NonNull Context context, @NonNull String mapSlot, @Nullable Intent route, @Nullable Callback callback) {

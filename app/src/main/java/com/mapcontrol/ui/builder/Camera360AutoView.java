@@ -267,9 +267,9 @@ final class Camera360AutoView {
         viewer.setText(R.string.camera360_auto_open_viewer);
         viewer.setAllCaps(false);
         viewer.setTextSize(15);
-        viewer.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(viewer, Typeface.BOLD);
         viewer.setTextColor(0xFFFFFFFF);
-        UiStyles.styleOemButton(viewer, ui.themeColor(R.color.buttonPrimary));
+        UiStyles.styleOemButton(viewer, ui.themeColor(R.color.buttonCta));
         UiStyles.setButtonStartIconTinted(viewer, R.drawable.ic_mdi_play, 0xFFFFFFFF, ui.dp(8));
         viewer.setStateListAnimator(null);
         viewer.setOnClickListener(v -> openViewer.run());

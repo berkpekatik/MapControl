@@ -121,7 +121,7 @@ internal class BluetoothPanel(
 
     /** Başlık, bağlı cihaz(lar), bölüm başlığı ve ayarlar satırından artan yüksekliğe sığan eşleşmiş cihaz satırı (2..5). */
     private fun rowsThatFit(connected: Int): Int {
-        val fixedDp = PAD_DP * 2 + ROW_DP * (2 + connected) + SECTION_DP + DIVIDER_DP + (if (status != null) ROW_DP else 0)
+        val fixedDp = PAD_DP * 2 + ROW_DP * (3 + connected) + SECTION_DP + DIVIDER_DP + (if (status != null) ROW_DP else 0)
         return ((availDp - fixedDp) / ROW_DP).toInt().coerceIn(2, BtListShaper.MAX_VISIBLE)
     }
 
@@ -153,6 +153,7 @@ internal class BluetoothPanel(
             else -> {
                 connected.forEach { box.addView(connectedRow(it), sheetFullWidth()) }
                 renderPaired(box, paired, rowsThatFit(connected.size))
+                box.addView(autoConnectRow(connected), sheetFullWidth())
             }
         }
         box.addView(divider())
@@ -206,7 +207,7 @@ internal class BluetoothPanel(
     }
 
     /** Açma/kapama anahtarı ([WifiPanel] ile aynı ölçü): izin yoksa soluk ve dokunulmaz, yalnızca durumu gösterir. */
-    private fun switchView(on: Boolean, active: Boolean): View {
+    private fun switchView(on: Boolean, active: Boolean, label: Int = R.string.launcher_bt_title, onToggle: () -> Unit = { toggle(!on) }): View {
         val ctx = activity
         val track = FrameLayout(ctx).apply {
             background = rounded(ctx, if (on) DriveAccent.buttonFill(LauncherTheme.ACCENT) else LauncherTheme.TRACK, 999f)
@@ -217,11 +218,11 @@ internal class BluetoothPanel(
         })
         return FrameLayout(ctx).apply {
             minimumWidth = ctx.dp(88)
-            contentDescription = ctx.getString(R.string.launcher_bt_title)
+            contentDescription = ctx.getString(label)
             isSelected = on
             alpha = if (!active) 0.4f else if (toggling) 0.5f else 1f
             addView(track, FrameLayout.LayoutParams(ctx.dp(72), ctx.dp(40), Gravity.CENTER))
-            if (active) clickable(this) { toggle(!on) } else isEnabled = false
+            if (active) clickable(this) { onToggle() } else isEnabled = false
             layoutParams = LinearLayout.LayoutParams(ctx.dp(88), ctx.dp(ROW_DP))
         }
     }
@@ -235,6 +236,22 @@ internal class BluetoothPanel(
             toggling = false
             render()
         }
+    }
+
+    /** Otomatik bağlanma anahtarı; açılırken bağlı telefon son cihaz olarak kaydedilir (yayını kaçmış olabilir). */
+    private fun autoConnectRow(connected: List<BtDevice>): View = baseRow().apply {
+        val ctx = activity
+        val on = BtAutoConnectPrefs.enabled(ctx)
+        addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(text(ctx, LauncherTheme.BODY_SP, medium = true).apply { setText(R.string.launcher_bt_auto_connect) })
+            addView(text(ctx, LauncherTheme.LABEL_SP - 2f, LauncherTheme.TEXT_SECONDARY).apply { setText(R.string.launcher_bt_auto_connect_hint) })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = ctx.dp(12) })
+        addView(switchView(on, active = true, label = R.string.launcher_bt_auto_connect) {
+            BtAutoConnectPrefs.setEnabled(ctx, !on)
+            if (on) BtAutoConnect.cancel() else connected.firstOrNull()?.let { BtAutoConnectPrefs.setLastAddress(ctx, it.address) }
+            render()
+        })
     }
 
     private fun deviceIcon(kind: BtKind): Int = when (kind) {
@@ -329,6 +346,7 @@ internal class BluetoothPanel(
 
     private fun request(d: BtDevice, connect: Boolean) {
         if (pending != null) return
+        if (!connect) BtAutoConnect.noteUserDisconnect()
         pending = d.address to connect
         statusAlert = false
         offerFallback = false

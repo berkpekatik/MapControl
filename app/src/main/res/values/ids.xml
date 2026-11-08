@@ -7,12 +7,10 @@
     <item name="preparing_halo" type="id"/>
     <item name="preparing_title" type="id"/>
     <item name="preparing_dots" type="id"/>
-    <item name="boot_splash_grid" type="id"/>
     <item name="boot_splash_halo" type="id"/>
     <item name="boot_splash_center" type="id"/>
     <item name="boot_splash_logo" type="id"/>
     <item name="boot_splash_wordmark" type="id"/>
     <item name="boot_splash_tagline" type="id"/>
     <item name="boot_splash_bar" type="id"/>
-    <item name="boot_splash_gradient" type="id"/>
 </resources>

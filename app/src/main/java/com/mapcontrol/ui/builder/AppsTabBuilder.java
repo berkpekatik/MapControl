@@ -494,7 +494,7 @@ public class AppsTabBuilder {
                 nameText.setText(finalDisplayName);
                 nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
                 UiStyles.setTextSize(nameText, R.dimen.text_size_medium);
-                nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
+                UiStyles.setFontStyle(nameText, android.graphics.Typeface.NORMAL);
                 infoContainer.addView(nameText);
 
                 TextView statusText = new TextView(context);
@@ -518,10 +518,10 @@ public class AppsTabBuilder {
                 Button actionButton = new Button(context);
                 actionButton.setText(R.string.apps_action_open);
                 UiStyles.setTextSize(actionButton, R.dimen.text_size_small);
-                actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(actionButton, android.graphics.Typeface.BOLD);
                 actionButton.setPadding(24, 12, 24, 12);
 
-                UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
+                UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonCta));
                 actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
                 actionButton.setOnClickListener(v -> {
                     try {
@@ -542,7 +542,7 @@ public class AppsTabBuilder {
                 Button removeButton = new Button(context);
                 removeButton.setText(R.string.apps_action_remove);
                 UiStyles.setTextSize(removeButton, R.dimen.text_size_small);
-                removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
+                UiStyles.setFontStyle(removeButton, android.graphics.Typeface.BOLD);
                 removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
                 removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
                 removeButton.setPadding(18, 12, 18, 12);
@@ -845,7 +845,7 @@ public class AppsTabBuilder {
         title.setText(titleText);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(title, R.dimen.text_size_normal);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
         section.addView(title);
 
         if (group != null && !group.warning.trim().isEmpty()) {
@@ -954,7 +954,7 @@ public class AppsTabBuilder {
         nameText.setText(displayName);
         nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(nameText, R.dimen.text_size_medium);
-        nameText.setTypeface(null, android.graphics.Typeface.NORMAL);
+        UiStyles.setFontStyle(nameText, android.graphics.Typeface.NORMAL);
         infoContainer.addView(nameText);
 
         TextView statusText = new TextView(context);
@@ -998,7 +998,7 @@ public class AppsTabBuilder {
 
         Button actionButton = new Button(context);
         UiStyles.setTextSize(actionButton, R.dimen.text_size_small);
-        actionButton.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(actionButton, android.graphics.Typeface.BOLD);
         actionButton.setPadding(24, 12, 24, 12);
 
         if (trackProgress) {
@@ -1006,7 +1006,7 @@ public class AppsTabBuilder {
         } else if (hasUpdate) {
             actionButton.setText(R.string.apps_action_update);
             actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonCta));
             actionButton.setOnClickListener(v -> {
                 if (isLocked) {
                     confirmSelfUpdate(() -> {
@@ -1021,7 +1021,7 @@ public class AppsTabBuilder {
         } else if (isInstalled && !isLocked) {
             actionButton.setText(R.string.apps_action_open);
             actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonPrimary));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonCta));
             actionButton.setOnClickListener(v -> launchApp(packageName));
         } else if (isLocked) {
             actionButton.setText(R.string.apps_action_locked);
@@ -1033,7 +1033,7 @@ public class AppsTabBuilder {
         } else {
             actionButton.setText(R.string.apps_action_install);
             actionButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.styleOemButton(actionButton, UiStyles.color(context, R.color.buttonCta));
             actionButton.setOnClickListener(v -> requestInstall(packageName, displayName, downloadUrl, null));
         }
 
@@ -1048,7 +1048,7 @@ public class AppsTabBuilder {
             Button removeButton = new Button(context);
             removeButton.setText(R.string.apps_action_remove);
             UiStyles.setTextSize(removeButton, R.dimen.text_size_small);
-            removeButton.setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(removeButton, android.graphics.Typeface.BOLD);
             removeButton.setTextColor(UiStyles.color(context, R.color.textDestructive));
             removeButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
             removeButton.setPadding(18, 12, 18, 12);
@@ -1337,10 +1337,10 @@ public class AppsTabBuilder {
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(UiStyles.color(context, R.color.statusErrorBright));
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextSize(17);
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(dialog.getButton(AlertDialog.BUTTON_POSITIVE), android.graphics.Typeface.BOLD);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(UiStyles.color(context, R.color.statusNeutralGray));
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextSize(17);
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(dialog.getButton(AlertDialog.BUTTON_NEGATIVE), android.graphics.Typeface.BOLD);
     }
 
     private File cacheDownloadDir() {
@@ -1374,7 +1374,7 @@ public class AppsTabBuilder {
         button.setEnabled(true);
         button.setText(R.string.apps_action_install_local);
         button.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+        UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonCta));
         UiStyles.clearButtonCompoundDrawables(button);
         button.setOnClickListener(v -> {
             String pkg = packageNameFromApkFile(readyFile);
@@ -1414,7 +1414,7 @@ public class AppsTabBuilder {
             button.setTextColor(iconColor);
             status.setText(label);
             status.setTextColor(UiStyles.color(context, R.color.statusInfo));
-            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonCta));
             UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_timer_sand, iconColor, iconGap);
         } else if (progress.phase == DownloadProgress.INSTALLING) {
             button.setEnabled(false);
@@ -1422,7 +1422,7 @@ public class AppsTabBuilder {
             button.setTextColor(iconColor);
             status.setText(R.string.apps_installing);
             status.setTextColor(UiStyles.color(context, R.color.statusInfo));
-            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonSuccessBright));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonCta));
             UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_package_variant, iconColor, iconGap);
         } else if (progress.phase == DownloadProgress.FAILED) {
             button.setEnabled(true);
@@ -1430,7 +1430,7 @@ public class AppsTabBuilder {
             button.setTextColor(iconColor);
             status.setText(R.string.apps_status_download_failed);
             status.setTextColor(UiStyles.color(context, R.color.statusError));
-            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonPrimary));
+            UiStyles.styleOemButton(button, UiStyles.color(context, R.color.buttonCta));
             UiStyles.setButtonStartIconTinted(button, R.drawable.ic_mdi_download, iconColor, iconGap);
             String retryName = progress.displayName != null ? progress.displayName : row.displayName;
             String retryUrl = progress.downloadUrl;
@@ -1738,7 +1738,7 @@ public class AppsTabBuilder {
             titleText.setText(R.string.apps_downloads_title);
             titleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
             UiStyles.setTextSize(titleText, R.dimen.text_size_large);
-            titleText.setTypeface(null, android.graphics.Typeface.BOLD);
+            UiStyles.setFontStyle(titleText, android.graphics.Typeface.BOLD);
             titleContainer.addView(titleText);
 
             TextView subtitleText = new TextView(context);
@@ -1869,7 +1869,7 @@ public class AppsTabBuilder {
                     nameText.setText(file.getName().replace(".apk", ""));
                     nameText.setTextColor(UiStyles.color(context, R.color.textPrimary));
                     UiStyles.setTextSize(nameText, R.dimen.text_size_small);
-                    nameText.setTypeface(null, android.graphics.Typeface.BOLD);
+                    UiStyles.setFontStyle(nameText, android.graphics.Typeface.BOLD);
                     nameText.setMaxLines(1);
                     nameText.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     infoLayout.addView(nameText);
@@ -1890,9 +1890,9 @@ public class AppsTabBuilder {
                     Button installButton = new Button(context);
                     installButton.setText(R.string.apps_action_install);
                     installButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
-                    UiStyles.styleOemButton(installButton, UiStyles.color(context, R.color.buttonPrimary));
+                    UiStyles.styleOemButton(installButton, UiStyles.color(context, R.color.buttonCta));
                     UiStyles.setTextSize(installButton, R.dimen.text_size_small);
-                    installButton.setTypeface(null, android.graphics.Typeface.BOLD);
+                    UiStyles.setFontStyle(installButton, android.graphics.Typeface.BOLD);
                     installButton.setPadding(16, 12, 16, 12);
                     UiStyles.setButtonStartIconTinted(installButton, R.drawable.ic_mdi_package_variant,
                             UiStyles.color(context, R.color.textPrimary),

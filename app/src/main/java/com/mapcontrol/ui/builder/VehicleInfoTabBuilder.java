@@ -247,7 +247,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
 
         TextView title = new TextView(uiContext);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
-        title.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
         title.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
         title.setText(R.string.vehicle_info_title);
         title.setSingleLine(true);
@@ -287,7 +287,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         card.addView(label);
         TextView value = new TextView(uiContext);
         UiStyles.setTextSize(value, R.dimen.text_size_title);
-        value.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(value, Typeface.BOLD);
         value.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
         value.setPadding(0, pad / 2, 0, 0);
         card.addView(value);

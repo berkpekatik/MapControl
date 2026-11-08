@@ -38,7 +38,7 @@ enum class WidgetType(val key: String, @StringRes val label: Int, @DrawableRes v
     PHONE_REMINDER("phone_reminder", R.string.launcher_widget_phone, R.drawable.ic_mdi_cellphone, listOf(Span(2, 2))),
     CLOCK("clock", R.string.launcher_widget_clock, R.drawable.ic_mdi_clock_outline, listOf(Span(2, 2), Span(4, 2))),
     REAR_SPEAKER("rear_speaker", R.string.launcher_widget_rear_speaker, R.drawable.ic_mdi_volume_high, listOf(Span(2, 2), Span(2, 1))),
-    // FrostNav özellikleri ([FrostNavTile]): 4 sütunlu boyut büyük biçimdir ve Sahne panelinde kullanılır.
+    // MapControl özellikleri ([MapControlTile]): 4 sütunlu boyut büyük biçimdir ve Sahne panelinde kullanılır.
     WEB_PANEL("web_panel", R.string.launcher_widget_web_panel, R.drawable.ic_mdi_web, listOf(Span(2, 2), Span(4, 4))),
     EQUALIZER("equalizer", R.string.launcher_widget_equalizer, R.drawable.ic_mdi_equalizer, listOf(Span(2, 2), Span(4, 4))),
     AUTOMATION("automation", R.string.launcher_widget_automation, R.drawable.ic_mdi_restart, listOf(Span(2, 2), Span(4, 4))),

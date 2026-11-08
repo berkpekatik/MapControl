@@ -198,6 +198,68 @@ object ThemeTransition {
         }
     }
 
+    private var queuedApply: Runnable? = null
+
+    /**
+     * Menü ekranları için yerinde geçiş: [apply] renkleri yeniler, bu sırada pencerenin görüntüsü üstte durur ve ilk yeni
+     * kare çizilince söner. Pencere görünür değilse (launcher öndeyken) doğrudan uygulanır. Hızlı ardışık çağrılarda
+     * sonuncusu çalışır.
+     */
+    fun applyInPlace(activity: Activity, apply: Runnable) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        if (inPlaceBusy) { queuedApply = apply; return }
+        val decor = activity.window.decorView
+        val w = decor.width
+        val h = decor.height
+        if (w <= 0 || h <= 0 || !decor.isAttachedToWindow || decor.windowVisibility != View.VISIBLE) {
+            apply.run(); return
+        }
+        val bmp = try {
+            Bitmap.createBitmap(w / SNAP_DIV, h / SNAP_DIV, Bitmap.Config.ARGB_8888)
+        } catch (e: OutOfMemoryError) {
+            apply.run(); return
+        }
+        inPlaceBusy = true
+        val finish = {
+            inPlaceBusy = false
+            queuedApply?.let { q -> queuedApply = null; decor.post { applyInPlace(activity, q) } }
+            Unit
+        }
+        fun go(ok: Boolean) {
+            if (activity.isFinishing || activity.isDestroyed) { bmp.recycle(); inPlaceBusy = false; return }
+            val overlay = if (ok) addOverlay(decor as ViewGroup, activity, bmp) else { bmp.recycle(); null }
+            try {
+                apply.run()
+            } catch (e: Throwable) {
+                overlay?.let { removeOverlay(decor, it) }
+                inPlaceBusy = false
+                throw e
+            }
+            if (overlay == null) { finish(); return }
+            var faded = false
+            val fade = Runnable {
+                if (faded) return@Runnable
+                faded = true
+                overlay.animate().alpha(0f).setDuration(FADE_MS).withEndAction { removeOverlay(decor, overlay); finish() }.start()
+            }
+            // Pencere bu arada gizlenirse ön çizim gelmez; örtü ekranda asılı kalmasın.
+            decor.postDelayed(fade, MAX_OVERLAY_MS)
+            decor.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    if (decor.viewTreeObserver.isAlive) decor.viewTreeObserver.removeOnPreDrawListener(this)
+                    Choreographer.getInstance().postFrameCallback { decor.removeCallbacks(fade); fade.run() }
+                    return true
+                }
+            })
+        }
+        try {
+            PixelCopy.request(activity.window, bmp, { go(it == PixelCopy.SUCCESS) }, Handler(Looper.getMainLooper()))
+        } catch (e: IllegalArgumentException) {
+            bmp.recycle(); inPlaceBusy = false; apply.run()
+        }
+    }
+
+    private const val MAX_OVERLAY_MS = 1_500L
     private const val SNAP_DIV = 2
 
     private fun addOverlay(decor: ViewGroup, activity: Activity, bmp: Bitmap): ImageView {

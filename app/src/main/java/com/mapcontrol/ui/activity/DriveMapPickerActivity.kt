@@ -36,7 +36,7 @@ import com.mapcontrol.util.SplitScreenLauncher
  * Google / Yandex) ve `geo:` açabilen diğer navigasyon uygulamaları büyük kartlar olarak listelenir. Seçim kaydedilir (kartın seçimi ya
  * da "diğer" [DriveMapPrefs]) ve seçilen uygulama bu pencerenin yerinde (aynı sınırlar) açılır, seçici kapanır.
  *
- * Yalnız FrostNav derlemesinde (bölünmüş ekran başlatıcısı burada); serbest pencere başlığı her zaman gizlenir.
+ * Yalnız MapControl derlemesinde (bölünmüş ekran başlatıcısı burada); serbest pencere başlığı her zaman gizlenir.
  */
 class DriveMapPickerActivity : Activity() {
 

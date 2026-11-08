@@ -7,7 +7,7 @@ import com.mapcontrol.nav.GoogleMapsNavSnapshot
 /**
  * Google Haritalar rehberlik bildirimini [NavigationState]'e çevirir (Android'e bağlı değil; JVM'de sınanır).
  *
- * Alan ayrıştırması FrostNav'ın [GoogleMapsNavNotificationParser]'ından gelir (cluster kartları da onu kullanır): alt metin
+ * Alan ayrıştırması MapControl'ın [GoogleMapsNavNotificationParser]'ından gelir (cluster kartları da onu kullanır): alt metin
  * yoksa ya da hiçbir alanda mesafe / süre yoksa rota sayılmaz; ft / mi metreye çevrilir; "TVS:" / "ETA" etiketleri atılır.
  * Bilinen biçimler (araçta ve testlerde görülen):
  *  - başlık "500 ft - Head south-west", metin "Vega AVM - 12:26 ETA", alt metin "1 hr 34 min · 89 mi · 12:26 ETA"
@@ -55,7 +55,7 @@ object GoogleNavParse {
     /**
      * Rehberlik bildirimi mi: Google Haritalar aynı pakette trafik / işe gidiş gibi sayı içeren başka bildirimler de yayımlar;
      * yalnız navigasyon kategorisindeki ya da süren (ongoing / ön plan hizmeti) bildirim rota sayılır
-     * (FrostNav'ın `GoogleMapsNavNotificationCoordinator.score()` ölçütleriyle aynı işaretler).
+     * (MapControl'ın `GoogleMapsNavNotificationCoordinator.score()` ölçütleriyle aynı işaretler).
      */
     fun isGuidanceNotification(category: String?, flags: Int): Boolean =
         category == Notification.CATEGORY_NAVIGATION ||

@@ -12,9 +12,13 @@ import com.google.zxing.WriterException
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.mapcontrol.audio.AudioEqualizerController
+import com.mapcontrol.gps.Wire
 import com.mapcontrol.manager.WebServerHost
 import com.mapcontrol.service.DmsFaceRecognitionManager
 import com.mapcontrol.service.MapControlService
+import com.mapcontrol.trip.PairingUri
+import com.mapcontrol.trip.PhoneAccess
+import com.mapcontrol.trip.TripRecorder
 import com.mapcontrol.ui.activity.MainActivity
 import com.mapcontrol.util.ClusterNavigationState
 import com.mapcontrol.util.SplitScreenLauncher
@@ -26,14 +30,14 @@ import com.mapcontrol.vehicle.ClimateAutomationStore
 import com.mapcontrol.vehicle.SunroofAutomationEngine
 
 /**
- * [FrostNavFeatures]'ın gerçek sürümü: her çağrı FrostNav'ın kendi ayar sekmesinin kullandığı yoldan geçer. FrostNav'sız bir
- * derleme bunun yerine [FrostNavFeatures.NONE] kullanır.
+ * [MapControlFeatures]'ın gerçek sürümü: her çağrı MapControl'ın kendi ayar sekmesinin kullandığı yoldan geçer. MapControl'sız bir
+ * derleme bunun yerine [MapControlFeatures.NONE] kullanır.
  *
- * Web sunucusu: süreç genelindeki tek sahibi [WebServerHost]'tur; FrostNav'ın Aktar sekmesi de aynı örneği kullanır. Durum
- * ondan okunur ve dinlenir, adres FrostNav'ın kendi adres seçiminden ([WebServerHost.currentHost]) gelir; başlat/durdur
- * doğrudan yapılır. Yasal uyarı onaylanmadan (FrostNav hiç kurulmamışken) sunucu açılmaz, FrostNav'a yönlendirilir.
+ * Web sunucusu: süreç genelindeki tek sahibi [WebServerHost]'tur; MapControl'ın Aktar sekmesi de aynı örneği kullanır. Durum
+ * ondan okunur ve dinlenir, adres MapControl'ın kendi adres seçiminden ([WebServerHost.currentHost]) gelir; başlat/durdur
+ * doğrudan yapılır. Yasal uyarı onaylanmadan (MapControl hiç kurulmamışken) sunucu açılmaz, MapControl'a yönlendirilir.
  */
-internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
+internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
 
     private val app = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
@@ -46,9 +50,9 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
 
     override fun readWebPanel(): WebPanelState {
         if (!web.isRunning) return WebPanelState(running = false, url = null, reachable = false)
-        // Adres her okumada güncel (hotspot sunucudan sonra açılmış olabilir); FrostNav'ın gösterdiği adresle aynı seçim.
+        // Adres her okumada güncel (hotspot sunucudan sonra açılmış olabilir); MapControl'ın gösterdiği adresle aynı seçim.
         val host = try { web.currentHost() } catch (e: RuntimeException) { null }
-        return WebPanelState(true, FrostNavWidgetMath.webUrl(host), !FrostNavWidgetMath.isLoopback(host))
+        return WebPanelState(true, MapControlWidgetMath.webUrl(host), !MapControlWidgetMath.isLoopback(host))
     }
 
     override fun setWebPanel(on: Boolean, done: (String?) -> Unit) {
@@ -58,7 +62,7 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
             return
         }
         if (!app.getSharedPreferences(PREFS_MAIN, Context.MODE_PRIVATE).getBoolean(KEY_DISCLAIMER_ACCEPTED, false)) {
-            main.post { done(app.getString(com.mapcontrol.R.string.launcher_fn_web_needs_frostnav)) }
+            main.post { done(app.getString(com.mapcontrol.R.string.launcher_fn_web_needs_mapcontrol)) }
             return
         }
         web.startServer { error ->
@@ -72,6 +76,14 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
         val listener = WebServerHost.StateListener { onChange() }
         host.addStateListener(listener)
         return { host.removeStateListener(listener) }
+    }
+
+    override fun readPairingUri(): String? {
+        if (!web.isRunning) return null
+        val host = try { web.currentHost() } catch (e: RuntimeException) { null }
+        if (MapControlWidgetMath.isLoopback(host)) return null
+        return PairingUri.build(host, MapControlWidgetMath.WEB_PORT, PhoneAccess.token(app),
+            TripRecorder.get(app).vinOrEmpty(), Wire.PORT, PhoneAccess.carId(app))
     }
 
     override fun qr(text: String): QrMatrix? = try {
@@ -136,7 +148,7 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
 
     override fun startSplit(done: (String?) -> Unit) {
         val pair = readSplitPair()
-        if (!FrostNavWidgetMath.splitReady(pair)) {
+        if (!MapControlWidgetMath.splitReady(pair)) {
             main.post { done(app.getString(com.mapcontrol.R.string.split_select_both)) }
             return
         }
@@ -147,7 +159,7 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
     }
 
     override fun startSplitWithMiniDash(done: (String?) -> Unit) {
-        val other = FrostNavWidgetMath.miniDashSplitOther(SplitScreenLauncher.lastOtherApp(app)) { pkg ->
+        val other = MapControlWidgetMath.miniDashSplitOther(SplitScreenLauncher.lastOtherApp(app)) { pkg ->
             try { app.packageManager.getApplicationInfo(pkg, 0); true } catch (e: Exception) { false }
         }
         SplitScreenLauncher.startWithMiniDash(app, other) { result ->
@@ -156,7 +168,7 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
         }
     }
 
-    // --- Sürüş ekranı (Navigasyon kartı; FrostNav'ın aynı bölme başlatıcısı) ---
+    // --- Sürüş ekranı (Navigasyon kartı; MapControl'ın aynı bölme başlatıcısı) ---
 
     override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) {
         val slot = mapPkg ?: com.mapcontrol.util.SplitSlot.mapPicker(app.packageName)
@@ -194,7 +206,7 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
         }
     }
 
-    override fun openTab(activity: Activity, tab: FrostNavTab) {
+    override fun openTab(activity: Activity, tab: MapControlTab) {
         activity.startActivity(
             Intent(activity, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -202,19 +214,19 @@ internal class AppFrostNavFeatures(context: Context) : FrostNavFeatures {
         )
     }
 
-    private fun tabIndex(tab: FrostNavTab): Int = when (tab) {
+    private fun tabIndex(tab: MapControlTab): Int = when (tab) {
         // Web yönetimi ("Aktar"), Yansıtma ve Ses ayarları için MainActivity'de herkese açık sabit yok (tabTitle: 1, 3, 11).
-        FrostNavTab.WEB -> TAB_WEB
-        FrostNavTab.PROJECTION -> TAB_PROJECTION
-        FrostNavTab.EQUALIZER -> TAB_EQUALIZER
-        FrostNavTab.CLIMATE_AUTOMATION -> MainActivity.TAB_CLIMATE_AUTOMATION
-        FrostNavTab.SUNROOF_AUTOMATION -> MainActivity.TAB_SUNROOF_AUTOMATION
-        FrostNavTab.FACE_RECOGNITION -> MainActivity.TAB_FACE_RECOGNITION
-        FrostNavTab.SPLIT_SCREEN -> MainActivity.TAB_SPLIT_SCREEN
+        MapControlTab.WEB -> TAB_WEB
+        MapControlTab.PROJECTION -> TAB_PROJECTION
+        MapControlTab.EQUALIZER -> TAB_EQUALIZER
+        MapControlTab.CLIMATE_AUTOMATION -> MainActivity.TAB_CLIMATE_AUTOMATION
+        MapControlTab.SUNROOF_AUTOMATION -> MainActivity.TAB_SUNROOF_AUTOMATION
+        MapControlTab.FACE_RECOGNITION -> MainActivity.TAB_FACE_RECOGNITION
+        MapControlTab.SPLIT_SCREEN -> MainActivity.TAB_SPLIT_SCREEN
     }
 
     private companion object {
-        const val TAG = "FrostNavWidgets"
+        const val TAG = "MapControlWidgets"
         const val PREFS_MAIN = "MapControlPrefs"
         /** MainActivity'nin yasal uyarı onayı; onaysız web sunucusu açılmaz. */
         const val KEY_DISCLAIMER_ACCEPTED = "disclaimerAccepted"

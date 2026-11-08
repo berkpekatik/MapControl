@@ -96,10 +96,10 @@
     <string name="launcher_air_out" formatted="true">Outside %1$d µg/m³</string>
     <string name="launcher_air_out_poor" formatted="true">Outside %1$d µg/m³ · Poor</string>
     <string name="launcher_air_recirc_hint">Recirculation advised</string>
-    <string name="launcher_open_frostnav">Open FrostNav</string>
-    <string name="launcher_open_frostnav_hint">FrostNav\'s own screens and settings</string>
-    <string name="launcher_open_frostnav_failed">Could not open FrostNav</string>
-    <string name="launcher_app_frostnav" translatable="false">FrostNav</string>
+    <string name="launcher_open_mapcontrol">Open MapControl</string>
+    <string name="launcher_open_mapcontrol_hint">MapControl\'s own screens and settings</string>
+    <string name="launcher_open_mapcontrol_failed">Could not open MapControl</string>
+    <string name="launcher_app_mapcontrol" translatable="false">MapControl</string>
     <string name="launcher_app_phone">Phone</string>
     <string name="launcher_edit_on_screen">Already on screen</string>
     <string name="launcher_trip_since_reset">Since reset</string>
@@ -138,13 +138,13 @@
     <string name="launcher_layout_drive_edit">Drive layout</string>
     <string name="launcher_widget_photo">Photo</string>
     <string name="launcher_photo_add">Add photo</string>
-    <string name="launcher_photo_hint">Upload from the FrostNav panel to Downloads</string>
+    <string name="launcher_photo_hint">Upload from the MapControl panel to Downloads</string>
     <string name="launcher_photo_pick_title">Pick a photo</string>
     <string name="launcher_photo_change">Change photo</string>
     <string name="launcher_photo_remove">Remove photo</string>
     <string name="launcher_photo_refresh">Refresh</string>
     <string name="launcher_photo_loading">Loading…</string>
-    <string name="launcher_photo_none">No photos in Downloads. Upload from the FrostNav panel, then refresh.</string>
+    <string name="launcher_photo_none">No photos in Downloads. Upload from the MapControl panel, then refresh.</string>
     <string name="launcher_photo_permission">Storage permission is needed. Allow it, then refresh.</string>
     <string name="launcher_photo_failed">Could not use this photo</string>
     <string name="launcher_widget_screen_off">Screen off</string>
@@ -200,6 +200,8 @@
     <string name="launcher_bt_disconnect_failed">Couldn\'t disconnect from here</string>
     <string name="launcher_bt_open_phone_app">Open in phone app</string>
     <string name="launcher_bt_settings">Bluetooth settings</string>
+    <string name="launcher_bt_auto_connect">Auto-connect</string>
+    <string name="launcher_bt_auto_connect_hint">Connects to the last phone when the car starts</string>
     <string name="launcher_bt_profile_phone">Phone</string>
     <string name="launcher_bt_profile_audio">Audio</string>
     <string name="launcher_wifi_off">Wi-Fi not connected</string>

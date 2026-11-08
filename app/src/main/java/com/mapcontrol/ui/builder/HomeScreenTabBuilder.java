@@ -92,6 +92,7 @@ public class HomeScreenTabBuilder {
         createBottomBarSection(appearanceGrid);
         createAutoLayoutSection(appearanceGrid);
         createVehicleScreenSection(appearanceGrid);
+        createClimateScaleSection(appearanceGrid);
         createCarColorSection(appearanceGrid);
 
         addSectionTitle(R.string.home_screen_layout_title);
@@ -124,7 +125,7 @@ public class HomeScreenTabBuilder {
         title.setText(titleRes);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
         int pad = UiStyles.dimenPx(context, R.dimen.spacing_medium);
         title.setPadding(pad / 2, pad, pad / 2, pad / 2);
         content.addView(title, new LinearLayout.LayoutParams(
@@ -258,6 +259,21 @@ public class HomeScreenTabBuilder {
                 });
     }
 
+    /** Klima derece hesabı: araca göre yarım ya da tam derece ölçeği; seçim alt çubuğun sonraki okumasında uygulanır. */
+    private void createClimateScaleSection(FeatureGridLayout grid) {
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_climate_scale),
+                context.getString(R.string.home_screen_climate_scale_half),
+                context.getString(R.string.home_screen_climate_scale_whole),
+                context.getString(R.string.home_screen_climate_scale_help_half),
+                context.getString(R.string.home_screen_climate_scale_help_whole),
+                !HomeScreenPrefs.climateWholeDegree(context),
+                half -> {
+                    HomeScreenPrefs.setClimateWholeDegree(context, !half);
+                    callback.log("Klima derece hesabı: " + (half ? "yarım" : "tam"));
+                });
+    }
+
     /** Araç ekranı: Otomatik / Tiggo 7 / Tiggo 8 (sıra {@code HomeScreenPrefs.vehicleProfileIndex}); launcher bir sonraki açılışta yeniden kurulur. */
     private void createVehicleScreenSection(FeatureGridLayout grid) {
         UiStyles.addTernarySegmentedControl(context, createCard(grid),
@@ -287,7 +303,7 @@ public class HomeScreenTabBuilder {
         int hPad = UiStyles.dimenPx(context, R.dimen.spacing_medium);
         TextView title = createText(card, context.getString(R.string.launcher_car_color),
                 R.dimen.text_size_medium, R.color.textPrimary);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
         title.setPadding(hPad, UiStyles.dimenPx(context, R.dimen.spacing_medium), hPad,
                 UiStyles.dimenPx(context, R.dimen.spacing_small));
         float labelSp = context.getResources().getDimension(R.dimen.text_size_small)
@@ -327,7 +343,7 @@ public class HomeScreenTabBuilder {
         LinearLayout editCard = createCard(grid);
         TextView editTitle = createText(editCard, context.getString(R.string.launcher_edit_title),
                 R.dimen.text_size_medium, R.color.textPrimary);
-        editTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        UiStyles.setFontStyle(editTitle, android.graphics.Typeface.BOLD);
         createText(editCard, context.getString(R.string.home_screen_edit_desc),
                 R.dimen.text_size_small, R.color.textHint);
         addButton(editCard, R.string.launcher_edit_title, R.color.accentHighlight,

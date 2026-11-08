@@ -200,13 +200,13 @@
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         </activity>
 
         <!-- Mini gösterge: bölünmüş ekranın bir yarısında (960 x ~610) açılan, boyutu değişebilen ayrı ekran (ana ekran
              bölünemez). Uygulama listesi simgesi aşağıdaki alias'ta (yalnız launcher modunda); serbest pencere (freeform) bölmesinde seçilebilir. Kendi görev
-             ilişkisi (taskAffinity) ana ekranla ve FrostNav'la aynı göreve karışmasın diye. -->
+             ilişkisi (taskAffinity) ana ekranla ve MapControl'la aynı göreve karışmasın diye. -->
         <activity
             android:name="com.mapcontrol.launcher.MiniDashActivity"
             android:exported="true"
@@ -218,7 +218,7 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:theme="@style/Theme.Sahne.DriveHalf" />
 
-        <!-- Mini göstergenin uygulama listesi simgesi: varsayılan KAPALI; yalnız FrostNav launcher modu açıkken
+        <!-- Mini göstergenin uygulama listesi simgesi: varsayılan KAPALI; yalnız MapControl launcher modu açıkken
              LauncherModeManager etkinleştirir (MiniDashEntry). Bölünmüş ekran etkinliği bileşen adıyla açar, simgeye bağlı değil. -->
         <activity-alias
             android:name="com.mapcontrol.launcher.MiniDashLauncherAlias"

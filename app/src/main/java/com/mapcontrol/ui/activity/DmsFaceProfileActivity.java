@@ -232,7 +232,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         titleView.setText(R.string.dms_face_title);
         titleView.setTextColor(textPrimary);
         UiStyles.setTextSize(titleView, R.dimen.text_size_medium);
-        titleView.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(titleView, Typeface.BOLD);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         titleLp.leftMargin = dp(16);
@@ -322,7 +322,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         status = new TextView(this);
         status.setTextColor(textPrimary);
         UiStyles.setTextSize(status, R.dimen.text_size_normal);
-        status.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(status, Typeface.BOLD);
         status.setGravity(Gravity.CENTER);
         status.setPadding(dp(10), dp(10), dp(10), dp(6));
         leftCard.addView(status, new LinearLayout.LayoutParams(
@@ -357,7 +357,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollHeader.setText("Yeni Kişi Tanımla (Maks. 3 Kişi)");
         enrollHeader.setTextColor(textPrimary);
         UiStyles.setTextSize(enrollHeader, R.dimen.text_size_normal);
-        enrollHeader.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(enrollHeader, Typeface.BOLD);
         enrollCard.addView(enrollHeader);
 
         TextView enrollSub = new TextView(this);
@@ -388,7 +388,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         memoryLabel.setText("Koltuk Hafızası Seçin:");
         memoryLabel.setTextColor(textPrimary);
         UiStyles.setTextSize(memoryLabel, R.dimen.text_size_small);
-        memoryLabel.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(memoryLabel, Typeface.BOLD);
         LinearLayout.LayoutParams memLabelLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         memLabelLp.topMargin = dp(10);
@@ -428,7 +428,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollButton.setText(R.string.dms_face_enroll);
         enrollButton.setTextColor(0xFFFFFFFF);
         UiStyles.setTextSize(enrollButton, R.dimen.text_size_normal);
-        enrollButton.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(enrollButton, Typeface.BOLD);
         enrollButton.setAllCaps(false);
         enrollButton.setEnabled(false);
         UiStyles.applySolidRoundedBackgroundDp(enrollButton,
@@ -451,7 +451,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         listHeader.setText("Kayıtlı Profiller");
         listHeader.setTextColor(textPrimary);
         UiStyles.setTextSize(listHeader, R.dimen.text_size_normal);
-        listHeader.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(listHeader, Typeface.BOLD);
         listCard.addView(listHeader);
 
         profilesListContainer = new LinearLayout(this);
@@ -475,7 +475,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         doorCardHeader.setText("Araç Kapısı Üzerinde Hafıza Konumları");
         doorCardHeader.setTextColor(textPrimary);
         UiStyles.setTextSize(doorCardHeader, R.dimen.text_size_normal);
-        doorCardHeader.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(doorCardHeader, Typeface.BOLD);
         doorSlotsCard.addView(doorCardHeader);
 
         TextView doorCardSub = new TextView(this);
@@ -505,7 +505,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             int memNum = i + 1;
             boolean isSelected = (selectedMemory == memNum);
             btn.setTextColor(isSelected ? 0xFFFFFFFF : UiStyles.color(this, R.color.textPrimary));
-            btn.setTypeface(null, isSelected ? Typeface.BOLD : Typeface.NORMAL);
+            UiStyles.setFontStyle(btn, isSelected ? Typeface.BOLD : Typeface.NORMAL);
             UiStyles.applySolidRoundedBackgroundDp(btn, UiStyles.color(this,
                     isSelected ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 10f);
         }
@@ -569,7 +569,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             nameTv.setText((i + 1) + ". " + p.name);
             nameTv.setTextColor(UiStyles.color(this, R.color.textPrimary));
             UiStyles.setTextSize(nameTv, R.dimen.text_size_normal);
-            nameTv.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(nameTv, Typeface.BOLD);
             infoCol.addView(nameTv);
 
             if (seatMemoryAvailable) {
@@ -616,7 +616,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 memBtn.setTextColor(active
                         ? 0xFFFFFFFF
                         : UiStyles.color(this, R.color.textPrimary));
-                memBtn.setTypeface(null, active ? Typeface.BOLD : Typeface.NORMAL);
+                UiStyles.setFontStyle(memBtn, active ? Typeface.BOLD : Typeface.NORMAL);
                 UiStyles.applySolidRoundedBackgroundDp(memBtn, UiStyles.color(this,
                         active ? R.color.buttonPrimary : R.color.buttonSecondaryMuted), 8f);
                 memBtn.setOnClickListener(v -> updateProfileSeatMemory(index, targetMem));
@@ -744,7 +744,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             slotNameTv.setText("Hafıza " + slot);
             slotNameTv.setTextColor(0xFFFFFFFF);
             UiStyles.setTextSize(slotNameTv, R.dimen.text_size_small);
-            slotNameTv.setTypeface(null, Typeface.BOLD);
+            UiStyles.setFontStyle(slotNameTv, Typeface.BOLD);
             textCol.addView(slotNameTv);
 
             TextView slotSummaryTv = new TextView(this);
@@ -789,7 +789,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         statusTv.setText("⏳ Durum: Kapıdaki tuşa basılması bekleniyor...");
         statusTv.setTextColor(0xFF38BDF8);
         UiStyles.setTextSize(statusTv, R.dimen.text_size_small);
-        statusTv.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(statusTv, Typeface.BOLD);
         LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         statusLp.topMargin = dp(14);

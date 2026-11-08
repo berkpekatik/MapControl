@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Text Sizes -->
-    <dimen name="text_size_tiny">18sp</dimen>
-    <dimen name="text_size_small">22.5sp</dimen>
-    <dimen name="text_size_normal">25sp</dimen>
-    <dimen name="text_size_medium">27.5sp</dimen>
-    <dimen name="text_size_large">30sp</dimen>
-    <dimen name="text_size_title">35sp</dimen>
-    <dimen name="text_size_header">37.5sp</dimen>
+    <dimen name="text_size_tiny">15sp</dimen>
+    <dimen name="text_size_small">18sp</dimen>
+    <dimen name="text_size_normal">20sp</dimen>
+    <dimen name="text_size_medium">22sp</dimen>
+    <dimen name="text_size_large">26sp</dimen>
+    <dimen name="text_size_title">30sp</dimen>
+    <dimen name="text_size_header">34sp</dimen>
     
     <!-- Spacing -->
     <dimen name="spacing_tiny">4dp</dimen>
@@ -26,15 +26,15 @@
     <dimen name="card_elevation">6dp</dimen>
 
     <!-- OEM shell / glass -->
-    <dimen name="oem_card_radius">26dp</dimen>
+    <dimen name="oem_card_radius">24dp</dimen>
     <dimen name="cluster_nav_card_radius">20dp</dimen>
-    <dimen name="oem_nav_pill_radius">22dp</dimen>
-    <dimen name="oem_button_radius">14dp</dimen>
+    <dimen name="oem_nav_pill_radius">16dp</dimen>
+    <dimen name="oem_button_radius">16dp</dimen>
     <dimen name="oem_segment_track_radius">16dp</dimen>
     <dimen name="oem_segment_thumb_radius">12dp</dimen>
     <dimen name="oem_content_padding">16dp</dimen>
     <dimen name="oem_card_margin">12dp</dimen>
-    <dimen name="oem_card_inner_padding">18dp</dimen>
+    <dimen name="oem_card_inner_padding">24dp</dimen>
 
     <!-- Sol rail: 10,25" araç ekranı — %10 daraltılmış şerit (~%27–31 ekran), büyük dokunma -->
     <dimen name="rail_min_width">270dp</dimen>

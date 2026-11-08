@@ -93,7 +93,7 @@ final class Camera360Ui {
         TextView tv = new TextView(context);
         tv.setText(textRes);
         tv.setTextSize(11);
-        tv.setTypeface(null, Typeface.BOLD);
+        UiStyles.setFontStyle(tv, Typeface.BOLD);
         tv.setLetterSpacing(0.08f);
         tv.setAllCaps(true);
         tv.setTextColor(themeColor(R.color.textSecondaryCool));
@@ -104,7 +104,7 @@ final class Camera360Ui {
         TextView tv = new TextView(context);
         tv.setTextSize(sizeSp);
         tv.setTextColor(themeColor(colorRes));
-        if (bold) tv.setTypeface(null, Typeface.BOLD);
+        if (bold) UiStyles.setFontStyle(tv, Typeface.BOLD);
         return tv;
     }
 
@@ -267,7 +267,7 @@ final class Camera360Ui {
                     items[i].setBackgroundColor(Color.TRANSPARENT);
                 }
                 items[i].setTextColor(ui.themeColor(on ? R.color.textPrimary : R.color.textSecondary));
-                items[i].setTypeface(null, on ? Typeface.BOLD : Typeface.NORMAL);
+                UiStyles.setFontStyle(items[i], on ? Typeface.BOLD : Typeface.NORMAL);
             }
         }
     }

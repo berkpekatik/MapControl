@@ -35,7 +35,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 🪟 **Bölünmüş ekran** | İki uygulama yan yana |
 | 📲 **Aktar** | Aynı ağdaki telefon/bilgisayardan dosya yükleme ve APK kurma (QR ile erişim) |
 | 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |
-| 📦 **Uygulamalar ve Wi-Fi** | Uygulama yönetimi, ağ tarama ve bağlanma |
+| 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
 | 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
 
