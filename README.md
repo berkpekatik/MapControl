@@ -1,125 +1,106 @@
-# Map Control
+<div align="center">
 
-> **Sorumluluk reddi.** Bu yazılım, aracın ana ünitesinde çalışan deneysel bir Android uygulamasıdır ve olduğu gibi sunulur. Motor veya fren yazılımını doğrudan programlamaz. Ana ünitenin araç arayüzü üzerinden sürüş modunu, sürücü destek ayarlarını, kilidi, koltuk hafızasını, cam tavanı ve klimayı değiştirebilir; ekran, uygulama ve ses gibi Android işlevlerini de yönetir. Bu komutlar aracın davranışını değiştirebilir. Çalışır durumda olma, belirli bir amaca uygunluk veya hasar oluşmayacağı konusunda garanti verilmez. Yazılımın kullanımından doğan araç hasarı, veri kaybı ve diğer zararlardan, yürürlükteki kanunun izin verdiği azami ölçüde, yazar sorumlu değildir. Yazılımı çalıştıran kişi tüm riski kabul eder.
+# MapControl
+
+**Araç ana ünitesi (IVI) için kontrol merkezi.**
+Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, tek uygulamada.
+
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Android%20IVI-3DDC84?logo=android&logoColor=white)
+![Target](https://img.shields.io/badge/Desay%20SV-CarInfo%20%2F%20VDBus-orange)
+![Status](https://img.shields.io/badge/status-experimental-red)
+
+[Özellikler](#-özellikler) · [Kurulum](#-kurulum) · [Sorun bildir](https://github.com/berkpekatik/MapControl/issues)
+
+</div>
+
+> [!WARNING]
+> **Deneysel yazılım.** Sürüş modu, sürücü destek ayarları, kilit, koltuk hafızası, cam tavan ve klimayı araç arayüzü üzerinden değiştirebilir. Garanti yoktur; kullanım riski size aittir. Tam metin: [DISCLAIMER](DISCLAIMER) · Lisans: [Apache 2.0](LICENSE)
 >
-> **Disclaimer.** This software is an experimental Android application that runs on the vehicle head unit and is provided as is. It does not directly program the engine or brake software. Through the head unit's vehicle interface it can change the drive mode, driver-assistance settings, locks, seat memory, the sunroof, and climate control. It also manages Android functions such as the display, apps, and audio. These commands can change how the vehicle behaves. There is no warranty of operability, fitness for a particular purpose, or that no damage will occur. To the maximum extent permitted by applicable law, the author is not liable for vehicle damage, data loss, or other harm arising from use of the software. The person who runs the software accepts all risk.
->
-> Lisans: [Apache License 2.0](LICENSE). Tam metin: [DISCLAIMER](DISCLAIMER).
-
-> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). UI tasarım sistemi ve fiziksel IVI kabul hedefleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
-
- ⚠️ **Bilinen sorunlar / Known issues**
-
- | | |
- |---|---|
- | **🇹🇷 Başlangıçta uygulama açılmıyor** | Araç açılışında servis bazen MapControl’ü otomatik başlatmayabilir. **Geçici çözüm:** Uygulamayı elle açın veya IVI’yi yeniden başlatın. |
- | **🇬🇧 App not launched at startup** | On boot, the background service may fail to open MapControl automatically. **Workaround:** launch the app manually or reboot the IVI. |
- | **🇹🇷 Mikrofon kesintisi** | MapControl yüklüyken sesli asistan / mikrofon kesintisi tespit edildi. **Geçici çözüm:** IVI’yi yeniden başlatın (reset). |
- | **🇬🇧 Microphone dropouts** | Microphone / voice assistant interruptions observed while MapControl is installed. **Workaround:** reboot the IVI (reset). |
- | **🇹🇷 Ses takılması** | Yüksek RAM veya GPU bellek (vRAM) kullanımında müzik / sistem sesinde takılma görülebilir. Launcher modunu kapatmak veya 3D modeli devre dışı bırakmak yardımcı olur. |
- | **🇬🇧 Audio stuttering** | High RAM or GPU memory (vRAM) usage may cause music / system audio stutter. Disabling Launcher mode or the 3D model helps. |
- | **🇹🇷 Yandex → Cluster** | Yandex navigasyon panelleri tam entegre değil; bazı sürümlerde yol bilgisi (manevra, ETA) okunamayabilir veya cluster kartları eksik kalabilir. |
- | **🇬🇧 Yandex → Cluster** | Yandex navigation panels are not fully integrated; route info (maneuvers, ETA) may fail to read or cluster cards may be incomplete on some builds. |
-
- **Sorun mu buldunuz?** Kod hatası, kullanım hatası veya yukarıdakiler dışında bir şey olsun — [GitHub Issues](https://github.com/berkpekatik/MapControl/issues) üzerinden bildirmekten çekinmeyin.  
-**Found a problem?** Whether it’s a bug, usage question, or something not listed above — please don’t hesitate to open a [GitHub Issue](https://github.com/berkpekatik/MapControl/issues).
-
-Araç ana ünitesinde (IVI) çalışan bir kontrol merkezi uygulaması. Desay SV tabanlı sistemlerde hem araçla entegre çalışır hem de aynı ağdaki cihazlardan yönetim sağlar.
-
-Bu proje **eğlence ve kişisel ihtiyaç** amacıyla geliştirilmiştir.
+> *Experimental software for the vehicle head unit, provided "as is" with no warranty. Use at your own risk. See [DISCLAIMER](DISCLAIMER).*
 
 ---
 
-## Özellikler
+## ✨ Özellikler
 
-**Ana sayfa:** Tam ekran launcher. Saat, hava durumu, araç ölçümleri, müzik ve kısayollar. Orta kart Lite paneldir.
-
-**Wi-Fi:** Ağ açma, kapatma, tarama ve bağlanma.
-
-**Uygulamalar:** Yüklü uygulamaları görüntüleme, kurma, güncelleme, açma ve kaldırma.
-
-**Aktar:** Aynı ağdaki telefon veya bilgisayardan, 7462 portundaki sayfa ile dosya yükleme ve APK kurma. QR kod ile adrese erişim.
-
-**Sürüş hafızası:** Seçilen sürüş modu (Eco, Normal, Sport, Snow, Mud, Offroad, Sand) ve kapatılan sürücü yardımları araç açıldığında uygulanır.
-
-**Karşılama:** Araç açılışında karşılama sesi ve ekranı.
-
-**Ses ayarları:** Ekolayzer.
-
-**Otomasyon:** Dış sıcaklığa göre klima, koltuk ısıtma veya havalandırma ve direksiyon ısıtması.
-
-**Cam tavan:** Cam tavanın açılması, perde konumu ve hız veya yağmurda kapanması.
-
-**Yüz tanıma:** DMS kamerası ile sürücüyü tanıma ve kayıtlı koltuk hafızasını uygulama.
-
-**Kamera 360:** Çevre kameralarını izleme ve kayıtları görüntüleme.
-
-**Bölünmüş ekran:** İki uygulamayı yan yana açma.
-
-**Gösterge ekranı:** Navigasyonu gösterge ekranına alma. Yandex ve Google Maps yol bilgisi bu ekranda kart olarak gösterilebilir.
-
-**Araç bilgileri:** Anlık araç ölçümleri.
-
-**Telefon eşleme:** Yolculuk ve araç verisini MapControl telefon uygulamasına vermek için eşleşme anahtarı. Telefon uygulaması şu an yalnızca test kullanıcılarına açıktır.
-
-**Ayarlar:** Açılışta arka planda çalışma, uygulamayı ekranda açma, tema, dil ve tam ekran ana sayfa.
-
-**Yüzen geri tuşu:** Başka bir uygulama öndeyken geri gitmek için sürüklenebilir tuş.
+| | |
+|---|---|
+| 🏠 **Launcher** | Tam ekran ana sayfa: saat, hava durumu, araç ölçümleri, müzik, kısayollar |
+| 🚗 **Sürüş hafızası** | Eco, Normal, Sport, Snow, Mud, Offroad, Sand ve sürücü yardımları araç açılınca otomatik uygulanır |
+| 🙂 **Yüz tanıma** | DMS kamerasıyla sürücüyü tanır, kayıtlı koltuk hafızasını uygular |
+| 🌡️ **Otomasyon** | Dış sıcaklığa göre klima, koltuk ısıtma/havalandırma, direksiyon ısıtması |
+| ☀️ **Cam tavan** | Açma, perde konumu, hızda veya yağmurda otomatik kapanma |
+| 🧭 **Gösterge ekranı** | Navigasyonu cluster'a taşır; Yandex ve Google Maps yol bilgisi kart olarak görünür |
+| 📷 **Kamera 360** | Çevre kameraları ve kayıtlar |
+| 🪟 **Bölünmüş ekran** | İki uygulama yan yana |
+| 📲 **Aktar** | Aynı ağdaki telefon/bilgisayardan dosya yükleme ve APK kurma (QR ile erişim) |
+| 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |
+| 📦 **Uygulamalar ve Wi-Fi** | Uygulama yönetimi, ağ tarama ve bağlanma |
+| 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
+| 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
 
 ---
 
-## Araç entegrasyonu
+## 🚘 Araç entegrasyonu
 
-Desay SV CarInfo / VDBus ile güç modu takibi, cluster ekranı ve sürüş modu otomasyonu yapılır. Araç OFF → STANDBY → ON geçişleri izlenir; açılışta cluster/navigasyon paneli açılabilir, hoşgeldin sesi çalınabilir, kayıtlı sürüş modu ve güvenlik ayarları (ISS, LDW, LDP, FCW, AEB, hız sınırı) uygulanır. Araç kapanırken (ayara göre) navigasyon kapatılır ve isteğe bağlı konum buluta kaydedilir.
+Desay SV **CarInfo / VDBus** üzerinden güç modu (OFF → STANDBY → ON), cluster ekranı ve sürüş modu yönetilir.
 
-### `openClusterDisplay()`
+- **Araç açılırken:** cluster/navigasyon paneli açılır, karşılama sesi çalar, kayıtlı sürüş modu ve güvenlik ayarları (ISS, LDW, LDP, FCW, AEB, hız sınırı) uygulanır.
+- **Araç kapanırken:** ayara göre navigasyon kapatılır, isteğe bağlı konum buluta kaydedilir.
 
-Cluster (araç içi ikinci ekran / navigasyon paneli) ekranını açar. Özet akış:
+<details>
+<summary><b>Cluster akışı: <code>openClusterDisplay()</code> / <code>closeClusterDisplay()</code></b></summary>
 
-1. **Hazırlık mesajı:** Cluster ekranında “Uygulama Hazırlanıyor” metni gösterilir (timeout ~7 saniye).
-2. **Wake-up event:** VDBus üzerinden `NAVIGATION_DISPLAY_TO_CLUSTER` event’i gönderilir; `requestDisplayNaviArea = true` ile panel uyandırılır.
-3. **Display area:** `NAVIGATION_DISPLAY_AREA` ile alan 10 atanır (navigasyon alanı açık).
-4. **Display cluster:** Aynı event tekrar gönderilir; `requestDisplayNaviArea = false` ile panel açık durumda kalır.
-5. **Uygulama başlatma:** Ayarlardan seçilmiş bir uygulama varsa, cluster display ID bulunur (varsayılan olmayan ilk display); uygulama bu ekranda `ActivityOptions.setLaunchDisplayId(clusterDisplayId)` ile başlatılır. Sonrasında hazırlık mesajı gizlenir.
+**Açma**
+1. Cluster'da "Uygulama Hazırlanıyor" mesajı gösterilir (zaman aşımı ~7 sn).
+2. VDBus ile `NAVIGATION_DISPLAY_TO_CLUSTER` gönderilir (`requestDisplayNaviArea = true`), panel uyanır.
+3. `NAVIGATION_DISPLAY_AREA` ile alan `10` atanır.
+4. Aynı event `requestDisplayNaviArea = false` ile tekrarlanır, panel açık kalır.
+5. Seçili uygulama, varsayılan olmayan ilk display'de `ActivityOptions.setLaunchDisplayId()` ile başlatılır.
 
-Cluster display ID, `DisplayManager` üzerinden varsayılan olmayan (genelde ikinci fiziksel ekran) display olarak tespit edilir.
+**Kapatma**
+1. Seçili uygulamanın hangi display'de olduğu kontrol edilir.
+2. `NAVIGATION_DISPLAY_AREA` → `naviDisplayArea = 0`.
+3. `NAVIGATION_DISPLAY_TO_CLUSTER` → `displayCluster = false`, `naviFrontDeskStatus = false`.
+4. Uygulama display 0'a taşınır; `sendBackground == true` ise arka plana gönderilir.
 
-### `closeClusterDisplay()`
-
-Cluster / navigasyon panelini kapatır. Özet akış:
-
-1. **Kontrol (isteğe bağlı):** Seçili uygulama varsa, uygulamanın hangi display’de olduğu kontrol edilir; zaten cluster dışındaysa işlem yapılmayabilir.
-2. **Display area kapatma:** VDBus ile `NAVIGATION_DISPLAY_AREA` event’i `naviDisplayArea = 0` ile gönderilir (alan kapatılır).
-3. **Cluster kapatma:** `NAVIGATION_DISPLAY_TO_CLUSTER` event’i `displayCluster = false`, `naviFrontDeskStatus = false` ile gönderilir; panel kapanır.
-4. **Uygulama taşıma:** Seçili uygulama cluster’da açıksa, varsayılan display’e (0) taşınır. `closeClusterDisplay(boolean sendBackground)` ile `sendBackground == true` ise uygulama ayrıca arka plana gönderilir (öne gelmez).
-
-MainActivity’de manuel aç/kapa butonları ve MapControlService’de araç güç moduna göre otomatik açma/kapama bu metodları kullanır.
+</details>
 
 ---
 
-## Yerel debug build
+## 🛠️ Kurulum
 
-JDK 17, Android SDK Platform 34 ve Android SDK Build-Tools 34.0.0 gereklidir. SDK konumunu `ANDROID_HOME` ile veya `local.properties` içindeki `sdk.dir` alanıyla belirtin.
+**Hazır APK yok**, derleyerek kurulur. Gereksinimler: JDK 17, Android SDK Platform 34, Build-Tools 34.0.0.
 
-Windows PowerShell üzerinde APK ve birim testleri:
-
-```powershell
-java -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain :app:assembleDebug :app:testDebugUnitTest
+```bash
+# local.properties içine: sdk.dir=/yol/Android/sdk   (veya ANDROID_HOME)
+./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-Android Studio üzerinden bir emülatör açtıktan sonra kurulum ve çalıştırma:
+**Araca kurulum:** `local.properties.example` dosyasını `local.properties` olarak kopyalayıp `RELEASE_STORE_PASSWORD` ve `RELEASE_KEY_PASSWORD` değerlerini doldurun, sonra:
 
-```powershell
+```bash
+./install.sh      # release APK'yı derler, adb ile yükler
+./uninstall.sh    # kaldırır
+```
+
+**Emülatörde deneme:** Arayüz açılır, ancak Desay SV servisleri ve fiziksel cluster olmadığı için araç kontrolleri çalışmaz.
+
+```bash
 adb -e install -r app/build/outputs/apk/debug/app-debug.apk
 adb -e shell am start -n com.mapcontrol/.ui.activity.MainActivity
 ```
 
-Debug derlemesi release imzalama anahtarı gerektirmez. Standart Android emülatöründe arayüz açılır; DesaySV araç servisleri ve fiziksel gösterge ekranı bulunmadığı için araç kontrolleri çalışmaz.
+---
 
-## Release imzalı build
-
-İmzalı release APK almak için `local.properties` içinde keystore şifrelerini tanımlamanız gerekir. `local.properties.example` dosyasını `local.properties` olarak kopyalayıp `RELEASE_STORE_PASSWORD` ve `RELEASE_KEY_PASSWORD` değerlerini doldurun.
+Başka bir sorun mu buldunuz? [Issue açın](https://github.com/berkpekatik/MapControl/issues).
 
 ---
 
-*This project is maintained with Cursor and Claude Opus 4.5. Debugging and validation are done by humans.*
+<div align="center">
+
+Eğlence ve kişisel ihtiyaç için geliştirilmiştir · [Apache 2.0](LICENSE)
+
+<sub>Cursor ve Claude ile geliştirilir. Test ve doğrulama insanlar tarafından yapılır.</sub>
+
+</div>
