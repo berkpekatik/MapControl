@@ -37,4 +37,14 @@
     <!-- Medya kartının sağ üst köşesindeki çevirme simgesi (kartın arka yüzü telefon). -->
     <string name="launcher_flip_to_phone">Telefona geç</string>
     <string name="launcher_flip_to_media">Medyaya geç</string>
+    <string name="launcher_sport_dial_change">Kadranı değiştir: %1$s</string>
+    <string name="launcher_sport_helper_edit">Değiştirmek için küçük kadrana uzun bas</string>
+    <string name="launcher_sport_pick_swap">Yer değişir</string>
+    <string name="launcher_sport_pick_title">Kadran</string>
+    <!-- Spor hız kadranının altındaki küçük devir okuması. -->
+    <string name="launcher_sport_rpm">%1$d dev/dk</string>
+    <string name="launcher_sport_summary_avg">Tüketim</string>
+    <string name="launcher_sport_summary_max">Maks</string>
+    <string name="launcher_sport_summary_time">Süre</string>
+    <string name="launcher_sport_summary_title">Sürüş özeti</string>
 </resources>

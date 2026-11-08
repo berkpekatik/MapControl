@@ -63,7 +63,9 @@ class SahneScreen(
             if (field == value) return
             field = value
             stage.locked = value
-            overlays.values.forEach { it.visibility = if (value) View.VISIBLE else View.GONE }
+            // Spor ekranı açıkken düzenleme spor küçük kadranlarında yapılır (yuva örtüleri gizli kalır).
+            overlays.values.forEach { it.visibility = if (value && !sportShown) View.VISIBLE else View.GONE }
+            sport?.setEditing(value && sportShown)
             refreshEmpty()
         }
 
@@ -98,6 +100,7 @@ class SahneScreen(
      * 120 ms'de %97'ye küçülüp geri döner; başka kare işi yok.
      */
     fun flashPanel(type: WidgetType) {
+        if (sportShown) return
         val i = panelIndexOf(type) ?: return
         if (flipAt(i)?.moving == true) return
         val v = panels[i]
@@ -115,19 +118,91 @@ class SahneScreen(
     fun onVisible() {
         started = true
         stage.onVisible()
-        hosted.values.flatten().forEach { it.onVisible() }
+        if (sportShown) sport?.onVisible() else hosted.values.flatten().forEach { it.onVisible() }
     }
 
     fun onHidden() {
         started = false
         stage.onHidden()
-        hosted.values.flatten().forEach { it.onHidden() }
+        if (sportShown) sport?.onHidden() else hosted.values.flatten().forEach { it.onHidden() }
     }
 
     fun release() {
+        stage.onCar = null
+        sport?.release()
         stage.release()
         hosted.values.flatten().forEach { it.release() }
         hosted.clear()
+    }
+
+    // --- Spor modu ---
+
+    /** Spor ekranı (kronograf); ilk kez spor açılınca kurulur, Normal'de hiç yoktur (Sahne aynen kalır). */
+    private var sport: SportStageView? = null
+
+    /** Spor ekranı gösteriliyor mu (orta alanın yerine). */
+    var sportShown = false
+        private set
+
+    /** Spor görünümü (gerekirse kurulur); geçişten önce bitmap'i hazırlamak için. */
+    internal fun sportStage(): SportStageView = sport ?: SportStageView(activity, onCarTap = { stage.openCarDetail() }).also { v ->
+        sport = v
+        v.visibility = View.GONE
+        addView(v)
+        stage.onCar = { parts, windows, sunroof, animate -> v.setCar(parts, windows, sunroof, animate) }
+    }
+
+    /**
+     * Orta alanı spor ekranıyla değiştirir ([on]) ya da geri getirir. Sahne yuvalarındaki widget'lar spor açıkken durur
+     * (araç sahnesi açık kapı bilgisini spor araç modülüne verdiği için çalışmaya devam eder); geri gelince aynen sürer.
+     * Düzenleme modunda spor açılmaz: false (çağıran çubukları da değiştirmez).
+     */
+    fun showSport(on: Boolean, fadeMs: Long = 0L): Boolean {
+        if (on == sportShown) return true
+        if (on && editMode) return false
+        sportShown = on
+        val v = if (on) sportStage() else sport ?: return true
+        val normalViews = listOf<View>(stage) + panels + strip
+        if (fadeMs > 0L) {
+            // Sakin çapraz geçiş (araç giderken): iki görünüm de geçiş boyunca ekranda, yalnız alfa canlanır.
+            val incoming = if (on) listOf<View>(v) else normalViews
+            val outgoing = if (on) normalViews else listOf<View>(v)
+            incoming.forEach { it.animate().cancel(); it.alpha = 0f; it.visibility = View.VISIBLE; it.animate().alpha(restAlpha(it)).setDuration(fadeMs).start() }
+            outgoing.forEach { o ->
+                o.animate().cancel()
+                o.animate().alpha(0f).setDuration(fadeMs).withEndAction {
+                    o.alpha = restAlpha(o)
+                    if (sportShown == on) o.visibility = if (o === v) View.GONE else View.INVISIBLE
+                }.start()
+            }
+        } else {
+            (normalViews + v).forEach { it.animate().cancel(); it.alpha = restAlpha(it) }
+            val normal = if (on) View.INVISIBLE else View.VISIBLE
+            normalViews.forEach { it.visibility = normal }
+            v.visibility = if (on) View.VISIBLE else View.GONE
+        }
+        if (!on) {
+            // Düzenleme sürerken spor kapandıysa düzenleme Sahne yuvalarına döner.
+            v.setEditing(false)
+            if (editMode) overlays.values.forEach { it.visibility = View.VISIBLE }
+        }
+        if (started) {
+            if (on) {
+                hosted.values.flatten().forEach { it.onHidden() }
+                v.onVisible()
+            } else {
+                v.onHidden()
+                hosted.values.flatten().forEach { it.onVisible() }
+            }
+        }
+        return true
+    }
+
+    /** Görünümün dinlenme alfası: boş panel soluk ([refreshEmpty]), diğerleri tam. */
+    private fun restAlpha(v: View): Float {
+        val i = panels.indexOf(v)
+        if (i < 0) return 1f
+        return panelAlpha(i)
     }
 
     /** Panelin dinlenme alfası: yer kaplamayan (kapalı) boş yan 0, boş panel soluk, dolu tam. */
@@ -135,6 +210,16 @@ class SahneScreen(
         !SahneBand.occupies(shown, i, editMode) -> 0f
         SahneSlots.get(shown, SahneSlotRef(SahneSlotKind.PANEL, i)) == null && !editMode -> EMPTY_ALPHA
         else -> 1f
+    }
+
+    /** Spor tamamen kapandıktan sonra: büyük bitmap ve görünüm bırakılır. */
+    fun dropSport() {
+        if (sportShown) return
+        val v = sport ?: return
+        stage.onCar = null
+        v.release()
+        removeView(v)
+        sport = null
     }
 
     /** Park/Sürüş değişti: o modun kayıtlı düzeni kurulur. */
@@ -164,7 +249,7 @@ class SahneScreen(
 
     private fun dropHosted(ref: SahneSlotRef) {
         hosted.remove(ref)?.forEach { w ->
-            if (started) w.onHidden()
+            if (started && !sportShown) w.onHidden()
             w.release()
         }
     }
@@ -198,7 +283,7 @@ class SahneScreen(
         }
         if (widgets.isNotEmpty()) {
             hosted[ref] = widgets
-            if (started) widgets.forEach { it.onVisible() }
+            if (started && !sportShown) widgets.forEach { it.onVisible() }
         }
     }
 
@@ -550,6 +635,7 @@ class SahneScreen(
         panels.forEachIndexed { i, p -> p.measure(exactly(if (SahneBand.occupies(shown, i, editMode)) panelW else 0), exactly(panelH)) }
         stage.measure(exactly(stageW), exactly(bandH + gapV))
         strip.measure(exactly(w), exactly(stripH))
+        sport?.measure(exactly(w), exactly(h))
         overlays.forEach { (ref, o) ->
             if (ref.kind == SahneSlotKind.PANEL) o.measure(exactly(panelW), exactly(panelH))
         }
@@ -575,6 +661,7 @@ class SahneScreen(
         val stageL = stageInset(panelW, gapH)
         stage.layout(stageL, 0, stageL + stage.measuredWidth, bandH + gapV)
         strip.layout(0, h - stripH, w, h)
+        sport?.layout(0, 0, w, h)
         overlays.forEach { (ref, o) ->
             if (ref.kind == SahneSlotKind.PANEL) {
                 val p = panels[ref.index]

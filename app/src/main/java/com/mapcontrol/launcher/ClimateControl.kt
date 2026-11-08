@@ -73,6 +73,18 @@ internal class ClimateControl(
         render()
     }
 
+    /** Spor modu: ince kronograf rakamları, açık metal oklar, fan için küçük yay göstergesi. */
+    private var sportOn = false
+
+    fun setSport(on: Boolean) {
+        if (on == sportOn) return
+        sportOn = on
+        driver.setSport(on)
+        passenger.setSport(on)
+        fan.setSport(on)
+        render()
+    }
+
     /** Ekran gizlenirken: baloncuk ve bekleyen geri dönüş temizlenir. */
     fun onHidden() {
         main.removeCallbacks(revert)
@@ -214,6 +226,12 @@ internal class ClimateControl(
             }
         }
 
+        fun setSport(on: Boolean) {
+            SahneFonts.apply(label, if (on) 300 else 400, if (on) 0.01f else -0.02f, dayBump = false)
+            label.setTextColor(if (on) SportInk.INK else Sahne.NUMERAL)
+            for (i in 1..2) (view.getChildAt(i) as? android.widget.ImageView)?.setTint(if (on) SportInk.ICON else Sahne.CONTROL_ICON)
+        }
+
         fun show(c: Double?) {
             label.setTextSmooth(if (c == null) DASH else styled(c))
             view.contentDescription = context.getString(labelRes) + ", " + (if (c == null) DASH else format(c))
@@ -327,6 +345,14 @@ internal class ClimateControl(
 
         init {
             theme.bind { tint.setColor(TINT_FAN) }
+        }
+
+        fun setSport(on: Boolean) {
+            SahneFonts.apply(number, if (on) 300 else 400, dayBump = false)
+            number.setTextColor(if (on) SportInk.INK else Sahne.NUMERAL)
+            fanIcon?.setTint(if (on) SportInk.ICON else Sahne.ICE)
+            track.sport = on
+            track.layoutParams = track.layoutParams.apply { height = context.dp(if (on) SPORT_TRACK_H_DP else SAHNE_TRACK_H_DP) }
         }
 
         val view: FrameLayout = FrameLayout(context).apply {
@@ -545,7 +571,7 @@ internal class ClimateControl(
         return SpannableStringBuilder(num).append('°').apply {
             setSpan(RelativeSizeSpan(DEGREE_SCALE), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             setSpan(android.text.style.SuperscriptSpan(), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            setSpan(ForegroundColorSpan(LauncherTheme.DOCK_TEXT_SECONDARY), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(ForegroundColorSpan(if (sportOn) SportInk.INK_3 else LauncherTheme.DOCK_TEXT_SECONDARY), num.length, length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
@@ -563,6 +589,8 @@ internal class ClimateControl(
         private const val SAHNE_FAN_ICON_DP = 30
         private const val SAHNE_TRACK_W_DP = 220
         private const val SAHNE_TRACK_H_DP = 8
+        /** Spor: fan kademesi küçük yay göstergesi (aynı genişlik, biraz daha yüksek kutu). */
+        private const val SPORT_TRACK_H_DP = 16
         private const val SAHNE_CHEVRON_DP = 30
         private const val SAHNE_CHEVRON_EDGE_DP = 21
         private const val BUBBLE_SP = 56f
@@ -596,6 +624,36 @@ private class FanTrack(context: android.content.Context) : View(context) {
     private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
     private val rect = android.graphics.RectF()
 
+    /** Spor: düz iz yerine sığ bir yay (gösterge kadranı gibi) ve kırmızı-turuncu dolgu. */
+    var sport = false
+        set(v) { if (field != v) { field = v; invalidate() } }
+    private val arc = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE
+        strokeCap = android.graphics.Paint.Cap.ROUND
+    }
+
+    private fun drawSport(canvas: android.graphics.Canvas) {
+        val sw = context.dpF(4f)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val half = w / 2f - sw
+        val sag = h - sw * 1.5f
+        // Kirişi [half]*2, yüksekliği [sag] olan yay: merkez aşağıda.
+        val r = (half * half + sag * sag) / (2f * sag)
+        val cx = w / 2f
+        val cy = sw + r
+        val sweep = Math.toDegrees(Math.asin((half / r).toDouble())).toFloat() * 2f
+        val start = 270f - sweep / 2f
+        rect.set(cx - r, cy - r, cx + r, cy + r)
+        arc.strokeWidth = sw
+        arc.color = 0x33FFFFFF
+        canvas.drawArc(rect, start, sweep, false, arc)
+        if (fraction > 0f) {
+            arc.color = SportInk.RED
+            canvas.drawArc(rect, start, sweep * fraction, false, arc)
+        }
+    }
+
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
     fun set(f: Float) {
@@ -606,6 +664,7 @@ private class FanTrack(context: android.content.Context) : View(context) {
     }
 
     override fun onDraw(canvas: android.graphics.Canvas) {
+        if (sport) { drawSport(canvas); return }
         val r = height / 2f
         rect.set(0f, 0f, width.toFloat(), height.toFloat())
         paint.color = if (LauncherTheme.night) 0xFF2A2F38.toInt() else 0xFFDAD8D3.toInt()

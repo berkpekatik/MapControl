@@ -135,7 +135,7 @@ class WidgetWritePolicyTest {
         assertFalse(WidgetWritePolicy.gate(true, false))
         val unverified = WidgetWritePolicy.ENTRIES.filter { !it.verified }.map { it.widget }.toSet()
         assertEquals(setOf("ClimateTempDriver", "ClimateTempPassenger", "ClimatePower", "ClimateAc", "ClimateAuto", "ClimateFan",
-            "RearSpeaker", "SteerHeat"), unverified)
+            "RearSpeaker", "SportAmbient", "SteerHeat"), unverified)
         // Park halinde bile geçmez.
         for (e in WidgetWritePolicy.ENTRIES.filter { !it.verified }) {
             val v = WidgetWritePolicy.evaluate(e.module, e.id, e.values.first(), parked)
@@ -143,6 +143,7 @@ class WidgetWritePolicyTest {
             assertEquals("refused-not-verified", WidgetWritePolicy.resultText(v))
         }
         assertFalse(ComfortWriter.rearSpeakerEnabled)
+        assertFalse(SportAmbient.enabled)
         assertFalse(ClimateWriter.enabled(quiet = false))
     }
 

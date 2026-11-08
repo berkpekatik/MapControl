@@ -59,15 +59,23 @@ class HomeLauncherActivity : Activity() {
     private val motionPolicy = DriveLayoutPolicy()
     /** Tercihler her turda SharedPreferences'tan okunmasın diye alanlarda tutulur; onCreate/onStart/ayar değişiminde tazelenir. */
     private var driveAccentOn = true
+    /** "Spor modu (deneysel)" seçeneği; kapalıyken Spor orijinal temada kalır. */
+    private var sportModeOn = false
+    /** Spor geçişinde aracın sürüş modu penceresini kapat (varsayılan açık; [OemDriveDialogCloser]). */
+    private var closeOemDialogOn = true
+    private val oemDialogCloser = OemDriveDialogCloser()
     private var autoLayoutOn = DriveLayoutPrefs.DEFAULT_ON
     /** Son onStop zamanı (0: görünür); dönüşte bayat sürüş durumunu temizlemek için. */
     private var stoppedAt = 0L
     private lateinit var editHelper: android.widget.TextView
     private val driveModePolicy = DriveModePolicy(DRIVE_STABLE_MS)
+    /** Spor modu: sürüş modu Spor ~1 sn kararlı kalınca orta alan ve çubuklar kronograf diline geçer. */
+    private val sportGate = SportGate()
+    private var sport: SportController? = null
     private val driveHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val driveTick = object : Runnable {
         override fun run() {
-            if (started) { driveModeTick(); layoutTick(); welcomeTick() }
+            if (started) { driveModeTick(); sportTick(); layoutTick(); welcomeTick() }
             driveHandler.postDelayed(this, DRIVE_TICK_MS)
         }
     }
@@ -140,6 +148,7 @@ class HomeLauncherActivity : Activity() {
         LauncherEdition.init(applicationContext)
         LauncherInfo.logOnce(this)
         LauncherDemo.applyFrom(this, intent)
+        SportSpeedLog.applyFrom(this, intent)
         // Orta alan kurulmadan önce: düzen deposu ve alt çubuk biçimi etkin araç profiline göre.
         VehicleProfile.resolve(this)
         LauncherDemo.applyPreview(intent, restored = savedInstanceState != null)
@@ -155,6 +164,8 @@ class HomeLauncherActivity : Activity() {
         if (!driveAccentOn) LauncherTheme.driveMode = DriveAccent.NORMAL
         else LauncherDemo.applyDriveMode(intent)?.let { LauncherTheme.driveMode = it }
         driveModePolicy.reset(LauncherTheme.driveMode)
+        // Spor ambiyansı: seçenek açıksa ya da geri yazma bekliyorsa sürüş modunu izler (açılışta bekleyen renk geri yazılır).
+        SportAmbient.sync(this)
         // Tema geçişiyle yeniden kurulunca etkin düzen korunur (statik); otomatik seçenek kapalıysa Park.
         // Seçenek kapalıyken hatırlanan düzen de Park'a çekilir: yeniden açılınca bir an Sürüş düzeni görünmesin.
         if (!autoLayoutOn) rememberedMode = LayoutMode.PARK
@@ -260,6 +271,7 @@ class HomeLauncherActivity : Activity() {
         syncCallWatcher()
         if (savedInstanceState == null) consumeShowCall(intent)
         loadForMode()
+        setupSport()
         setupWelcome(root)
         LauncherStartup.begin(window.decorView)
         ThemeTransition.playIn(this)
@@ -289,6 +301,7 @@ class HomeLauncherActivity : Activity() {
         LauncherDemo.applyDriveMode(intent)
         LauncherDemo.applyMoving(intent)
         LauncherDemo.applyPreview(intent)
+        SportSpeedLog.applyFrom(this, intent)
         // Demo: çalışırken araç profili değişirse (satır sayısı değişir) yeniden kurulur.
         if (LauncherDemo.enabled && intent?.hasExtra(VehicleProfile.EXTRA_PROFILE) == true) {
             VehicleProfile.demoOverride = VehicleProfile.parse(intent.getStringExtra(VehicleProfile.EXTRA_PROFILE))
@@ -387,6 +400,7 @@ class HomeLauncherActivity : Activity() {
         sahne = fresh
         fresh.setMode(activeMode)
         rootLayout?.let { welcome = buildWelcome(it) }
+        sport?.onRebuilt()
         if (keepEdit) {
             fresh.editMode = true
             window.decorView.post { if (!isFinishing && !isDestroyed && editing) settings.show(appearanceOnly = true) }
@@ -429,13 +443,71 @@ class HomeLauncherActivity : Activity() {
         parent.addView(new, i, lp)
     }
 
+    /** Spor denetleyicisi; etkinlik yeniden kurulduysa ve spor açıktıysa geçişsiz geri gelir. */
+    private fun setupSport() {
+        sport?.release()
+        // En yüksek hız ve 0–100 süreç düzeyinde beslenir (ana ekran görünmezken de; yalnız okuma).
+        SportSessionStore.start(this)
+        sport = SportController(this, sahne = { sahne }, header = { header }, bar = { ourBar }, root = { rootLayout },
+            moving = { if (LauncherDemo.enabled) LauncherDemo.moving else observedMoving },
+            inPark = { if (LauncherDemo.enabled) null else observedInPark })
+        val keep = SportController.rememberedSport && sportAllowed() && observedSportMode() == DriveAccent.SPORT
+        sportGate.reset(keep)
+        if (keep) sport?.applyInstant(true) else SportController.rememberedSport = false
+    }
+
+    /** Spor ekranı yalnız "Spor modu (deneysel)" açıksa (varsayılan kapalı); demo zorlaması her zaman geçer. */
+    private fun sportAllowed(): Boolean = sportModeOn || (LauncherDemo.enabled && LauncherDemo.sportForced != null)
+
+    private fun observedSportMode(): Int? = when {
+        LauncherDemo.enabled -> LauncherDemo.sportForced?.let { if (it) DriveAccent.SPORT else DriveAccent.NORMAL } ?: LauncherDemo.driveMode
+        else -> observedDriveMode
+    }
+
+    /** Spor kararı: [SportGate] (~1 sn titreşim süzgeci); düzenleme ya da sayfa açıkken ertelenir. */
+    private fun sportTick() {
+        val ctl = sport ?: return
+        // Spor geçişi başlayacaksa aracın sürüş modu penceresi kapatılır (odak döner, geçiş beklemez). Yalnız gerçek araç
+        // verisinde (demo değil), gözlenen değişim başına en çok bir kez; geçiş ertelenmiyorsa (sportGate ile aynı koşul)
+        // ve pencere odağı bizden almışsa (açılmamışsa kapatılacak bir şey yok, yayın başka OEM pencerelerini kapatmasın).
+        if (LauncherDemo.enabled) oemDialogCloser.reset()
+        else if (oemDialogCloser.update(android.os.SystemClock.elapsedRealtime(), observedDriveMode,
+                sportModeOn && closeOemDialogOn && !editing && sheet == null, ctl.shown, focusLost = !windowFocused,
+                // Sürüş modu widget'ımızın isteği: her mod değişiminde kapatılır (spor ekranından bağımsız).
+                ownRequestAt = DriveModeRequests.lastAt, ownRequests = DriveModeRequests.count, ownAllowed = !editing)) closeOemDriveDialog()
+        val observed = if (sportAllowed()) observedSportMode() else DriveAccent.NORMAL
+        // Süzgeç sayarken durağan çizim şimdiden hazırlanır; mod geri dönerse bırakılır.
+        if (observed == DriveAccent.SPORT && !editing) ctl.prepare() else ctl.idle()
+        // Monoton saat: ana ünitenin saati eşitlenince (araç saati yanlış) süzgeç sıçramasın ya da takılmasın.
+        // Pencere odakta değilken (aracın kendi sürüş modu penceresi üstte) geçiş bekler: iki animasyon üst üste binmez,
+        // pencere kapanıp odak dönünce geçiş başlar.
+        val to = sportGate.update(android.os.SystemClock.elapsedRealtime(), observed, !editing && sheet == null && windowFocused) ?: return
+        ctl.request(to)
+    }
+
+    /**
+     * OEM sürüş modu penceresini kapatır: SystemUI'nin kendi gönderdiği yayınla aynı
+     * (bayraklar 0x20 | 0x01000000 | 0x10000000). Yayın tüm OEM pencerelerini kapatır; çağıran [OemDriveDialogCloser] süzer.
+     */
+    private fun closeOemDriveDialog() {
+        try {
+            sendBroadcast(android.content.Intent(OEM_DIALOG_CLOSE).addFlags(OEM_DIALOG_CLOSE_FLAGS))
+            Log.i(SPORT_TAG, "sürüş modu değişti: OEM penceresi kapatma yayını gönderildi ($OEM_DIALOG_CLOSE)")
+        } catch (e: Exception) {
+            Log.w(SPORT_TAG, "OEM pencere kapatma yayını gönderilemedi: ${e.javaClass.simpleName}")
+        }
+    }
+
     /**
      * Sürüş modu değişimini uygular: gözlenen mod ~2 sn kararlı kalınca vurgu güncellenir ve etkinlik
      * ThemeTransition ile yeniden kurulur (renkler kurulumda okunur). Düzenleme/sayfa açıkken ertelenir.
      */
     private fun driveModeTick() {
         if (!driveAccentOn) return
-        val observed = if (LauncherDemo.enabled) LauncherDemo.driveMode else observedDriveMode
+        val raw = if (LauncherDemo.enabled) LauncherDemo.driveMode else observedDriveMode
+        // Spor kendi ekranıyla gelir ([sportTick]); vurgu için yeniden kurulum (ve ikinci bir geçiş) yapılmaz.
+        // Spor ekranı kapalıysa Spor da diğer modlar gibi yalnız vurgu rengini değiştirir.
+        val observed = if (raw == DriveAccent.SPORT && sportAllowed()) null else raw
         val to = driveModePolicy.update(System.currentTimeMillis(), observed, !editing && sheet == null)
         if (to != null && to != LauncherTheme.driveMode) {
             LauncherTheme.driveMode = to
@@ -465,12 +537,13 @@ class HomeLauncherActivity : Activity() {
     }
 
     /**
-     * Karşılama (§7.4): kontak açılınca (güç modu 1/2) ya da kontak açıkken ilk öne gelişte bir kez.
-     * Demo `launcher_demo_welcome true` beklemeden yeniden oynatır. Düzenlemeye girilirse hemen biter.
+     * Karşılama (§7.4): kontak açılınca (güç modu 1/2) ya da kontak açıkken ilk öne gelişte bir kez; spor açıkken atlanır.
+     * Demo `launcher_demo_welcome true` beklemeden yeniden oynatır. Spor açılırsa ya da düzenlemeye girilirse hemen biter.
      */
     private fun welcomeTick() {
         val w = welcome ?: return
-        if ((w.running || w.prepared) && (editing || sheet != null)) {
+        val sportOn = sport?.shown == true
+        if ((w.running || w.prepared) && (sportOn || editing || sheet != null)) {
             w.finish()
             welcomeArmUntil = 0L
             return
@@ -480,11 +553,11 @@ class HomeLauncherActivity : Activity() {
             LauncherDemo.welcomeRequested = false
             WelcomeCycle.gate.replay()
             welcomeArmUntil = 0L
-            if (WelcomeCycle.gate.update(true, ready = true, sportActive = false)) w.play() else w.finish()
+            if (WelcomeCycle.gate.update(true, ready = true, sportActive = sportOn)) w.play() else w.finish()
             return
         }
         if (w.running) return
-        if (WelcomeCycle.gate.update(observedPowerOn, ready, sportActive = false)) {
+        if (WelcomeCycle.gate.update(observedPowerOn, ready, sportOn)) {
             welcomeArmUntil = 0L
             w.play()
         } else if (w.prepared && (WelcomeCycle.gate.played || android.os.SystemClock.uptimeMillis() > welcomeArmUntil)) {
@@ -527,7 +600,8 @@ class HomeLauncherActivity : Activity() {
         LauncherInfo.mode = to
         notice?.let { showLayoutNotice(it) }
         val apply = { loadForMode() }
-        if (!animate || !started) { apply(); return }
+        // Spor ekranında orta alan aynı kalır (düzen arkada değişir): solma yok.
+        if (!animate || !started || sport?.shown == true) { apply(); return }
         val m = sahne
         m.animate().cancel()
         m.animate().alpha(0f).setDuration(FADE_OUT_MS).withEndAction {
@@ -557,6 +631,7 @@ class HomeLauncherActivity : Activity() {
 
     private fun refreshEditLayoutUi() {
         editHelper.setText(when {
+            ::sahne.isInitialized && sahne.sportShown -> R.string.launcher_sport_helper_edit
             activeMode == LayoutMode.DRIVE -> R.string.launcher_sahne_helper_drive
             else -> R.string.launcher_sahne_helper_park
         })
@@ -610,6 +685,8 @@ class HomeLauncherActivity : Activity() {
     /** Sürüş vurgusu ve otomatik düzen seçeneklerini bir kez okur (ayarlar bunları değiştirince çağrılır). */
     internal fun refreshDrivePrefs() {
         driveAccentOn = DriveAccent.enabled(this)
+        sportModeOn = SportModePrefs.enabled(this)
+        closeOemDialogOn = SportModePrefs.closeOemDialog(this)
         autoLayoutOn = DriveLayoutPrefs.get(this)
     }
 
@@ -679,6 +756,8 @@ class HomeLauncherActivity : Activity() {
         themeDefer = false
         deferredVisible.clear()
         driveHandler.removeCallbacks(driveTick)
+        // Görünmezken geçen mod değişimi dönüşte geç yayın üretmesin (o an açık başka bir OEM penceresini kapatırdı).
+        oemDialogCloser.reset()
         sheet?.dismiss()
         sheet = null
         wifiPanel?.dismiss()
@@ -753,6 +832,7 @@ class HomeLauncherActivity : Activity() {
 
     override fun onDestroy() {
         DriveScreen.detachLauncher(onDriveBackdrop)
+        sport?.release()
         if (::fixedWidgets.isInitialized) fixedWidgets.forEach { it.release() }
         if (::sahne.isInitialized) sahne.release()
         // Ortak örnek: release() çağrılmaz (güneş çatısı vb. dinleyicileri sönerdi), yalnızca kendi dinleyicimiz çıkar.
@@ -778,7 +858,11 @@ class HomeLauncherActivity : Activity() {
         // Wi-Fi paneli reddi de bilmeli (kalıcı retten sonra satırdaki düğme "Ayarları aç"a döner); yarıda kesilen pencere ret sayılmaz.
         if (requestCode == WifiPanel.REQ_LOCATION) { wifiPanel?.onPermissionResult(WifiAccess.onPermissionResult(grantResults)); return }
         val granted = grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (granted && requestCode == PhotoTile.REQ_STORAGE) PhotoTile.pickerRefresh?.invoke()
+        if (!granted) return
+        when (requestCode) {
+            CarSpeedReader.REQ_PERMISSION -> CarSpeedReader.onPermissionResult()
+            PhotoTile.REQ_STORAGE -> PhotoTile.pickerRefresh?.invoke()
+        }
     }
 
     /** Ana ekrandayken geri tuşu yalnızca düzenleme modundan çıkar. */
@@ -791,9 +875,13 @@ class HomeLauncherActivity : Activity() {
         if (editing) exitEditMode()
     }
 
+    /** Etkinlik penceresi odakta mı; aracın sürüş modu penceresi gibi sistem pencereleri açıkken false. */
+    private var windowFocused = true
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideSystemBars()
+        windowFocused = hasFocus
+        if (hasFocus) { hideSystemBars(); sportTick() }
     }
 
     /** Etkin düzeni (Park/Sürüş) Sahne'ye uygular. */
@@ -805,6 +893,9 @@ class HomeLauncherActivity : Activity() {
     private fun enterEditMode() {
         if (editing) return
         if (editLocked()) return
+        // Spor ekranı açıksa düzenleme spor küçük kadranlarında yapılır (uzun basınca seçici); spor kalır. Geçiş sürerken
+        // (karartmada) ise spor geçişsiz kapanır: orta alan Sahne yuvalarının düzenlemesine geçer, çubuklar spor kalmaz.
+        if (sport?.transitioning == true) { sport?.applyInstant(false); sportGate.reset(false) }
         sahne.editMode = true
         refreshEditLayoutUi()
         header.view.visibility = View.INVISIBLE
@@ -914,7 +1005,7 @@ class HomeLauncherActivity : Activity() {
     private fun onPhoneButton() {
         if (editing || isFinishing || isDestroyed) return
         val s = PhoneSource.snapshot()
-        val panelOnScreen = ::sahne.isInitialized && sahne.hasPanel(WidgetType.PHONE)
+        val panelOnScreen = ::sahne.isInitialized && !sahne.sportShown && sahne.hasPanel(WidgetType.PHONE)
         when (PhoneUiLogic.phoneButtonAction(panelOnScreen, s.connected, s.canDial || LauncherDemo.enabled)) {
             // Panel zaten ekranda: dokunuş boşa gitmiş gibi görünmesin (titreşim + panel kısa bir nabız atar).
             PhoneUiLogic.PhoneButtonAction.NONE -> {
@@ -1173,6 +1264,10 @@ class HomeLauncherActivity : Activity() {
         @Volatile var pendingEdit = false
         const val DRIVE_STABLE_MS = 2_000L
         const val DRIVE_TICK_MS = 500L
+        const val OEM_DIALOG_CLOSE = "com.desaysv.systemui.ACTION_DIALOG_CLOSE"
+        /** FLAG_INCLUDE_STOPPED_PACKAGES | FLAG_RECEIVER_INCLUDE_BACKGROUND (gizli API) | FLAG_RECEIVER_FOREGROUND. */
+        const val OEM_DIALOG_CLOSE_FLAGS = 0x00000020 or 0x01000000 or 0x10000000
+        const val SPORT_TAG = "SportMode"
         /** Soğuk açılışta karşılama için güç sinyalinin en çok beklendiği süre (ekran bu sırada siyah). */
         const val WELCOME_ARM_MS = 1_500L
         /** Sürüş ekranı zemininin kalkma süresi (ana ekrana dönüşte kartlar yumuşak belirir). */

@@ -233,4 +233,8 @@
     <string name="launcher_favorite_key_yandex_navi">Yandex Navi</string>
     <string name="launcher_favorite_key_yandex_maps">Yandex Haritalar</string>
     <string name="launcher_favorite_key_missing">%1$s kurulu değil</string>
+    <string name="launcher_sport_mode">Spor modu (deneysel)</string>
+    <string name="launcher_sport_ambient">Spor modunda ambiyans rengi</string>
+    <string name="launcher_sport_ambient_unverified">Spor modunda ambiyans rengi (henüz doğrulanmadı)</string>
+    <string name="launcher_sport_close_oem_dialog">Sürüş modu penceresini kapat</string>
 </resources>

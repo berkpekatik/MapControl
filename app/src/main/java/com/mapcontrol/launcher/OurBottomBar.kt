@@ -63,6 +63,10 @@ class OurBottomBar(
     // --- Klima ---
     private val climateControl = ClimateControl(context, io, main)
 
+    /** Çubuğun düğmeleri ve ayraçları (spor görünümü bunların yüzeyini değiştirir); [view]'dan önce kurulmalı. */
+    private val barButtons = ArrayList<BarButton>()
+    private val barSeps = ArrayList<View>()
+
     override val view: View = sahneBar()
 
     /**
@@ -75,7 +79,7 @@ class OurBottomBar(
         gravity = Gravity.CENTER_VERTICAL
         background = GlassDrawable(context, Sahne.PANEL_RADIUS_DP, control = true)
         setPadding(context.dp(8), 0, context.dp(8), 0)
-        fun sep() = View(context).apply { setBackgroundColor(Sahne.CONTROL_BORDER) }
+        fun sep() = View(context).apply { setBackgroundColor(Sahne.CONTROL_BORDER) }.also { barSeps += it }
         fun sepLp() = LinearLayout.LayoutParams(context.dp(1), context.dp(52)).apply { marginStart = context.dp(10); marginEnd = context.dp(10) }
         fun btnLp(first: Boolean) = LinearLayout.LayoutParams(context.dp(88), context.dp(80)).apply { if (!first) marginStart = context.dp(6) }
         addView(sahneButton(R.drawable.ic_sahne_home_fill, R.string.launcher_bar_home, active = true) { leaveToSystemHome() }, btnLp(true))
@@ -104,7 +108,7 @@ class OurBottomBar(
         onLongClick: (() -> Unit)? = null,
         onClick: () -> Unit,
     ): View =
-        FrameLayout(context).apply {
+        FrameLayout(context).also { barButtons += BarButton(it, active) }.apply {
             val radius = context.dpF(Sahne.SQUARE_RADIUS_DP)
             if (active) {
                 background = android.graphics.drawable.GradientDrawable(
@@ -139,6 +143,52 @@ class OurBottomBar(
         // Neden (bağlı telefon yok vb.) dinleyen panel/şerit varsa onPhoneError ile zaten gösterilir; yoksa tek genel
         // uyarı. Hata bildirimi ana kuyruğa önce girdiği için sonrasında bakılır.
         view.post { if (!PhoneToast.shownWithin(ERROR_TOAST_WINDOW_MS)) PhoneToast.show(context, R.string.launcher_phone_assistant_failed) }
+    }
+
+    // --- Spor modu ---
+
+    private class BarButton(val frame: FrameLayout, val active: Boolean) {
+        val icon: ImageView get() = frame.getChildAt(0) as ImageView
+        var bg: Drawable? = null
+        var elevation = 0f
+        var tint: android.content.res.ColorStateList? = null
+    }
+
+    private var sport = false
+    private var normalBackground: Drawable? = null
+
+    /**
+     * Spor görünümü: tek karbon panel, fırçalanmış metal çerçeve, üst kenarda ince kırmızı dikiş; düğmeler talaşlı metal
+     * çerçeve (tırtıl yalnız ana ekran düğmesinde), sıcaklıklar ince rakamlar, fan küçük yay göstergesi. Yerleşim, dokunma
+     * alanları ve davranış aynı; geri dönüşte kurulumdaki çizimler aynen geri konur.
+     */
+    fun setSport(on: Boolean) {
+        if (on == sport) return
+        sport = on
+        if (on) {
+            normalBackground = view.background
+            view.background = SportPanelDrawable(context, Sahne.PANEL_RADIUS_DP)
+            barButtons.forEach { b ->
+                b.bg = b.frame.background
+                b.elevation = b.frame.elevation
+                b.tint = b.icon.imageTintList
+                b.frame.background = SportKnobDrawable(context, knurled = b.active, insetDp = 5f)
+                b.frame.elevation = 0f
+                b.icon.imageTintList = android.content.res.ColorStateList.valueOf(if (b.active) SportInk.ICON_ACTIVE else SportInk.ICON)
+            }
+            barSeps.forEach { it.setBackgroundColor(0x24FFFFFF) }
+        } else {
+            view.background = normalBackground
+            normalBackground = null
+            barButtons.forEach { b ->
+                b.frame.background = b.bg
+                b.frame.elevation = b.elevation
+                b.icon.imageTintList = b.tint
+                b.bg = null
+            }
+            barSeps.forEach { it.setBackgroundColor(Sahne.CONTROL_BORDER) }
+        }
+        climateControl.setSport(on)
     }
 
     override fun onVisible() {

@@ -129,3 +129,111 @@ class DriveModePolicy(private val stableMs: Long) {
         return observed
     }
 }
+
+/**
+ * "Spor modu (deneysel)": araç Spor'a geçince Sahne'nin kronograf ekranı. Varsayılan KAPALI; kapalıyken Spor da diğer
+ * sürüş modları gibi orijinal temada kalır (sürüş rengi açıksa yalnız vurgu değişir). Profil başına saklanır.
+ */
+object SportModePrefs {
+    private const val PREFS_NAME = "launcher_settings"
+    private const val KEY = "sport_mode_experimental"
+
+    fun enabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(Profiles.key(context, KEY), false)
+
+    fun setEnabled(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(Profiles.key(context, KEY), on).apply()
+    }
+
+    private const val KEY_CLOSE_OEM_DIALOG = "sport_close_oem_drive_dialog"
+
+    /** "Aracın sürüş modu penceresini kapat" ([OemDriveDialogCloser]); varsayılan AÇIK, profil başına. */
+    fun closeOemDialog(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(Profiles.key(context, KEY_CLOSE_OEM_DIALOG), true)
+
+    fun setCloseOemDialog(context: Context, on: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(Profiles.key(context, KEY_CLOSE_OEM_DIALOG), on).apply()
+    }
+}
+
+/**
+ * OEM sürüş modu penceresini kapatma kararı (saf; JVM'de sınanır). Aracın OEM sürüş modu penceresi mod
+ * değişince açılır ve `com.desaysv.systemui.ACTION_DIALOG_CLOSE` yayınını dinleyip kapanır (izinsiz, dinamik alıcı).
+ * Pencere odağı aldığı için spor geçişi ([SportGate]) onun kapanmasını bekler.
+ *
+ * Yayın BÜTÜN OEM pencerelerini kapatır; bu yüzden yalnız gözlenen bir sürüş modu değişiminden sonra, değişim başına en çok
+ * bir kez ve yalnız spor geçişi başlayacaksa: yeni mod Spor, ya da eski mod Spor ve spor ekranı açık (çıkış). İlk gözlem
+ * değişim sayılmaz; veri kesintisi (null) son modu korur. Pencere önce açılabilsin diye değişimden [delayMs] sonra.
+ * Pencere odağı alır: süre dolunca yalnız odak bizden gitmişse (`focusLost`) gönderilir; odak [FOCUS_WAIT_MS] içinde
+ * gitmezse pencere hiç açılmamıştır (OEM bazı durumlarda göstermez) ve yayın düşer. Arka planda geçen değişimler için
+ * yayın olmasın diye çağıran görünmez olunca / demo sürerken [reset] eder (dönüşteki ilk gözlem değişim sayılmaz).
+ *
+ * Bizim sürüş modu widget'ımızın istediği değişim ([ownRequestAt] son istek, [ownRequests] toplam istek sayısı; [OWN_WINDOW_MS]
+ * içinde gözlenen değişimler, istek başına bir) her mod için
+ * kapatılır: spor ekranı ya da "Spor modu (deneysel)" gerekmez, yalnız [ownAllowed] (ör. düzenleme açık değil) sorulur.
+ */
+class OemDriveDialogCloser(private val delayMs: Long = DELAY_MS) {
+    private var last: Int? = null
+    private var dueAt: Long? = null
+    /** Bekleyen yayın bizim isteğimizden mi (kapı [ownAllowed]) yoksa spor geçişinden mi (kapı [allowed]). */
+    private var dueOwn = false
+    /**
+     * Kullanılan istek sayısı: her istek en çok bir değişimi kapatır (aracın geri dönmesi gibi fazladan değişim kapanmaz).
+     * Pencere ([OWN_WINDOW_MS]) dolunca artan istekler de kullanılmış sayılır (birleşen değişimlerden kalan istek sonra
+     * araçtan gelen bir değişimi kapatmasın).
+     */
+    private var usedOwn = 0
+
+    /** true: yayını şimdi gönder (bu değişim için bir daha true dönmez). */
+    fun update(
+        now: Long,
+        mode: Int?,
+        allowed: Boolean,
+        sportShown: Boolean,
+        focusLost: Boolean = true,
+        ownRequestAt: Long? = null,
+        ownRequests: Int = 0,
+        ownAllowed: Boolean = allowed,
+    ): Boolean {
+        val inWindow = ownRequestAt != null && now - ownRequestAt in 0..OWN_WINDOW_MS
+        if (!inWindow) usedOwn = ownRequests
+        if (mode != null) {
+            val prev = last
+            last = mode
+            if (prev != null && prev != mode) {
+                val starts = mode == DriveAccent.SPORT || (prev == DriveAccent.SPORT && sportShown)
+                val own = inWindow && ownRequests > usedOwn
+                if (own) usedOwn++
+                // Yeni değişim önceki bekleyeni geçersiz kılar (değişim başına en çok bir yayın).
+                dueOwn = own && ownAllowed
+                dueAt = if (dueOwn || (allowed && starts)) now + delayMs else null
+            }
+        }
+        val at = dueAt ?: return false
+        if (!(if (dueOwn) ownAllowed else allowed)) { dueAt = null; return false }
+        if (now < at) return false
+        if (!focusLost) {
+            // Odak bizde: pencere (henüz) açık değil. Biraz bekle; açılmazsa kapatılacak bir şey yok.
+            if (now >= at + FOCUS_WAIT_MS) dueAt = null
+            return false
+        }
+        dueAt = null
+        return true
+    }
+
+    /** Son modu ve bekleyeni unutur: sonraki gözlem "ilk gözlem" sayılır (görünmezken/demo sırasında geçen değişim yayın üretmez). */
+    fun reset() {
+        last = null
+        dueAt = null
+        dueOwn = false
+    }
+
+    companion object {
+        /** Mod değişiminden ~300 ms sonra (pencere açılmış olsun). */
+        const val DELAY_MS = 300L
+        /** Süre dolduktan sonra pencerenin odağı almasını bekleme payı. */
+        const val FOCUS_WAIT_MS = 1_500L
+        /** Widget isteğinden sonra aracın modu bu süre içinde değişirse değişim "bizim" sayılır. */
+        const val OWN_WINDOW_MS = 5_000L
+    }
+}

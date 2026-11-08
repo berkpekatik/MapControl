@@ -144,7 +144,9 @@ class HeaderBar(
 
     /** Cam yüzey (kare 22dp köşe, kapsül hap). */
     private fun surface(radiusDp: Float): android.graphics.drawable.Drawable =
-        GlassDrawable(context, radiusDp, shadow = 0.55f, control = true)
+        // Spor: sol düğmelerdeki talaşlı metal çerçevenin hap biçimi (hava ve bağlantı kapsülü aynı dilde).
+        if (sport) SportBezelPillDrawable(context)
+        else GlassDrawable(context, radiusDp, shadow = 0.55f, control = true)
 
     /** Sahne yazı stilleri: ince büyük saat, orta ağırlıkta tarih ve hava (taslak ölçüleri). */
     private fun styleTexts() {
@@ -166,6 +168,7 @@ class HeaderBar(
     private fun fill() {
         leftGroup.removeAllViews()
         rightGroup.removeAllViews()
+        if (sport) { fillSport(); return }
         styleTexts()
 
         if (SHOW_PROFILE_IN_HEADER) {
@@ -184,6 +187,49 @@ class HeaderBar(
         rightGroup.addView(weatherCapsule())
     }
 
+    // --- Spor modu ---
+
+    /** Spor modunda (kronograf dili) mı: düğmeler talaşlı metal çerçeve, saat ince metal plakada, tarih saatin altında. */
+    private var sport = false
+    private val clockPlate = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+    }
+
+    /**
+     * Spor görünümüne geçer ya da geri döner. Yerleşim (sol düğmeler, ortada saat, sağda hava) ve dokunma alanları aynı;
+     * yalnız yüzeyler, yazı ağırlıkları ve renkler değişir, tarih sağ gruptan saatin altına gelir. Geri dönüşte her şey
+     * kurulumdaki haliyle yeniden kurulur.
+     */
+    fun setSport(on: Boolean) {
+        if (sport == on) return
+        sport = on
+        val frame = view as FrameLayout
+        (date.parent as? android.view.ViewGroup)?.removeView(date)
+        if (on) {
+            frame.removeView(time)
+            clockPlate.removeAllViews()
+            clockPlate.addView(time, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            clockPlate.addView(date, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            clockPlate.background = SportPillDrawable(context, 16f, 2f)
+            clockPlate.setPadding(context.dp(34), 0, context.dp(34), context.dp(3))
+            frame.addView(clockPlate, 1, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER))
+        } else {
+            clockPlate.removeAllViews()
+            frame.removeView(clockPlate)
+            frame.addView(time, 1, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            // Tarih sağ gruba ilk kurulumdaki (varsayılan) ölçülerle döner.
+            date.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        weatherBox.removeAllViews()
+        weatherBox.setPadding(0, 0, 0, 0)
+        wifiGlyph.sportInk = if (on) SportInk.ICON else null
+        fill()
+        lastWeather?.let { bindWeather(it) }
+        applyClockVisibility()
+        view.invalidate()
+    }
+
     // --- Arama hapı yerleşimi için konumlar (yalnız okunur; başlığın düzeni değişmez) ---
 
     private val slotLoc = IntArray(2)
@@ -192,8 +238,8 @@ class HeaderBar(
         if (l != ol || r != or) slotListener?.invoke()
     }
 
-    /** Saat ekranda nerede: arama hapı bunun sağına yerleşir. */
-    private fun clockAnchor(): View = time
+    /** Saat (spor modunda saat plakası; saat gizliyse tarihli plaka) ekranda nerede: arama hapı bunun sağına yerleşir. */
+    private fun clockAnchor(): View = if (clockPlate.parent != null) clockPlate else time
 
     /** Saatin sağ kenarı, [relativeTo]'nun sol kenarına göre piksel. Henüz ölçülmediyse null. */
     fun clockRightPx(relativeTo: View): Int? {
@@ -216,13 +262,61 @@ class HeaderBar(
         return x - slotLoc[0]
     }
 
-    /** Saat ya da sağ grup yatayda yer/boy değiştirince (saat yazısı, tarih) [listener] çağrılır; null kaldırır. */
+    /** Saat ya da sağ grup yatayda yer/boy değiştirince (saat yazısı, spor modu, tarih) [listener] çağrılır; null kaldırır. */
     fun setOnClockSlotChanged(listener: (() -> Unit)?) {
         slotListener = listener
-        listOf(view, time, rightGroup).forEach {
+        listOf(view, time, clockPlate, rightGroup).forEach {
             it.removeOnLayoutChangeListener(slotLayoutListener)
             if (listener != null) it.addOnLayoutChangeListener(slotLayoutListener)
         }
+    }
+
+    /** Spor ekranında analog saat kadranı seçili: dijital saat spor modunda gizlenir, tarih kalır. */
+    private var sportClockHidden = false
+
+    fun setSportClockHidden(hidden: Boolean) {
+        if (sportClockHidden == hidden) return
+        sportClockHidden = hidden
+        applyClockVisibility()
+    }
+
+    private fun applyClockVisibility() {
+        val hide = sport && sportClockHidden
+        time.visibility = if (hide) View.GONE else View.VISIBLE
+        if (!sport) return
+        // Yalnız tarih kalınca plaka daralır (yan kapsüllerle aynı boy), tarih ortada biraz büyük ve daha açık; saat varken
+        // tarih saatin altında küçük ve sönük.
+        date.textSize = if (hide) DATE_ONLY_SP else 14f
+        date.setTextColor(if (noticeText != null) SportInk.INK else if (hide) SportInk.INK_2 else SportInk.INK_3)
+        val padH = context.dp(if (hide) DATE_ONLY_PAD_DP else 34)
+        clockPlate.setPadding(padH, 0, padH, if (hide) 0 else context.dp(3))
+        (clockPlate.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+            val h = if (hide) context.dp(LauncherTheme.TOUCH_MIN_DP) else FrameLayout.LayoutParams.MATCH_PARENT
+            if (lp.height != h) {
+                lp.height = h
+                clockPlate.layoutParams = lp
+            }
+        }
+    }
+
+    private fun fillSport() {
+        time.textSize = 34f
+        SahneFonts.apply(time, 300, 0.02f, dayBump = false)
+        time.setTextColor(SportInk.INK)
+        date.textSize = 14f
+        SahneFonts.apply(date, 400, 0.04f, dayBump = false)
+        date.setTextColor(if (noticeText == null) SportInk.INK_3 else SportInk.INK)
+        SahneFonts.apply(weatherTemp, 600, dayBump = false)
+        SahneFonts.apply(weatherLabel, 400, dayBump = false)
+        weatherTemp.setTextColor(SportInk.INK)
+        weatherLabel.setTextColor(SportInk.INK_2)
+        leftGroup.addView(settingsButton())
+        leftGroup.addView(gap(context, 16))
+        leftGroup.addView(connectivityCapsule())
+        leftGroup.addView(gap(context, 16))
+        leftGroup.addView(squareButton(R.drawable.ic_sahne_pen_fill, context.getString(R.string.launcher_edit_title), onEditHome))
+        rightGroup.addView(weatherCapsule())
+        applyClockVisibility()
     }
 
     /** Hava kapsülü: yalnızca hava; veri gelene kadar gizli kalır. Dokunma işi yok, sağ grupta bakılır. */
@@ -262,14 +356,14 @@ class HeaderBar(
         btButton.addView(btImage, LinearLayout.LayoutParams(glyph, glyph))
         chargeBox.addView(chargeImage, LinearLayout.LayoutParams(glyph, glyph))
         chargeImage.setImageResource(R.drawable.ic_sahne_charge_fill)
-        chargeImage.imageTintList = android.content.res.ColorStateList.valueOf(Sahne.HEADER_ICON)
+        chargeImage.imageTintList = android.content.res.ColorStateList.valueOf(if (sport) SportInk.ICON else Sahne.HEADER_ICON)
         val half = { LinearLayout.LayoutParams(context.dp(68), LinearLayout.LayoutParams.MATCH_PARENT) }
         fun divider() = View(context).apply {
-            setBackgroundColor(Sahne.CONTROL_BORDER)
+            setBackgroundColor(if (sport) 0x33FFFFFF else Sahne.CONTROL_BORDER)
             layoutParams = LinearLayout.LayoutParams(context.dp(1), context.dp(28))
         }
         chargeDivider.apply {
-            setBackgroundColor(Sahne.HAIR_2)
+            setBackgroundColor(if (sport) 0x33FFFFFF else Sahne.HAIR_2)
             layoutParams = LinearLayout.LayoutParams(context.dp(1), context.dp(28))
         }
         bindWifi(wifiUi)
@@ -309,6 +403,7 @@ class HeaderBar(
             BtUi.CONNECTED -> R.drawable.ic_mdi_bluetooth_connect
         })
         btImage.imageTintList = android.content.res.ColorStateList.valueOf(when {
+            sport -> if (btUi == BtUi.OFF) (SportInk.ICON and 0x00FFFFFF) or 0xA6000000.toInt() else SportInk.ICON
             btUi == BtUi.OFF -> Sahne.HEADER_ICON_OFF
             else -> Sahne.HEADER_ICON
         })
@@ -391,10 +486,12 @@ class HeaderBar(
     private fun squareButton(@androidx.annotation.DrawableRes res: Int, label: String, onClick: () -> Unit): LinearLayout =
         LinearLayout(context).apply {
             gravity = Gravity.CENTER
-            background = surface(Sahne.SQUARE_RADIUS_DP)
+            background = if (sport) SportKnobDrawable(context, knurled = res == R.drawable.ic_sahne_gear_fill)
+                else surface(Sahne.SQUARE_RADIUS_DP)
             val size = context.dp(LauncherTheme.TOUCH_MIN_DP)
             layoutParams = LinearLayout.LayoutParams(size, size)
-            addView(icon(context, res, 28, Sahne.HEADER_ICON))
+            addView(if (sport) icon(context, res, 26, SportInk.ICON)
+                else icon(context, res, 28, Sahne.HEADER_ICON))
             contentDescription = label
             isClickable = true
             isFocusable = true
@@ -476,7 +573,8 @@ class HeaderBar(
         date.animate().cancel()
         date.animate().alpha(0f).setDuration(ms).withEndAction {
             noticeText = notice
-            date.setTextColor(if (notice == null) Sahne.HEADER_SUB else LauncherTheme.TEXT)
+            date.setTextColor(if (sport) (if (notice == null) SportInk.INK_3 else SportInk.INK)
+                else if (notice == null) Sahne.HEADER_SUB else LauncherTheme.TEXT)
             updateClock()
             date.animate().alpha(1f).setDuration(ms).start()
         }.start()
@@ -521,6 +619,10 @@ class HeaderBar(
         weatherTemp.setTextColor(if (stale) LauncherTheme.TEXT_SECONDARY else LauncherTheme.TEXT)
         weatherIcon.imageTintList = android.content.res.ColorStateList.valueOf(
             Sahne.HEADER_ICON)
+        if (sport) {
+            weatherTemp.setTextColor(if (stale) SportInk.INK_3 else SportInk.INK)
+            weatherIcon.imageTintList = android.content.res.ColorStateList.valueOf(SportInk.ICON)
+        }
         weatherBox.visibility = View.VISIBLE
     }
 }
@@ -534,3 +636,6 @@ private const val SHOW_PROFILE_IN_HEADER = false
 private const val NOTICE_RESTORE_FADE_MS = 250L
 private const val CLUSTER_ICON_DP = 28
 private const val WEB_POLL_MS = 5_000L
+/** Spor plakasında yalnız tarih kalınca (analog saat kadranı seçili): tarih boyu ve plakanın yan dolgusu. */
+private const val DATE_ONLY_SP = 18f
+private const val DATE_ONLY_PAD_DP = 24
