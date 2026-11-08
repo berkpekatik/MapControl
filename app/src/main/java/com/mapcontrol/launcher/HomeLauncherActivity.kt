@@ -105,7 +105,7 @@ class HomeLauncherActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Çökme döngüsü bekçisi: 60 sn içinde iki çökmede uygulama HOME'u aracın launcher'ına geri verir.
+        // Çökme döngüsü bekçisi: 60 sn içinde iki ya da 10 dk içinde üç çökmede uygulama HOME'u aracın launcher'ına geri verir.
         LauncherCrashGuard.onLauncherStart(this)
         if (LauncherCrashGuard.isDebuggable(this) && intent?.getBooleanExtra(LauncherCrashGuard.EXTRA_DEBUG_CRASH, false) == true) {
             throw RuntimeException("launcher_debug_crash (yalnızca debug)")
