@@ -15,6 +15,11 @@ class ClimatePanelPolicyTest {
 
     private fun lock() = ClimatePanelPolicy.Lock()
 
+    @Test fun guardActsOnlyWhileLauncherModeIsOn() {
+        assertTrue(ClimatePanelPolicy.mayAct(true))
+        assertFalse(ClimatePanelPolicy.mayAct(false))
+    }
+
     @Test fun hardwareKeyPopupIsClosed() {
         // Tuşa basış: değer değişti, panel hemen ardından açıldı → kapat.
         val l = lock()

@@ -281,13 +281,18 @@ public class SplitScreenTabBuilder {
                 Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
-            String[] items = new String[rows.size() + 1];
+            // Mini gösterge bir launcher özelliğidir: yalnız FrostNav launcher modu açıkken seçilebilir.
+            boolean mini = com.mapcontrol.util.LauncherModeManager.isEnabled(context);
+            int off = mini ? 1 : 0;
+            String[] items = new String[rows.size() + off];
             List<String> packages = new ArrayList<>();
-            items[0] = context.getString(R.string.launcher_mini_title);
-            packages.add(SplitSlot.miniDash(context.getPackageName()));
+            if (mini) {
+                items[0] = context.getString(R.string.launcher_mini_title);
+                packages.add(SplitSlot.miniDash(context.getPackageName()));
+            }
             for (int i = 0; i < rows.size(); i++) {
                 ProjectionTargetApps.Row r = rows.get(i);
-                items[i + 1] = r.label + " (" + r.packageName + ")";
+                items[i + off] = r.label + " (" + r.packageName + ")";
                 packages.add(r.packageName);
             }
             String title = context.getString(R.string.split_pick_title, slot + 1, rows.size());

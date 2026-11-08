@@ -73,9 +73,11 @@ public final class LauncherModeManager {
             pinHomeAsDeviceOwner(context);
             // Bildirim dinleyicisi zaten bağlıysa telefon önceliği izlemesi hemen başlasın (bağlı değilse yoksayılır).
             com.mapcontrol.media.BtSessionWatcher.start(context);
+            com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.start(context);
         } else {
             clearDeviceOwnerHomePin(context);
             com.mapcontrol.media.BtSessionWatcher.stop();
+            com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.stop();
         }
     }
 
