@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Yeni launcher (com.mapcontrol.launcher) metinleri -->
+<resources>
+    <string name="launcher_settings">Settings</string>
+    <string name="launcher_appearance">Appearance</string>
+    <string name="launcher_degrees" formatted="true">%1$d°</string>
+    <string name="launcher_nav_dialog_cancel">Cancel</string>
+    <string name="launcher_percent" formatted="true">%1$d%%</string>
+    <string name="launcher_locked">Locked</string>
+    <string name="launcher_unlocked">Unlocked</string>
+    <string name="launcher_tires_ok">Normal</string>
+    <string name="launcher_tires_warning">Low tire pressure</string>
+    <string name="launcher_tires_low_wheel">Low tire pressure · %1$s %2$d psi</string>
+    <string name="launcher_tires_warning_short">Tire alert</string>
+    <string name="launcher_app_empty">Add app</string>
+    <string name="launcher_app_pick_title">Choose an app</string>
+    <string name="launcher_widget_lock">Door lock</string>
+    <string name="launcher_drive_eco">Eco</string>
+    <string name="launcher_drive_normal">Normal</string>
+    <string name="launcher_drive_sport">Sport</string>
+    <string name="launcher_drive_snow">Snow</string>
+    <string name="launcher_drive_mud">Mud</string>
+    <string name="launcher_drive_offroad">Off-road</string>
+    <string name="launcher_drive_sand">Sand</string>
+    <string name="launcher_door_lf">Front left</string>
+    <string name="launcher_door_rf">Front right</string>
+    <string name="launcher_door_lr">Rear left</string>
+    <string name="launcher_door_rr">Rear right</string>
+    <string name="launcher_sunroof_part">Sunroof</string>
+    <string name="launcher_trunk">Trunk</string>
+    <string name="launcher_widget_app">App shortcut</string>
+    <string name="launcher_edit">Edit</string>
+    <string name="launcher_edit_title">Edit home screen</string>
+    <string name="launcher_edit_reset_confirm_park">Restore the Park screen to its default?</string>
+    <string name="launcher_edit_reset_confirm_drive">Restore the Drive screen to its default?</string>
+    <string name="launcher_edit_reset_confirm_home">Restore the home screen to its default?</string>
+    <string name="launcher_edit_reset">Default</string>
+    <string name="launcher_edit_done">Done</string>
+    <string name="launcher_edit_remove">Remove</string>
+    <string name="launcher_range_value" formatted="true">%1$d km</string>
+    <string name="launcher_range_label">range</string>
+    <string name="launcher_fuel_short" formatted="true">%1$d%% fuel</string>
+    <string name="launcher_unavailable">—</string>
+    <string name="launcher_theme">Theme</string>
+    <string name="launcher_theme_auto">Auto</string>
+    <string name="launcher_theme_day">Light</string>
+    <string name="launcher_theme_night">Dark</string>
+    <string name="launcher_vehicle_settings">Vehicle settings</string>
+    <string name="launcher_mapcontrol_settings">MapControl settings</string>
+    <string name="launcher_waiting_data">Waiting for car data</string>
+    <string name="launcher_widget_vehicle">Vehicle</string>
+    <string name="launcher_doors_closed">Doors closed</string>
+    <string name="launcher_part_open" formatted="true">%1$s open</string>
+    <string name="launcher_doors_open_count" formatted="true">%1$d open</string>
+    <string name="launcher_windows_open_count" formatted="true">%1$d windows open: %2$s</string>
+    <string name="launcher_close">Close</string>
+    <string name="launcher_widget_consumption">Consumption</string>
+    <string name="launcher_widget_trip">Trip</string>
+    <string name="launcher_widget_health">Car health</string>
+    <string name="launcher_l100_value" formatted="true">%1$s L/100 km</string>
+    <string name="launcher_consumption_idle">Stationary</string>
+    <string name="launcher_app_vehicle_settings">Vehicle settings</string>
+    <string name="launcher_km_value" formatted="true">%1$s km</string>
+    <string name="launcher_kmh_value" formatted="true">%1$d km/h</string>
+    <string name="launcher_fuel_low" formatted="true">Low fuel · %1$d%%</string>
+    <string name="launcher_health_low_fuel">Low fuel</string>
+    <string name="launcher_health_hot">Engine hot</string>
+    <string name="launcher_health_volt_only" formatted="true">%1$s V</string>
+    <string name="launcher_temp_c" formatted="true">%1$d°C</string>
+    <string name="launcher_widget_air">Air quality</string>
+    <string name="launcher_days_value" formatted="true">%1$d days</string>
+    <string name="launcher_air_good">Good</string>
+    <string name="launcher_air_moderate">Moderate</string>
+    <string name="launcher_air_poor">Poor</string>
+    <string name="launcher_air_pm" formatted="true">PM2.5 %1$d µg/m³</string>
+    <string name="launcher_air_in" formatted="true">Inside %1$d µg/m³</string>
+    <string name="launcher_air_out" formatted="true">Outside %1$d µg/m³</string>
+    <string name="launcher_air_out_poor" formatted="true">Outside %1$d µg/m³ · Poor</string>
+    <string name="launcher_air_recirc_hint">Recirculation advised</string>
+    <string name="launcher_open_frostnav">Open FrostNav</string>
+    <string name="launcher_open_frostnav_hint">FrostNav\'s own screens and settings</string>
+    <string name="launcher_open_frostnav_failed">Could not open FrostNav</string>
+    <string name="launcher_app_frostnav" translatable="false">FrostNav</string>
+    <string name="launcher_app_phone">Phone</string>
+    <string name="launcher_edit_on_screen">Already on screen</string>
+    <string name="launcher_trip_since_reset">Since reset</string>
+    <string name="launcher_trip_avg_cons_label">Avg. consumption</string>
+    <string name="launcher_trip_avg_speed_label">Avg. speed</string>
+    <string name="launcher_bottom_bar">Bottom bar</string>
+    <string name="launcher_bottom_bar_original">Original</string>
+    <string name="launcher_bottom_bar_ours">MapControl</string>
+    <string name="launcher_bottom_bar_hidden">Hidden</string>
+    <string name="launcher_bar_home">Home</string>
+    <string name="launcher_bar_apps">Apps</string>
+    <string name="launcher_bar_settings">Settings</string>
+    <string name="launcher_health_row_battery">Battery</string>
+    <string name="launcher_health_all_ok">All normal</string>
+    <string name="launcher_health_battery_low">Battery low</string>
+    <string name="launcher_health_battery_high">Battery high</string>
+    <string name="launcher_health_service_overdue">Service due</string>
+    <string name="launcher_health_service_soon">Service soon</string>
+    <string name="launcher_health_service_in" formatted="true">Service in %1$s</string>
+    <string name="launcher_health_row_service">Until service</string>
+    <string name="launcher_health_row_service_days">Time to service</string>
+    <string name="launcher_detail_outside">Outside</string>
+    <string name="launcher_health_row_engine">Coolant</string>
+    <string name="launcher_coolant_normal">Normal</string>
+    <string name="launcher_layout_park">Park</string>
+    <string name="launcher_layout_drive">Drive</string>
+    <string name="launcher_layout_park_edit">Park layout</string>
+    <string name="launcher_layout_drive_edit">Drive layout</string>
+    <string name="launcher_widget_screen_off">Screen off</string>
+    <string name="launcher_screen_off_label">Dim screen</string>
+    <string name="launcher_screen_off_hint">Tap</string>
+    <string name="launcher_widget_break">Break</string>
+    <string name="launcher_widget_phone">Phone</string>
+    <string name="launcher_widget_clock">Clock</string>
+    <string name="launcher_break_hm" formatted="true">%1$d h %2$d min</string>
+    <string name="launcher_break_m" formatted="true">%1$d min</string>
+    <string name="launcher_break_driving">driving</string>
+    <string name="launcher_break_driving_for" formatted="true">%1$s driving</string>
+    <string name="launcher_break_now">Time for a break</string>
+    <string name="launcher_phone_charging">Phone charging</string>
+    <string name="launcher_phone_pad_empty">Charging pad empty</string>
+    <string name="launcher_phone_on_pad">Phone on pad</string>
+    <string name="launcher_phone_charge_full">Charging complete</string>
+    <string name="launcher_phone_charge_error">Charging error</string>
+    <string name="launcher_phone_pad_off">Wireless charging off</string>
+    <string name="launcher_phone_take">Take your phone</string>
+    <string name="launcher_body_win_lf">Front left window</string>
+    <string name="launcher_body_win_rf">Front right window</string>
+    <string name="launcher_body_win_lr">Rear left window</string>
+    <string name="launcher_body_win_rr">Rear right window</string>
+    <string name="launcher_body_hood">Hood</string>
+    <string name="launcher_body_fuel_cap">Fuel cap</string>
+    <string name="launcher_drive_theme">Drive mode colors</string>
+    <string name="launcher_auto_drive_layout">Separate drive layout</string>
+    <string name="launcher_auto_drive_layout_hint">Shows a separate layout while the car is moving.</string>
+    <string name="launcher_toggle_on">On</string>
+    <string name="launcher_toggle_off">Off</string>
+    <string name="launcher_wifi_connected">Wi-Fi connected</string>
+    <string name="launcher_phone_charging_icon">Phone charging</string>
+    <string name="launcher_bt_off">Bluetooth off</string>
+    <string name="launcher_bt_on">Bluetooth on</string>
+    <string name="launcher_bt_connected">Bluetooth connected</string>
+    <string name="launcher_bt_title">Bluetooth</string>
+    <string name="launcher_bt_off_state">Bluetooth is off</string>
+    <string name="launcher_bt_unavailable">Bluetooth is not available on this device</string>
+    <string name="launcher_bt_switch_locked">Turning Bluetooth on or off needs a system permission here</string>
+    <string name="launcher_bt_no_read">Paired devices can\'t be read here. Open Bluetooth settings.</string>
+    <string name="launcher_bt_paired">Paired devices</string>
+    <string name="launcher_bt_none">No paired devices</string>
+    <string name="launcher_bt_connect">Connect</string>
+    <string name="launcher_bt_disconnect">Disconnect</string>
+    <string name="launcher_bt_connecting">Connecting to %1$s…</string>
+    <string name="launcher_bt_disconnecting">Disconnecting %1$s…</string>
+    <string name="launcher_bt_connect_failed">Couldn\'t connect from here</string>
+    <string name="launcher_bt_disconnect_failed">Couldn\'t disconnect from here</string>
+    <string name="launcher_bt_open_phone_app">Open in phone app</string>
+    <string name="launcher_bt_settings">Bluetooth settings</string>
+    <string name="launcher_bt_profile_phone">Phone</string>
+    <string name="launcher_bt_profile_audio">Audio</string>
+    <string name="launcher_wifi_off">Wi-Fi not connected</string>
+    <string name="launcher_wifi_hotspot">Hotspot on</string>
+    <string name="launcher_wifi_title">Wi-Fi</string>
+    <string name="launcher_wifi_off_state">Wi-Fi is off</string>
+    <string name="launcher_wifi_disconnect">Disconnect</string>
+    <string name="launcher_wifi_networks">Networks</string>
+    <string name="launcher_wifi_scanning">Scanning…</string>
+    <string name="launcher_wifi_none">No networks found</string>
+    <string name="launcher_wifi_need_location">Location permission is needed to see networks</string>
+    <string name="launcher_wifi_grant">Allow</string>
+    <string name="launcher_wifi_location_off">Location is off. Turn it on to see networks</string>
+    <string name="launcher_wifi_location_settings">Turn on</string>
+    <string name="launcher_wifi_open_settings">Open settings</string>
+    <string name="launcher_wifi_permission_denied">Location permission was not granted</string>
+    <string name="launcher_wifi_settings">Wi-Fi settings</string>
+    <string name="launcher_wifi_park_for_password">Stop the car to enter a password</string>
+    <string name="launcher_wifi_password_title">Wi-Fi password</string>
+    <string name="launcher_wifi_password_hint">Password</string>
+    <string name="launcher_wifi_show_password">Show password</string>
+    <string name="launcher_wifi_connect">Connect</string>
+    <string name="launcher_wifi_connecting">Connecting to %1$s…</string>
+    <string name="launcher_wifi_connect_failed">Could not connect</string>
+    <string name="launcher_wifi_list_in_settings">Open Wi-Fi settings to see networks</string>
+    <string name="launcher_consumption_recent">Recent</string>
+    <string name="launcher_screen_off_title">Screen</string>
+    <string name="launcher_screen_off_action">Dim</string>
+    <string name="launcher_favorite_key">Favorite key (steering wheel)</string>
+    <string name="launcher_favorite_key_off">Off</string>
+    <string name="launcher_favorite_key_yandex_navi">Yandex Navi</string>
+    <string name="launcher_favorite_key_yandex_maps">Yandex Maps</string>
+    <string name="launcher_favorite_key_missing">%1$s is not installed</string>
+</resources>

@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 
 import com.mapcontrol.util.BootSession;
+import com.mapcontrol.util.LauncherModeManager;
 
 /**
  * Sistem açılışında {@link MapControlService} başlatır.
@@ -36,6 +37,9 @@ public class BootReceiver extends BroadcastReceiver {
         }
 
         Context app = context.getApplicationContext();
+        // Açılışta da launcher modunu geri kur (alias + cihaz sahibi HOME sabitlemesi); otomatik
+        // başlatma kapalı olsa bile çalışır.
+        LauncherModeManager.restoreIfEnabled(app);
         SharedPreferences prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         if (!prefs.getBoolean(KEY_BOOT_AUTO_START, true)) {
             return;

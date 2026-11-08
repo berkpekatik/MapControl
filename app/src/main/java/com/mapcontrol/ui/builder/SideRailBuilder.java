@@ -41,13 +41,13 @@ public class SideRailBuilder {
     private static final int TAB_SETTINGS = 7;
     private static final int TAB_WELCOME_SOUND = 8;
     private static final int TAB_VEHICLE_INFO = 9;
-    private static final int TAB_LAUNCHER = 10;
     private static final int TAB_EQUALIZER = 11;
     private static final int TAB_CLIMATE_AUTOMATION = 12;
     private static final int TAB_FACE_RECOGNITION = 13;
     private static final int TAB_CAMERA_360 = 14;
     private static final int TAB_SPLIT_SCREEN = 15;
     private static final int TAB_SUNROOF_AUTOMATION = 16;
+    private static final int TAB_HOME_SCREEN = 17;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -66,12 +66,12 @@ public class SideRailBuilder {
     private LinearLayout menuClimateAutomation;
     private LinearLayout menuFaceRecognition;
     private LinearLayout menuSunroofAutomation;
+    private LinearLayout menuHomeScreen;
     private LinearLayout menuVehicleInfo;
     private LinearLayout menuSplitScreen;
     private LinearLayout sideRail;
     private View statusWidgets;
     private LinearLayout selectedMenuRow;
-    private boolean launcherModeActive;
     private boolean contentWide;
     private View btnHome;
     private AppCompatImageView btnHomeIcon;
@@ -136,6 +136,7 @@ public class SideRailBuilder {
         menuSplitScreen = createRailMenuItemView(R.drawable.ic_mdi_view_split,
                 t(R.string.side_rail_split_screen));
         menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
+        menuHomeScreen = createRailMenuItemView(R.drawable.ic_mdi_view_grid, t(R.string.side_rail_home_screen));
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
@@ -153,6 +154,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
+        menuContainer.addView(menuHomeScreen);
 
         float density = context.getResources().getDisplayMetrics().density;
         updateRailBottomInset();
@@ -214,6 +216,7 @@ public class SideRailBuilder {
         menuSplitScreen = createPortraitRailItem(R.drawable.ic_mdi_view_split,
                 t(R.string.side_rail_split_screen));
         menuSettings = createPortraitRailItem(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
+        menuHomeScreen = createPortraitRailItem(R.drawable.ic_mdi_view_grid, t(R.string.side_rail_home_screen));
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
@@ -231,6 +234,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
+        menuContainer.addView(menuHomeScreen);
 
         // Let the final destination travel all the way to the left edge.
         menuContainer.setPaddingRelative(0, 0,
@@ -247,13 +251,6 @@ public class SideRailBuilder {
         updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
         return sideRail;
-    }
-
-    /** Launcher shortcuts use the same upstream disclaimer and navigation as the rail. */
-    public boolean openCameraOrSplitScreen(int tabIndex) {
-        if (tabIndex == TAB_CAMERA_360 && menuCamera360 != null) return menuCamera360.performClick();
-        if (tabIndex == TAB_SPLIT_SCREEN && menuSplitScreen != null) return menuSplitScreen.performClick();
-        return false;
     }
 
     private void bindMenuClicks() {
@@ -316,6 +313,11 @@ public class SideRailBuilder {
                     updateMenuSelection(menuClimateAutomation);
                 }));
 
+        menuHomeScreen.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_HOME_SCREEN, t(R.string.side_rail_home_screen));
+            updateMenuSelection(menuHomeScreen);
+        });
+
         menuSunroofAutomation.setOnClickListener(v -> {
             callback.onTabSelected(TAB_SUNROOF_AUTOMATION, t(R.string.side_rail_sunroof_automation));
             updateMenuSelection(menuSunroofAutomation);
@@ -346,17 +348,6 @@ public class SideRailBuilder {
                 }));
     }
 
-    /**
-     * Launcher modu aktifken sol menüyü tamamen gizler; kapalıyken normal görünüme döner.
-     */
-    public void setLauncherModeActive(boolean active) {
-        launcherModeActive = active;
-        applyRailVisibility();
-        updateDockHomeButton(active);
-        applyDockPanelTheme();
-        updateGoldenDockSelection(active ? TAB_LAUNCHER : currentDockSelection);
-    }
-
     /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
     public void setContentWide(boolean wide) {
         contentWide = wide;
@@ -364,7 +355,7 @@ public class SideRailBuilder {
     }
 
     public boolean isRailHidden() {
-        return launcherModeActive || contentWide;
+        return contentWide;
     }
 
     private void applyRailVisibility() {
@@ -374,10 +365,6 @@ public class SideRailBuilder {
         if (goldenDockLayout != null) {
             goldenDockLayout.setVisibility(contentWide ? View.GONE : View.VISIBLE);
         }
-    }
-
-    public boolean isLauncherModeActive() {
-        return launcherModeActive;
     }
 
     /** Light/dark değişiminde rail arka planı ve seçim renklerini yeniler (Activity recreate yok). */
@@ -436,8 +423,8 @@ public class SideRailBuilder {
         row.setPadding(padH, padV, padH, padV);
 
         btnHome = createDockActionItem(
-                launcherModeActive ? R.drawable.ic_mdi_view_grid : R.drawable.ic_mdi_home,
-                launcherModeActive ? t(R.string.dock_menu) : t(R.string.dock_home),
+                R.drawable.ic_mdi_home,
+                t(R.string.dock_home),
                 v -> {
                     if (callback != null) callback.onHomeRequested();
                 });
@@ -474,7 +461,7 @@ public class SideRailBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        updateGoldenDockSelection(currentDockSelection >= 0 ? currentDockSelection : (launcherModeActive ? TAB_LAUNCHER : 0));
+        updateGoldenDockSelection(currentDockSelection >= 0 ? currentDockSelection : 0);
         return goldenDockLayout;
     }
 
@@ -483,15 +470,6 @@ public class SideRailBuilder {
             buildGoldenDock();
         }
         return goldenDockLayout;
-    }
-
-    public void updateDockHomeButton(boolean isLauncher) {
-        if (btnHomeIcon != null) {
-            btnHomeIcon.setImageResource(isLauncher ? R.drawable.ic_mdi_view_grid : R.drawable.ic_mdi_home);
-        }
-        if (btnHomeLabel != null) {
-            btnHomeLabel.setText(isLauncher ? t(R.string.dock_menu) : t(R.string.dock_home));
-        }
     }
 
     private View createDockActionItem(int iconRes, String label, View.OnClickListener onClickListener) {
@@ -554,9 +532,8 @@ public class SideRailBuilder {
 
         for (int i = 0; i < goldenDockItems.size(); i++) {
             View item = goldenDockItems.get(i);
-            boolean isActive = (i == 0 && tabIndex == TAB_LAUNCHER)
-                    || (i == 2 && tabIndex == TAB_DRIVE_MODE)
-                    || (i == 3 && tabIndex == TAB_SETTINGS);
+            boolean isActive = (i == 2 && tabIndex == TAB_DRIVE_MODE)
+                    || (i == 3 && (tabIndex == TAB_SETTINGS || tabIndex == TAB_HOME_SCREEN));
 
             int mode = prefs.getInt("driveModeSetting", -1);
             boolean themedMemory = i == 2 && com.mapcontrol.vehicle.DriveModeStyle.isThemed(mode);
@@ -589,13 +566,9 @@ public class SideRailBuilder {
 
     private void applyDockPanelTheme() {
         if (goldenDockLayout == null) return;
-        if (launcherModeActive) {
-            UiStyles.setGlassCardBackground(goldenDockLayout);
-        } else {
-            UiStyles.setRailPanelBackground(goldenDockLayout);
-        }
+        UiStyles.setRailPanelBackground(goldenDockLayout);
         if (goldenDockDivider != null) {
-            goldenDockDivider.setVisibility(launcherModeActive ? View.GONE : View.VISIBLE);
+            goldenDockDivider.setVisibility(View.VISIBLE);
         }
     }
 
@@ -658,6 +631,9 @@ public class SideRailBuilder {
                 break;
             case TAB_SPLIT_SCREEN:
                 updateMenuSelection(menuSplitScreen);
+                break;
+            case TAB_HOME_SCREEN:
+                updateMenuSelection(menuHomeScreen);
                 break;
             default:
                 break;
@@ -801,7 +777,7 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen, menuHomeScreen
         };
     }
 

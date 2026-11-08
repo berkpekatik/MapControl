@@ -67,6 +67,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_UPDATES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
     
     <!-- Package uninstall permissions -->
@@ -90,6 +91,7 @@
         <package android:name="com.desaysv.engmode" />
         <package android:name="ru.yandex.yandexmaps" />
         <package android:name="ru.yandex.yandexnavi" />
+        <package android:name="com.google.android.apps.maps" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -133,11 +135,11 @@
 
         <!-- Araç Launcher Modu: varsayılan olarak KAPALI (enabled=false). Ayarlar > Araç Launcher
              Modu açıldığında LauncherModeManager bu bileşeni etkinleştirir; böylece MapControl,
-             cihazın Ana Ekran (HOME) uygulaması olarak seçilebilir hale gelir. MainActivity'yi
-             hedefler; ayrı bir Activity sınıfı gerekmez, mevcut ekran akışı değişmez. -->
+             cihazın Ana Ekran (HOME) uygulaması olarak seçilebilir hale gelir. Hedef: yeni launcher
+             (HomeLauncherActivity). Alias adı, mevcut kullanıcı tercihleri bozulmasın diye korunur. -->
         <activity-alias
             android:name=".ui.activity.MainActivityHomeAlias"
-            android:targetActivity=".ui.activity.MainActivity"
+            android:targetActivity=".launcher.HomeLauncherActivity"
             android:enabled="false"
             android:exported="true"
             android:label="MapControl (Ana Ekran)"
@@ -164,7 +166,32 @@
             android:name=".ui.activity.ClusterVDBusTestActivity"
             android:label="Cluster / VDBus bench"
             android:screenOrientation="landscape" />
-        
+
+        <!-- Ekranı karart: tam siyah, en düşük parlaklık; dokununca kapanır (launcher kutucuğu açar). -->
+        <activity
+            android:name=".launcher.ScreenOffActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+        <!-- Yeni launcher (Kotlin). HOME rolü yalnızca MainActivityHomeAlias üzerinden (Launcher Modu anahtarı); uygulama listesinde ayrı simgesi yoktur. -->
+        <activity
+            android:name=".launcher.HomeLauncherActivity"
+            android:exported="true"
+            android:label="Ana Ekran"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.mapcontrol.home"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        </activity>
+
+
         <!-- FileProvider for APK installation -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -189,6 +216,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Uygulama güncellenince Launcher Modu'nu (HOME alias + cihaz sahibi sabitlemesi) geri kurar. -->
+        <receiver
+            android:name=".service.PackageReplacedReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <!-- adb kurulumundan once kamerayi kapatir. DUMP: yalnizca adb shell gonderebilir. -->
         <receiver
             android:name=".dvr.InstallPrepareReceiver"

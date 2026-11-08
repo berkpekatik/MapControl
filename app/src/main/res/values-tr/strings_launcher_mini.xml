@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mini gösterge (bölünmüş ekranın bir yarısı, MiniDashActivity). -->
+<resources>
+    <string name="launcher_mini_alert_tire">Lastik basıncı düşük</string>
+    <string name="launcher_mini_alert_tire_psi" formatted="true">Lastik düşük %1$d psi</string>
+    <string name="launcher_mini_alert_fuel">Yakıt az</string>
+    <string name="launcher_mini_alert_service">Bakım yaklaştı</string>
+    <string name="launcher_mini_alert_service_km" formatted="true">Bakıma %1$d km</string>
+    <string name="launcher_mini_alert_service_overdue">Bakım zamanı geçti</string>
+</resources>

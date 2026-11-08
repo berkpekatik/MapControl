@@ -76,6 +76,12 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        // Launcher modunda Ana ekran tuşu: FrostNav'ın kendi ekranlarında ya da sürüş ekranında basıldıysa bizim ana ekranımıza
+        // döner; başka uygulamalarda ve bizim ana ekranımızda araç kendi ana ekranına çıkar (HomePolicy; mod kapalıyken hiçbir şey).
+        if (event != null && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            com.mapcontrol.launcher.HomeKey.onWindowStateChanged(
+                    this, event.getPackageName(), event.getClassName(), event.getWindowId());
+        }
         maybeScrapeYandexNav(event);
         InstallerConfirmClicker.onWindowEvent(this, event);
     }
@@ -89,6 +95,8 @@ public class GlobalBackService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        // Ana ekran tuşu kuralı öndeki uygulamayı varsaymaz, şu an öndekini okur (HomePolicy).
+        com.mapcontrol.launcher.HomeKey.onServiceConnected(this);
         if (YandexClusterNavOverlay.isEnabled(this)) {
             ensureYandexPoll();
             requestScrape();
@@ -97,6 +105,7 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
+        com.mapcontrol.launcher.HomeKey.onServiceDisconnected(this);
         InstallerConfirmClicker.disarm();
         stopYandexPoll();
         yandexStability.clear();

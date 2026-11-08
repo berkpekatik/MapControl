@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_consumption_takeoff">Düşük hız</string>
+    <string name="launcher_consumption_low_speed">20 km/sa üstünde ölçülür</string>
+    <string name="launcher_consumption_over_cap">30+</string>
+    <string name="launcher_l100_unit">L/100 km</string>
+</resources>

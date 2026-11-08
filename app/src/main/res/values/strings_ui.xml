@@ -14,7 +14,6 @@
 
     <!-- Zone 1: Golden Dock -->
     <string name="dock_home">Home</string>
-    <string name="dock_menu">Menu</string>
     <string name="dock_back">Back</string>
     <string name="dock_drive_memory">Memory</string>
     <string name="dock_settings">Settings</string>
@@ -60,22 +59,14 @@
     <string name="settings_changelog_load_error">Error loading release notes: %1$s</string>
     <string name="settings_changelog_version_prefix">Version </string>
     <string name="settings_launcher_mode_title">Full-screen home</string>
-    <string name="settings_launcher_mode_desc">Show the clock, vehicle information, music and shortcuts in large cards.</string>
-    <string name="settings_launcher_mode_help_on">Use the home screen with large cards.</string>
-    <string name="settings_launcher_mode_help_off">Use the screen with a side menu.</string>
+    <string name="settings_launcher_mode_desc">When enabled, the Home button opens MapControl\'s widget home screen (vehicle info, music, climate, seats, apps; Park and Drive layouts). When disabled, the car\'s own home screen returns.</string>
+    <string name="settings_launcher_mode_help_on">Widget home screen on.</string>
+    <string name="settings_launcher_mode_help_off">The car\'s own home screen.</string>
     <string name="settings_launcher_home_link">Change default home app in system settings</string>
-    <string name="settings_vehicle_image_title">Vehicle image</string>
-    <string name="settings_vehicle_image_desc">Choose the vehicle image for the home screen.</string>
-    <string name="settings_vehicle_image_pick">Choose vehicle image</string>
-    <string name="settings_vehicle_selected">Selected: %1$s</string>
-    <string name="settings_vehicle_auto_detect">Automatic: %1$s</string>
-    <string name="settings_vehicle_auto_no_pkg">No vehicle image found. You can choose one from the list.</string>
-    <string name="settings_vehicle_no_selection">Choose a vehicle image from the list.</string>
     <string name="topbar_wifi_management">Wi-Fi</string>
     <string name="topbar_app_management">Apps</string>
     <string name="topbar_system_logs">System logs</string>
     <string name="topbar_apps">Apps</string>
-    <string name="topbar_vehicle_home">Vehicle home screen</string>
     <string name="wifi_not_connected">Not connected</string>
     <string name="wifi_turn_on">Turn Wi‑Fi on</string>
     <string name="wifi_turn_off">Turn Wi‑Fi off</string>
@@ -214,8 +205,6 @@
     <string name="splash_preparing_title">Preparing app</string>
     <string name="splash_preparing_sub">Please wait</string>
     <string name="splash_map_waiting">Waiting for map</string>
-    <string name="vehicle_material_eol">EOL</string>
-    <string name="vehicle_material_pick_title">Choose vehicle image</string>
     <string name="camera_test_title">Camera test</string>
     <string name="floating_back_permission_settings">Could not open permission settings: %1$s</string>
     <string name="floating_back_show_failed">Could not show floating button: %1$s</string>
@@ -245,9 +234,6 @@
     <string name="wifi_projection_keep">Keep phone</string>
     <string name="wifi_projection_drop_help">The head-unit hotspot turns off before the Wi-Fi radio changes.</string>
     <string name="wifi_projection_keep_help">The phone stays connected. Some vehicles reject the Wi-Fi change.</string>
-    <string name="vehicle_material_no_packages">No vehicle package installed; only auto detection is available.</string>
-    <string name="vehicle_material_auto_on">Auto detection enabled</string>
-    <string name="vehicle_material_selected">Selected: %1$s</string>
     <string name="log_system_logs">System logs</string>
     <string name="log_camera_test">Camera test</string>
     <string name="log_open_generate">Generate sound</string>
@@ -490,15 +476,6 @@
     <string name="projection_map_key_off_help">The hardware key does nothing for the map.</string>
     <string name="projection_installed_apps">Installed apps (%1$d)</string>
 
-    <string name="launcher_shortcut_wifi">Wi‑Fi</string>
-    <string name="launcher_shortcut_web">Transfer</string>
-    <string name="launcher_shortcut_profile">Profile</string>
-    <string name="launcher_shortcut_projection">Instrument display</string>
-    <string name="launcher_shortcut_apps">Apps</string>
-    <string name="launcher_shortcut_drive">Drive Memory</string>
-    <string name="launcher_shortcut_welcome">Welcome</string>
-    <string name="launcher_shortcut_equalizer">Sound settings</string>
-    <string name="launcher_shortcut_settings">Settings</string>
     <string name="side_rail_equalizer">Sound settings</string>
     <string name="equalizer_title">Equalizer</string>
     <string name="equalizer_desc">Five bands. Boost goes up to 15 dB. A limiter keeps the peaks from crackling.</string>
@@ -631,7 +608,6 @@
     <string name="vehicle_info_more">More measurements ↓</string>
     <string name="vehicle_info_less">Hide other measurements ↑</string>
     <string name="vehicle_info_connection_hint">Waiting for the vehicle. Turn on the ignition and tap Refresh.</string>
-    <string name="launcher_current_drive_mode_unknown">Drive mode · —</string>
     <string name="drive_modes_4x4">4x4 modes</string>
     <string name="drive_mode_clear_selection">Clear selection</string>
     <string name="header_back_home">Return to home</string>
@@ -937,6 +913,7 @@
     <string name="phone_pair_title">Phone pairing key</string>
     <string name="phone_pair_desc">Scan the QR with the MapControl phone app or enter this key. Trips and vehicle data are only sent to a phone that presents it; GPS Link uses the same pairing.</string>
     <string name="phone_pair_regenerate">Generate new key</string>
+    <string name="topbar_vehicle_home">Vehicle home screen</string>
     <!-- GPS Link: phone GPS to the car (receiver runs inside MapControlService) -->
     <string name="gps_link_title">GPS Link (phone location)</string>
     <string name="gps_status_ready">OFF</string>

@@ -30,9 +30,6 @@ import com.mapcontrol.service.BootReceiver;
 import com.mapcontrol.util.AppLocaleManager;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.util.PermissionProbeDialog;
-import com.mapcontrol.vehicle.material.MaterialVehiclePreferences;
-import com.mapcontrol.vehicle.material.MaterialVehicleResources;
-import com.mapcontrol.vehicle.material.VehicleMaterialPickerDialog;
 
 public class SettingsTabBuilder {
     public interface SettingsCallback {
@@ -43,6 +40,8 @@ public class SettingsTabBuilder {
         void onLocaleChanged();
         void onNightModeChanged(int mode);
         default void onHeaderPositionChanged(boolean isBottom) {}
+        /** "Ana ekran ayarları" bağlantısı: FrostNav'ın Ana ekran sekmesini açar. */
+        default void onOpenHomeScreenTab() {}
     }
 
     private final Context context;
@@ -54,7 +53,7 @@ public class SettingsTabBuilder {
     private FloatingBackButtonManager floatingBackButtonManager;
     private UiStyles.BinarySegmentHandle launcherModeSegmentHandle;
     private UiStyles.BinarySegmentHandle languageSegmentHandle;
-    private TextView launcherHomeSettingsLink;
+    private TextView launcherHomeScreenLink;
 
     public SettingsTabBuilder(Context context, SharedPreferences prefs, SettingsCallback callback) {
         this.context = context;
@@ -96,7 +95,6 @@ public class SettingsTabBuilder {
         createBootServiceSection(grid);
         createBootUiSection(grid);
         createLanguageSection(grid);
-        createVehicleModelSection(createSettingsCard(grid));
 
         Button advancedToggle = new Button(context);
         advancedToggle.setText(R.string.ui_advanced_show);
@@ -547,106 +545,21 @@ public class SettingsTabBuilder {
                     updateLauncherHomeSettingsLinkVisibility(enabled);
                 });
 
-        launcherHomeSettingsLink = new TextView(context);
-        launcherHomeSettingsLink.setText(R.string.settings_launcher_home_link);
-        UiStyles.setTextSize(launcherHomeSettingsLink, R.dimen.text_size_small);
-        launcherHomeSettingsLink.setTextColor(UiStyles.color(context, R.color.accentHighlight));
-        launcherHomeSettingsLink.setPadding(16, 4, 16, 16);
-        launcherHomeSettingsLink.setOnClickListener(v -> {
-            LauncherModeManager.logHomeResolutionState(context, callback::log);
-            LauncherModeManager.openHomeChooser(context);
-        });
-        container.addView(launcherHomeSettingsLink, new LinearLayout.LayoutParams(
+        launcherHomeScreenLink = new TextView(context);
+        launcherHomeScreenLink.setText(R.string.settings_home_screen_link);
+        UiStyles.setTextSize(launcherHomeScreenLink, R.dimen.text_size_small);
+        launcherHomeScreenLink.setTextColor(UiStyles.color(context, R.color.accentHighlight));
+        launcherHomeScreenLink.setPadding(16, 4, 16, 16);
+        launcherHomeScreenLink.setOnClickListener(v -> callback.onOpenHomeScreenTab());
+        container.addView(launcherHomeScreenLink, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         updateLauncherHomeSettingsLinkVisibility(launcherModeOn);
     }
 
-    private void createVehicleModelSection(LinearLayout parentContainer) {
-        TextView sectionTitle = new TextView(context);
-        sectionTitle.setText(R.string.settings_vehicle_image_title);
-        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
-        sectionTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        sectionTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        sectionTitle.setPadding(0, 0, 0, 8);
-        parentContainer.addView(sectionTitle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView sectionDesc = new TextView(context);
-        sectionDesc.setText(R.string.settings_vehicle_image_desc);
-        UiStyles.setTextSize(sectionDesc, R.dimen.text_size_small);
-        sectionDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        sectionDesc.setLineSpacing(3, 1.05f);
-        sectionDesc.setPadding(0, 0, 0, 8);
-        parentContainer.addView(sectionDesc, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView currentLabel = new TextView(context);
-        UiStyles.setTextSize(currentLabel, R.dimen.text_size_small);
-        currentLabel.setTextColor(UiStyles.color(context, R.color.textSecondary));
-        currentLabel.setPadding(16, 0, 16, 8);
-        refreshVehicleModelStatusLabel(currentLabel);
-        parentContainer.addView(currentLabel, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        Button pickButton = new Button(context);
-        pickButton.setText(R.string.settings_vehicle_image_pick);
-        UiStyles.styleOemButton(pickButton, UiStyles.color(context, R.color.accentHighlight));
-        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        pickLp.setMargins(16, 0, 16, 16);
-        pickButton.setOnClickListener(v -> {
-            if (context instanceof android.app.Activity) {
-                VehicleMaterialPickerDialog.show((android.app.Activity) context,
-                        new VehicleMaterialPickerDialog.OnSelectedListener() {
-                            @Override
-                            public void onManualSelected(
-                                    com.mapcontrol.vehicle.material.MaterialVehicleCatalog.Entry entry) {
-                                MaterialVehicleResources.getInstance().init(context);
-                                refreshVehicleModelStatusLabel(currentLabel);
-                                callback.log("Araç görseli seçildi: " + entry.label
-                                        + " (" + entry.packageName + ")");
-                            }
-
-                            @Override
-                            public void onAutoDetectionSelected() {
-                                refreshVehicleModelStatusLabel(currentLabel);
-                                callback.log("Araç görseli: otomatik algılama etkin");
-                            }
-                        });
-            }
-        });
-        parentContainer.addView(pickButton, pickLp);
-    }
-
-    private void refreshVehicleModelStatusLabel(TextView label) {
-        MaterialVehicleResources resources = MaterialVehicleResources.getInstance();
-        resources.init(context);
-        MaterialVehiclePreferences.Selection manual = MaterialVehiclePreferences.getSelection(context);
-        if (manual != null) {
-            label.setText(context.getString(R.string.settings_vehicle_selected, manual.label, manual.packageName));
-            return;
-        }
-        if (MaterialVehiclePreferences.isAutoDetectionEnabled(context)) {
-            String pkg = resources.getPackageName();
-            String source = resources.getSourceLabel();
-            if (pkg != null) {
-                label.setText(context.getString(R.string.settings_vehicle_auto_detect, source, pkg));
-            } else {
-                label.setText(R.string.settings_vehicle_auto_no_pkg);
-            }
-            return;
-        }
-        label.setText(R.string.settings_vehicle_no_selection);
-    }
-
     private void updateLauncherHomeSettingsLinkVisibility(boolean enabled) {
-        if (launcherHomeSettingsLink != null) {
-            launcherHomeSettingsLink.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (launcherHomeScreenLink != null) {
+            launcherHomeScreenLink.setVisibility(enabled ? View.VISIBLE : View.GONE);
         }
     }
 

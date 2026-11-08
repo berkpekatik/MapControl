@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Koltuk (car-seat-heater gövdesi) + üstte hava akışı/kar tanesi -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5 18C5 18 2 10 2 6S4 2 4 2H5C5 2 6 2 6 3S5 4 5 6 8 10 8 13 5 18 5 18M15 17C16.1 17 17 17.9 17 19V20C17 21.1 16.1 22 15 22H9C7 22 6 20.2 6 20.2C5.8 20 5.7 19.6 6 19.4C6 19.4 9 16.9 10 16.9H15" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M15.5 3V12.5M11.4 5.4L19.6 10.1M19.6 5.4L11.4 10.1" />
+</vector>
