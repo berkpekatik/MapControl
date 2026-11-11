@@ -82,8 +82,15 @@ internal object HomePolicy {
         return pkg == selfPkg && (className == null || !className.endsWith("Activity"))
     }
 
-    /** Öne gelen (geçici olmayan) pencerenin türü. */
-    fun classify(pkg: String, className: String?, selfPkg: String, launcherClass: String, oemHomePkg: String?): FrontApp = when {
+    /**
+     * Öne gelen (geçici olmayan) pencerenin türü. [oemHomeClass]: sistemin HOME etkinliği; aynı paketin başka etkinlikleri
+     * (araçta `AppMenuActivity`, `VehicleActivity`) ana ekran değil, normal uygulama sayılır.
+     */
+    fun classify(
+        pkg: String, className: String?, selfPkg: String, launcherClass: String, oemHomePkg: String?, oemHomeClass: String? = null,
+    ): FrontApp = when {
+        isOemHome(pkg, oemHomePkg, selfPkg) && oemHomeClass != null && className != null &&
+            className.endsWith("Activity") && className != oemHomeClass -> FrontApp.OTHER_APP
         isOemHome(pkg, oemHomePkg, selfPkg) -> FrontApp.CAR_HOME
         pkg == selfPkg -> if (className == launcherClass) FrontApp.OUR_LAUNCHER else FrontApp.OUR_SCREEN
         else -> FrontApp.OTHER_APP
@@ -94,16 +101,15 @@ internal object HomePolicy {
      *
      * @param launcherModeOn MapControl launcher modu ([com.mapcontrol.util.LauncherModeManager.isEnabled]); kapalıysa hiç dokunulmaz.
      * @param before OEM ana ekranından hemen önce öndeki uygulama.
-     * @param driveActive sürüş ekranı açık ya da açılıyor ([DriveScreen.active]): yarılardaki / tam ekran haritadaki tuş da bize döner.
      * @param sinceLastRedirectMs son yönlendirmeden bu yana geçen süre (yakınsa OEM'in art arda olayı: hiçbir şey).
      */
-    fun decide(launcherModeOn: Boolean, before: FrontApp, driveActive: Boolean, sinceLastRedirectMs: Long): HomeAction {
+    fun decide(launcherModeOn: Boolean, before: FrontApp, sinceLastRedirectMs: Long): HomeAction {
         if (!launcherModeOn) return HomeAction.NONE
         if (sinceLastRedirectMs in 0 until REDIRECT_DEBOUNCE_MS) return HomeAction.NONE
         return when (before) {
             FrontApp.OUR_LAUNCHER -> HomeAction.STAY_ON_OEM
-            FrontApp.OUR_SCREEN -> HomeAction.REDIRECT_TO_LAUNCHER
-            FrontApp.OTHER_APP -> if (driveActive) HomeAction.REDIRECT_TO_LAUNCHER else HomeAction.NONE
+            // Aracın launcher'ı HOME filtresinde daha yüksek öncelikli olduğu için sabitleme tutmuyor: tuş bu yoldan bize döner.
+            FrontApp.OUR_SCREEN, FrontApp.OTHER_APP -> HomeAction.REDIRECT_TO_LAUNCHER
             FrontApp.CAR_HOME, FrontApp.UNKNOWN -> HomeAction.NONE
         }
     }
@@ -164,11 +170,11 @@ internal class HomeKeyTracker(private val selfPkg: String, private val launcherC
         nowMs: Long,
         oemHomePkg: String?,
         launcherModeOn: Boolean,
-        driveActive: Boolean = false,
         appWindow: Boolean = true,
+        oemHomeClass: String? = null,
     ): HomeAction {
         if (pkg.isNullOrEmpty() || HomePolicy.isTransient(pkg, className, selfPkg)) return HomeAction.NONE
-        val kind = HomePolicy.classify(pkg, className, selfPkg, launcherClass, oemHomePkg)
+        val kind = HomePolicy.classify(pkg, className, selfPkg, launcherClass, oemHomePkg, oemHomeClass)
         if (kind != FrontApp.CAR_HOME) {
             if (!appWindow) return HomeAction.NONE
             front = kind
@@ -177,7 +183,7 @@ internal class HomeKeyTracker(private val selfPkg: String, private val launcherC
         // Tuşa basıldığında ana ekranımız hâlâ en üstte görünüyorsa tuş onda basılmıştır.
         val before = if (launcherTop) FrontApp.OUR_LAUNCHER else front
         val sinceRedirect = if (lastRedirectAt == 0L) Long.MAX_VALUE else nowMs - lastRedirectAt
-        val action = HomePolicy.decide(launcherModeOn, before, driveActive, sinceRedirect)
+        val action = HomePolicy.decide(launcherModeOn, before, sinceRedirect)
         front = FrontApp.CAR_HOME
         if (action == HomeAction.REDIRECT_TO_LAUNCHER) lastRedirectAt = nowMs
         return action
@@ -197,6 +203,7 @@ object HomeKey {
 
     private var tracker: HomeKeyTracker? = null
     @Volatile private var oemHome: String? = null
+    @Volatile private var oemHomeClass: String? = null
     @Volatile private var oemHomeAt = 0L
 
     private fun tracker(context: Context): HomeKeyTracker =
@@ -216,11 +223,12 @@ object HomeKey {
     @JvmStatic
     fun onWindowStateChanged(service: AccessibilityService, pkg: CharSequence?, className: CharSequence?, windowId: Int) {
         val name = pkg?.toString() ?: return
-        val modeOn = LauncherEdition.launcherModeOn(service)
+        // "Home tuşu: Araç" seçiliyse hiç yönlendirilmez; öndeki uygulama takibi yine sürer.
+        val modeOn = LauncherEdition.launcherModeOn(service) && HomeScreenPrefs.homeKeyMapControl(service)
         val oem = oemHomePackage(service)
         val appWindow = name == service.packageName || name == oem || isAppWindow(service, windowId)
         val action = tracker(service).onWindow(
-            name, className?.toString(), SystemClock.uptimeMillis(), oem, modeOn, DriveScreen.active, appWindow,
+            name, className?.toString(), SystemClock.uptimeMillis(), oem, modeOn, appWindow, oemHomeClass,
         )
         when (action) {
             HomeAction.REDIRECT_TO_LAUNCHER -> {
@@ -316,7 +324,7 @@ object HomeKey {
         val pm = context.packageManager
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         val resolved = try {
-            pm.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+            pm.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.also { oemHomeClass = it.name }?.packageName
         } catch (e: RuntimeException) {
             null
         }

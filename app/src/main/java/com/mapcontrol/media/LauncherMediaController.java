@@ -244,8 +244,31 @@ public final class LauncherMediaController {
     public void playPause() {
         MediaController active = activeController;
         PlaybackState state = active != null ? active.getPlaybackState() : null;
-        if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
+        String activePkg = active != null ? active.getPackageName() : null;
+        Integer oemSource = OemAudioSource.INSTANCE.getCurrentSource();
+        boolean oemSession = MediaSourcePick.INSTANCE.keepOemOnPlay(activePkg, oemSource);
+        boolean playing = MediaSourcePick.INSTANCE.radioActive(activePkg, oemSource)
+                ? !OemAudioSource.INSTANCE.isOemPaused()
+                : state != null && state.getState() == PlaybackState.STATE_PLAYING;
+        android.util.Log.i("MediaSource", "playPause: pkg=" + activePkg + " state=" + (state != null ? state.getState() : -1)
+                + " oemSource=" + oemSource);
+        if (oemSession) {
+            OemAudioSource.INSTANCE.oemPlayback(appContext, oemSource, !playing, () -> {
+                if (playing) {
+                    active.getTransportControls().pause();
+                } else {
+                    active.getTransportControls().play();
+                }
+            });
+            return;
+        }
+        if (playing) {
             active.getTransportControls().pause();
+            return;
+        }
+        // Üçüncü taraf uygulama kendi odağını alır; BT'ye geçirmek onu durdurur.
+        if (MediaSourcePick.INSTANCE.isThirdParty(activePkg)) {
+            active.getTransportControls().play();
             return;
         }
         MediaController bt = MediaSourcePick.INSTANCE.isBluetooth(active != null ? active.getPackageName() : null)
@@ -587,7 +610,8 @@ public final class LauncherMediaController {
                 currentIndex = i;
             }
         }
-        int pick = MediaSourcePick.INSTANCE.pick(cands, currentIndex, OemAudioSource.INSTANCE.followSource(hasBt));
+        Integer follow = OemAudioSource.INSTANCE.followSource(hasBt);
+        int pick = MediaSourcePick.INSTANCE.pick(cands, currentIndex, follow, OemAudioSource.INSTANCE.isSourceUserPicked());
         return pick >= 0 ? (pick == currentIndex ? current : controllers.get(pick)) : null;
     }
 
@@ -597,6 +621,41 @@ public final class LauncherMediaController {
 
     static boolean isPlayingState(@Nullable PlaybackState state) {
         return state != null && state.getState() == PlaybackState.STATE_PLAYING;
+    }
+
+    /** Seçicide gösterilecek açık üçüncü taraf medya uygulamaları (içerik bilgisi olan ya da çalan oturumlar). */
+    public List<String> appSessionPackages() {
+        List<String> out = new ArrayList<>();
+        List<MediaController> controllers = loadControllers();
+        if (controllers == null) {
+            return out;
+        }
+        for (MediaController c : controllers) {
+            String pkg = c.getPackageName();
+            if (MediaSourcePick.INSTANCE.isThirdParty(pkg) && !out.contains(pkg) && (hasMetadata(c) || isPlaying(c))) {
+                out.add(pkg);
+            }
+        }
+        return out;
+    }
+
+    /** Seçicide uygulama seçildi: oturumu çaldırır; kart çalan oturuma kendiliğinden geçer. */
+    public void selectApp(String packageName) {
+        OemAudioSource.INSTANCE.onAppSelected();
+        List<MediaController> controllers = loadControllers();
+        if (controllers == null) {
+            return;
+        }
+        for (MediaController c : controllers) {
+            if (packageName.equals(c.getPackageName())) {
+                try {
+                    c.getTransportControls().play();
+                } catch (Exception ignored) {
+                    // oturum bu arada kapanmış olabilir
+                }
+                return;
+            }
+        }
     }
 
     /** Bir Bluetooth (A2DP) oturumu var mı (seçicide Bluetooth satırı için). */
@@ -755,12 +814,17 @@ public final class LauncherMediaController {
             }
         }
 
+        // Radyo oturumu başlık ve çalma durumu bildirmez: kaynak radyodaysa kart boşta sayılmaz, ileri-geri görünür.
+        boolean radioActive = MediaSourcePick.INSTANCE.radioActive(source, OemAudioSource.INSTANCE.getCurrentSource());
+        if (radioActive) {
+            playing = !OemAudioSource.INSTANCE.isOemPaused();
+        }
         boolean hasContent = title != null && !title.isEmpty();
         if (hasContent || playing) {
             rememberSource(source);
         }
         return new MediaState(
-                hasContent || playing,
+                hasContent || playing || radioActive,
                 access,
                 playing,
                 title,

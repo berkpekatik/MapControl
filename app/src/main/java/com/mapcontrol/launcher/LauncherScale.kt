@@ -7,6 +7,9 @@ import android.content.res.Configuration
  * Ekran ölçeği uyarlaması. Launcher 1920x720 @160 dpi (1920 dp genişlik) için tasarlandı. Başka bir ünitede
  * (ör. yeni Tiggo 8, 2560x1440) yoğunluk ne olursa olsun yatay genişlik [MIN_WIDTH_DP]..[MAX_WIDTH_DP] aralığına
  * getirilir: dar gelirse yazılar kesilir, geniş gelirse kartlar boş kalır. Aralıktaysa (bizim araç) hiçbir şey değişmez.
+ *
+ * Dikey ekranda ([VehicleProfile.PORTRAIT]) uzun kenar yüksekliktir; bilerek aynı kural uygulanır. 1440×1920 @320 dpi
+ * 1700 dp yüksekliğe (≈181 dpi, ~1273 dp genişlik) getirilir: dp'nin fiziksel boyu Tiggo 7'ye yakın kalır.
  */
 internal object LauncherScale {
 

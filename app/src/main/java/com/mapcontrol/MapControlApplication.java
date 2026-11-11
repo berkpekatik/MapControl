@@ -13,12 +13,17 @@ import com.mapcontrol.util.DisplayHelper;
 
 public final class MapControlApplication extends Application {
 
+    /** Çökmede açık klibi kapatmak için en fazla bekleme; süre dolarsa süreç yine ölür. */
+    private static final long CRASH_RECORDING_TIMEOUT_MS = 3_000L;
+
     private int lastNightModeUiBits = -1;
 
     @Override
     public void onCreate() {
         super.onCreate();
         GlitchTip.start(this);
+        finishRecordingOnCrash();
+        com.mapcontrol.util.ProcessExitLog.reportAsync(this);
         guardLauncherCrashLoop();
         AppLocaleManager.applyStoredLocale(this);
         com.mapcontrol.launcher.HomeScreenPrefs.applyClimateScale(this);
@@ -48,6 +53,22 @@ public final class MapControlApplication extends Application {
 
             @Override
             public void onLowMemory() {
+            }
+        });
+    }
+
+    /** Yakalanmamış hata açık kamera klibini bozmasın: süreç ölmeden kayıt süre sınırıyla kapatılır. */
+    private void finishRecordingOnCrash() {
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            try {
+                com.mapcontrol.dvr.DvrController.finishRecordingForCrash(CRASH_RECORDING_TIMEOUT_MS);
+            } catch (Throwable ignored) {
+            }
+            if (previous != null) {
+                previous.uncaughtException(thread, error);
+            } else {
+                throw new RuntimeException(error);
             }
         });
     }

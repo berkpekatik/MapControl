@@ -127,26 +127,15 @@ internal object ClimateMath {
     const val AC_ON = 1
     const val AC_OFF = 2
 
-    /** Açmada güç yazmasından sonra A/C + otomatik için bekleme (OEM postDelayed 150L). */
-    const val POWER_FOLLOW_UP_MS = 150L
-
     /**
-     * Klimayı açma/kapatma yazma planı (HVAC kimliği → ham değer), MapControl konfor otomasyonuyla aynı
-     * (ClimateAutomationWrites CLIMATE; eşitlik JVM testiyle korunur):
-     *  - Aç: önce [first] = 18 ← 1, [POWER_FOLLOW_UP_MS] sonra [followUp] = 1 ← 1, 4 ← 1.
-     *  - Kapat: [first] = 1 ← 2, 18 ← 2, 4 ← 2; [followUp] boş.
-     * Not: sıcaklık/fan yazmadan önceki otomatik açma ([powerOnBeforeWrite]) bilerek yalnız 18 ← 1 kalır (OEM sesli komutu
-     * gibi); orada A/C ve otomatiği açmak kullanıcının o an yazdığı fanı/ayarı ezer.
+     * Klima gücü ham değeri (HVAC 18): 1 aç / 2 kapat. OEM SystemUI'deki klima güç düğmesiyle aynı tek yazma
+     * (`HvacModel.onPowerClick`: `sendItemValue(HVAC, 18, açık ? 2 : 1)`); A/C (1) ve otomatik (4) yazılmaz, klima son
+     * ayarlarıyla açılır. 0 yazılmaz.
      */
-    class PowerPlan(val first: List<Pair<Int, Int>>, val followUp: List<Pair<Int, Int>>)
+    fun powerValue(on: Boolean): Int = if (on) POWER_ON else POWER_OFF
 
-    fun powerPlan(on: Boolean): PowerPlan = if (on) {
-        PowerPlan(listOf(HvacID.ID_AC_WORKING to POWER_ON),
-            listOf(HvacID.ID_AC_STATE to AC_ON, HvacID.ID_AC_AUTO_STATE to AC_ON))
-    } else {
-        PowerPlan(listOf(HvacID.ID_AC_STATE to AC_OFF, HvacID.ID_AC_WORKING to POWER_OFF, HvacID.ID_AC_AUTO_STATE to AC_OFF),
-            emptyList())
-    }
+    /** HVAC 18 okuması: 1 açık, başka bilinen değer kapalı (OEM `getPowerState`: `== 1`); okunamadıysa null. */
+    fun powerOn(raw: Int?): Boolean? = raw?.let { it == POWER_ON }
 }
 
 /**
@@ -156,14 +145,25 @@ internal object ClimateMath {
  */
 internal object ClimateWriter {
 
-    /** Panel kimlikleri (10/13/12) ve güç sırası (18/1/4) araçta DOĞRULANMADI; doğrulanınca true yapılır. */
+    /** Panel kimlikleri (10/13/12) araçta DOĞRULANMADI; doğrulanınca true yapılır. */
     const val CLIMATE_WRITE_VERIFIED = false
+
+    /**
+     * Klima gücü (HVAC 18 ← 1/2, alt çubuk fan dokunuşu). OEM SystemUI'nin güç düğmesiyle birebir aynı yazma
+     * (decompile, `HvacModel.onPowerClick`). ARAÇ TESTİ BEKLİYOR (11 Kasım 2026): testte 18 geri okuması değişmezse ya da
+     * klima davranışı farklıysa false yapılır; o zaman dokunuş araca dokunmaz, bilgi mesajı gösterir.
+     */
+    const val CLIMATE_POWER_WRITE_VERIFIED = true
 
     /**
      * Dock kimlikleri araçta doğrulandı: sürücü 76 / yolcu 78 sıcaklığı ve fan 77 yazınca geri okumada panel değerleri
      * (10/13/12) yeni değere geçti.
      */
     const val CLIMATE_DOCK_WRITE_VERIFIED = true
+
+    /** Klima gücü yazılabilir mi ([CLIMATE_POWER_WRITE_VERIFIED], yazmalar açık, salt-okur değil). */
+    fun powerEnabled(): Boolean = canWrite(
+        WidgetWritePolicy.gate(CLIMATE_POWER_WRITE_VERIFIED, LauncherEdition.WRITES_ON), LauncherEdition.READ_ONLY)
 
     /** Saf kapı: yalnızca doğrulanmışsa ve salt-okur sürüm değilse yazılır. */
     fun canWrite(verified: Boolean, readOnly: Boolean): Boolean = verified && !readOnly
@@ -222,18 +222,12 @@ internal object ClimateWriter {
     }
 
     /**
-     * Klimayı açar/kapatır, MapControl ile aynı sıra ([ClimateMath.powerPlan]). Arka planda çağrılır (açmada 150 ms bekler).
-     * Kapalıyken (yazma kapısı) ya da servis yokken false döner; ilk yazma reddedilirse devam yazmaları gönderilmez.
+     * Klimayı açar ([on]) ya da kapatır: HVAC 18 ← 1/2, OEM güç düğmesi gibi tek yazma ([ClimateMath.powerValue]).
+     * Kapalıyken ([powerEnabled] false) ya da servis yokken false döner ve araca dokunmaz. Arka planda çağrılır.
      */
     fun setPower(on: Boolean): Boolean {
-        if (!enabled(quiet = false)) return false
-        val plan = ClimateMath.powerPlan(on)
-        for ((id, raw) in plan.first) if (!send(id, raw)) return false
-        if (plan.followUp.isEmpty()) return true
-        android.os.SystemClock.sleep(ClimateMath.POWER_FOLLOW_UP_MS)
-        var ok = true
-        for ((id, raw) in plan.followUp) ok = send(id, raw) && ok
-        return ok
+        if (!powerEnabled()) return false
+        return send(HvacID.ID_AC_WORKING, ClimateMath.powerValue(on))
     }
 
     /**

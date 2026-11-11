@@ -192,8 +192,8 @@ internal object DriveScreen {
         }.start()
     }
 
-    /** Harita tam ekran: yarıda kalmışsa taşınır, değilse başlatıcıyla açılır. */
-    private fun openFullScreen(context: Context, pkg: String) {
+    /** Harita tam ekran: yarıda kalmışsa taşınır, değilse başlatıcıyla açılır (Navigasyon kartı "Haritayı aç" da bunu kullanır). */
+    internal fun openFullScreen(context: Context, pkg: String) {
         if (openLeftover(context, pkg)) return
         LauncherEdition.mapcontrol(context).openFullScreen(pkg)
     }

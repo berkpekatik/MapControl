@@ -139,7 +139,19 @@
             android:launchMode="singleTop"
             android:label="MapControl"
             android:theme="@style/Theme.MapControl.Splash"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode" />
+
+        <!-- Simge girişi. Launcher görevinin ilişkisi bilerek kullanılır: yeni görev açılırsa sistem son görevleri kırparken
+             arkadaki launcher görevini (excludeFromRecents) silip süreci "remove task" ile öldürür (araçta görüldü).
+             Ayrıca MainActivity görevinde değildir: en üstte bu etkinlik varken ikinci MainActivity kurulmaz. -->
+        <activity
+            android:name=".ui.activity.AppEntryActivity"
+            android:exported="true"
+            android:label="MapControl"
+            android:taskAffinity="com.mapcontrol.home"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -186,10 +198,11 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTop"
-            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
+        <!-- Yönelim kilidi yok: HomeLauncherActivity onCreate'te araç profiline göre seçer (dikey ekran / Jaecoo dikey, gerisi
+             yatay). ScreenOffActivity siyah ekrandır, kilitlenirse dikey ekranı yan yatırırdı. -->
         <!-- Yeni launcher (Kotlin). HOME rolü yalnızca MainActivityHomeAlias üzerinden (Launcher Modu anahtarı); uygulama listesinde ayrı simgesi yoktur. -->
         <activity
             android:name=".launcher.HomeLauncherActivity"
@@ -199,7 +212,6 @@
             android:taskAffinity="com.mapcontrol.home"
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
-            android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         </activity>

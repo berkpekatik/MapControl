@@ -64,7 +64,7 @@ public final class BootSession {
         prefs(context).edit().putString(KEY_UI, currentId(context)).apply();
     }
 
-    private static String currentId(Context context) {
+    public static String currentId(Context context) {
         try {
             int count = Settings.Global.getInt(
                     context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);

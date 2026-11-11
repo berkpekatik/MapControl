@@ -536,7 +536,7 @@ internal class SportStageView(
             lastBest = s.lastWasBest
             results = s.results
             ready = s.stopped && !s.timing
-            range = snap.rangeKm.takeIf { snap.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+            range = if (snap.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(activity, snap) else null
             gaugeKmh = when {
                 !snap.connected -> null
                 VehicleMetricsSnapshot.isValid(snap.displaySpeed) || VehicleMetricsSnapshot.isValid(snap.actualSpeed) -> snap.preferredSpeed()

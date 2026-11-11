@@ -114,6 +114,23 @@ internal class CarDetailSheet(private val activity: Activity) {
 
     fun show(onDismiss: () -> Unit): Dialog {
         val d = showLauncherSheet(activity, R.string.launcher_detail_title, SHEET_WIDTH_DP) {
+            if (VehicleProfile.active.portrait) {
+                // Dikey ekran (Jaecoo): üç sütun yan yana sığmaz; araç ve basınçlar üstte ortada, altında iki sütun.
+                addView(tireMap, LinearLayout.LayoutParams(context.dp(PORTRAIT_TIRE_W_DP), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                })
+                addView(View(context), LinearLayout.LayoutParams(1, context.dp(24)))
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(bodyRows, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    addView(View(context).apply { setBackgroundColor(Sahne.STRIP_HAIR) },
+                        LinearLayout.LayoutParams(context.dp(1), ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                            marginStart = context.dp(24); marginEnd = context.dp(24)
+                        })
+                    addView(stateRows, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f))
+                }, sheetFullWidth())
+                return@showLauncherSheet
+            }
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -292,6 +309,8 @@ internal class CarDetailSheet(private val activity: Activity) {
 
     private companion object {
         const val SHEET_WIDTH_DP = 1440
+        /** Dikey ekranda üstteki araç + basınç alanının genişliği. */
+        const val PORTRAIT_TIRE_W_DP = 560
         const val ROW_H_DP = 44
         const val CAR_FRACTION = 0.76f
         const val LABEL_GAP_DP = 10

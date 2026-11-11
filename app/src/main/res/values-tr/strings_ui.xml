@@ -867,6 +867,13 @@
     <string name="split_app2">Uygulama 2</string>
     <string name="split_select_app">Uygulama seç…</string>
     <string name="split_pick_title">Uygulama %1$d seç (%2$d uygulama)</string>
+    <string name="split_axis_title">Bölme yönü</string>
+    <string name="split_axis_auto">Otomatik</string>
+    <string name="split_axis_side">Sol · Sağ</string>
+    <string name="split_axis_stack">Üst · Alt</string>
+    <string name="split_axis_help_auto">Ekran ölçüsüne göre seçilir: geniş ekranda sol-sağ, büyük ekranda üst-alt.</string>
+    <string name="split_axis_help_side">Uygulamalar yan yana açılır.</string>
+    <string name="split_axis_help_stack">Uygulamalar üst üste açılır.</string>
     <string name="split_ratio_title">Pencere oranı</string>
     <string name="split_ratio_a">1/3 · 2/3</string>
     <string name="split_ratio_b">1/2 · 1/2</string>
@@ -960,4 +967,9 @@
     <string name="projection_cluster_style_glass">Launcher camı</string>
     <string name="projection_cluster_style_glass_help">Aydınlık ve karanlık temaya uyan launcher görünümü: büyük mesafe, altta kalan / varış / süre.</string>
     <string name="projection_cluster_preview_duration">22 dk</string>
+    <string name="home_screen_car_orientation">Araç görünümü</string>
+    <string name="home_screen_car_horizontal">Yatay</string>
+    <string name="home_screen_car_vertical">Dikey</string>
+    <string name="home_screen_car_horizontal_help">Araç yan yatık durur, burnu sağa bakar.</string>
+    <string name="home_screen_car_vertical_help">Araç dik durur, burnu yukarı bakar. Işıklar ve kapılar aynı şekilde çalışır.</string>
 </resources>

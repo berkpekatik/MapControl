@@ -9,6 +9,8 @@
     <string name="launcher_media_prev">Önceki</string>
     <string name="launcher_media_radio">Radyo</string>
     <string name="launcher_media_source_title">Ses kaynağı</string>
+    <string name="launcher_media_source_choose">Kaynak seç</string>
+    <string name="launcher_media_source_failed">Ses kaynağı değiştirilemedi</string>
     <string name="launcher_media_source_change">Ses kaynağını değiştir</string>
     <string name="launcher_media_source_bt">Bluetooth</string>
     <string name="launcher_media_source_fm">Radyo FM</string>
@@ -110,7 +112,9 @@
     <string name="launcher_bottom_bar_ours">MapControl</string>
     <string name="launcher_bottom_bar_hidden">Gizli</string>
     <string name="launcher_bar_home">Ana ekran</string>
+    <string name="launcher_rec_open_camera">Kamera kaydı sürüyor, Kamera 360\'ı aç</string>
     <string name="launcher_bar_apps">Uygulamalar</string>
+    <string name="launcher_bar_add_app">Uygulama ekle</string>
     <string name="launcher_bar_settings">Ayarlar</string>
     <string name="launcher_read_only_climate">Salt okuma: klima araçtan değiştirilir</string>
     <string name="launcher_climate_pending">Klima kontrolü araç testinden sonra açılacak</string>
@@ -118,6 +122,7 @@
     <string name="launcher_climate_driver">Sürücü sıcaklığı</string>
     <string name="launcher_climate_passenger">Yolcu sıcaklığı</string>
     <string name="launcher_climate_fan">Fan kademesi</string>
+    <string name="launcher_climate_off">Kapalı</string>
     <string name="launcher_climate_increase">Artır</string>
     <string name="launcher_climate_decrease">Azalt</string>
     <string name="launcher_health_row_battery">Akü</string>

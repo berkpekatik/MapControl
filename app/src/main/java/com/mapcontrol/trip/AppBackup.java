@@ -131,6 +131,9 @@ public final class AppBackup {
         integer("power", "mode", FILE_MAIN, "powerModeSetting", 0, 2);
         bool("power", "bootAutoStart", FILE_MAIN, "bootAutoStart");
         bool("power", "bootAutoLaunchUi", FILE_MAIN, "bootAutoLaunchUi");
+        bool("power", "launcherStartEarliest", FILE_MAIN, "launcherStartEarliest");
+        bool("power", "homeKeyMapControl", FILE_MAIN, "homeKeyMapControl");
+        integer("power", "radioCommandMode", FILE_MAIN, "radioCommandMode", 0, 2);
         bool("power", "autoCloseOnPowerOff", FILE_MAIN, "autoCloseOnPowerOff");
         bool("power", "autoLocationSaveOnPowerOff", FILE_MAIN, "autoLocationSaveOnPowerOff");
 
@@ -198,6 +201,7 @@ public final class AppBackup {
         kind("split", "pkg1", FILE_SPLIT, "split_pkg1", Kind.PACKAGE, 255);
         kind("split", "pkg2", FILE_SPLIT, "split_pkg2", Kind.PACKAGE, 255);
         oneOf("split", "ratio", FILE_SPLIT, "split_ratio", "left_third", "half", "right_third");
+        oneOf("split", "axis", FILE_SPLIT, "split_axis", "auto", "side", "stack");
 
         bool("vehicleModel", "autoDetect", FILE_MAIN, "vehicleModelUseAutoDetection");
         kind("vehicleModel", "package", FILE_MAIN, "vehicleModelMaterialPackage", Kind.PACKAGE, 255);

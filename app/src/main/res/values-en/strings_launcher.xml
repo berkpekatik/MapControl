@@ -9,6 +9,8 @@
     <string name="launcher_media_prev">Previous</string>
     <string name="launcher_media_radio">Radio</string>
     <string name="launcher_media_source_title">Audio source</string>
+    <string name="launcher_media_source_choose">Choose source</string>
+    <string name="launcher_media_source_failed">Could not change audio source</string>
     <string name="launcher_media_source_change">Change audio source</string>
     <string name="launcher_media_source_bt">Bluetooth</string>
     <string name="launcher_media_source_fm">Radio FM</string>
@@ -110,7 +112,9 @@
     <string name="launcher_bottom_bar_ours">MapControl</string>
     <string name="launcher_bottom_bar_hidden">Hidden</string>
     <string name="launcher_bar_home">Home</string>
+    <string name="launcher_rec_open_camera">Camera recording, open Camera 360</string>
     <string name="launcher_bar_apps">Apps</string>
+    <string name="launcher_bar_add_app">Add app</string>
     <string name="launcher_bar_settings">Settings</string>
     <string name="launcher_read_only_climate">Read-only: change the climate from the car</string>
     <string name="launcher_climate_pending">Climate control will open after the car test</string>
@@ -118,6 +122,7 @@
     <string name="launcher_climate_driver">Driver temperature</string>
     <string name="launcher_climate_passenger">Passenger temperature</string>
     <string name="launcher_climate_fan">Fan speed</string>
+    <string name="launcher_climate_off">Off</string>
     <string name="launcher_climate_increase">Increase</string>
     <string name="launcher_climate_decrease">Decrease</string>
     <string name="launcher_health_row_battery">Battery</string>

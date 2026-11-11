@@ -30,6 +30,8 @@ class HeaderBar(
     private val onBluetooth: ((View) -> Unit)? = null,
     /** Telefon eşleme simgesine dokunma: eşleşme QR sayfası. */
     private val onPhonePair: (() -> Unit)? = null,
+    /** Kırmızı REC hapına dokunma: Kamera 360 sekmesi. */
+    private val onRecording: () -> Unit = {},
 ) : LauncherWidget, Themeable {
 
     private val time = text(context, LauncherTheme.TIME_SP, medium = true)
@@ -127,6 +129,55 @@ class HeaderBar(
         pressFeedback()
     }
 
+    /** Kırmızı REC hapı: yalnızca kamera kaydı sürerken görünür, nokta yanıp söner; dokununca Kamera 360. Olaylarla güncellenir. */
+    private val recDot = View(context).apply { background = rounded(context, android.graphics.Color.WHITE, 999f) }
+    private val recChip = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        visibility = View.GONE
+        background = rounded(context, REC_RED, 999f)
+        setPadding(context.dp(20), 0, context.dp(22), 0)
+        addView(recDot, LinearLayout.LayoutParams(context.dp(14), context.dp(14)))
+        addView(gap(context, 10))
+        addView(text(context, LauncherTheme.BODY_SP, android.graphics.Color.WHITE, medium = true).apply {
+            text = "REC"
+            textSize = 22f
+        })
+        contentDescription = context.getString(R.string.launcher_rec_open_camera)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onRecording() }
+        pressFeedback()
+    }
+    private var recBlink: android.animation.ObjectAnimator? = null
+    private var recUnwatch: (() -> Unit)? = null
+
+    private fun bindRecording() {
+        val on = features.available && features.isRecording()
+        recChip.visibility = if (on) View.VISIBLE else View.GONE
+        if (on && recBlink == null) {
+            recBlink = android.animation.ObjectAnimator.ofFloat(recDot, View.ALPHA, 1f, 0.25f).apply {
+                duration = 700L
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                repeatMode = android.animation.ValueAnimator.REVERSE
+                start()
+            }
+        } else if (!on) {
+            stopRecBlink()
+        }
+    }
+
+    private fun stopRecBlink() {
+        recBlink?.cancel()
+        recBlink = null
+        recDot.alpha = 1f
+    }
+
+    private fun addRecChip() {
+        leftGroup.addView(recChip, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, context.dp(LauncherTheme.TOUCH_MIN_DP)).apply { marginStart = context.dp(16) })
+    }
+
     /** Sol grup (dokunma): ayarlar, Wi-Fi, düzenle. Sürücü tarafı. */
     private val leftGroup = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -192,6 +243,7 @@ class HeaderBar(
         leftGroup.addView(connectivityCapsule())
         leftGroup.addView(gap(context, 16))
         leftGroup.addView(squareButton(R.drawable.ic_sahne_pen_fill, context.getString(R.string.launcher_edit_title), onEditHome))
+        addRecChip()
 
         driveBadge()?.let { rightGroup.addView(it) }
         rightGroup.addView(date)
@@ -327,6 +379,7 @@ class HeaderBar(
         leftGroup.addView(connectivityCapsule())
         leftGroup.addView(gap(context, 16))
         leftGroup.addView(squareButton(R.drawable.ic_sahne_pen_fill, context.getString(R.string.launcher_edit_title), onEditHome))
+        addRecChip()
         rightGroup.addView(weatherCapsule())
         applyClockVisibility()
     }
@@ -545,6 +598,9 @@ class HeaderBar(
             webHandler.post(webPoll)
             webUnwatch?.invoke()
             webUnwatch = features.watchWebPanel { webHandler.removeCallbacks(webPoll); webHandler.post(webPoll) }
+            recUnwatch?.invoke()
+            recUnwatch = features.watchRecording { webHandler.post { bindRecording() } }
+            bindRecording()
         }
     }
 
@@ -563,12 +619,18 @@ class HeaderBar(
         webHandler.removeCallbacks(webPoll)
         webUnwatch?.invoke()
         webUnwatch = null
+        recUnwatch?.invoke()
+        recUnwatch = null
+        stopRecBlink()
     }
 
     override fun release() {
         webHandler.removeCallbacks(webPoll)
         webUnwatch?.invoke()
         webUnwatch = null
+        recUnwatch?.invoke()
+        recUnwatch = null
+        stopRecBlink()
         wifiStatus.stop()
         btStatus.stop()
         ExtraSource.remove(extraListener)
@@ -656,6 +718,7 @@ private const val SHOW_PROFILE_IN_HEADER = false
 private const val NOTICE_RESTORE_FADE_MS = 250L
 private const val CLUSTER_ICON_DP = 28
 private const val WEB_POLL_MS = 5_000L
+private const val REC_RED = 0xFFD32F2F.toInt()
 /** Spor plakasında yalnız tarih kalınca (analog saat kadranı seçili): tarih boyu ve plakanın yan dolgusu. */
 private const val DATE_ONLY_SP = 18f
 private const val DATE_ONLY_PAD_DP = 24

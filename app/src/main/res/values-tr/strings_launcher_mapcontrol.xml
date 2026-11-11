@@ -32,4 +32,13 @@
     <string name="launcher_fn_cluster_start">Yansıt</string>
     <string name="launcher_fn_cluster_stop">Durdur</string>
     <string name="launcher_fn_cluster_no_target">Hedef uygulama seçilmedi</string>
+    <string name="launcher_fn_split_axis">Bölme yönü</string>
+    <string name="launcher_fn_split_apps">Uygulamalar</string>
+    <string name="launcher_fn_split_slot">Uygulama %1$d</string>
+    <string name="launcher_fn_split_none">Seçilmedi</string>
+    <string name="launcher_fn_split_more">Diğer ayarlar</string>
+    <string name="launcher_fn_split_back">Geri</string>
+    <string name="launcher_fn_split_clear">Boşalt</string>
+    <string name="launcher_fn_split_loading">Uygulamalar yükleniyor…</string>
+    <string name="launcher_fn_split_empty">Seçilebilir uygulama bulunamadı.</string>
 </resources>

@@ -33,6 +33,18 @@ internal object StageFit {
     }
 
     /**
+     * Dikey araç: [upright] ekranda görünen dar ve uzun kutu. Araç görünümü yatay çizildiği için yatay gövde kutusu aynı
+     * merkezde, boyu [upright] yüksekliği ve eni boy × [aspect] (yükseklik/genişlik) olur; sonra merkez etrafında döndürülür.
+     */
+    fun lyingBody(upright: Box, aspect: Float): Box {
+        val cx = (upright.left + upright.right) / 2f
+        val cy = (upright.top + upright.bottom) / 2f
+        val len = upright.height
+        val wid = len * aspect
+        return Box(cx - len / 2f, cy - wid / 2f, cx + len / 2f, cy + wid / 2f)
+    }
+
+    /**
      * Sahnenin tam ortasındaki araç (§10/§11): yatayda [centerX]'e sabit, en büyük genişlik [maxW]'den [minW]'ye aranır.
      * Üstteki engellerle (omuzlardaki menzil ve kilit) yatayda çakışırsa araç onların altına iner; çakışma hesabında aracın
      * yuvarlak köşeleri için her iki yandan genişliğin [cornerInset] oranı boş sayılır (omuz köşeye biraz girebilir). Dikeyde

@@ -30,12 +30,14 @@ import com.mapcontrol.util.AppIconHelper
 import com.mapcontrol.util.AppLaunchHelper
 import com.mapcontrol.util.ProjectionTargetApps
 
-/** Klima okuması: sürücü ve yolcu sıcaklığı (°C) ile fan kademesi; okunamayan alan null. */
+/** Klima okuması: sürücü ve yolcu sıcaklığı (°C), fan kademesi ve klima gücü (HVAC 18); okunamayan alan null. */
 internal data class ClimateReadout(
     val connected: Boolean = false,
     val driverTemp: Double? = null,
     val passengerTemp: Double? = null,
     val fan: Int? = null,
+    /** Klima açık mı (HVAC 18 == 1, OEM gibi); okunamadıysa null. */
+    val power: Boolean? = null,
 )
 
 /**
@@ -230,9 +232,10 @@ class OurBottomBar(
 
     // --- Okuma ---
 
-    /** Araçtan salt-okur: sürücü/yolcu sıcaklığı (HVAC 10/13) ve fan kademesi (HVAC 12). Yazma yok. */
+    /** Araçtan salt-okur: sürücü/yolcu sıcaklığı (HVAC 10/13), fan kademesi (HVAC 12) ve klima gücü (HVAC 18). Yazma yok. */
     private fun readClimate(): ClimateReadout {
-        if (LauncherDemo.enabled) return ClimateReadout(true, LauncherDemo.DRIVER_TEMP, LauncherDemo.PASSENGER_TEMP, LauncherDemo.FAN_LEVEL)
+        if (LauncherDemo.enabled) return ClimateReadout(true, LauncherDemo.DRIVER_TEMP, LauncherDemo.PASSENGER_TEMP, LauncherDemo.FAN_LEVEL,
+            power = LauncherDemo.climateOn)
         val proxy = CarInfoProxy.getInstance()
         if (!proxy.isServiceConnnected) return ClimateReadout()
         return try {
@@ -242,6 +245,7 @@ class OurBottomBar(
                 driverTemp = first(HvacID.ID_AC_TEMPERATURE_DRIVER)?.let(::decodeTemp),
                 passengerTemp = first(HvacID.ID_AC_TEMPERATURE_COPILOT)?.let(::decodeTemp),
                 fan = first(HvacID.ID_AC_BLOW_SPEED_LEVEL)?.let(::decodeFan),
+                power = ClimateMath.powerOn(first(HvacID.ID_AC_WORKING)),
             )
         } catch (e: RuntimeException) {
             ClimateReadout()
@@ -252,6 +256,8 @@ class OurBottomBar(
 
     /** Uygulamayı varsayılan ekranda açar; kurulu değilse sessizce bir şey yapmaz (emülatör). */
     private fun leaveToSystemHome() {
+        // "Home tuşu: MapControl" seçiliyken zaten ana ekrandayız; aracın ana ekranına yalnız "Araç" seçiliyse gidilir.
+        if (LauncherEdition.launcherModeOn(context) && HomeScreenPrefs.homeKeyMapControl(context)) return
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val target = context.packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
         if (target == null) { activity.moveTaskToBack(true); return }
@@ -288,26 +294,76 @@ class OurBottomBar(
 
     private var appsDialog: Dialog? = null
 
-    /** Başlatılabilir tüm uygulamalar bir panelde; ikonlar arka planda çözülür, dokununca uygulama açılır. */
+    /**
+     * Uygulama tepsisi: kullanıcı uygulamaları ve eklenen sistem uygulamaları ([TrayApps]); ikonlar arka planda çözülür.
+     * Dokununca uygulama açılır, eklenen uygulama uzun basışla tepsiden kalkar. Son hücre sistem uygulaması ekler.
+     */
     private fun showApps() {
         if (appsDialog?.isShowing == true) return
         io.runSafely {
-            val rows = ProjectionTargetApps.loadAllLaunchableRows(context)
-            val entries = rows.map { r ->
-                AppCell(AppIdentity.label(context, r.packageName, r.label), r.packageName, loadIcon(r.packageName))
-            }
+            val system = ProjectionTargetApps.loadSortedSystemRows(context)
+            val added = TrayApps.load(context)
+            val systemPackages = system.map { it.packageName }.toSet()
+            val entries = TrayApps.visible(ProjectionTargetApps.loadSortedRows(context), system, added) { it.packageName }
+                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+                .map { r -> appEntry(r, removable = r.packageName in systemPackages) }
+            val addable = TrayApps.addable(system, added) { it.packageName }
             main.post {
-                if (activity.isFinishing || activity.isDestroyed || entries.isEmpty()) return@post
+                // Kullanıcı uygulaması olmayan araçta da panel açılır: ekleme hücresi ancak burada.
+                if (activity.isFinishing || activity.isDestroyed || (entries.isEmpty() && addable.isEmpty())) return@post
                 appsDialog = showLauncherSheet(activity, R.string.launcher_bar_apps, APPS_SHEET_WIDTH_DP) { d ->
-                    // Ağırlık: pencere 440 dp'ye yetmezse (araçta OEM alanları) liste kısalır ve kayar; yoksa alttan kesilir.
-                    addView(appsGrid(entries, d), LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, context.dp(APPS_HEIGHT_DP), 1f))
+                    val cells = entries.map { app ->
+                        appCell(app, onLongClick = if (app.removable) ({ removeFromTray(app.packageName, d) }) else null) {
+                            d.dismiss()
+                            openPackage(app.packageName)
+                        }
+                    }
+                    addAppsGrid(if (addable.isEmpty()) cells else cells + addAppCell { showAddApps(addable, d) })
                 }.apply { setOnDismissListener { appsDialog = null } }
             }
         }
     }
 
-    private class AppCell(val label: String, val packageName: String, val icon: Drawable?)
+    /** Tepsiye eklenebilecek sistem uygulamaları; seçilince tepsi yeni haliyle yeniden açılır. */
+    private fun showAddApps(rows: List<ProjectionTargetApps.Row>, tray: Dialog) {
+        io.runSafely {
+            val entries = rows.map { appEntry(it) }
+            main.post {
+                if (activity.isFinishing || activity.isDestroyed || !tray.isShowing) return@post
+                showLauncherSheet(activity, R.string.launcher_bar_add_app, APPS_SHEET_WIDTH_DP) { d ->
+                    addAppsGrid(entries.map { app ->
+                        appCell(app) {
+                            TrayApps.save(context, TrayApps.add(TrayApps.load(context), app.packageName))
+                            d.dismiss()
+                            tray.dismiss()
+                            showApps()
+                        }
+                    })
+                }
+            }
+        }
+    }
+
+    private fun removeFromTray(packageName: String, tray: Dialog) {
+        TrayApps.save(context, TrayApps.remove(TrayApps.load(context), packageName))
+        tray.dismiss()
+        showApps()
+    }
+
+    private class AppCell(val label: String, val packageName: String, val icon: Drawable?, val removable: Boolean = false)
+
+    private fun appEntry(r: ProjectionTargetApps.Row, removable: Boolean = false) =
+        AppCell(AppIdentity.label(context, r.packageName, r.label), r.packageName, loadIcon(r.packageName), removable)
+
+    private fun addAppCell(onClick: () -> Unit): View {
+        val plus = context.getDrawable(R.drawable.ic_mdi_plus)?.mutate()?.apply { setTint(LauncherTheme.TEXT) }
+        return appCell(AppCell(context.getString(R.string.launcher_bar_add_app), "", plus), onClick = onClick)
+    }
+
+    /** Ağırlık: pencere 440 dp'ye yetmezse (araçta OEM alanları) liste kısalır ve kayar; yoksa alttan kesilir. */
+    private fun LinearLayout.addAppsGrid(cells: List<View>) {
+        addView(appsGrid(cells), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(APPS_HEIGHT_DP), 1f))
+    }
 
     private fun loadIcon(packageName: String): Drawable? = try {
         val plate = if (LauncherTheme.night) LauncherTheme.CONTROL else 0
@@ -317,14 +373,14 @@ class OurBottomBar(
         null
     }
 
-    private fun appsGrid(entries: List<AppCell>, d: Dialog): View = ScrollView(context).apply {
+    private fun appsGrid(cells: List<View>): View = ScrollView(context).apply {
         isVerticalScrollBarEnabled = false
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            entries.chunked(APPS_COLUMNS).forEach { chunk ->
+            cells.chunked(APPS_COLUMNS).forEach { chunk ->
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    chunk.forEach { app -> addView(appCell(app, d), LinearLayout.LayoutParams(0, context.dp(APP_CELL_DP), 1f)) }
+                    chunk.forEach { cell -> addView(cell, LinearLayout.LayoutParams(0, context.dp(APP_CELL_DP), 1f)) }
                     // Son satırı doldur ki hücre genişlikleri eşit kalsın.
                     repeat(APPS_COLUMNS - chunk.size) { addView(View(context), LinearLayout.LayoutParams(0, 1, 1f)) }
                 })
@@ -332,7 +388,7 @@ class OurBottomBar(
         })
     }
 
-    private fun appCell(app: AppCell, d: Dialog): View = LinearLayout(context).apply {
+    private fun appCell(app: AppCell, onLongClick: (() -> Unit)? = null, onClick: () -> Unit): View = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
         isClickable = true
@@ -351,10 +407,8 @@ class OurBottomBar(
             marginStart = context.dp(8)
             marginEnd = context.dp(8)
         })
-        setOnClickListener {
-            d.dismiss()
-            openPackage(app.packageName)
-        }
+        setOnClickListener { onClick() }
+        if (onLongClick != null) setOnLongClickListener { onLongClick(); true }
         pressFeedback()
     }
 

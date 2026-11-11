@@ -58,4 +58,17 @@ class LauncherCrashGuardTest {
         assertTrue(d.fastTimes.isEmpty())
         assertEquals(listOf(now), d.longTimes)
     }
+
+    @Test fun tripExtrasNameTheExceptionAndFirstOwnFrame() {
+        val e = NoSuchMethodError("x").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("java.lang.Thread", "run", "Thread.java", 1),
+                StackTraceElement("com.mapcontrol.launcher.MediaPlayFormat", "apply", "MediaPlayFormat.kt", 50),
+            )
+        }
+        assertEquals(
+            mapOf("exception" to "java.lang.NoSuchMethodError", "site" to "com.mapcontrol.launcher.MediaPlayFormat.apply:50"),
+            LauncherCrashGuard.tripExtras(e),
+        )
+    }
 }

@@ -103,13 +103,10 @@ import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
 import com.mapcontrol.launcher.HomeLauncherActivity;
-import com.mapcontrol.util.GestureConflicts;
-import com.mapcontrol.util.SplitScreenGesture;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.vehicle.SunroofGestureOverlayManager;
-import com.mapcontrol.vehicle.SunroofGestureStore;
 import com.mapcontrol.util.LinkOpener;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.HeaderStatusMonitor;
@@ -212,6 +209,8 @@ public class MainActivity extends AppCompatActivity {
     private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_HOME_SCREEN + 1];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
+    /** Son yerleşimin genişliği; {@link #mountShell} içerik genişliğini piksel olarak sabitler. */
+    private int lastScreenWidthDp = -1;
     private LinearLayout shellHost;
     private boolean portraitShell;
     private LinearLayout sideRail; // Sol kenar çubuğu kök view'ı (Launcher modunda gizlenebilir)
@@ -291,17 +290,6 @@ public class MainActivity extends AppCompatActivity {
         // intent'i yine de buraya düşerse yeni launcher'a yönlendir.
         if (LauncherModeManager.isHomeIntent(getIntent())) {
             openHomeLauncher();
-            finish();
-            return;
-        }
-        // Launcher modunda MapControl simgesinden açılış bizim ana ekranımızda başlar (HomePolicy.appStartScreen); ana ekranın
-        // ayarlar düğmesi (sekme isteği) ve diğer özel istekler ayarları açar.
-        Intent startIntent = getIntent();
-        boolean ownRequest = startIntent != null
-                && (startIntent.hasExtra(EXTRA_OPEN_TAB)
-                || startIntent.hasExtra(EXTRA_OPEN_PROJECTION_TARGET_PICKER));
-        if (com.mapcontrol.launcher.HomeKey.openLauncherOnAppStart(
-                this, startIntent, ownRequest, savedInstanceState != null)) {
             finish();
             return;
         }
@@ -942,6 +930,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         lastOrientation = getResources().getConfiguration().orientation;
+        lastScreenWidthDp = getResources().getConfiguration().screenWidthDp;
         lastNightModeUiBits = getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         UiStyles.setUiModeOverride(getResources().getConfiguration());
@@ -1511,7 +1500,7 @@ public class MainActivity extends AppCompatActivity {
         // PackageManager alias değişikliğini yayınlayınca rol isteği gösterilir (bkz. LauncherModeManager).
         handler.postDelayed(() -> {
             if (!isFinishing() && !isDestroyed() && LauncherModeManager.isEnabled(this)) {
-                LauncherModeManager.requestHomeRoleIfNeeded(this, REQUEST_HOME_ROLE);
+                LauncherModeManager.requestHomeRoleAutomatically(this, REQUEST_HOME_ROLE);
             }
         }, 600L);
     }
@@ -1676,8 +1665,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (newConfig.orientation != lastOrientation) {
+        // -1: arayüz henüz kurulmadı (açılış/onboarding); kurulum o anki boyutu kendisi okur.
+        if (lastOrientation != -1 && (newConfig.orientation != lastOrientation
+                || newConfig.screenWidthDp != lastScreenWidthDp)) {
             lastOrientation = newConfig.orientation;
+            lastScreenWidthDp = newConfig.screenWidthDp;
             mountShell(newConfig.orientation == Configuration.ORIENTATION_PORTRAIT);
             if (sideRailBuilder != null) {
                 sideRailBuilder.setSelectionForTabIndex(currentTab);
@@ -2149,131 +2141,13 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
     }
 
-    /** Hareketin başladığı andaki parmak ortası. */
-    private float touchMidDownX = 0f;
-    private float touchMidDownY = 0f;
-    /** Ekrandaki geçerli parmak sayısı (2-4). Parmak kalkınca 0: yeni parmak gelene dek değerlendirme yok. */
-    private int touchActiveFingers = 0;
-    /** Bu parmak seti için eşik aşıldı ve hareket yönü değerlendirildi. */
-    private boolean touchSwipeEvaluated = false;
-    /** Cam tavan hareketi tanındı; parmaklar kalkana dek olaylar uygulamaya iletilmez. */
-    private boolean touchSwipeConsumed = false;
+    /** Çok parmaklı cam tavan / perde hareketleri; launcher ile ortak. */
+    private final com.mapcontrol.vehicle.SunroofSwipeDispatcher sunroofSwipe =
+            new com.mapcontrol.vehicle.SunroofSwipeDispatcher(this, () -> true);
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        int action = event.getActionMasked();
-        int pointerCount = event.getPointerCount();
-
-        switch (action) {
-            case MotionEvent.ACTION_DOWN:
-                touchActiveFingers = 0;
-                touchSwipeEvaluated = false;
-                touchSwipeConsumed = false;
-                break;
-
-            case MotionEvent.ACTION_POINTER_DOWN:
-                if (touchSwipeConsumed) {
-                    return true;
-                }
-                if (pointerCount >= 2 && pointerCount <= 4) {
-                    touchActiveFingers = pointerCount;
-                    touchSwipeEvaluated = false;
-                    updateTouchMid(event);
-                } else {
-                    touchActiveFingers = 0;
-                }
-                break;
-
-            case MotionEvent.ACTION_POINTER_UP:
-                if (touchSwipeConsumed) {
-                    return true;
-                }
-                // Kalan parmaklar eski ortaya göre ölçülmez; yeni parmak gelene dek hareket yok.
-                touchActiveFingers = 0;
-                break;
-
-            case MotionEvent.ACTION_MOVE:
-                if (touchSwipeConsumed) {
-                    return true;
-                }
-                if (touchActiveFingers >= 2 && pointerCount == touchActiveFingers
-                        && !touchSwipeEvaluated && handleSunroofSwipe(event, pointerCount)) {
-                    MotionEvent cancelEvent = MotionEvent.obtain(event);
-                    cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
-                    super.dispatchTouchEvent(cancelEvent);
-                    cancelEvent.recycle();
-                    return true;
-                }
-                break;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                boolean consumed = touchSwipeConsumed;
-                touchActiveFingers = 0;
-                touchSwipeEvaluated = false;
-                touchSwipeConsumed = false;
-                if (consumed) {
-                    return true;
-                }
-                break;
-        }
-
-        return super.dispatchTouchEvent(event);
-    }
-
-    private void updateTouchMid(MotionEvent event) {
-        float sumX = 0f;
-        float sumY = 0f;
-        int count = event.getPointerCount();
-        for (int i = 0; i < count; i++) {
-            sumX += event.getX(i);
-            sumY += event.getY(i);
-        }
-        touchMidDownX = sumX / count;
-        touchMidDownY = sumY / count;
-    }
-
-    /**
-     * Çok parmaklı kaydırma eşiği aşıldıysa yönü bulur ve o harekete bağlı cam tavan / perde
-     * işlemini çalıştırır. Hareket seçilmemişse veya başka bir özellik (bölünmüş ekran, harita
-     * kaydırma) aynı hareketi kullanıyorsa dokunuşa karışmaz.
-     *
-     * @return işlem çalıştıysa true (dokunuş iptal edilmeli)
-     */
-    private boolean handleSunroofSwipe(MotionEvent event, int fingers) {
-        float sumX = 0f;
-        float sumY = 0f;
-        for (int i = 0; i < fingers; i++) {
-            sumX += event.getX(i);
-            sumY += event.getY(i);
-        }
-        float dx = sumX / fingers - touchMidDownX;
-        float dy = sumY / fingers - touchMidDownY;
-        float absDx = Math.abs(dx);
-        float absDy = Math.abs(dy);
-        float density = getResources().getDisplayMetrics().density;
-        if (absDx <= 35 * density && absDy <= 22 * density) {
-            return false;
-        }
-        touchSwipeEvaluated = true;
-
-        int direction;
-        if (absDx >= absDy) {
-            direction = dx > 0 ? SplitScreenGesture.RIGHT : SplitScreenGesture.LEFT;
-        } else {
-            direction = dy < 0 ? SplitScreenGesture.UP : SplitScreenGesture.DOWN;
-        }
-        int code = SplitScreenGesture.code(fingers, direction);
-        SunroofGestureOverlayManager.GestureAction gesture = SunroofGestureStore.actionFor(this, code);
-        if (gesture == null) {
-            return false;
-        }
-        if (GestureConflicts.findOwnerLabel(this, code, GestureConflicts.slotOf(gesture)) != 0) {
-            return false;
-        }
-        touchSwipeConsumed = true;
-        SunroofGestureOverlayManager.getInstance(this).handleGestureAction(gesture, "Ekran");
-        return true;
+        return sunroofSwipe.dispatch(event, super::dispatchTouchEvent);
     }
 
     private void registerTargetPackageBroadcastReceiver() {

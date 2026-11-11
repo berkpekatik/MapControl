@@ -330,6 +330,25 @@ public class SplitScreenTabBuilder {
         applyPreviewColors();
         ratioPreview.setShare(current.firstShare);
 
+        SplitScreenLauncher.Axis axis = SplitScreenStore.getAxis(context);
+        UiStyles.addTernarySegmentedControl(context, parent,
+                context.getString(R.string.split_axis_title),
+                new String[]{
+                        context.getString(R.string.split_axis_auto),
+                        context.getString(R.string.split_axis_side),
+                        context.getString(R.string.split_axis_stack)},
+                new String[]{
+                        context.getString(R.string.split_axis_help_auto),
+                        context.getString(R.string.split_axis_help_side),
+                        context.getString(R.string.split_axis_help_stack)},
+                new int[]{0, 1, 2},
+                axis.ordinal(),
+                modeId -> {
+                    SplitScreenLauncher.Axis picked = SplitScreenLauncher.Axis.values()[modeId];
+                    SplitScreenStore.setAxis(context, picked);
+                    ratioPreview.setSideBySide(SplitScreenLauncher.splitsSideBySide(context, picked));
+                });
+
         UiStyles.addTernarySegmentedControl(context, parent,
                 context.getString(R.string.split_ratio_title),
                 new String[]{

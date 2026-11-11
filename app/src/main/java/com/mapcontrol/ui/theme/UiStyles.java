@@ -676,6 +676,23 @@ public final class UiStyles {
         if (labels.length != 3 || helps.length != 3 || modeIds.length != 3) {
             throw new IllegalArgumentException("labels, helps, modeIds must have length 3");
         }
+        return addSegmentedControl(context, parent, title, labels, helps, modeIds, initialModeId, onCommit);
+    }
+
+    /**
+     * Segment control with 2..4 options (same look as {@link #addTernarySegmentedControl}); {@code modeIds} order must
+     * match {@code labels} / {@code helps}.
+     */
+    public static TernarySegmentHandle addSegmentedControl(Context context, LinearLayout parent,
+            @Nullable String title,
+            String[] labels, String[] helps,
+            int[] modeIds,
+            int initialModeId,
+            Consumer<Integer> onCommit) {
+        final int n = labels.length;
+        if (n < 2 || n > 4 || helps.length != n || modeIds.length != n) {
+            throw new IllegalArgumentException("labels, helps, modeIds must have the same length (2..4)");
+        }
 
         if (title != null && !title.isEmpty()) {
             TextView rowTitle = new TextView(context);
@@ -696,20 +713,22 @@ public final class UiStyles {
         track.setBackgroundColor(Color.TRANSPARENT);
         track.setPadding(0, 0, 0, 0);
 
-        LinearLayout[] cards = new LinearLayout[3];
-        androidx.appcompat.widget.AppCompatRadioButton[] radioButtons = new androidx.appcompat.widget.AppCompatRadioButton[3];
-        TextView[] labelViews = new TextView[3];
+        LinearLayout[] cards = new LinearLayout[n];
+        androidx.appcompat.widget.AppCompatRadioButton[] radioButtons = new androidx.appcompat.widget.AppCompatRadioButton[n];
+        TextView[] labelViews = new TextView[n];
 
         float density = context.getResources().getDisplayMetrics().density;
         int cornerRadius = Math.round(16f * density);
         int gap = Math.round(10f * density);
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < n; i++) {
             LinearLayout card = new LinearLayout(context);
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setGravity(Gravity.CENTER);
-            card.setPadding(Math.round(14 * density), Math.round(12 * density),
-                    Math.round(14 * density), Math.round(12 * density));
+            // Dört seçenekte kartlar dar: yatay pay azalır, yazı tek satırda kalıp gerekirse küçülür (kelime bölünmez).
+            final boolean dense = n >= 4;
+            int hPadCard = Math.round((dense ? 8 : 14) * density);
+            card.setPadding(hPadCard, Math.round(12 * density), hPadCard, Math.round(12 * density));
             card.setMinimumHeight(Math.round(52 * density));
             card.setClickable(true);
             card.setFocusable(true);
@@ -719,16 +738,25 @@ public final class UiStyles {
             rb.setFocusable(false);
             LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rbLp.setMarginEnd(Math.round(6f * density));
+            rbLp.setMarginEnd(Math.round((dense ? 2f : 6f) * density));
             card.addView(rb, rbLp);
 
             TextView tv = new TextView(context);
             tv.setText(labels[i]);
             setTextSize(tv, R.dimen.text_size_normal);
             tv.setGravity(Gravity.CENTER_VERTICAL);
-            tv.setMaxLines(2);
-            card.addView(tv, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            if (dense) {
+                tv.setMaxLines(1);
+                int maxPx = Math.round(tv.getTextSize());
+                androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                        tv, Math.min(maxPx, Math.round(12f * context.getResources().getDisplayMetrics().scaledDensity)),
+                        maxPx, 1, android.util.TypedValue.COMPLEX_UNIT_PX);
+                card.addView(tv, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            } else {
+                tv.setMaxLines(2);
+                card.addView(tv, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
 
             cards[i] = card;
             radioButtons[i] = rb;
@@ -743,7 +771,7 @@ public final class UiStyles {
                 dimenPx(context, R.dimen.spacing_medium));
 
         int initialIndex = 0;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < n; i++) {
             if (modeIds[i] == initialModeId) {
                 initialIndex = i;
                 break;
@@ -753,7 +781,7 @@ public final class UiStyles {
         final int[] selectedIndex = {initialIndex};
         Runnable refresh = () -> {
             int idx = selectedIndex[0];
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < n; i++) {
                 boolean isSelected = (i == idx);
                 androidx.appcompat.widget.AppCompatRadioButton rb = radioButtons[i];
                 TextView tv = labelViews[i];
@@ -781,7 +809,7 @@ public final class UiStyles {
             help.setText(buildOptionsHelp(context, labels, helps, idx));
         };
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < n; i++) {
             final int fi = i;
             cards[i].setOnClickListener(v -> {
                 if (cards[fi].isEnabled() && selectedIndex[0] != fi) {
@@ -794,7 +822,7 @@ public final class UiStyles {
         }
         refresh.run();
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < n; i++) {
             LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             if (i > 0) {

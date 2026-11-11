@@ -135,26 +135,120 @@ class MediaSourcePickTest {
     @Test fun liveSwitchForgottenWhenBluetoothSessionAppears() {
         val f = SourceFollow()
         assertTrue(f.onSource(13))                 // ilk okuma: geçiş değil
-        assertEquals(13, f.follow(hasBt = true))
+        assertEquals(13, f.follow(hasBt = true, now = 0L))
         assertTrue(f.onSource(9))                  // telefon koptu, svaudioapp radyoya düştü (canlı)
-        assertEquals(9, f.follow(hasBt = false))
+        assertEquals(9, f.follow(hasBt = false, now = 0L))
         // Telefon yeniden bağlandı, kaynak 9'da kaldı: yeni BT oturumu canlı geçişi siler, kart BT'yi seçer.
-        val follow = f.follow(hasBt = true)
+        val follow = f.follow(hasBt = true, now = 0L)
         assertNull(follow)
         assertEquals(1, MediaSourcePick.pick(listOf(radio, bt), 0, follow = follow))
-        assertNull(f.follow(hasBt = true))
+        assertNull(f.follow(hasBt = true, now = 0L))
         // BT varken kullanıcı radyoya geçerse izlenir; BT oturumu sürdükçe izlenmeye devam eder.
         assertFalse(f.onSource(9))
         assertTrue(f.onSource(10))
-        assertEquals(10, f.follow(hasBt = true))
-        assertEquals(10, f.follow(hasBt = true))
+        assertEquals(10, f.follow(hasBt = true, now = 0L))
+        assertEquals(10, f.follow(hasBt = true, now = 0L))
     }
 
     @Test fun firstSourceReadIsNotALiveSwitch() {
         val f = SourceFollow()
         f.onSource(9)
-        assertNull(f.follow(hasBt = true))         // 6 Kasım
-        assertNull(f.follow(hasBt = false))
+        assertNull(f.follow(hasBt = true, now = 0L))         // 6 Kasım
+        assertNull(f.follow(hasBt = false, now = 0L))
+    }
+
+    @Test fun userPickBindsCardEvenIfSourceDoesNotChange() {
+        val f = SourceFollow()
+        f.onSource(9)
+        assertNull(f.follow(hasBt = true, now = 0L))
+        f.onUserPick(9, now = 1_000L)
+        assertEquals(9, f.follow(hasBt = true, now = 1_000L))
+        assertEquals(0, MediaSourcePick.pick(listOf(radio, bt), 1, follow = 9, userPicked = f.userPicked))
+    }
+
+    @Test fun userPickOverridesPausedThirdPartyButPlayingBluetoothStillWins() {
+        assertEquals(2, MediaSourcePick.pick(listOf(spotify, bt, radio), 0, follow = 9, userPicked = true))
+        assertEquals(1, MediaSourcePick.pick(listOf(radio, btPlaying), 0, follow = 9, userPicked = true))
+    }
+
+    @Test fun recentUserPickSurvivesBluetoothReconnect() {
+        val f = SourceFollow()
+        f.onSource(9)
+        f.follow(hasBt = false, now = 0L)
+        f.onUserPick(9, now = 1_000L)
+        assertEquals(9, f.follow(hasBt = true, now = 60_000L))
+    }
+
+    @Test fun staleUserPickIsForgottenWhenPhoneConnectsNextDay() {
+        // 6 Kasım korunur: dünkü radyo seçimi sabah bağlanan telefonun önüne geçmez.
+        val f = SourceFollow()
+        f.onSource(9)
+        f.follow(hasBt = false, now = 0L)
+        f.onUserPick(9, now = 1_000L)
+        assertNull(f.follow(hasBt = true, now = 1_000L + SourceFollow.USER_PICK_KEEP_MS))
+        assertFalse(f.userPicked)
+    }
+
+    @Test fun userPickClearedByBluetoothChoiceOrOtherSource() {
+        val f = SourceFollow()
+        f.onSource(13)
+        f.onUserPick(9, now = 0L)
+        assertTrue(f.onSource(9))
+        assertTrue(f.userPicked)                   // seçilen kaynağa geçiş seçimi silmez
+        f.clearUserPick()
+        assertFalse(f.userPicked)
+        f.onUserPick(9, now = 0L)
+        assertTrue(f.onSource(10))
+        assertFalse(f.userPicked)
+    }
+
+    @Test fun playKeepsOemSourceOnlyWhenCardIsOnOemSession() {
+        assertTrue(MediaSourcePick.keepOemOnPlay(radio.pkg, 9))
+        assertTrue(MediaSourcePick.keepOemOnPlay(radio.pkg, 3))    // USB
+        assertFalse(MediaSourcePick.keepOemOnPlay(radio.pkg, 13))  // kaynak BT
+        assertFalse(MediaSourcePick.keepOemOnPlay(radio.pkg, null))
+        assertFalse(MediaSourcePick.keepOemOnPlay(bt.pkg, 9))
+    }
+
+    @Test fun sourceRowNotMarkedWhileCardIsOnApp() {
+        assertTrue(SourceChoice.isCurrent(OemAudioSource.BT_MUSIC, OemAudioSource.BT_MUSIC))
+        assertFalse(SourceChoice.isCurrent(OemAudioSource.BT_MUSIC, OemAudioSource.BT_MUSIC, cardOnApp = true))
+    }
+
+    @Test fun radioActiveOnlyForOemSessionOnRadioSource() {
+        assertTrue(MediaSourcePick.radioActive(radio.pkg, 9))
+        assertTrue(MediaSourcePick.radioActive(radio.pkg, 10))
+        assertFalse(MediaSourcePick.radioActive(radio.pkg, 3))     // USB oturumu kendi bilgisini verir
+        assertFalse(MediaSourcePick.radioActive(radio.pkg, 13))
+        assertFalse(MediaSourcePick.radioActive(radio.pkg, null))
+        assertFalse(MediaSourcePick.radioActive(spotify.pkg, 9))
+    }
+
+    @Test fun radioPauseResetsWhenSourceChangesOrIsPickedAgain() {
+        val f = SourceFollow()
+        f.onSource(9)
+        f.oemPaused = true
+        f.onSource(10)
+        assertFalse(f.oemPaused)
+        f.oemPaused = true
+        f.onUserPick(10, now = 0L)
+        assertFalse(f.oemPaused)
+    }
+
+    @Test fun thirdPartySessionIsNotTreatedAsBluetoothOrOem() {
+        assertTrue(MediaSourcePick.isThirdParty(spotify.pkg))
+        assertFalse(MediaSourcePick.isThirdParty(bt.pkg))
+        assertFalse(MediaSourcePick.isThirdParty(radio.pkg))
+        assertFalse(MediaSourcePick.isThirdParty(null))
+    }
+
+    @Test fun idlePlayOpensKnownOemSourceUnlessLastAppIsThirdParty() {
+        assertTrue(MediaSourcePick.idlePlayOpensOem(null, 9))
+        assertTrue(MediaSourcePick.idlePlayOpensOem(radio.pkg, 9))
+        assertTrue(MediaSourcePick.idlePlayOpensOem(bt.pkg, 9))
+        assertFalse(MediaSourcePick.idlePlayOpensOem(spotify.pkg, 9))
+        assertFalse(MediaSourcePick.idlePlayOpensOem(null, 13))
+        assertFalse(MediaSourcePick.idlePlayOpensOem(null, null))
     }
 
     @Test fun cardFollowsOemSourceSwitch() {
@@ -182,5 +276,13 @@ class MediaSourcePickTest {
         assertEquals(1, p.playCtrl)
         assertEquals(0, p.playType)
         assertEquals(262948, VDEventBT.MUSIC_PLAY)
+    }
+
+    @Test fun radioOpenReasonOnOldAudioAppIsOtherApp() {
+        // 10 Kasım araç logu: eski ses uygulamasında neden 8 radyoyu açmıyor; aracın kendi başlatıcısı 13 gönderiyor.
+        for (radio in listOf(8, 9, 10, 24)) assertEquals(13, MediaSourcePick.openReason(radio, oldAudioApp = true))
+        assertEquals(8, MediaSourcePick.openReason(OemAudioSource.BT_MUSIC, oldAudioApp = true))
+        assertEquals(8, MediaSourcePick.openReason(3, oldAudioApp = true)) // USB değişmez
+        assertEquals(8, MediaSourcePick.openReason(9, oldAudioApp = false)) // svaudioapp: 8 araçta doğrulandı
     }
 }

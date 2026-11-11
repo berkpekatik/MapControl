@@ -22,6 +22,8 @@ public class VDMediaPlay implements Parcelable {
             return new VDMediaPlay[size];
         }
     };
+    // Biçim bayrağı com.mapcontrol.launcher.MediaPlayWire'da: bu sınıf bazı araçlarda sistemdeki vdbus.jar ile
+    // gölgelenir, buraya eklenen statik üye orada bulunmaz (NoSuchMethodError ile çökme). Buraya kendi üyemizi ekleme.
     private long actions;
     private VDMediaPlayActionInfo mediaPlayActionInfo;
     private int mediaType;
@@ -37,7 +39,9 @@ public class VDMediaPlay implements Parcelable {
         playStatus = parcel.readInt();
         playAction = parcel.readInt();
         searchStatus = parcel.readInt();
-        actions = parcel.readLong();
+        if (com.mapcontrol.launcher.MediaPlayWire.withActions) {
+            actions = parcel.readLong();
+        }
         mediaPlayActionInfo = parcel.readParcelable(VDMediaPlayActionInfo.class.getClassLoader());
     }
 
@@ -52,7 +56,9 @@ public class VDMediaPlay implements Parcelable {
         parcel.writeInt(playStatus);
         parcel.writeInt(playAction);
         parcel.writeInt(searchStatus);
-        parcel.writeLong(actions);
+        if (com.mapcontrol.launcher.MediaPlayWire.withActions) {
+            parcel.writeLong(actions);
+        }
         parcel.writeParcelable(mediaPlayActionInfo, flags);
     }
 
@@ -110,6 +116,6 @@ public class VDMediaPlay implements Parcelable {
     @Override
     public String toString() {
         return "VDMediaPlay{mediaType=" + mediaType + ", playStatus=" + playStatus + ", playAction=" + playAction
-                + ", actions=" + actions + ", searchStatus=" + searchStatus + ", info=" + mediaPlayActionInfo + "}";
+                + ", searchStatus=" + searchStatus + ", info=" + mediaPlayActionInfo + "}";
     }
 }

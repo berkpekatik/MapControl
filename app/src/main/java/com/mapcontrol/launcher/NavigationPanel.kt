@@ -269,7 +269,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         homeTile.bind()
         workTile.bind()
         val installed = driveMap() != null
-        // MapControl'da harita yoksa düğme sürüş ekranını "+ Harita ekle" seçicisiyle açar.
+        // Harita yoksa düğme "+ Harita ekle" seçicisini açar (MapControl varken).
         val canPick = !installed && drivePicker
         (mapButton.getChildAt(1) as TextView).setText(when {
             installed -> R.string.launcher_nav_open_map
@@ -338,15 +338,38 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     /** Sürüş ekranının harita yarısı: kartın paketi, yoksa seçicide seçilen diğer uygulama; ikisi de yoksa null (seçici). */
     private fun driveMap(): String? = DrivePolicy.mapSlot(mapPackage(), DriveMapPrefs.other(context), ::installed)
 
-    /** Kart / "Haritayı aç": sürüş ekranı. MapControl yoksa eskisi gibi harita tam ekran. */
+    /**
+     * Kart / "Haritayı aç": harita her zaman bölmesiz, tam ekran açılır (her araçta aynı davranış; sürüş ekranı bölmesi
+     * "Bölünmüş ekran" kutusunda). Harita seçili değilse "+ Harita ekle" seçicisi kendi tam ekranında açılır.
+     */
     private fun openMap() {
         val pkg = driveMap()
-        DriveScreen.open(context, pkg, null) { openMapFull(pkg) }
+        if (pkg == null) {
+            if (drivePicker) openMapPicker()
+            return
+        }
+        openMapFull(pkg)
     }
 
+    /**
+     * Tam ekran: MapControl varsa sürüş ekranından yarım kalmış harita penceresi de tam ekrana taşınır (yoksa Android eski yarım
+     * pencereyi öne getirirdi); MapControl yoksa düz başlatma.
+     */
     private fun openMapFull(pkg: String?) {
         pkg ?: return
-        io.runSafely { if (!DriveScreen.openLeftover(context, pkg)) AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0) }
+        if (drivePicker) DriveScreen.openFullScreen(context, pkg)
+        else io.runSafely { AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0) }
+    }
+
+    /** "+ Harita ekle": seçici bölmesiz açılır; seçilen harita seçicinin (tam ekran) penceresinde başlar. */
+    private fun openMapPicker() {
+        try {
+            context.startActivity(Intent().setClassName(context.packageName, com.mapcontrol.util.SplitSlot.MAP_PICKER_CLASS)
+                .putExtra(com.mapcontrol.ui.activity.DriveMapPickerActivity.EXTRA_FULL_SCREEN, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            android.util.Log.w("NavigationPanel", "map picker: ${e.javaClass.simpleName}")
+        }
     }
 
     /**

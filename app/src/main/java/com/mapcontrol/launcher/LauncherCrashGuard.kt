@@ -42,7 +42,7 @@ object LauncherCrashGuard {
         installed = true
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
-            try { recordCrash(app) } catch (_: Throwable) {}
+            try { recordCrash(app, e) } catch (_: Throwable) {}
             if (previous != null) previous.uncaughtException(t, e) else throw RuntimeException(e)
         }
     }
@@ -73,7 +73,7 @@ object LauncherCrashGuard {
     private fun parseTimes(raw: String?): List<Long> =
         (raw ?: "").split(',').mapNotNull { it.toLongOrNull() }
 
-    private fun recordCrash(app: Context) {
+    private fun recordCrash(app: Context, error: Throwable) {
         val sp = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val d = decide(
             System.currentTimeMillis(),
@@ -87,8 +87,19 @@ object LauncherCrashGuard {
         if (d.tripped) e.putBoolean(KEY_TRIPPED, true).putBoolean(KEY_NOTICE, true)
         e.commit()
         if (d.tripped) {
+            // Ayrı uyarı: "kaç araçta launcher modu otomatik kapandı" doğrudan sayılsın; asıl çökme ayrıca raporlanır.
+            try { com.mapcontrol.GlitchTip.reportWarning("launcher_guard:tripped", tripExtras(error)) } catch (_: Throwable) {}
             try { onTripped?.run() } catch (_: Throwable) {}
         }
+    }
+
+    /** Tetikleyen çökmenin tipi ve ilk MapControl satırı (saf; JVM'de sınanır). */
+    internal fun tripExtras(error: Throwable): Map<String, String> {
+        val site = error.stackTrace.firstOrNull { it.className.startsWith("com.mapcontrol.") }
+        return mapOf(
+            "exception" to error.javaClass.name,
+            "site" to (site?.let { "${it.className}.${it.methodName}:${it.lineNumber}" } ?: "?"),
+        )
     }
 
     fun isDebuggable(context: Context): Boolean =

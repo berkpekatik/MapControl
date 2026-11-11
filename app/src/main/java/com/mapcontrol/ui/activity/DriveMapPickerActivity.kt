@@ -151,12 +151,27 @@ class DriveMapPickerActivity : Activity() {
         pkg
     }
 
+    /** singleTask: açık seçiciye yeni istek gelirse (sürüş yarısı ↔ tam ekran) ekstralar güncellensin. */
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
     /** Seçim kaydedilir; uygulama bu pencerenin sınırlarında açılır, seçici kapanır. */
     private fun choose(pkg: String) {
         if (launching) return
         val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return
         launching = true
         DriveMapPrefs.choose(this, pkg)
+        if (intent.getBooleanExtra(EXTRA_FULL_SCREEN, false)) {
+            // Navigasyon kartından tek başına açıldı: harita bölmesiz tam ekran (sürüş ekranı işareti yok).
+            SplitScreenLauncher.mapFullScreen(this, pkg) { result ->
+                Log.i(TAG, "picked (full) -> $result")
+                launching = false
+                finishAndRemoveTask()
+            }
+            return
+        }
         DriveScreen.onMapChosen(pkg)
         SplitScreenLauncher.launchInto(this, pkg, intent, Rect(windowManager.currentWindowMetrics.bounds)) { result ->
             Log.i(TAG, "picked -> $result")
@@ -165,10 +180,12 @@ class DriveMapPickerActivity : Activity() {
         }
     }
 
-    private companion object {
-        const val TAG = "DriveMapPicker"
-        const val CARD_DP = 200
-        const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
-        const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+    companion object {
+        /** Seçici sürüş ekranı yarısı değil, tek başına açıldı: seçilen harita tam ekran açılır. */
+        const val EXTRA_FULL_SCREEN = "drive_map_picker_full"
+        private const val TAG = "DriveMapPicker"
+        private const val CARD_DP = 200
+        private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+        private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
     }
 }

@@ -91,9 +91,14 @@ public class HomeScreenTabBuilder {
         createSportModeSection(appearanceGrid);
         createBottomBarSection(appearanceGrid);
         createAutoLayoutSection(appearanceGrid);
+        createCarOrientationSection(appearanceGrid);
         createVehicleScreenSection(appearanceGrid);
         createClimateScaleSection(appearanceGrid);
+        // İki sütunlu ızgarada iki hücre sonrası "Araç ekranı"nın tam altıdır.
+        createStartTypeSection(appearanceGrid);
         createCarColorSection(appearanceGrid);
+        createRadioCommandSection(appearanceGrid);
+        createHomeKeySection(appearanceGrid);
 
         addSectionTitle(R.string.home_screen_layout_title);
         FeatureGridLayout layoutGrid = new FeatureGridLayout(context);
@@ -274,19 +279,73 @@ public class HomeScreenTabBuilder {
                 });
     }
 
-    /** Araç ekranı: Otomatik / Tiggo 7 / Tiggo 8 (sıra {@code HomeScreenPrefs.vehicleProfileIndex}); launcher bir sonraki açılışta yeniden kurulur. */
-    private void createVehicleScreenSection(FeatureGridLayout grid) {
+    /** Home tuşu: aracın alt çubuğundaki home MapControl launcher'a mı dönsün, aracın ana ekranında mı kalsın. */
+    private void createHomeKeySection(FeatureGridLayout grid) {
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_home_key),
+                context.getString(R.string.home_screen_home_key_mapcontrol),
+                context.getString(R.string.home_screen_home_key_car),
+                context.getString(R.string.home_screen_home_key_help_mapcontrol),
+                context.getString(R.string.home_screen_home_key_help_car),
+                HomeScreenPrefs.homeKeyMapControl(context),
+                mapcontrol -> {
+                    HomeScreenPrefs.setHomeKeyMapControl(context, mapcontrol);
+                    callback.log("Home tuşu: " + (mapcontrol ? "MapControl" : "araç"));
+                });
+    }
+
+    /** Radyo komut tipi: araca göre otomatik; AM/FM geçmiyorsa elle Tip 1 / Tip 2. */
+    private void createRadioCommandSection(FeatureGridLayout grid) {
         UiStyles.addTernarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_radio_command),
+                new String[]{
+                        context.getString(R.string.home_screen_vehicle_auto),
+                        context.getString(R.string.home_screen_radio_type1),
+                        context.getString(R.string.home_screen_radio_type2)},
+                new String[]{
+                        context.getString(R.string.home_screen_radio_help_auto),
+                        context.getString(R.string.home_screen_radio_help_type1),
+                        context.getString(R.string.home_screen_radio_help_type2)},
+                new int[]{com.mapcontrol.launcher.MediaPlayFormat.AUTO,
+                        com.mapcontrol.launcher.MediaPlayFormat.SHORT,
+                        com.mapcontrol.launcher.MediaPlayFormat.LONG},
+                com.mapcontrol.launcher.MediaPlayFormat.mode(context),
+                mode -> {
+                    com.mapcontrol.launcher.MediaPlayFormat.setMode(context, mode);
+                    callback.log("Radyo komut tipi: " + mode);
+                });
+    }
+
+    /** Başlangıç tipi: launcher araç açılışında en erken mi, araç güç alınca mı gelsin. */
+    private void createStartTypeSection(FeatureGridLayout grid) {
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_start_type),
+                context.getString(R.string.home_screen_start_earliest),
+                context.getString(R.string.home_screen_start_power),
+                context.getString(R.string.home_screen_start_help_earliest),
+                context.getString(R.string.home_screen_start_help_power),
+                HomeScreenPrefs.startEarliest(context),
+                earliest -> {
+                    HomeScreenPrefs.setStartEarliest(context, earliest);
+                    callback.log("Ana ekran başlangıç tipi: " + (earliest ? "en erken" : "araç güç alınca"));
+                });
+    }
+
+    /** Araç ekranı: Otomatik / Tiggo 7 / Tiggo 8 / Jaecoo (sıra {@code HomeScreenPrefs.vehicleProfileIndex}); launcher bir sonraki açılışta yeniden kurulur. */
+    private void createVehicleScreenSection(FeatureGridLayout grid) {
+        UiStyles.addSegmentedControl(context, createCard(grid),
                 context.getString(R.string.home_screen_vehicle_screen),
                 new String[]{
                         context.getString(R.string.home_screen_vehicle_auto),
                         context.getString(R.string.home_screen_vehicle_t7),
-                        context.getString(R.string.home_screen_vehicle_t8)},
+                        context.getString(R.string.home_screen_vehicle_t8),
+                        context.getString(R.string.home_screen_vehicle_jaecoo)},
                 new String[]{
                         context.getString(R.string.home_screen_vehicle_help_auto),
                         context.getString(R.string.home_screen_vehicle_help_t7),
-                        context.getString(R.string.home_screen_vehicle_help_t8)},
-                new int[]{0, 1, 2},
+                        context.getString(R.string.home_screen_vehicle_help_t8),
+                        context.getString(R.string.home_screen_vehicle_help_jaecoo)},
+                new int[]{0, 1, 2, 3},
                 HomeScreenPrefs.vehicleProfileIndex(context),
                 index -> {
                     HomeScreenPrefs.setVehicleProfileIndex(context, index);
@@ -322,6 +381,20 @@ public class HomeScreenTabBuilder {
                 R.dimen.text_size_small, R.color.textHint);
         help.setPadding(hPad, UiStyles.dimenPx(context, R.dimen.spacing_small), hPad,
                 UiStyles.dimenPx(context, R.dimen.spacing_medium));
+    }
+
+    private void createCarOrientationSection(FeatureGridLayout grid) {
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_car_orientation),
+                context.getString(R.string.home_screen_car_horizontal),
+                context.getString(R.string.home_screen_car_vertical),
+                context.getString(R.string.home_screen_car_horizontal_help),
+                context.getString(R.string.home_screen_car_vertical_help),
+                !HomeScreenPrefs.carVertical(context),
+                horizontal -> {
+                    HomeScreenPrefs.setCarVertical(context, !horizontal);
+                    callback.log("Ana ekran araç görünümü: " + (horizontal ? "yatay" : "dikey"));
+                });
     }
 
     private void createAutoLayoutSection(FeatureGridLayout grid) {

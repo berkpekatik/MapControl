@@ -24,4 +24,21 @@ public class SplitAxisTest {
         assertTrue(SplitScreenLauncher.sideBySideFor(1920, 1080));
         assertTrue(SplitScreenLauncher.sideBySideFor(0, 0));
     }
+
+    @Test
+    public void manualAxisOverridesScreenRule() {
+        assertTrue(SplitScreenLauncher.sideBySide(SplitScreenLauncher.Axis.SIDE_BY_SIDE, 2560, 1440));
+        assertFalse(SplitScreenLauncher.sideBySide(SplitScreenLauncher.Axis.TOP_BOTTOM, 1920, 720));
+        assertTrue(SplitScreenLauncher.sideBySide(SplitScreenLauncher.Axis.AUTO, 1920, 720));
+        assertFalse(SplitScreenLauncher.sideBySide(SplitScreenLauncher.Axis.AUTO, 2560, 1440));
+    }
+
+    @Test
+    public void axisIdsRoundTripAndUnknownFallsBackToAuto() {
+        for (SplitScreenLauncher.Axis axis : SplitScreenLauncher.Axis.values()) {
+            assertTrue(axis == SplitScreenLauncher.Axis.fromId(axis.id));
+        }
+        assertTrue(SplitScreenLauncher.Axis.AUTO == SplitScreenLauncher.Axis.fromId(null));
+        assertTrue(SplitScreenLauncher.Axis.AUTO == SplitScreenLauncher.Axis.fromId("x"));
+    }
 }

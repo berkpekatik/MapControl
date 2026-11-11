@@ -18,6 +18,9 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.service.RecordingService;
+import com.mapcontrol.util.AppLaunchHelper;
+import com.mapcontrol.util.ClusterNavigationState;
+import com.mapcontrol.util.DisplayHelper;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -102,6 +105,7 @@ public final class DvrController {
     private static final long UNCLEAN_EXIT_HOLD_MS = 20_000;
     /** Kurulum oncesi kaydin ve kameralarin kapanmasi icin en fazla bekleme. */
     private static final long PREPARE_INSTALL_TIMEOUT_MS = 20_000;
+    private static final long CLUSTER_SPLASH_REMOVE_TIMEOUT_MS = 2_000;
     /** USB ayrilirken otomatik kayit ve kameralar bu sure kapali kalir (vold isi bitsin). */
     private static final long VOLUME_STOP_HOLD_MS = 15_000;
     /** Sinyal geldiginde kameralarin kapanmasi icin en fazla bekleme. */
@@ -150,13 +154,24 @@ public final class DvrController {
         }
     }
 
-    private static DvrController instance;
+    private static volatile DvrController instance;
 
     public static synchronized DvrController get(Context context) {
         if (instance == null) {
             instance = new DvrController(context.getApplicationContext());
         }
         return instance;
+    }
+
+    /**
+     * Çöken süreçte açık klibi kapatır. Ana iş parçacığı ölmüş olabileceği için ona iş göndermez,
+     * kilit almaz (çökme kilit altında olmuş olabilir) ve denetleyici henüz yoksa oluşturmaz.
+     */
+    public static void finishRecordingForCrash(long timeoutMs) throws InterruptedException {
+        DvrController controller = instance;
+        if (controller != null) {
+            controller.recorder.finishForCrash(timeoutMs);
+        }
     }
 
     private final Context app;
@@ -536,6 +551,7 @@ public final class DvrController {
      * @return kayit ve kameralar sure icinde kapandiysa true
      */
     public boolean prepareForSelfInstall(long autoResumeMs) {
+        removeClusterSplashForInstall(autoResumeMs);
         if (!cameraSupported) {
             return true;
         }
@@ -559,10 +575,40 @@ public final class DvrController {
     /** Kurulum basarisiz: kameralari ve otomatik kaydi hemen geri acar. */
     public void cancelSelfInstallPrepare() {
         CameraHub.get().resumeAfterInstall();
+        main.removeCallbacks(restoreClusterSplash);
+        main.post(restoreClusterSplash);
         main.post(() -> {
             holdUntilMs = 0;
             if (ticking) tick();
         });
+    }
+
+    private volatile boolean clusterSplashRemoved;
+
+    private final Runnable restoreClusterSplash = this::restoreClusterSplashNow;
+
+    /** Kurulum olmadıysa çizim geri gelir; göstergede harita açıksa üstünü örtmez. */
+    private void restoreClusterSplashNow() {
+        DisplayHelper.allowBootSplashAfterInstall();
+        if (clusterSplashRemoved) {
+            clusterSplashRemoved = false;
+            if (!ClusterNavigationState.getLastKnownOpen()) {
+                DisplayHelper.showBootSplashOnDisplay(app, AppLaunchHelper.getClusterDisplayId(app));
+            }
+        }
+    }
+
+    /** Göstergede "Harita bekleniyor" çizimi takılı kalmasın: kurulumdan önce kaldırılır. */
+    private void removeClusterSplashForInstall(long autoResumeMs) {
+        try {
+            if (DisplayHelper.removeBootSplashForInstall(CLUSTER_SPLASH_REMOVE_TIMEOUT_MS)) {
+                clusterSplashRemoved = true;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        main.removeCallbacks(restoreClusterSplash);
+        main.postDelayed(restoreClusterSplash, autoResumeMs);
     }
 
     private void stopRecordingAndWait(long holdMs, long deadline) throws InterruptedException {

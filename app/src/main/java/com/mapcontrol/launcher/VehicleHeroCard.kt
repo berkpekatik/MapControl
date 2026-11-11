@@ -353,7 +353,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
 
     private fun render() {
         val s = snapshot
-        val range = s.rangeKm.takeIf { s.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+        val range = if (s.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(context, s) else null
         val tenths = s.fuelTenthsOrNull()
         // Tam yüzde ancak onda bir değer gösterilenden 0,6 uzaklaşınca değişir; düşük yakıtta anlık izlenir.
         val fuel = if (tenths == null) null else {

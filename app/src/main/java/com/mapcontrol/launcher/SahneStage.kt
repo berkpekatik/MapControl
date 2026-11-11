@@ -62,6 +62,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     /** İlk özet animasyonsuz uygulanır (ekran açıldığında kapı zaten açıksa açık çizilir). */
     private var carSeeded = false
     private var carW = 0
+    /** Araç dikey mi (burun yukarı; Ana ekran ayarı). Değişince etkinlik yeniden kurulur ([HomeScreenPrefs.signature]). */
+    private val vertical = HomeScreenPrefs.carVertical(activity)
     /** Aracın gövde kutusu (sahne pikseli; açılan parçalar hariç); ölçü değişmedikçe yeniden hesaplanmaz. */
     private var carBox = StageFit.Box(0f, 0f, 0f, 0f)
     private var fitKey: List<Int> = emptyList()
@@ -569,6 +571,23 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         val key = listOf(w, h, if (showRange) 1 else 0, rTop, rangeRight, rangeBlock.measuredHeight, chipLeft, cTop + lockChip.measuredHeight, maxBottom)
         if (key == fitKey) return
         fitKey = key
+        val obstacles = listOfNotNull(
+            if (showRange) StageFit.Box(side.toFloat(), rTop.toFloat(), rangeRight.toFloat(), (rTop + rangeBlock.measuredHeight).toFloat()) else null,
+            StageFit.Box(chipLeft.toFloat(), cTop.toFloat(), (w - side).toFloat(), (cTop + lockChip.measuredHeight).toFloat()),
+        )
+        if (vertical) {
+            // Dikey: ortada dar ve uzun kutu (en = boy × CAR_ASPECT); araç yatay kutuda çizilip merkez etrafında döner.
+            // Bagaj aşağı (şeride doğru) açılır, yana kayma yok.
+            val upright = StageFit.centered(
+                centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
+                maxW = CAR_W_MAX * k * CAR_ASPECT, minW = CAR_W_MIN * k * CAR_ASPECT * VERTICAL_MIN_SCALE,
+                aspect = 1f / CAR_ASPECT, gap = context.dpF(FIT_GAP_DP), above = obstacles,
+            )
+            carBox = StageFit.lyingBody(upright, CAR_ASPECT)
+            trunkShiftNeed = 0f
+            if (shiftAnim == null) applyShift(0f)
+            return
+        }
         // Uzun sahne (Tiggo 8): araç büyür, omuzlar ile şerit arasında ortalanır, bagaj kayması sahne kenarına göre.
         val tall = StageFit.isTall(w, h)
         val trunkFrac = -CarAnimSpec.part(CarPart.TRUNK).overlay.x / CarAnimSpec.BASE_W
@@ -576,10 +595,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         carBox = StageFit.centered(
             centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
             maxW = maxW, minW = CAR_W_MIN * k, aspect = CAR_ASPECT, gap = context.dpF(FIT_GAP_DP),
-            above = listOfNotNull(
-                if (showRange) StageFit.Box(side.toFloat(), rTop.toFloat(), rangeRight.toFloat(), (rTop + rangeBlock.measuredHeight).toFloat()) else null,
-                StageFit.Box(chipLeft.toFloat(), cTop.toFloat(), (w - side).toFloat(), (cTop + lockChip.measuredHeight).toFloat()),
-            ),
+            above = obstacles,
             cornerInset = CORNER_INSET,
         ).let { box ->
             if (tall) return@let box
@@ -623,6 +639,16 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         }
     }
 
+    private fun rotateAbout(v: View, cx: Float, cy: Float) {
+        if (!vertical) {
+            if (v.rotation != 0f) v.rotation = 0f
+            return
+        }
+        v.pivotX = cx - v.left
+        v.pivotY = cy - v.top
+        v.rotation = VERTICAL_TURN
+    }
+
     private fun applyShift(dx: Float) {
         trunkShift = dx
         car.translationX = dx
@@ -636,14 +662,20 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         floor.layout(0, 0, w, h)
         val acx = (carBox.left + carBox.right) / 2f
         val acy = carBox.top + carBox.height * AMBIENT_CY
+        // Dikeyde araç, ortam ışığı ve zemin gövde kutusunun merkezi etrafında -90° döner (burun yukarı).
+        val pcx = (carBox.left + carBox.right) / 2f
+        val pcy = (carBox.top + carBox.bottom) / 2f
         ambient.forEach {
             val al = (acx - it.measuredWidth / 2f).toInt()
             val at = (acy - it.measuredHeight / 2f).toInt()
             it.layout(al, at, al + it.measuredWidth, at + it.measuredHeight)
+            rotateAbout(it, pcx, pcy)
         }
         val carL = carBox.left.toInt() - CarStageView.carLeft(carW)
         val carT = carBox.top.toInt() - CarStageView.carTop(carW)
         car.layout(carL, carT, carL + car.measuredWidth, carT + car.measuredHeight)
+        rotateAbout(car, pcx, pcy)
+        floor.setTurn(if (vertical) VERTICAL_TURN else 0f, pcx, pcy)
         val side = side(w)
         val rTop = rangeTop(w)
         rangeBlock.layout(side, rTop, side + rangeBlock.measuredWidth, rTop + rangeBlock.measuredHeight)
@@ -785,6 +817,19 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             invalidate()
         }
 
+        /** Dikey araç: zemin ışıkları ve gölgeler aracın merkezi etrafında döner. */
+        private var turn = 0f
+        private var turnX = 0f
+        private var turnY = 0f
+
+        fun setTurn(deg: Float, cx: Float, cy: Float) {
+            if (deg == turn && cx == turnX && cy == turnY) return
+            turn = deg
+            turnX = cx
+            turnY = cy
+            invalidate()
+        }
+
         /** Yatay kayma (bagaj açıkken): gradyanlar yeniden kurulmaz, yalnızca tuval kaydırılır. */
         private var shift = 0f
 
@@ -830,16 +875,23 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             if (w != builtW || h != builtH) build(w, h)
             val save = canvas.save()
             canvas.translate(shift, 0f)
-            val l = -shift
-            val r = w - shift
-            val b = h.toFloat()
-            canvas.drawRect(l, 0f, r, b, cone)
-            canvas.drawRect(l, 0f, r, b, poolOuter)
-            canvas.drawRect(l, 0f, r, b, pool)
-            if (head.shader != null) canvas.drawRect(l, 0f, r, b, head)
-            if (tail.shader != null) canvas.drawRect(l, 0f, r, b, tail)
-            canvas.drawRect(l, 0f, r, b, shadow)
-            canvas.drawRect(l, 0f, r, b, contact)
+            var l = -shift
+            var r = w - shift
+            var t = 0f
+            var b = h.toFloat()
+            if (turn != 0f) {
+                // Döndürülmüş tuvalde dikdörtgen tüm sahneyi örtsün (gradyan kenarları zaten saydam).
+                canvas.rotate(turn, turnX, turnY)
+                val span = maxOf(w, h).toFloat()
+                l = turnX - span; r = turnX + span; t = turnY - span; b = turnY + span
+            }
+            canvas.drawRect(l, t, r, b, cone)
+            canvas.drawRect(l, t, r, b, poolOuter)
+            canvas.drawRect(l, t, r, b, pool)
+            if (head.shader != null) canvas.drawRect(l, t, r, b, head)
+            if (tail.shader != null) canvas.drawRect(l, t, r, b, tail)
+            canvas.drawRect(l, t, r, b, shadow)
+            canvas.drawRect(l, t, r, b, contact)
             canvas.restoreToCount(save)
         }
     }
@@ -866,6 +918,10 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         /** Şeridin sahne altından uzaklığı. */
         const val STRIP_BOTTOM_DP = 8
         const val CAR_ASPECT = CarAnimSpec.BASE_H / CarAnimSpec.BASE_W
+        /** Dikey araç: burun yukarı (yatay çizim saat yönünün tersine döner). */
+        const val VERTICAL_TURN = -90f
+        /** Dikeyde alçak sahnede (Tiggo 7) araç yatay en küçük boyun bu oranına kadar küçülebilir. */
+        const val VERTICAL_MIN_SCALE = 0.5f
         /** Omuzlar sahnenin dış üst köşelerinde: kenar payı ve üst kenar (tasarım birimi). */
         const val SIDE = 8f
         const val SHOULDER_TOP = 4f

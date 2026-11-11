@@ -349,13 +349,52 @@ public final class DisplayHelper {
 
     // --- Boot Splash ----------------------------------------------------------------------------
 
+    private static volatile boolean bootSplashBlockedForInstall;
+
+    /**
+     * Uygulama kurulumu süreci öldürmeden önce gösterge çizimini solmadan kaldırır ve kaldırılana kadar bekler; çizim
+     * {@link #allowBootSplashAfterInstall()} çağrılana kadar yeniden gösterilmez. Bloklar: ana thread'den çağırma.
+     *
+     * @return çizim açıktı ve kaldırıldıysa true
+     */
+    public static boolean removeBootSplashForInstall(long timeoutMs) throws InterruptedException {
+        bootSplashBlockedForInstall = true;
+        final boolean[] removed = {false};
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                cancelBootSplashAnimations();
+                View view = bootSplashView;
+                android.view.WindowManager wm = bootSplashWindowManager;
+                bootSplashView = null;
+                bootSplashWindowManager = null;
+                bootSplashParams = null;
+                bootSplashDisplayContext = null;
+                bootSplashDisplayId = Display.INVALID_DISPLAY;
+                if (view != null && wm != null) {
+                    wm.removeViewImmediate(view);
+                    removed[0] = true;
+                }
+            } catch (Exception ignored) {
+            } finally {
+                done.countDown();
+            }
+        });
+        done.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        return removed[0];
+    }
+
+    public static void allowBootSplashAfterInstall() {
+        bootSplashBlockedForInstall = false;
+    }
+
     /**
      * Cluster (secondary) ekrana boot/welcome overlay'i bastırır. Kullanıcı uygulamadan ekran
      * yansıtana kadar oradaki siyahlığı doldurur. {@link #hideBootSplash()} çağrılana kadar kalır.
      */
     public static void showBootSplashOnDisplay(Context context, int displayId) {
         try {
-            if (bootSplashView != null) {
+            if (bootSplashView != null || bootSplashBlockedForInstall) {
                 return;
             }
             DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);

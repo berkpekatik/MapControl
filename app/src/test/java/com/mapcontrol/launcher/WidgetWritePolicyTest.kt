@@ -134,7 +134,8 @@ class WidgetWritePolicyTest {
         assertFalse(WidgetWritePolicy.gate(false, true))
         assertFalse(WidgetWritePolicy.gate(true, false))
         val unverified = WidgetWritePolicy.ENTRIES.filter { !it.verified }.map { it.widget }.toSet()
-        assertEquals(setOf("ClimateTempDriver", "ClimateTempPassenger", "ClimatePower", "ClimateAc", "ClimateAuto", "ClimateFan",
+        // ClimatePower (HVAC 18) araç testi için açıldı (ClimateWriter.CLIMATE_POWER_WRITE_VERIFIED, OEM güç düğmesiyle aynı yazma).
+        assertEquals(setOf("ClimateTempDriver", "ClimateTempPassenger", "ClimateAc", "ClimateAuto", "ClimateFan",
             "RearSpeaker", "SportAmbient", "SteerHeat"), unverified)
         // Park halinde bile geçmez.
         for (e in WidgetWritePolicy.ENTRIES.filter { !it.verified }) {

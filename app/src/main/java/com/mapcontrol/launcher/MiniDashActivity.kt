@@ -196,7 +196,6 @@ class MiniDashActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        LauncherEdition.setHomeForeground(true)
         bindMapPill()
     }
 
@@ -232,7 +231,6 @@ class MiniDashActivity : Activity() {
     }
 
     override fun onPause() {
-        LauncherEdition.setHomeForeground(false)
         super.onPause()
     }
 
@@ -299,7 +297,7 @@ class MiniDashActivity : Activity() {
 
     private fun bindTop() {
         val s = snapshot
-        val range = s?.rangeKm?.takeIf { s.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+        val range = if (s != null && s.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(this, s) else null
         val fuel = s?.fuelPercentOrNull()
         val low = trip.lowFuel == true
         val key = Triple(range, fuel, low)

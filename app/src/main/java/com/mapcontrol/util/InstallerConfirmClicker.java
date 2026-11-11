@@ -278,7 +278,9 @@ public final class InstallerConfirmClicker {
                 if (LauncherModeManager.isDefaultHome(service)) {
                     HomeRoleDiag.clear(service);
                 } else {
-                    HomeRoleDiag.report(service, service, "onaya basıldı ama HOME değişmedi");
+                    HomeRoleDiag.report(service, service, HomeRoleDiag.UNCHANGED_REASON);
+                    // Araç HOME'u kendi başlatıcısına bağlıyor: seçim ekranı bir daha kendiliğinden açılmasın.
+                    LauncherModeManager.markHomeRoleLocked(service);
                 }
                 return true;
             }

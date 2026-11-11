@@ -78,6 +78,20 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
         return { host.removeStateListener(listener) }
     }
 
+    override fun isRecording(): Boolean = com.mapcontrol.dvr.DvrController.get(app).isRecording
+
+    override fun watchRecording(onChange: () -> Unit): () -> Unit {
+        val dvr = com.mapcontrol.dvr.DvrController.get(app)
+        val listener = object : com.mapcontrol.dvr.DvrController.Listener {
+            override fun onStarted(source: com.mapcontrol.dvr.DvrController.Source?, file: java.io.File?) = onChange()
+            override fun onStopped(source: com.mapcontrol.dvr.DvrController.Source?, file: java.io.File?, elapsedMs: Long) = onChange()
+            override fun onError(source: com.mapcontrol.dvr.DvrController.Source?, message: String?) = onChange()
+            override fun onStateChanged() = onChange()
+        }
+        dvr.addListener(listener)
+        return { dvr.removeListener(listener) }
+    }
+
     override fun readPairingUri(): String? {
         if (!web.isRunning) return null
         val host = try { web.currentHost() } catch (e: RuntimeException) { null }
@@ -145,6 +159,44 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
     // --- Bölünmüş ekran (SplitScreenTabBuilder.onStartClicked ile aynı yol) ---
 
     override fun readSplitPair() = SplitPair(SplitScreenStore.getPkg1(app), SplitScreenStore.getPkg2(app))
+
+    override fun readSplitAxis(): Int = SplitScreenStore.getAxis(app).ordinal
+
+    override fun setSplitAxis(axis: Int) {
+        val all = SplitScreenLauncher.Axis.values()
+        SplitScreenStore.setAxis(app, all[axis.coerceIn(0, all.size - 1)])
+        Log.i(TAG, "split axis -> $axis")
+    }
+
+    override fun splitCandidates(): List<SplitCandidate> {
+        val out = ArrayList<SplitCandidate>()
+        // MapControl sekmesiyle aynı: Mini gösterge yalnız launcher modu açıkken.
+        if (com.mapcontrol.util.LauncherModeManager.isEnabled(app)) {
+            out += SplitCandidate(com.mapcontrol.util.SplitSlot.miniDash(app.packageName), app.getString(com.mapcontrol.R.string.launcher_mini_title))
+        }
+        try {
+            com.mapcontrol.util.ProjectionTargetApps.loadSortedRows(app).forEach { out += SplitCandidate(it.packageName, it.label) }
+        } catch (e: Exception) {
+            Log.w(TAG, "split candidates: ${e.javaClass.simpleName}")
+        }
+        return out
+    }
+
+    override fun setSplitApp(slot: Int, entry: String?) {
+        if (entry != null && !splitEntryValid(entry)) return
+        if (slot == 0) SplitScreenStore.setPkg1(app, entry) else SplitScreenStore.setPkg2(app, entry)
+        Log.i(TAG, "split app ${slot + 1} -> $entry")
+    }
+
+    /** SplitScreenTabBuilder.isSlotValid ile aynı: bileşen ise yalnız Mini gösterge, değilse sistem dışı kullanıcı uygulaması. */
+    private fun splitEntryValid(entry: String): Boolean {
+        if (com.mapcontrol.util.SplitSlot.isComponent(entry)) return com.mapcontrol.util.SplitSlot.isMiniDash(entry, app.packageName)
+        return try {
+            !com.mapcontrol.util.ProjectionTargetApps.isSystemOrPrivApp(app.packageManager.getApplicationInfo(entry, 0))
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     override fun startSplit(done: (String?) -> Unit) {
         val pair = readSplitPair()
@@ -215,6 +267,7 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
     }
 
     private fun tabIndex(tab: MapControlTab): Int = when (tab) {
+        MapControlTab.CAMERA_360 -> MainActivity.TAB_CAMERA_360
         // Web yönetimi ("Aktar"), Yansıtma ve Ses ayarları için MainActivity'de herkese açık sabit yok (tabTitle: 1, 3, 11).
         MapControlTab.WEB -> TAB_WEB
         MapControlTab.PROJECTION -> TAB_PROJECTION

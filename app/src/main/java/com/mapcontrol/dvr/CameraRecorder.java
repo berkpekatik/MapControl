@@ -70,7 +70,7 @@ public class CameraRecorder {
 
     private final CameraHub hub = CameraHub.get();
     private final CameraGlEngine engine = CameraGlEngine.get();
-    private Thread worker;
+    private volatile Thread worker;
     private volatile boolean recording;
     private volatile boolean stopping;
 
@@ -251,6 +251,15 @@ public class CameraRecorder {
                 mainHandler.post(() -> listener.onStopped(outFile, elapsed));
             }
         }, "dvr-stop").start();
+    }
+
+    /** Surec olmeden kaydi bitirir, dosya kapanana ya da sure dolana kadar bekler. Geri cagri yapmaz. */
+    void finishForCrash(long timeoutMs) throws InterruptedException {
+        final Thread w = worker;
+        recording = false;
+        if (w != null && w != Thread.currentThread()) {
+            w.join(timeoutMs);
+        }
     }
 
     // ---------- Kayit thread'i ----------

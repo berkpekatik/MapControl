@@ -98,13 +98,29 @@ class ClimateMathTest {
         assertTrue(ClimateWriter.canWrite(verified = true, readOnly = false))
     }
 
+    @Test fun powerMatchesOemPowerButton() {
+        // OEM SystemUI HvacModel.onPowerClick: sendItemValue(HVAC, 18, açık ? 2 : 1); durum 18 == 1. 0 hiç yazılmaz.
+        assertEquals(1, ClimateMath.powerValue(on = true))
+        assertEquals(2, ClimateMath.powerValue(on = false))
+        assertEquals(true, ClimateMath.powerOn(1))
+        assertEquals(false, ClimateMath.powerOn(2))
+        assertEquals(false, ClimateMath.powerOn(0))
+        assertEquals(null, ClimateMath.powerOn(null))
+        // Araç testi için açık; beyaz listede yalnız 1 ve 2 var.
+        assertTrue(ClimateWriter.powerEnabled())
+        val hv = com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo.MODULE_HVAC
+        val id = com.desaysv.ivi.extra.project.carinfo.HvacID.ID_AC_WORKING
+        assertTrue(WidgetWritePolicy.evaluate(hv, id, 1) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(WidgetWritePolicy.evaluate(hv, id, 2) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(WidgetWritePolicy.evaluate(hv, id, 0) is WidgetWritePolicy.Verdict.NotWhitelisted)
+    }
+
     @Test fun onlyVerifiedDockPathWritesAndFanZeroNeverSent() {
         // Panel yolu (10/13/12, güç) doğrulanmadı: kapalı. Dock yolu (76/78/77) doğrulandı: açık. Fan 0 ya da negatif hiç gönderilmez.
         assertFalse(ClimateWriter.CLIMATE_WRITE_VERIFIED)
         assertTrue(ClimateWriter.CLIMATE_DOCK_WRITE_VERIFIED)
         assertFalse(ClimateWriter.enabled(quiet = false))
         assertTrue(ClimateWriter.enabled(quiet = true))
-        assertFalse(ClimateWriter.setPower(true))
         assertFalse(ClimateWriter.setTemperature(ClimateSide.DRIVER, 21.0, quiet = false))
         assertFalse(ClimateWriter.setFan(0, quiet = true))
         assertFalse(ClimateWriter.setFan(-1, quiet = true))

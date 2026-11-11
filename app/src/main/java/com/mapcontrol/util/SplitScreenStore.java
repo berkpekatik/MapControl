@@ -17,6 +17,7 @@ public final class SplitScreenStore {
     private static final String KEY_PKG2 = "split_pkg2";
     private static final String KEY_RATIO = "split_ratio";
     private static final String KEY_GESTURE = "split_gesture_code";
+    private static final String KEY_AXIS = "split_axis";
 
     /** Hareket kapalı. */
     public static final int GESTURE_OFF = 0;
@@ -53,6 +54,14 @@ public final class SplitScreenStore {
 
     public static void setRatio(Context context, SplitScreenLauncher.Ratio ratio) {
         prefs(context).edit().putString(KEY_RATIO, ratio.id).apply();
+    }
+
+    public static SplitScreenLauncher.Axis getAxis(Context context) {
+        return SplitScreenLauncher.Axis.fromId(prefs(context).getString(KEY_AXIS, null));
+    }
+
+    public static void setAxis(Context context, SplitScreenLauncher.Axis axis) {
+        prefs(context).edit().putString(KEY_AXIS, axis.id).apply();
     }
 
     public static int getGestureCode(Context context) {

@@ -31,6 +31,12 @@ internal interface MapControlFeatures {
     /** Web paneli durumu değişince [onChange] ana iş parçacığında çağrılır; dönen işlev aboneliği bitirir. */
     fun watchWebPanel(onChange: () -> Unit): () -> Unit
 
+    /** Kamera kaydı sürüyor mu (Kamera 360). */
+    fun isRecording(): Boolean
+
+    /** Kayıt başlayıp bitince [onChange]; dönen işlev dinlemeyi bırakır. */
+    fun watchRecording(onChange: () -> Unit): () -> Unit
+
     /** Telefon eşleşme adresi (QR içeriği, anahtarı taşır); sunucu kapalıysa ya da araç bir ağda değilse null. */
     fun readPairingUri(): String?
 
@@ -51,6 +57,17 @@ internal interface MapControlFeatures {
 
     /** Bölünmüş ekran için MapControl'da seçili uygulama çifti (paket adları). */
     fun readSplitPair(): SplitPair
+
+    /** Bölme yönü: 0 Otomatik, 1 Sol-sağ, 2 Üst-alt (MapControl bölünmüş ekran sekmesiyle aynı kayıt). */
+    fun readSplitAxis(): Int
+
+    fun setSplitAxis(axis: Int)
+
+    /** Bölünmüş ekrana seçilebilen uygulamalar (MapControl sekmesindeki listeyle aynı; Mini gösterge launcher modunda başta). */
+    fun splitCandidates(): List<SplitCandidate>
+
+    /** [slot] 0 ya da 1; [entry] null ise yuva boşaltılır. Geçersiz seçim yok sayılır. */
+    fun setSplitApp(slot: Int, entry: String?)
 
     /** Bölünmüş ekranı seçili çiftle başlatır; [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden. */
     fun startSplit(done: (String?) -> Unit)
@@ -98,6 +115,8 @@ internal interface MapControlFeatures {
             override fun readWebPanel() = WebPanelState(running = false, url = null, reachable = false)
             override fun setWebPanel(on: Boolean, done: (String?) -> Unit) = Unit
             override fun watchWebPanel(onChange: () -> Unit): () -> Unit = {}
+            override fun isRecording() = false
+            override fun watchRecording(onChange: () -> Unit): () -> Unit = {}
             override fun readPairingUri(): String? = null
             override fun qr(text: String): QrMatrix? = null
             override fun readEqualizer() = EqState(supported = false, enabled = false, preset = "", presets = emptyList())
@@ -106,6 +125,10 @@ internal interface MapControlFeatures {
             override fun setAutomation(id: AutomationId, on: Boolean) = Unit
             override fun readSplitPair() = SplitPair(null, null)
             override fun startSplit(done: (String?) -> Unit) = Unit
+            override fun readSplitAxis() = 0
+            override fun setSplitAxis(axis: Int) = Unit
+            override fun splitCandidates(): List<SplitCandidate> = emptyList()
+            override fun setSplitApp(slot: Int, entry: String?) = Unit
             override fun startSplitWithMiniDash(done: (String?) -> Unit) = Unit
             override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) = Unit
             override fun mapFullScreen(pkg: String, done: (Boolean) -> Unit) = Unit
@@ -120,7 +143,7 @@ internal interface MapControlFeatures {
 }
 
 /** Widget'ların açabildiği MapControl sekmeleri; gerçek sekme numaraları [LauncherEdition]'da eşlenir. */
-enum class MapControlTab { WEB, EQUALIZER, CLIMATE_AUTOMATION, SUNROOF_AUTOMATION, FACE_RECOGNITION, SPLIT_SCREEN, PROJECTION }
+enum class MapControlTab { CAMERA_360, WEB,EQUALIZER, CLIMATE_AUTOMATION, SUNROOF_AUTOMATION, FACE_RECOGNITION, SPLIT_SCREEN, PROJECTION }
 
 /** [url]: sunucu açıkken MapControl'ın gösterdiği "http://ip:port"; [reachable] false ise adres yalnızca yerel (127.x). */
 data class WebPanelState(val running: Boolean, val url: String?, val reachable: Boolean)
@@ -134,6 +157,9 @@ enum class AutomationId { CLIMATE, SUNROOF, FACE }
 data class AutomationItem(val id: AutomationId, val on: Boolean, val toggleable: Boolean)
 
 data class SplitPair(val first: String?, val second: String?)
+
+/** Bölünmüş ekran yuvasına seçilebilen giriş: paket adı ya da bileşen ([com.mapcontrol.util.SplitSlot]) ve görünen ad. */
+data class SplitCandidate(val entry: String, val label: String)
 
 /** [target]: göstergede açılacak uygulamanın paketi (MapControl "Yansıtma" sekmesinde seçilen); yoksa null. */
 data class ClusterState(val open: Boolean, val target: String?)

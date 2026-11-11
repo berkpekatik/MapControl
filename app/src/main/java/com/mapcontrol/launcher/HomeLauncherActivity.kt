@@ -177,11 +177,16 @@ class HomeLauncherActivity : Activity() {
         motionPolicy.reset(if (DriveMotion.driving) LayoutMode.DRIVE else LayoutMode.PARK)
         LauncherInfo.mode = activeMode
         super.onCreate(savedInstanceState)
+        // Yönelim manifestte kilitli değil: dikey ekran (Jaecoo) dikey, diğer araçlar eskisi gibi yatay tutulur.
+        requestedOrientation = if (VehicleProfile.active.portrait) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         if (savedInstanceState == null) { consumeAppearanceExtra(intent); consumeEditExtra(intent) }
+        // Simge yönlendirmesi ayarların tam açılışına ulaşmaz; ekolayzer, kamera ve yolculuk kaydı bu servise bağlı.
+        if (savedInstanceState == null) com.mapcontrol.service.BootReceiver.startServiceIfAutoStartEnabled(this)
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
         hideSystemBars()
 
-        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair)
+        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair, onRecording = { LauncherEdition.mapcontrol(this).openTab(this, MapControlTab.CAMERA_360) })
         // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir; OEM çubuğu yokken "Orijinal" de
         // bizim çubuğa düşer. "Gizli"de çubuk yok.
         ourBar = if (BottomBarMode.drawsOurBar(LauncherBottomBar.mode(this), oemBar)) OurBottomBar(this, onPhoneTap = ::onPhoneButton) else null
@@ -716,7 +721,6 @@ class HomeLauncherActivity : Activity() {
     override fun onResume() {
         super.onResume()
         hideSystemBars()
-        LauncherEdition.setHomeForeground(true)
         // Açılışta (MapControlService) ana ekran istendi: göründüğü onaylanır, tekrar denenmez.
         LauncherEdition.onLauncherShown(this)
         resumed = true
@@ -760,7 +764,6 @@ class HomeLauncherActivity : Activity() {
         resumed = false
         welcome?.finish()
         welcomeArmUntil = 0L
-        LauncherEdition.setHomeForeground(false)
         super.onPause()
     }
 
@@ -897,6 +900,16 @@ class HomeLauncherActivity : Activity() {
         windowFocused = hasFocus
         if (hasFocus) { hideSystemBars(); sportTick() }
     }
+
+    /** Çok parmaklı cam tavan / perde hareketleri; düzenleme modunda ve üstte sayfa varken çalışmaz. */
+    private val sunroofSwipe by lazy {
+        com.mapcontrol.vehicle.SunroofSwipeDispatcher(this) {
+            !editing && sheet == null && wifiPanel == null && bluetoothPanel?.isShowing != true
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+        sunroofSwipe.dispatch(ev) { super.dispatchTouchEvent(it) }
 
     /** Etkin düzeni (Park/Sürüş) Sahne'ye uygular. */
     private fun loadForMode() = sahne.setMode(activeMode)

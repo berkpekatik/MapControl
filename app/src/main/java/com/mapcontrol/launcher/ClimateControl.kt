@@ -29,7 +29,8 @@ import kotlin.math.abs
  * (çubuk üçünü ayrı yerleştirir) ve etkileşimlidir:
  *  - sıcaklık: dikey sürükleme (her 40dp = 0,5 °C, yukarı = sıcak), dokunuşta sağ yarı +0,5 / sol yarı −0,5,
  *    (OEM klima paneli yalnız çubukta yukarı kaydırmayla; uzun basış 6 Kasım araç testinde kaldırıldı);
- *  - fan: yatay sürükleme 1..10, dokunuş kapat/aç, altında ince 10 noktalı kademe göstergesi.
+ *  - fan: yatay sürükleme 1..10, dokunuş klimayı kapatır/açar (HVAC 18, OEM güç düğmesi gibi; kapalıyken "Kapalı"),
+ *    altında ince kademe göstergesi.
  *
  * Bırakınca değer "işlenir" ([commit]): seçili yol doğrulanmadıkça ([ClimateWriter.enabled] false) ekran ~1,5 sn sonra
  * aracın gerçek değerine döner ve sakin bir bilgi mesajı çıkar; araca hiçbir şey gitmez. Sürekli animasyon yok;
@@ -44,7 +45,8 @@ internal class ClimateControl(
     private var pendingDriver: Double? = null
     private var pendingPassenger: Double? = null
     private var pendingFan: Int? = null
-    private var lastOnFan = FAN_DEFAULT_ON
+    /** Dokunuşla istenen klima gücü; araç okuması yetişene (en geç [CONFIRM_MS]) kadar gösterilir. */
+    private var pendingPower: Boolean? = null
     private var dragging = false
     private var toast: Toast? = null
 
@@ -64,6 +66,7 @@ internal class ClimateControl(
         pendingDriver = null
         pendingPassenger = null
         pendingFan = null
+        pendingPower = null
         render()
     }
 
@@ -101,11 +104,14 @@ internal class ClimateControl(
 
     private fun shownFan(): Int? = pendingFan ?: readout.fan
 
+    /** Klima açık mı (bekleyen dokunuş, yoksa HVAC 18); bilinmiyorsa null. */
+    private fun shownPower(): Boolean? = pendingPower ?: readout.power
+
     private fun render() {
         if (dragging) return
         driver.show(shownTemp(ClimateSide.DRIVER))
         passenger.show(shownTemp(ClimateSide.PASSENGER))
-        fan.show(shownFan())
+        fan.show(shownFan(), off = shownPower() == false)
     }
 
     // --- Onay ("commit") ---
@@ -131,9 +137,27 @@ internal class ClimateControl(
         return quiet
     }
 
+    /**
+     * Fan dokunuşu: klima kapalıysa aç, değilse kapat. OEM güç düğmesi gibi ([ClimateWriter.setPower]: HVAC 18 ← 1/2, tek yazma);
+     * bilinmiyorsa (okuma yok) OEM gibi açar. Gizle ayarında yazmadan önce panel kilidi kurulur (araç klima panelini açarsa kapanır).
+     */
+    private fun togglePower() {
+        val on = shownPower() != true
+        pendingPower = on
+        if (LauncherDemo.enabled) {
+            LauncherDemo.climateOn = on
+            afterCommit(canWrite = true)
+            return
+        }
+        val canWrite = ClimateWriter.powerEnabled()
+        afterCommit(canWrite)
+        if (!canWrite) return
+        quietWrite("power")
+        io.runSafely { ClimateWriter.setPower(on) }
+    }
+
     private fun commitFan(level: Int) {
         pendingFan = level
-        if (level > 0) lastOnFan = level
         afterCommit()
         // Fan 0 araca yazılmaz ve klimayı kapatmaz: OEM panel/dock/sesli komut da fanı 1'de durdurur, kapatma ayrı (18 ← 2),
         // bkz. ClimateMath.encodeFan. Arayüz 0/kapalı gösterebilir.
@@ -146,10 +170,10 @@ internal class ClimateControl(
      * Yazma kapalıysa ~1,5 sn sonra araçtaki değere dön ve bilgi ver; açıksa aracın yeni değeri okunana
      * (en geç [CONFIRM_MS]) kadar hedefi göster.
      */
-    private fun afterCommit() {
+    private fun afterCommit(canWrite: Boolean = writable()) {
         render()
         main.removeCallbacks(revert)
-        if (writable()) {
+        if (canWrite) {
             main.postDelayed(revert, CONFIRM_MS)
             return
         }
@@ -384,6 +408,8 @@ internal class ClimateControl(
         private var downY = 0f
         private var active = false
         private var moved = false
+        /** Dokunuş (klima aç/kapat) kademe okunamasa da çalışır: araç servisi bağlıysa yeter. */
+        private var tapOk = false
 
         init {
             view.setOnTouchListener { _, e -> touch(e) }
@@ -405,10 +431,12 @@ internal class ClimateControl(
             }
         }
 
-        fun show(l: Int?) {
-            number.setTextSmooth(l?.toString() ?: DASH)
-            setLevel(l ?: 0)
-            view.contentDescription = context.getString(R.string.launcher_climate_fan) + ", " + (l?.toString() ?: DASH)
+        /** [off]: klima kapalı (HVAC 18); kademe yerine "Kapalı", iz boş. */
+        fun show(l: Int?, off: Boolean = false) {
+            val text = if (off) context.getString(R.string.launcher_climate_off) else l?.toString() ?: DASH
+            number.setTextSmooth(text)
+            setLevel(if (off) 0 else l ?: 0)
+            view.contentDescription = context.getString(R.string.launcher_climate_fan) + ", " + text
         }
 
         /** Kademe kadar dolgu; animasyonsuz, yalnızca değişince. */
@@ -427,6 +455,7 @@ internal class ClimateControl(
                     view.parent?.requestDisallowInterceptTouchEvent(true)
                     val base = shownFan()
                     active = base != null
+                    tapOk = readout.connected || LauncherDemo.enabled
                     moved = false
                     if (base != null) {
                         start = base
@@ -456,7 +485,7 @@ internal class ClimateControl(
                 MotionEvent.ACTION_UP -> {
                     view.isPressed = false
                     when {
-                        !active -> Unit
+                        !active && !tapOk -> Unit
                         moved -> {
                             dragging = false
                             bubble.dismiss()
@@ -466,9 +495,8 @@ internal class ClimateControl(
                         else -> {
                             showTint()
                             fadeTint()
-                            // Dokunuş: açıksa kapat (0), kapalıysa son açık kademeye dön.
-                            if (start > 0) lastOnFan = start
-                            commitFan(if (start > 0) 0 else lastOnFan)
+                            // Dokunuş: klimayı kapat / aç (HVAC 18). Eskiden yalnız ekranda 0 gösterip araca hiçbir şey yazmıyordu.
+                            if (tapOk) togglePower()
                         }
                     }
                     if (moved) dragging = false
@@ -610,7 +638,6 @@ internal class ClimateControl(
         private const val CONFIRM_MS = 4_000L
         private const val SYNC_SHOW_MS = 900L
         private const val TINT_FADE_MS = 200L
-        private const val FAN_DEFAULT_ON = 2
 
         private const val ACTION_INCREASE = 0x1C01
         private const val ACTION_DECREASE = 0x1C02

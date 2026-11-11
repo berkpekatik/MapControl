@@ -23,7 +23,7 @@ public class SplitRatioView extends View {
     private final RectF rect = new RectF();
 
     private float firstShare = 0.5f;
-    private final boolean sideBySide;
+    private boolean sideBySide;
     private final float aspect;
 
     public SplitRatioView(Context context) {
@@ -34,6 +34,12 @@ public class SplitRatioView extends View {
         labelPaint.setTextAlign(Paint.Align.CENTER);
         labelPaint.setFakeBoldText(true);
         dividerPaint.setStyle(Paint.Style.FILL);
+    }
+
+    /** Bölme yönü değişince (Otomatik / Sol-sağ / Üst-alt) önizleme yeniden çizilir. */
+    public void setSideBySide(boolean sideBySide) {
+        this.sideBySide = sideBySide;
+        invalidate();
     }
 
     public void setShare(float firstShare) {

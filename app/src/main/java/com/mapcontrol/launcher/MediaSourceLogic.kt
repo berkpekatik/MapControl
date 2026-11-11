@@ -182,6 +182,6 @@ internal object SourceChoice {
     fun entries(usbAvailable: Boolean): List<Int> =
         if (usbAvailable) listOf(OemAudioSource.BT_MUSIC, FM, AM, USB0) else listOf(OemAudioSource.BT_MUSIC, FM, AM)
 
-    /** Satır işaretli mi: OEM kaynağı bu tür. */
-    fun isCurrent(entry: Int, current: Int?): Boolean = current == entry
+    /** Satır işaretli mi: OEM kaynağı bu tür. Kart üçüncü taraf uygulamadaysa işaret onda olur (OEM kaynağı eski değerde kalabilir). */
+    fun isCurrent(entry: Int, current: Int?, cardOnApp: Boolean = false): Boolean = !cardOnApp && current == entry
 }

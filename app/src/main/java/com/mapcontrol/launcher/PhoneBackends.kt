@@ -1091,6 +1091,10 @@ internal class VdbusDataBackend(private val call: VdbusCallBackend) : DataBacken
      * io: [listId] parçalarını toplar ([key] eşleşenler). Bitti, [VdListWait.IDLE_MS] boyunca yeni parça yok ya da
      * [VdListWait.HARD_MS] doldu. Hiç parça gelmediyse null.
      */
+    /** [collect] uyarısının son yazıldığı an (liste kimliğine göre); aynı hata dakikada bir kez loglanır. */
+    private val requestWarnAt = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+    private val REQUEST_WARN_MS = 60_000L
+
     private fun <T> collect(listId: Int, key: String?, trigger: (VDBus) -> Unit, parse: (VDEvent) -> List<*>?, cls: Class<T>): List<T>? {
         val b = call.bus ?: return null
         if (!VdbusBtNotify.ensure(b, LIST_IDS)) return null
@@ -1115,7 +1119,14 @@ internal class VdbusDataBackend(private val call: VdbusCallBackend) : DataBacken
                 if (finished.await(left, TimeUnit.MILLISECONDS)) break
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "vdbus istek($listId): ${t.javaClass.simpleName}")
+            // Bazı yazılımlarda (SOP7, 10 Kasım logu) istek sistem vdbus.jar içinde NullPointerException verir, aynı istek
+            // sonra başarılı olabilir. Panel her açılışta denediği için uyarı dakikada bir kez ve nerede patladığıyla yazılır.
+            val now = SystemClock.uptimeMillis()
+            if (now - (requestWarnAt[listId] ?: 0L) >= REQUEST_WARN_MS) {
+                requestWarnAt[listId] = now
+                val at = t.stackTrace.take(4).joinToString(" < ") { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
+                Log.w(TAG, "vdbus istek($listId): ${t.javaClass.simpleName} ${t.message ?: ""} @ $at")
+            }
         } finally {
             VdbusBtNotify.remove(listId, handler)
         }
