@@ -95,6 +95,7 @@ public class SettingsTabBuilder {
         createBootServiceSection(grid);
         createBootUiSection(grid);
         createLanguageSection(grid);
+        createDiagnosticsSection(createSettingsCard(settingsTabContent));
 
         Button advancedToggle = new Button(context);
         advancedToggle.setText(R.string.ui_advanced_show);
@@ -240,6 +241,86 @@ public class SettingsTabBuilder {
             }
         });
         parentContainer.addView(toggle, toggleLp);
+    }
+
+    /** "Log Kaydını Geliştiriciye Gönder": onaydan sonra bir kez toplanır, maskelenir, hesaba yüklenir. */
+    private void createDiagnosticsSection(LinearLayout parentContainer) {
+        TextView title = new TextView(context);
+        title.setText(R.string.diag_title);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, 8);
+        parentContainer.addView(title, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView desc = new TextView(context);
+        desc.setText(R.string.diag_desc);
+        UiStyles.setTextSize(desc, R.dimen.text_size_small);
+        desc.setTextColor(UiStyles.color(context, R.color.textHint));
+        desc.setPadding(0, 0, 0, 8);
+        parentContainer.addView(desc, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        final Button send = new Button(context);
+        send.setText(R.string.diag_button);
+        UiStyles.styleOemButton(send, UiStyles.color(context, R.color.accentHighlight));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(16, 0, 16, 8);
+        send.setOnClickListener(v -> {
+            if (!com.mapcontrol.util.DiagnosticsUploader.ready(context)) {
+                com.mapcontrol.util.DialogHelper.showInfo(context, context.getString(R.string.diag_title),
+                        context.getString(R.string.diag_err_no_account));
+                return;
+            }
+            com.mapcontrol.util.DialogHelper.showConfirm(context,
+                    context.getString(R.string.diag_consent_title),
+                    context.getString(R.string.diag_consent_subtitle),
+                    context.getString(R.string.diag_consent_message),
+                    R.string.diag_consent_send,
+                    () -> sendDiagnostics(send));
+        });
+        parentContainer.addView(send, lp);
+    }
+
+    private void sendDiagnostics(Button send) {
+        send.setEnabled(false);
+        send.setText(R.string.diag_busy);
+        final Context app = context.getApplicationContext();
+        new Thread(() -> {
+            com.mapcontrol.util.DiagnosticsUploader.Result result;
+            java.io.File file = null;
+            try {
+                file = com.mapcontrol.util.DiagnosticsCollector.collect(app);
+                result = com.mapcontrol.util.DiagnosticsUploader.upload(app, file);
+            } catch (Throwable t) {
+                result = null;
+            } finally {
+                if (file != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                }
+            }
+            final com.mapcontrol.util.DiagnosticsUploader.Result r = result;
+            handler.post(() -> {
+                send.setEnabled(true);
+                send.setText(R.string.diag_button);
+                String message;
+                if (r == null) {
+                    message = context.getString(R.string.diag_err_failed);
+                } else if (r.ok && r.detail != null) {
+                    message = context.getString(R.string.diag_sent_ref, r.detail);
+                } else {
+                    message = context.getString(r.message);
+                }
+                try {
+                    com.mapcontrol.util.DialogHelper.showInfo(context, context.getString(R.string.diag_title), message);
+                } catch (Throwable t) {
+                    Toast.makeText(app, message, Toast.LENGTH_LONG).show();
+                }
+            });
+        }, "diag-send").start();
     }
 
     private void createFloatingBackButtonSection(android.view.ViewGroup parentContainer) {

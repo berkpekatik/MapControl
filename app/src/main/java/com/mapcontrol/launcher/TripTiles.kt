@@ -58,6 +58,17 @@ internal object TripDecode {
      */
     fun outsideC(raw: Int?): Double? = raw?.takeIf { it in 0..254 }?.let { it / 2.0 - 55.0 }?.takeIf { it in -40.0..80.0 }
 
+    /**
+     * Dış sıcaklığın ekran metni (° işareti hariç), göstergeyle birebir: tam derecede "10", buçukta "9,5" (yerel ayırıcı).
+     * Eskiden `Math.round` kullanılıyordu; 9,5 → 10 ve −2,5 → −2 yazıyordu, gösterge ise 9,5 / −2,5 gösteriyor.
+     * Değer en yakın 0,5'e oturtulur (araç zaten 0,5 adımlı; internet havası da aynı biçimde görünür).
+     */
+    fun outsideText(c: Double, locale: java.util.Locale = java.util.Locale.getDefault()): String {
+        val halves = Math.round(c * 2.0)
+        return if (halves % 2L == 0L) (halves / 2L).toString()
+        else String.format(locale, "%.1f", halves / 2.0)
+    }
+
     /** Anlık tüketim (sinyal 70): ham/10 L/100 km. 0xFFFF (araç duruyor) ve aralık dışı değer geçersizdir. */
     fun instantL100(raw: Int?): Double? = raw?.takeIf { it in 0..999 }?.let { it / 10.0 }
 

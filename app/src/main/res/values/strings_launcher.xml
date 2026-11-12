@@ -3,7 +3,7 @@
 <resources>
     <string name="launcher_settings">Settings</string>
     <string name="launcher_appearance">Appearance</string>
-    <string name="launcher_degrees" formatted="true">%1$d°</string>
+    <string name="launcher_degrees" formatted="true">%1$s°</string>
     <string name="launcher_nav_dialog_cancel">Cancel</string>
     <string name="launcher_media_idle_hint">Open a music app to start</string>
     <string name="launcher_media_prev">Previous</string>
@@ -87,7 +87,7 @@
     <string name="launcher_health_low_fuel">Low fuel</string>
     <string name="launcher_health_hot">Engine hot</string>
     <string name="launcher_health_volt_only" formatted="true">%1$s V</string>
-    <string name="launcher_temp_c" formatted="true">%1$d°C</string>
+    <string name="launcher_temp_c" formatted="true">%1$s°C</string>
     <string name="launcher_widget_air">Air quality</string>
     <string name="launcher_days_value" formatted="true">%1$d days</string>
     <string name="launcher_air_good">Good</string>

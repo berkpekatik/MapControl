@@ -138,7 +138,13 @@ public class ClusterDisplayManager {
                         } catch (Exception e) {
                             callback.log("launchSelectedAppOnCluster hata: " + e.getMessage());
                         }
-                        handler.postDelayed(DisplayHelper::hidePreparingMessage, 1000);
+                        handler.postDelayed(() -> {
+                            DisplayHelper.hidePreparingMessage();
+                            // Açılış arasında başka bir yol splash'i geri koyduysa uygulamanın üstünde kalmasın.
+                            if (session == openSessionId.get()) {
+                                DisplayHelper.hideBootSplash();
+                            }
+                        }, 1000);
                     }, 600);
                 }
             }, 1000);
@@ -158,7 +164,7 @@ public class ClusterDisplayManager {
         }
         int clusterId = AppLaunchHelper.getClusterDisplayId(context);
         if (clusterId != 0) {
-            DisplayHelper.showBootSplashOnDisplay(context, clusterId);
+            DisplayHelper.showBootSplashOnDisplay(context, clusterId, true);
         }
     }
 
@@ -179,8 +185,9 @@ public class ClusterDisplayManager {
             payload.setRequestDisplayNaviArea("false");
             VDEvent event = VDNaviDisplayCluster.createEvent(VDEventCarLan.NAVIGATION_DISPLAY_TO_CLUSTER, payload);
             VDBus.getDefault().set(event);
-            DisplayHelper.showBootSplashOnDisplay(context, AppLaunchHelper.getClusterDisplayId(context));
+            // Önce durum kapalıya çekilir: splash yansıtma açıkken gösterilmez.
             callback.onNavigationStateChanged(false);
+            DisplayHelper.showBootSplashOnDisplay(context, AppLaunchHelper.getClusterDisplayId(context));
             callback.log("Navigasyon paneli kapatıldı");
 
             String targetPackage = callback.getTargetPackage();

@@ -28,6 +28,14 @@ public class ProcessExitLogTest {
     }
 
     @Test
+    public void isolatedChildCleanupIsNotReported() {
+        assertFalse(ProcessExitLog.shouldReport(ApplicationExitInfo.REASON_OTHER, "isolated not needed"));
+        assertTrue(ProcessExitLog.shouldReport(ApplicationExitInfo.REASON_OTHER, "something else"));
+        assertTrue(ProcessExitLog.shouldReport(ApplicationExitInfo.REASON_OTHER, null));
+        assertTrue(ProcessExitLog.shouldReport(ApplicationExitInfo.REASON_ANR, "isolated not needed"));
+    }
+
+    @Test
     public void reasonNamesAreReadable() {
         assertEquals("ANR", ProcessExitLog.reasonName(ApplicationExitInfo.REASON_ANR));
         assertEquals("CRASH_NATIVE", ProcessExitLog.reasonName(ApplicationExitInfo.REASON_CRASH_NATIVE));

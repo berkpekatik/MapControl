@@ -126,8 +126,6 @@ public class AppBackupTest {
         assertEquals("[app.equalizer.bands]", plan("{\"equalizer\":{\"bands\":\"1,a,3\"}}").errors.toString());
         assertEquals("[app.split.ratio]", plan("{\"split\":{\"ratio\":\"third\"}}").errors.toString());
         assertEquals("[app.clusterOverlay.googleEtaScale]", plan("{\"clusterOverlay\":{\"googleEtaScale\":200}}").errors.toString());
-        assertEquals("[app.power.yok]", plan("{\"power\":{\"yok\":1}}").errors.toString());
-        assertEquals("[app.yok]", plan("{\"yok\":{\"a\":1}}").errors.toString());
         assertEquals("[app.power]", plan("{\"power\":3}").errors.toString());
         assertEquals("[app.projection.targetPackage]", plan("{\"projection\":{\"targetPackage\":\"../etc\"}}").errors.toString());
         assertEquals("[app.screen]", plan("{\"screen\":{\"w\":\"x\",\"h\":720}}").errors.toString());
@@ -142,6 +140,113 @@ public class AppBackupTest {
         assertEquals("[app.welcome.customText]",
                 plan("{\"welcome\":{\"customText\":\"" + long501 + "\"}}").errors.toString());
         assertEquals("[app.vehicleModel.drawable]", plan("{\"vehicleModel\":{\"drawable\":\"../x\"}}").errors.toString());
+    }
+
+    // ---- Ana ekran (launcher) ---------------------------------------------
+
+    private static String sahne(com.mapcontrol.launcher.LayoutMode mode) {
+        return com.mapcontrol.launcher.SahneSlots.INSTANCE.encode(
+                com.mapcontrol.launcher.SahneSlots.INSTANCE.defaults(mode, java.util.Collections.emptyList(), false));
+    }
+
+    @Test
+    public void launcherProfilesLayoutsAndTilesRoundTrip() throws Exception {
+        car.installed.add("com.waze");
+        other.installed.add("com.waze");
+        String park = sahne(com.mapcontrol.launcher.LayoutMode.PARK);
+        String drive = sahne(com.mapcontrol.launcher.LayoutMode.DRIVE);
+        int color = com.mapcontrol.launcher.Profiles.INSTANCE.getPALETTE()[4];
+        car.prefs(AppBackup.FILE_PROFILE).edit().putInt("current", 2).putString("name_2", "Ayşe").putInt("color_2", color).commit();
+        car.prefs(AppBackup.FILE_LAUNCHER).edit().putString("car_color", "mavi").putInt("vehicle_profile", 2)
+                .putBoolean("climate_whole_degree", true)
+                .putString("theme_mode", "day").putString("theme_mode_p2", "night")
+                .putString("bottom_bar_p2", "hidden").putBoolean("drive_mode_theme_p3", false)
+                .putInt("layout_reset_gen", 7) // çalışma durumu: yedeğe girmez
+                .putInt("sport_ambient_saved_p2", 12).commit();
+        car.prefs(AppBackup.FILE_NAV).edit().putString("map_app", "yandex_navi").putString("drive_session_map", "com.waze").commit();
+        car.prefs(AppBackup.FILE_SPORT).edit().putString("dials", "z100,avg,inst,clock").commit();
+        car.prefs("launcher_sahne_p2_t8").edit().putString("sahne_park_v1", park).putString("sahne_drive_v1", drive).commit();
+        car.prefs("launcher_media_flip_p2").edit().putString("face", "phone").commit();
+        car.prefs("launcher_tile_apps_p2").edit().putString("app", "com.waze").putString("app_2_a", "com.yok.app")
+                .putString("bozuk anahtar", "com.waze").putInt("sayi", 3).commit();
+
+        JSONObject doc = AppBackup.export(car);
+        assertEquals(2, doc.getJSONObject("home").getInt("profile"));
+        assertEquals("Ayşe", doc.getJSONObject("home").getString("profile2Name"));
+        assertFalse(doc.getJSONObject("home").has("profile1Name"));
+        JSONObject p2 = doc.getJSONObject("profile2");
+        assertEquals("night", p2.getString("theme"));
+        assertEquals(park, p2.getString("parkTiggo8"));
+        assertFalse(p2.has("parkTiggo7"));
+        assertEquals("{\"app\":\"com.waze\",\"app_2_a\":\"com.yok.app\"}", p2.getJSONObject("tileApps").toString());
+        assertEquals("day", doc.getJSONObject("profile1").getString("theme"));
+        assertFalse(doc.getJSONObject("profile3").getBoolean("driveAccent"));
+        assertFalse(doc.toString().contains("layout_reset_gen"));
+        assertFalse(doc.toString().contains("drive_session_map"));
+
+        AppBackup.Plan p = AppBackup.plan(doc, other);
+        assertTrue(p.errors.toString(), p.ok());
+        assertEquals("[profile2.tileApps.app_2_a]", p.skipped.toString());
+        assertTrue(p.touchesLauncher());
+        p.commit();
+        assertEquals(2, other.prefs(AppBackup.FILE_PROFILE).getInt("current", 1));
+        assertEquals(color, other.prefs(AppBackup.FILE_PROFILE).getInt("color_2", 0));
+        assertEquals("night", other.prefs(AppBackup.FILE_LAUNCHER).getString("theme_mode_p2", null));
+        assertEquals(2, other.prefs(AppBackup.FILE_LAUNCHER).getInt("vehicle_profile", 0));
+        assertEquals(drive, other.prefs("launcher_sahne_p2_t8").getString("sahne_drive_v1", null));
+        assertEquals("phone", other.prefs("launcher_media_flip_p2").getString("face", null));
+        assertEquals("com.waze", other.prefs("launcher_tile_apps_p2").getString("app", null));
+        assertFalse(other.prefs("launcher_tile_apps_p2").contains("app_2_a"));
+        assertEquals("z100,avg,inst,clock", other.prefs(AppBackup.FILE_SPORT).getString("dials", null));
+        // Açık launcher yeniden kurulsun diye sayaç artar.
+        assertEquals(1, other.prefs(AppBackup.FILE_LAUNCHER).getInt("layout_reset_gen", 0));
+    }
+
+    @Test
+    public void manualVehicleScreenIsNotForcedOntoADifferentScreen() throws Exception {
+        other.w = 2400;
+        other.h = 1440;
+        AppBackup.Plan p = plan("{\"screen\":{\"w\":1920,\"h\":720},\"home\":{\"vehicleScreen\":1,\"carColor\":\"beyaz\"}}");
+        assertTrue(p.errors.toString(), p.ok());
+        assertEquals("[screen]", p.skipped.toString());
+        p.commit();
+        assertFalse(other.prefs(AppBackup.FILE_LAUNCHER).contains("vehicle_profile"));
+        assertEquals("beyaz", other.prefs(AppBackup.FILE_LAUNCHER).getString("car_color", null));
+    }
+
+    @Test
+    public void invalidLauncherValuesAreRejected() throws Exception {
+        assertEquals("[app.profile1.parkTiggo7]", plan("{\"profile1\":{\"parkTiggo7\":\"v9|a|b|c\"}}").errors.toString());
+        assertEquals("[app.profile2.tileApps]", plan("{\"profile2\":{\"tileApps\":{\"app\":\"../x\"}}}").errors.toString());
+        assertEquals("[app.profile2.tileApps]", plan("{\"profile2\":{\"tileApps\":\"com.waze\"}}").errors.toString());
+        assertEquals("[app.home.sportDials]", plan("{\"home\":{\"sportDials\":\"z100,z100\"}}").errors.toString());
+        assertEquals("[app.home.sportDials]", plan("{\"home\":{\"sportDials\":\"z100,g,inst,max,avg\"}}").errors.toString());
+        assertEquals("[app.home.profile1Color]", plan("{\"home\":{\"profile1Color\":123}}").errors.toString());
+        assertEquals("[app.home.profile]", plan("{\"home\":{\"profile\":4}}").errors.toString());
+        assertEquals("[app.home.profile1Name]",
+                plan("{\"home\":{\"profile1Name\":\"12345678901234567\"}}").errors.toString());
+        // Sahne'de bilinmeyen pencere türü (daha yeni sürüm) yalnız o yuvayı boşaltır: kayıt kabul edilir.
+        assertTrue(plan("{\"profile1\":{\"parkTiggo7\":\"v3|yeni_tur~yeni_tur~||\"}}").ok());
+    }
+
+    @Test
+    public void restoreWithoutLauncherFieldsDoesNotRebuildTheLauncher() throws Exception {
+        AppBackup.Plan p = plan("{\"power\":{\"mode\":1}}");
+        assertFalse(p.touchesLauncher());
+        p.commit();
+        assertFalse(other.prefs(AppBackup.FILE_LAUNCHER).contains("layout_reset_gen"));
+    }
+
+    @Test
+    public void newerVersionSectionsAndFieldsAreSkippedNotRejected() throws Exception {
+        AppBackup.Plan p = plan("{\"power\":{\"mode\":2,\"yeniAlan\":true},\"yeniBolum\":{\"a\":1},\"baskaBolum\":7}");
+        assertTrue(p.errors.toString(), p.ok());
+        assertEquals("[baskaBolum, power.yeniAlan, yeniBolum]", p.skipped.toString());
+        p.commit();
+        assertEquals(2, other.main().getInt("powerModeSetting", -1));
+        assertFalse(other.main().contains("yeniAlan"));
+        // Tanınan alanın geçersiz değeri hâlâ tüm geri yüklemeyi durdurur.
+        assertEquals("[app.power.mode]", plan("{\"power\":{\"mode\":9},\"yeniBolum\":{}}").errors.toString());
     }
 
     @Test

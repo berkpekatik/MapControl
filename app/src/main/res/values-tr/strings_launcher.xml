@@ -3,7 +3,7 @@
 <resources>
     <string name="launcher_settings">Ayarlar</string>
     <string name="launcher_appearance">Görünüm</string>
-    <string name="launcher_degrees" formatted="true">%1$d°</string>
+    <string name="launcher_degrees" formatted="true">%1$s°</string>
     <string name="launcher_nav_dialog_cancel">Vazgeç</string>
     <string name="launcher_media_idle_hint">Başlatmak için bir müzik uygulaması aç</string>
     <string name="launcher_media_prev">Önceki</string>
@@ -87,7 +87,7 @@
     <string name="launcher_health_low_fuel">Yakıt az</string>
     <string name="launcher_health_hot">Motor sıcak</string>
     <string name="launcher_health_volt_only" formatted="true">%1$s V</string>
-    <string name="launcher_temp_c" formatted="true">%1$d°C</string>
+    <string name="launcher_temp_c" formatted="true">%1$s°C</string>
     <string name="launcher_widget_air">Hava kalitesi</string>
     <string name="launcher_days_value" formatted="true">%1$d gün</string>
     <string name="launcher_air_good">İyi</string>

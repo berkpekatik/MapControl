@@ -175,7 +175,7 @@ internal class CarDetailSheet(private val activity: Activity) {
         val (windows, windowsOpen) = list(m.windows, WINDOW_NAMES)
         row(s(R.string.launcher_detail_windows), windows, windowsOpen)
         row(s(R.string.launcher_detail_sunroof), openClosed(m.sunroof), m.sunroof == true)
-        row(s(R.string.launcher_detail_outside), m.outsideC?.let { activity.getString(R.string.launcher_temp_c, Math.round(it).toInt()) } ?: dash, false)
+        row(s(R.string.launcher_detail_outside), m.outsideC?.let { activity.getString(R.string.launcher_temp_c, TripDecode.outsideText(it)) } ?: dash, false)
         rows = stateRows
         val number = java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault())
         val service = listOfNotNull(

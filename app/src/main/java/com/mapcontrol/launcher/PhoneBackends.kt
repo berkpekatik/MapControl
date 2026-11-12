@@ -702,6 +702,7 @@ internal class VdbusCallBackend(private val io: Executor, private val onAvailabi
     private val bindListener = object : VDBindListener {
         override fun onVDConnected(serviceType: VDServiceDef.ServiceType) {
             if (serviceType != VDServiceDef.ServiceType.BT) return
+            com.mapcontrol.GlitchTip.breadcrumb("bt", "vdbus BT service connected")
             io.execute {
                 if (onState != null) subscribe()
                 onAvailability()
@@ -710,6 +711,7 @@ internal class VdbusCallBackend(private val io: Executor, private val onAvailabi
 
         override fun onVDDisconnected(serviceType: VDServiceDef.ServiceType) {
             if (serviceType != VDServiceDef.ServiceType.BT) return
+            com.mapcontrol.GlitchTip.breadcrumb("bt", "vdbus BT service disconnected")
             // Standart abonelik listesi yeniden bağlanınca VDConnector tarafından yeniden gönderilir.
             io.execute { onAvailability() }
         }

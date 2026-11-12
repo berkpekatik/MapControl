@@ -181,6 +181,21 @@ public final class GlitchTip {
         });
     }
 
+    /**
+     * Teşhis izi: sonraki çökme/ANR raporunda "ne oluyordu" görünsün (kamera, arama, BT servisi). Kişisel veri
+     * (numara, ad, MAC) yazılmaz; yalnızca durum adları. Sentry başlatılmadıysa sessizce düşer.
+     */
+    public static void breadcrumb(String category, String message) {
+        try {
+            Breadcrumb b = new Breadcrumb();
+            b.setCategory(category);
+            b.setMessage(message);
+            b.setLevel(SentryLevel.INFO);
+            Sentry.addBreadcrumb(b);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static Breadcrumb scrubBreadcrumb(Breadcrumb breadcrumb) {
         if (breadcrumb == null) {
             return null;

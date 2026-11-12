@@ -38,6 +38,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
 | 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
+| 🐞 **Log Kaydını Geliştiriciye Gönder** | Donma, Bluetooth kopması ya da ekran resetlenmesinde, onaydan sonra sistem kayıtlarını maskeleyip eşleşmiş hesaba gönderir |
 
 ---
 
@@ -79,6 +80,8 @@ Desay SV **CarInfo / VDBus** üzerinden güç modu (OFF → STANDBY → ON), clu
 - `READ_EXTERNAL_STORAGE`: yalnızca isteğe bağlı fotoğraf widget'ı, İndirilenler klasöründeki resmi göstermek için.
 
 Rehber ve arama geçmişi yalnızca ana ünitede, ekranda göstermek için kullanılır: buluta, web paneline ya da telefon eşleme uygulamasına gönderilmez. Açılışta hızlı gösterim için son liste uygulamaya özel, yedeğe girmeyen bir dosyada tutulur (fotoğraflar yazılmaz); başka bir telefon bağlanınca silinir. Günlüğe (log) isim ya da numara yazılmaz, yalnızca sayılar yazılır. İzinler Android ayarlarından istendiği zaman geri alınabilir.
+
+**Log Kaydını Geliştiriciye Gönder (Ayarlar):** Arka planda log kaydı tutulmaz. Kullanıcı düğmeye basıp onaylayınca sistemin zaten tuttuğu kayıtlar bir kez okunur: son 72 saatin çökme/donma/yeniden başlatma kayıtları (DropBox), uygulamanın son kapanma nedenleri ve donma dökümleri, Bluetooth durumu (`dumpsys bluetooth_manager`, `DUMP` izni `install.sh` ile verilir) ve son sistem günlüğü (`logcat -d`). Telefon numaraları, e-posta ve Bluetooth adresleri, cihaz adları ve koordinatlar **ana ünitede, gönderilmeden önce** maskelenir. Kayıt yalnızca telefonla eşleşmiş hesaba yüklenir, yalnızca geliştirici okuyabilir ve 30 gün sonra silinir. Ayrıca açılışta yeni bir sistem çökmesi varsa çökme raporlayıcısına yalnızca kaydın türü ve süreç adı gider (metni gönderilmez).
 
 ---
 

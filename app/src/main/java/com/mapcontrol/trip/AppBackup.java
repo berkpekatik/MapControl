@@ -2,6 +2,9 @@ package com.mapcontrol.trip;
 
 import android.content.SharedPreferences;
 
+import com.mapcontrol.launcher.Profiles;
+import com.mapcontrol.launcher.SahneSlots;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -21,8 +24,17 @@ import java.util.regex.Pattern;
  * "app": {"screen":{"w":1920,"h":720},
  *   "power":{"mode":2,"bootAutoStart":true,...}, "projection":{...}, "floating":{...}, "clusterOverlay":{...},
  *   "launcher":{...}, "welcome":{...}, "look":{...}, "equalizer":{...}, "camera":{...}, "sunroofOverlay":{...},
- *   "split":{...}, "vehicleModel":{...}, "dms":{"enabled":true}}
+ *   "split":{...}, "vehicleModel":{...}, "dms":{"enabled":true},
+ *   "home":{"profile":2,"carColor":"mavi",...},
+ *   "profile1":{"theme":"night","parkTiggo8":"v3|...","tileApps":{"app":"com.waze"},...}, "profile2":{...}, "profile3":{...}}
  * </pre>
+ *
+ * <b>Ana ekran (launcher).</b> {@code home} profilden bağımsız tercihleri, {@code profile1..3} her sürücü profilinin
+ * kendi düzenini ve görünümünü taşır (profil 2/3 tercihleri {@code _p2}/{@code _p3} ekiyle saklanır, bkz.
+ * {@link Profiles}). Sahne düzenleri araç ekranı başına ayrı dosyadadır (Tiggo 7 / Tiggo 8 / dikey); her biri kendi
+ * dosyasına döner, araç kendi ekranınınkini okur. Çalışma durumu (oturum haritası, çökme koruması, demo), araçtan
+ * algılanan yapılandırma ({@code launcher_car_config}), cihaza özel değerler (BT adresi, sabitlenmiş kişiler,
+ * fotoğraflar) bilerek yoktur.
  *
  * <b>Dışa aktarma.</b> Yalnızca aracın tercih dosyasında gerçekten yazılı olan alanlar çıkar; hiç dokunulmamış bir
  * ayar belgeye girmez ve geri yüklemede varsayılanında kalır.
@@ -35,6 +47,10 @@ import java.util.regex.Pattern;
  *   <li>Uygulama paketi içeren alanlar: paket bu araçta yüklü değilse.</li>
  * </ul>
  * Belgede olmayan bölüm ya da alan olduğu gibi kalır.
+ *
+ * <b>Sürüm uyumu.</b> Bu sürümün tanımadığı bölüm ya da alan (daha yeni bir sürümde alınmış yedek) hata sayılmaz:
+ * atlanır ve {@link Plan#skipped} içinde bildirilir ({@code yeniBolum}, {@code power.yeniAlan}). Tanınan alanın
+ * geçersiz değeri ise eskisi gibi tüm geri yüklemeyi durdurur.
  */
 public final class AppBackup {
 
@@ -43,6 +59,17 @@ public final class AppBackup {
     public static final String FILE_SPLIT = "mapcontrol_split_screen";
     public static final String FILE_LOCALE = "mapcontrol_locale";
     public static final String FILE_SUNROOF = "sunroof_automation_prefs";
+    public static final String FILE_LAUNCHER = "launcher_settings";
+    public static final String FILE_PROFILE = "launcher_profile";
+    public static final String FILE_NAV = "launcher_nav";
+    public static final String FILE_SPORT = "launcher_sport";
+    public static final String FILE_BT_AUTO = "launcher_bt_auto";
+    public static final String FILE_DRIVE_LAYOUT = "launcher_drive_layout";
+    public static final String FILE_MEDIA_FLIP = "launcher_media_flip";
+    public static final String FILE_TILE_APPS = "launcher_tile_apps";
+    public static final String FILE_SAHNE = "launcher_sahne";
+    /** Launcher bu sayaç değişince ({@code HomeScreenPrefs.signature}) öne gelişinde kendini yeniden kurar. */
+    static final String KEY_LAYOUT_RESET_GEN = "layout_reset_gen";
 
     /** Aracın ortamı: tercih dosyaları, yüklü paketler, ekran. */
     public interface Env {
@@ -55,14 +82,24 @@ public final class AppBackup {
         int screenHeight();
     }
 
-    private enum Kind { BOOL, INT, ENUM, INT_SET, PACKAGE, LAUNCHER_ACTION, TEXT, PACKAGE_LIST, INT_LIST }
+    /**
+     * {@code SAHNE}: Sahne düzeni kaydı ({@link SahneSlots#decode} çözebilmeli). {@code PACKAGE_MAP}: dosyadaki tüm
+     * {@code yuva → paket} çiftleri (anahtar yok; kutucuk uygulamaları). {@code KEY_LIST}: {@code values} içinden
+     * virgülle ayrılmış, tekrarsız en çok {@code max} anahtar.
+     */
+    private enum Kind { BOOL, INT, ENUM, INT_SET, PACKAGE, LAUNCHER_ACTION, TEXT, PACKAGE_LIST, INT_LIST, SAHNE, PACKAGE_MAP, KEY_LIST }
 
     private static final Pattern PACKAGE = Pattern.compile("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+");
     private static final Pattern ACTION = Pattern.compile("action:[A-Za-z0-9_:.\\-]{1,90}");
     private static final Pattern IDENT = Pattern.compile("[A-Za-z0-9_.]{0,100}");
     private static final Pattern BANDS = Pattern.compile("-?[0-9]{1,5}(,-?[0-9]{1,5}){0,31}");
+    private static final Pattern SLOT_ID = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
     private static final int MAX_QUICK_SLOTS = 35;
+    private static final int MAX_TILE_APPS = 64;
+    private static final int MAX_SAHNE_LEN = 8000;
+    /** Sürücü profili sayısı ({@code Profiles.COUNT}). */
+    private static final int PROFILES = 3;
 
     private static final class Field {
         final String section;
@@ -92,6 +129,10 @@ public final class AppBackup {
 
         String path() {
             return section + "." + name;
+        }
+
+        boolean launcher() {
+            return "home".equals(section) || section.startsWith("profile");
         }
     }
 
@@ -209,6 +250,53 @@ public final class AppBackup {
         kind("vehicleModel", "label", FILE_MAIN, "vehicleModelMaterialLabel", Kind.TEXT, 100);
 
         bool("dms", "enabled", FILE_MAIN, "dmsFaceRecognitionEnabled");
+
+        // ---- Ana ekran: profilden bağımsız ----
+        integer("home", "profile", FILE_PROFILE, "current", 1, PROFILES);
+        String[] palette = new String[Profiles.INSTANCE.getPALETTE().length];
+        for (int i = 0; i < palette.length; i++) {
+            palette[i] = String.valueOf(Profiles.INSTANCE.getPALETTE()[i]);
+        }
+        for (int p = 1; p <= PROFILES; p++) {
+            kind("home", "profile" + p + "Name", FILE_PROFILE, "name_" + p, Kind.TEXT, 16); // ProfileNaming.MAX_NAME
+            add(new Field("home", "profile" + p + "Color", FILE_PROFILE, "color_" + p, Kind.INT_SET, 0, 0, palette, 0, false));
+        }
+        oneOf("home", "carColor", FILE_LAUNCHER, "car_color", "grafit", "siyah", "beyaz", "gumus", "kirmizi", "mavi");
+        // Elle seçilen araç ekranı (0 otomatik, 1 Tiggo 7, 2 Tiggo 8, 3 dikey): başka ekranlı araçta yanlış düzen kurar.
+        integerScreen("home", "vehicleScreen", FILE_LAUNCHER, "vehicle_profile", 0, 3);
+        bool("home", "carVertical", FILE_LAUNCHER, "car_vertical");
+        bool("home", "climateWholeDegree", FILE_LAUNCHER, "climate_whole_degree");
+        oneOf("home", "mapApp", FILE_NAV, "map_app", "google_maps", "yandex_maps", "yandex_navi");
+        add(new Field("home", "sportDials", FILE_SPORT, "dials", Kind.KEY_LIST, 0, 4,
+                new String[]{"z100", "g", "inst", "max", "avg", "time", "range", "clock"}, 100, false));
+        bool("home", "btAutoConnect", FILE_BT_AUTO, "enabled");
+
+        // ---- Ana ekran: sürücü profili başına (profil 1 eksiz, 2/3 "_p2"/"_p3") ----
+        for (int p = 1; p <= PROFILES; p++) {
+            String s = "profile" + p;
+            String sfx = p == 1 ? "" : "_p" + p;
+            oneOf(s, "theme", FILE_LAUNCHER, "theme_mode" + sfx, "auto", "day", "night");
+            bool(s, "driveAccent", FILE_LAUNCHER, "drive_mode_theme" + sfx);
+            bool(s, "sportMode", FILE_LAUNCHER, "sport_mode_experimental" + sfx);
+            bool(s, "sportCloseOemDialog", FILE_LAUNCHER, "sport_close_oem_drive_dialog" + sfx);
+            bool(s, "sportAmbient", FILE_LAUNCHER, "sport_ambient" + sfx);
+            oneOf(s, "bottomBar", FILE_LAUNCHER, "bottom_bar" + sfx, "original", "ours", "hidden");
+            bool(s, "bottomBarLegacyFullscreen", FILE_LAUNCHER, "fullscreen" + sfx); // eski "Tam ekran", bottom_bar yoksa okunur
+            oneOf(s, "favoriteKey", FILE_LAUNCHER, "favorite_key" + sfx, "off", "yandex_navi", "yandex_maps");
+            bool(s, "climateOemPanel", FILE_LAUNCHER, "climate_oem_panel_on_change" + sfx);
+            bool(s, "mediaPhonePriority", FILE_LAUNCHER, "media_phone_priority" + sfx);
+            bool(s, "callScreen", FILE_LAUNCHER, "phone_call_screen_launcher" + sfx);
+            bool(s, "voiceKeyAssistant", FILE_LAUNCHER, "phone_voice_key_assistant" + sfx);
+            bool(s, "showAssistant", FILE_LAUNCHER, "phone_show_assistant" + sfx);
+            bool(s, "autoDriveLayout", FILE_DRIVE_LAYOUT, "auto_drive_layout" + sfx);
+            oneOf(s, "mediaFlipFace", FILE_MEDIA_FLIP + sfx, "face", "media", "phone");
+            add(new Field(s, "tileApps", FILE_TILE_APPS + sfx, null, Kind.PACKAGE_MAP, 0, 0, null, 0, false));
+            String[][] screens = {{"Tiggo7", ""}, {"Tiggo8", "_t8"}, {"Portrait", "_pt"}};
+            for (String[] v : screens) {
+                kind(s, "park" + v[0], FILE_SAHNE + sfx + v[1], "sahne_park_v1", Kind.SAHNE, MAX_SAHNE_LEN);
+                kind(s, "drive" + v[0], FILE_SAHNE + sfx + v[1], "sahne_drive_v1", Kind.SAHNE, MAX_SAHNE_LEN);
+            }
+        }
     }
 
     private AppBackup() {
@@ -222,7 +310,7 @@ public final class AppBackup {
         app.put("screen", new JSONObject().put("w", env.screenWidth()).put("h", env.screenHeight()));
         for (Field f : FIELDS) {
             SharedPreferences sp = env.prefs(f.file);
-            if (sp == null || !sp.contains(f.key)) {
+            if (!present(sp, f)) {
                 continue;
             }
             Object value;
@@ -245,8 +333,42 @@ public final class AppBackup {
         return app;
     }
 
+    /** Tercih dosyasında bu alan yazılı mı (kutucuk uygulamalarında: geçerli en az bir yuva var mı). */
+    private static boolean present(SharedPreferences sp, Field f) {
+        if (sp == null) {
+            return false;
+        }
+        if (f.kind == Kind.PACKAGE_MAP) {
+            return readTileApps(sp).length() > 0;
+        }
+        return sp.contains(f.key);
+    }
+
+    /** Dosyadaki geçerli {@code yuva → paket} çiftleri; başka türde ya da biçimde yazılmış olanlar alınmaz. */
+    private static JSONObject readTileApps(SharedPreferences sp) {
+        JSONObject out = new JSONObject();
+        Map<String, ?> all = sp.getAll();
+        if (all == null) {
+            return out;
+        }
+        for (Map.Entry<String, ?> e : new java.util.TreeMap<>(all).entrySet()) {
+            Object v = e.getValue();
+            if (out.length() < MAX_TILE_APPS && SLOT_ID.matcher(e.getKey()).matches() && v instanceof String
+                    && ((String) v).length() <= 255 && PACKAGE.matcher((String) v).matches()) {
+                try {
+                    out.put(e.getKey(), v);
+                } catch (JSONException ignored) {
+                    // anahtar boş olamaz (SLOT_ID)
+                }
+            }
+        }
+        return out;
+    }
+
     private static Object read(SharedPreferences sp, Field f) {
         switch (f.kind) {
+            case PACKAGE_MAP:
+                return readTileApps(sp);
             case BOOL:
                 return sp.getBoolean(f.key, false);
             case INT:
@@ -262,8 +384,7 @@ public final class AppBackup {
     public static int configuredCount(Env env) {
         int n = 0;
         for (Field f : FIELDS) {
-            SharedPreferences sp = env.prefs(f.file);
-            if (sp != null && sp.contains(f.key)) {
+            if (present(env.prefs(f.file), f)) {
                 n++;
             }
         }
@@ -279,6 +400,7 @@ public final class AppBackup {
         public final List<String> skipped = new ArrayList<>();
         private final List<Object[]> writes = new ArrayList<>(); // {Field, value}
         private Env env;
+        private boolean touchesLauncher;
 
         public boolean ok() {
             return errors.isEmpty();
@@ -298,7 +420,11 @@ public final class AppBackup {
                     editors.put(f.file, ed);
                 }
                 Object v = w[1];
-                if (v instanceof Boolean) {
+                if (v instanceof Map) {
+                    for (Map.Entry<?, ?> e : ((Map<?, ?>) v).entrySet()) {
+                        ed.putString((String) e.getKey(), (String) e.getValue());
+                    }
+                } else if (v instanceof Boolean) {
                     ed.putBoolean(f.key, (Boolean) v);
                 } else if (v instanceof Integer) {
                     ed.putInt(f.key, (Integer) v);
@@ -306,9 +432,23 @@ public final class AppBackup {
                     ed.putString(f.key, (String) v);
                 }
             }
+            if (touchesLauncher) {
+                // Açık launcher öne gelişinde yeniden kurulsun (düzenler imzaya girmez, sayaç girer).
+                SharedPreferences.Editor ed = editors.get(FILE_LAUNCHER);
+                if (ed == null) {
+                    ed = env.prefs(FILE_LAUNCHER).edit();
+                    editors.put(FILE_LAUNCHER, ed);
+                }
+                ed.putInt(KEY_LAYOUT_RESET_GEN, env.prefs(FILE_LAUNCHER).getInt(KEY_LAYOUT_RESET_GEN, 0) + 1);
+            }
             for (SharedPreferences.Editor ed : editors.values()) {
                 ed.commit();
             }
+        }
+
+        /** Geri yükleme ana ekran (launcher) tercihlerinden en az birini yazacak mı. */
+        public boolean touchesLauncher() {
+            return touchesLauncher;
         }
     }
 
@@ -344,7 +484,8 @@ public final class AppBackup {
                 continue;
             }
             if (!SECTIONS.containsKey(sectionName)) {
-                plan.errors.add("app." + sectionName);
+                // Daha yeni bir sürümün bölümü: bu sürüm tanımıyor, geri kalanı yine uygulanır.
+                plan.skipped.add(sectionName);
                 continue;
             }
             JSONObject section = app.optJSONObject(sectionName);
@@ -357,7 +498,7 @@ public final class AppBackup {
                 String name = names.next();
                 Field f = find(sectionName, name);
                 if (f == null) {
-                    plan.errors.add("app." + sectionName + "." + name);
+                    plan.skipped.add(sectionName + "." + name); // daha yeni bir sürümün alanı
                     continue;
                 }
                 Object raw = section.opt(name);
@@ -385,8 +526,13 @@ public final class AppBackup {
                     }
                 } else if (f.kind == Kind.PACKAGE_LIST) {
                     value = filterInstalled((String) value, f, env, plan.skipped);
+                } else if (f.kind == Kind.PACKAGE_MAP) {
+                    value = filterInstalledMap((JSONObject) value, f, env, plan.skipped);
                 }
                 plan.writes.add(new Object[]{f, value});
+                if (f.launcher()) {
+                    plan.touchesLauncher = true;
+                }
             }
         }
         // Araç modeli bir bütündür: paketi uygulanmadıysa görsel ve etiketi de uygulanmaz.
@@ -461,6 +607,14 @@ public final class AppBackup {
             case INT_LIST:
                 return raw instanceof String && (((String) raw).isEmpty() || BANDS.matcher((String) raw).matches())
                         && ((String) raw).length() <= f.maxLen ? raw : null;
+            case SAHNE:
+                // Bilinmeyen pencere türü yuvayı boşaltır (decode), biçim bozuksa null: daha yeni sürümün türü reddedilmez.
+                return raw instanceof String && ((String) raw).length() <= f.maxLen && cleanText((String) raw)
+                        && SahneSlots.INSTANCE.decode((String) raw) != null ? raw : null;
+            case PACKAGE_MAP:
+                return raw instanceof JSONObject && validTileApps((JSONObject) raw) ? raw : null;
+            case KEY_LIST:
+                return raw instanceof String && ((String) raw).length() <= f.maxLen && validKeyList((String) raw, f) ? raw : null;
             default:
                 return null;
         }
@@ -488,6 +642,53 @@ public final class AppBackup {
             }
         }
         return true;
+    }
+
+    private static boolean validTileApps(JSONObject map) {
+        if (map.length() > MAX_TILE_APPS) {
+            return false;
+        }
+        Iterator<String> ids = map.keys();
+        while (ids.hasNext()) {
+            String id = ids.next();
+            Object v = map.opt(id);
+            if (!SLOT_ID.matcher(id).matches() || !(v instanceof String) || ((String) v).length() > 255
+                    || !PACKAGE.matcher((String) v).matches()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean validKeyList(String raw, Field f) {
+        String[] keys = raw.split(",", -1);
+        if (keys.length > f.max) {
+            return false;
+        }
+        List<String> seen = new ArrayList<>();
+        for (String k : keys) {
+            if (seen.contains(k) || !java.util.Arrays.asList(f.values).contains(k)) {
+                return false;
+            }
+            seen.add(k);
+        }
+        return true;
+    }
+
+    /** Yüklü olmayan paketin yuvasını atlar ({@code profile1.tileApps.app_2}); kalanlar sıralı bir eşlem olarak döner. */
+    private static Map<String, String> filterInstalledMap(JSONObject map, Field f, Env env, List<String> skipped) {
+        Map<String, String> out = new java.util.TreeMap<>();
+        Iterator<String> ids = map.keys();
+        while (ids.hasNext()) {
+            String id = ids.next();
+            String pkg = map.optString(id);
+            if (env.isInstalled(pkg)) {
+                out.put(id, pkg);
+            } else {
+                skipped.add(f.path() + "." + id);
+            }
+        }
+        return out;
     }
 
     /** Yüklü olmayan paketin yuvasını boşaltır (yuva sırası bozulmaz); atlananları bildirir. */

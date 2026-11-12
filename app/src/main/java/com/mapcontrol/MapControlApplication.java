@@ -22,6 +22,7 @@ public final class MapControlApplication extends Application {
     public void onCreate() {
         super.onCreate();
         GlitchTip.start(this);
+        com.mapcontrol.util.MainLoopShield.install();
         finishRecordingOnCrash();
         com.mapcontrol.util.ProcessExitLog.reportAsync(this);
         guardLauncherCrashLoop();

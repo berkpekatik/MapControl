@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_title">Log Kaydını Geliştiriciye Gönder</string>
+    <string name="diag_desc">Uygulama dondu, Bluetooth koptu ya da ekran resetlendiyse sistem kayıtlarını gönderin, geliştirici nedenini bulsun. Siz onaylamadan hiçbir şey toplanmaz ve gönderilmez.</string>
+    <string name="diag_button">Log Kaydını Geliştiriciye Gönder</string>
+    <string name="diag_busy">Kayıt hazırlanıyor…</string>
+    <string name="diag_consent_title">Log kaydı geliştiriciye gönderilsin mi?</string>
+    <string name="diag_consent_subtitle">Yalnızca şimdi, bir kez okunur</string>
+    <string name="diag_consent_message">Şunlar toplanıp hesabınıza gönderilir; yalnızca geliştirici okuyabilir:\n\n• Son sistem çökme, donma ve yeniden başlatma kayıtları (Bluetooth ve kamera servisleri dahil)\n• MapControl\'ın son kapanma nedenleri\n• Bluetooth durumu\n• Son sistem günlüğü\n\nTelefon numaraları, e-posta adresleri, Bluetooth adresleri, cihaz adları ve konum bilgisi gönderilmeden önce maskelenir. Kayıtlar 30 gün sonra silinir. Arka planda hiçbir şey kaydedilmez.</string>
+    <string name="diag_consent_send">Gönder</string>
+    <string name="diag_sent">Kayıt gönderildi. Teşekkürler!</string>
+    <string name="diag_sent_ref">Kayıt gönderildi (no. %1$s). Teşekkürler!</string>
+    <string name="diag_err_no_vin">Aracın şase numarası henüz okunamadı. Bir süre sürdükten sonra tekrar deneyin.</string>
+    <string name="diag_err_no_account">Araç hesabınıza bağlı değil. Telefonunuz aracın ağına bağlıyken MapControl uygulamasını açın, sonra tekrar deneyin.</string>
+    <string name="diag_err_car_not_found">Bu araç hesabınızda kayıtlı değil. Önce telefon uygulamasından ekleyin.</string>
+    <string name="diag_err_too_large">Kayıt gönderilemeyecek kadar büyük.</string>
+    <string name="diag_err_too_many">Kısa sürede çok fazla kayıt gönderildi. Bir saat sonra tekrar deneyin.</string>
+    <string name="diag_err_network">Sunucuya ulaşılamadı. İnternet bağlantısını kontrol edip tekrar deneyin.</string>
+    <string name="diag_err_failed">Kayıt gönderilemedi.</string>
+</resources>

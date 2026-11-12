@@ -20,6 +20,16 @@ class TripDecodeTest {
         assertNull(TripDecode.outsideC(null))
     }
 
+    @Test fun outsideTextMatchesCluster() {
+        val tr = java.util.Locale("tr", "TR")
+        assertEquals("10", TripDecode.outsideText(10.0, tr))
+        assertEquals("9,5", TripDecode.outsideText(9.5, tr))      // eskiden 10 yazıyordu
+        assertEquals("-2,5", TripDecode.outsideText(-2.5, tr))    // eskiden -2 yazıyordu
+        assertEquals("0", TripDecode.outsideText(-0.2, tr))
+        assertEquals("9.5", TripDecode.outsideText(9.5, java.util.Locale.US))
+        assertEquals("17", TripDecode.outsideText(TripDecode.outsideC(144)!!, tr))
+    }
+
     @Test fun instantIsTenths() {
         assertEquals(12.1, TripDecode.instantL100(121)!!, 1e-9)
         assertEquals(13.1, TripDecode.instantL100(131)!!, 1e-9)

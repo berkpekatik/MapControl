@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_title">Send Log to Developer</string>
+    <string name="diag_desc">If the app froze, Bluetooth dropped or the screen reset, send the system logs so the developer can find the cause. Nothing is collected or sent until you confirm.</string>
+    <string name="diag_button">Send Log to Developer</string>
+    <string name="diag_busy">Preparing log…</string>
+    <string name="diag_consent_title">Send log to developer?</string>
+    <string name="diag_consent_subtitle">Read once, only now</string>
+    <string name="diag_consent_message">The following will be collected and sent to your account, where only the developer can read it:\n\n• Recent system crash, freeze and restart records (including Bluetooth and camera services)\n• MapControl\'s last exit reasons\n• Bluetooth status\n• The recent system log\n\nPhone numbers, email addresses, Bluetooth addresses, device names and coordinates are masked before sending. Logs are deleted after 30 days. Nothing is recorded in the background.</string>
+    <string name="diag_consent_send">Send</string>
+    <string name="diag_sent">Log sent. Thank you!</string>
+    <string name="diag_sent_ref">Log sent (no. %1$s). Thank you!</string>
+    <string name="diag_err_no_vin">The car\'s VIN could not be read yet. Try again after driving for a while.</string>
+    <string name="diag_err_no_account">The car is not linked to your account. Open the MapControl app on your phone while connected to the car\'s network, then try again.</string>
+    <string name="diag_err_car_not_found">This car is not registered on your account. Add it from the phone app first.</string>
+    <string name="diag_err_too_large">The log is too large to send.</string>
+    <string name="diag_err_too_many">Too many logs sent recently. Please try again in an hour.</string>
+    <string name="diag_err_network">Could not reach the server. Check the internet connection and try again.</string>
+    <string name="diag_err_failed">The log could not be sent.</string>
+</resources>

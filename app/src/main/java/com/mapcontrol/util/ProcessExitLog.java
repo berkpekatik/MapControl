@@ -56,6 +56,8 @@ public final class ProcessExitLog {
             GlitchTip.reportWarning("process_exit:UNEXPLAINED_RESTART", Collections.emptyMap());
         }
         prefs.edit().putString(KEY_BOOT, bootId).putInt(KEY_VERSION, BuildConfig.VERSION_CODE).apply();
+        // Sistem çökmeleri/yeniden başlatmalar (BT servisi vb.): yalnızca etiket + süreç adı, metin gönderilmez.
+        DropBoxWatch.reportNew(app);
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -72,7 +74,7 @@ public final class ProcessExitLog {
             String reason = reasonName(exit.getReason());
             Log.w(TAG, reason + " at=" + exit.getTimestamp() + " importance=" + exit.getImportance()
                     + " status=" + exit.getStatus() + " desc=" + exit.getDescription());
-            if (shouldReport(exit.getReason())) {
+            if (shouldReport(exit.getReason(), exit.getDescription())) {
                 Map<String, String> extras = new LinkedHashMap<>();
                 extras.put("timestamp", String.valueOf(exit.getTimestamp()));
                 extras.put("importance", String.valueOf(exit.getImportance()));
@@ -90,6 +92,18 @@ public final class ProcessExitLog {
     /** Android 10: aynı açılış ve aynı sürümde yeni süreç, önceki sürecin beklenmedik öldüğünü gösterir. */
     static boolean isUnexplainedRestart(String previousBoot, String currentBoot, int previousVersion, int currentVersion) {
         return previousBoot != null && previousBoot.equals(currentBoot) && previousVersion == currentVersion;
+    }
+
+    /**
+     * [shouldReport] + açıklama: "isolated not needed" (OTHER), sistemin artık gereksiz izole alt süreci
+     * (WebView renderer vb.) kapatmasıdır; çökme değildir, GlitchTip #2312'de yüzlerce olay biriktirdi.
+     */
+    static boolean shouldReport(int reason, String description) {
+        if (reason == ApplicationExitInfo.REASON_OTHER && description != null
+                && description.trim().equalsIgnoreCase("isolated not needed")) {
+            return false;
+        }
+        return shouldReport(reason);
     }
 
     /** Kullanıcı/kurulum kaynaklı çıkışlar gönderilmez; Java çökmesini Sentry zaten kendisi raporlar. */

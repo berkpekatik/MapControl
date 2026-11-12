@@ -685,12 +685,12 @@ class HeaderBar(
     /** İnternet havası henüz yokken araç sıcaklığını tek başına göster. */
     private fun bindCarTempOnly() {
         val c = carOutsideC ?: return
-        weatherTemp.text = context.getString(R.string.launcher_degrees, Math.round(c).toInt())
+        weatherTemp.text = context.getString(R.string.launcher_degrees, TripDecode.outsideText(c))
     }
 
     private fun bindWeather(snapshot: OpenMeteoWeatherSnapshot) {
         lastWeather = snapshot
-        weatherTemp.text = context.getString(R.string.launcher_degrees, Math.round(carOutsideC ?: snapshot.temperatureC.toDouble()).toInt())
+        weatherTemp.text = context.getString(R.string.launcher_degrees, TripDecode.outsideText(carOutsideC ?: snapshot.temperatureC.toDouble()))
         // 7 Kasım araç testi: konuma göre hava durumu yazısı yanlıştı (güneşliyken "Sağanak"). Yalnız sıcaklık gösterilir
         // (araç dış sıcaklığı; yoksa hava servisinin sıcaklığı), durum yazısı ve hava ikonu yok.
         weatherLabel.text = ""

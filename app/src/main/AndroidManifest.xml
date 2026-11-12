@@ -20,6 +20,8 @@
     <!-- Foreground Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
+    <!-- Tanılama paketi: dumpsys bluetooth_manager (development izni; install.sh pm grant verir, yoksa atlanır). -->
+    <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions"/>
     <!-- Bölünmüş ekran: önceden açık başka uygulama görevini sınırlarıyla öne almak (moveTaskToFront, normal izin). -->
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     

@@ -47,12 +47,41 @@ public final class BtSessionWatcher {
         }
 
         @Override
+        public void onMetadataChanged(@Nullable android.media.MediaMetadata metadata) {
+            // Parça bilgisi çalma durumundan sonra geldiyse telefon önceliği beklemeden yeniden dener.
+            OemAudioSource.INSTANCE.onBtMetadataChanged();
+        }
+
+        @Override
         public void onSessionDestroyed() {
             MAIN.post(BtSessionWatcher::refresh);
         }
     };
 
     private BtSessionWatcher() {
+    }
+
+    /**
+     * İzlenen BT oturumu anlamlı bir parça bildiriyor mu (AVRCP başlık ya da sanatçı). Telefon önceliği bunu sorar:
+     * kilit açılınca gelen anlık sesler çoğunlukla parça bilgisi göndermez. Ana iş parçacığından çağrılır.
+     */
+    public static boolean hasTrackInfo() {
+        MediaController c = tracked;
+        if (c == null) {
+            return false;
+        }
+        android.media.MediaMetadata m;
+        try {
+            m = c.getMetadata();
+        } catch (Exception e) {
+            return false;
+        }
+        if (m == null) {
+            return false;
+        }
+        return com.mapcontrol.launcher.TrackInfo.INSTANCE.present(
+                m.getString(android.media.MediaMetadata.METADATA_KEY_TITLE),
+                m.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST));
     }
 
     /** Ana iş parçacığından; tekrar çağrılabilir (zaten dinliyorsa yalnızca yeniden okur). */

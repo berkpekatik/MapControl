@@ -25,7 +25,11 @@ internal class PhonePriority(
     private val ownMs: Long = OWN_MS,
     private val lostGraceMs: Long = LOST_GRACE_MS,
 ) {
-    enum class Decision { NO_TRANSITION, SWITCH, DISABLED, UNKNOWN_SOURCE, ALREADY_BT, IN_CALL, OWN_PLAY, USER_PICK, DEBOUNCE }
+    enum class Decision {
+        NO_TRANSITION, SWITCH, DISABLED, UNKNOWN_SOURCE, ALREADY_BT, IN_CALL, OWN_PLAY, USER_PICK, DEBOUNCE,
+        /** Telefon parça bilgisi göndermedi (kilit açılınca reels/bildirim sesi gibi): [retry] ile kısa süre yeniden sorulur. */
+        NO_TRACK_INFO,
+    }
 
     /** Son bilinen BT oturumu çalıyor mu (hiç gözlenmediyse null). */
     private var btPlaying: Boolean? = null
@@ -71,13 +75,58 @@ internal class PhonePriority(
     /** [onBtState] bu durumla duraklamış → çalıyor geçişi görür mü (ayar / arama okumasını geçişe saklamak için). */
     fun isTransition(playing: Boolean): Boolean = playing && btPlaying == false
 
-    /** [enabled] ve [inCall] yalnızca geçişte sorulur (BT oturumu ~500 ms'de bir durum yollar). */
-    fun onBtState(playing: Boolean, now: Long, oemSource: Int?, enabled: () -> Boolean, inCall: () -> Boolean): Decision {
+    /** [NO_TRACK_INFO] sonrası bilgi bekleniyor (geçiş anı; yoksa MIN). */
+    private var infoPendingSince = Long.MIN_VALUE / 2
+    private var infoPending = false
+
+    /**
+     * [enabled], [inCall] ve [hasTrackInfo] yalnızca geçişte sorulur (BT oturumu ~500 ms'de bir durum yollar). Parça
+     * bilgisi en son sorulur: diğer engellerden biri varsa beklemeye gerek yoktur.
+     */
+    fun onBtState(
+        playing: Boolean,
+        now: Long,
+        oemSource: Int?,
+        enabled: () -> Boolean,
+        inCall: () -> Boolean,
+        hasTrackInfo: () -> Boolean = { true },
+    ): Decision {
         val prev = btPlaying
         btPlaying = playing
         btPresent = true
+        if (!playing) infoPending = false
         if (!playing || prev != false) return Decision.NO_TRANSITION
-        return when {
+        infoPendingSince = now
+        return decide(now, oemSource, enabled, inCall, hasTrackInfo)
+    }
+
+    /**
+     * Geçişte parça bilgisi yoktu ([Decision.NO_TRACK_INFO]); bilgi sonradan gelmiş olabilir. Yalnızca BT hâlâ çalarken ve
+     * geçişten [infoWaitMs] içinde sorulur; aksi halde [Decision.NO_TRANSITION]. Diğer engeller yeniden denetlenir.
+     */
+    fun retry(
+        now: Long,
+        oemSource: Int?,
+        enabled: () -> Boolean,
+        inCall: () -> Boolean,
+        hasTrackInfo: () -> Boolean,
+        infoWaitMs: Long = INFO_WAIT_MS,
+    ): Decision {
+        if (!infoPending || btPlaying != true || now - infoPendingSince > infoWaitMs) {
+            infoPending = false
+            return Decision.NO_TRANSITION
+        }
+        return decide(now, oemSource, enabled, inCall, hasTrackInfo)
+    }
+
+    private fun decide(
+        now: Long,
+        oemSource: Int?,
+        enabled: () -> Boolean,
+        inCall: () -> Boolean,
+        hasTrackInfo: () -> Boolean,
+    ): Decision {
+        val d = when {
             !enabled() -> Decision.DISABLED
             oemSource == null -> Decision.UNKNOWN_SOURCE
             oemSource == OemAudioSource.BT_MUSIC -> Decision.ALREADY_BT
@@ -85,11 +134,14 @@ internal class PhonePriority(
             now - lastOwn < ownMs -> Decision.OWN_PLAY
             now - maxOf(lastUserPick, lastOemAway) < userPickMs -> Decision.USER_PICK
             now - lastSwitch < debounceMs -> Decision.DEBOUNCE
+            !hasTrackInfo() -> Decision.NO_TRACK_INFO
             else -> {
                 lastSwitch = now
                 Decision.SWITCH
             }
         }
+        infoPending = d == Decision.NO_TRACK_INFO
+        return d
     }
 
     companion object {
@@ -97,6 +149,93 @@ internal class PhonePriority(
         const val USER_PICK_MS = 10_000L
         const val OWN_MS = 5_000L
         const val LOST_GRACE_MS = 5_000L
+        /** OEM BT servisi odak yoksa telefonu ~1000 ms sonra duraklatır: bilgi bundan önce gelmeli. */
+        const val INFO_WAIT_MS = 900L
+    }
+}
+
+/**
+ * Telefonun gerçek bir parça mı çaldığı (saf). Kilit açılınca öndeki uygulamanın (reels, önizleme) ya da bildirimin kısa
+ * sesi oturumu bir an PLAYING yapar ama çoğunlukla parça adı göndermez; telefon önceliği bunda geçmez. Bazı AVRCP
+ * yığınları bilgi yokken yer tutucu ad yollar.
+ */
+internal object TrackInfo {
+    private val PLACEHOLDERS = setOf("", "not provided", "unknown", "<unknown>", "no title", "bilinmiyor", "null")
+
+    fun meaningful(title: String?): Boolean = title != null && title.trim().lowercase() !in PLACEHOLDERS
+
+    fun present(title: String?, artist: String?): Boolean = meaningful(title) || meaningful(artist)
+}
+
+/**
+ * Telefon önceliğiyle yapılan geçişi kısa çalmada geri alma kararı (saf; [OemAudioSource] kilit altında kullanır).
+ *
+ * Telefon önceliği OEM'in kendi kaynağından (radyo/USB, [MediaSourcePick.isOemOwnSource]) BT'ye geçtikten sonra BT
+ * [windowMs] içinde durur ve [settleMs] boyunca durmuş kalırsa önceki kaynak yeniden açılır: kilit açılınca gelen bir
+ * anlık ses radyoyu kalıcı olarak kesmesin. Kullanıcı bu arada bir şey seçtiyse ([cancel]) ya da kaynak BT'den başka
+ * yere geçtiyse geri alınmaz.
+ */
+internal class PriorityRevert(
+    private val windowMs: Long = WINDOW_MS,
+    private val settleMs: Long = SETTLE_MS,
+) {
+    private var from: Int? = null
+    private var switchedAt = Long.MIN_VALUE / 2
+    private var stoppedAt: Long? = null
+
+    /** Telefon önceliği [from] kaynağından BT'ye geçti. Geri alınacak kaynak yalnızca OEM'in kendi kaynağıdır. */
+    fun onSwitched(from: Int?, now: Long) {
+        this.from = if (MediaSourcePick.isOemOwnSource(from)) from else null
+        switchedAt = now
+        stoppedAt = null
+    }
+
+    /** Kullanıcı kaynak seçti, kartın Oynat'ına bastı ya da kaynak BT dışına geçti. */
+    fun cancel() {
+        from = null
+        stoppedAt = null
+    }
+
+    val pending: Boolean get() = from != null
+
+    /** BT durumu. true: BT az önce durdu, [settleMs] sonra [due] sorulmalı. */
+    fun onBtState(playing: Boolean?, now: Long): Boolean {
+        if (from == null) return false
+        if (now - switchedAt > windowMs && stoppedAt == null) {
+            from = null // uzun çaldı: gerçek dinleme, geri alınmaz
+            return false
+        }
+        if (playing == true) {
+            stoppedAt = null
+            return false
+        }
+        if (stoppedAt != null) return false
+        stoppedAt = now
+        return true
+    }
+
+    /** Zamanlanmış denetim: geri açılacak kaynak ya da null. [source] OEM'in şu anki kaynağı. */
+    fun due(now: Long, playing: Boolean?, source: Int?): Int? {
+        val target = from ?: return null
+        val since = stoppedAt ?: return null
+        if (playing == true) {
+            stoppedAt = null
+            return null
+        }
+        if (source != OemAudioSource.BT_MUSIC) {
+            cancel() // geçiş tutmadı ya da kaynak zaten başka yerde
+            return null
+        }
+        if (now - since < settleMs) return null
+        cancel()
+        return target
+    }
+
+    companion object {
+        /** Geçişten sonra BT bu süre içinde durursa "anlık ses" sayılır. */
+        const val WINDOW_MS = 8_000L
+        /** Parça arası / tampon kısa durmaları geri dönüş tetiklemesin. */
+        const val SETTLE_MS = 1_500L
     }
 }
 
