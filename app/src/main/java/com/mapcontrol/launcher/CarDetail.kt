@@ -257,8 +257,8 @@ internal class CarDetailSheet(private val activity: Activity) {
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
             val w = MeasureSpec.getSize(widthMeasureSpec)
             val cw = carW(w)
-            car.measure(MeasureSpec.makeMeasureSpec(CarStageView.widthFor(cw), MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(CarStageView.heightFor(cw), MeasureSpec.EXACTLY))
+            car.measure(MeasureSpec.makeMeasureSpec(car.widthFor(cw), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(car.heightFor(cw), MeasureSpec.EXACTLY))
             val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
             labels.forEach { it.measure(free, free) }
             val labelH = labels.maxOf { it.measuredHeight }
@@ -273,8 +273,8 @@ internal class CarDetailSheet(private val activity: Activity) {
             val ch = (cw * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W).toInt()
             val bodyLeft = (w - cw) / 2
             val bodyTop = (h - ch) / 2
-            val cl = bodyLeft - CarStageView.carLeft(cw)
-            val ct = bodyTop - CarStageView.carTop(cw)
+            val cl = bodyLeft - car.carLeft(cw)
+            val ct = bodyTop - car.carTop(cw)
             car.layout(cl, ct, cl + car.measuredWidth, ct + car.measuredHeight)
             val gap = context.dp(LABEL_GAP_DP)
             labels.forEachIndexed { i, label ->

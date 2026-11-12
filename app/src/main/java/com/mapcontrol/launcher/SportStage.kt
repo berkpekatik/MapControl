@@ -1048,7 +1048,7 @@ internal class SportStageView(
         media.scaleX = m.r / mr
         media.scaleY = m.r / mr
         val carLen = g.carLength().toInt()
-        car.measure(exactly(CarStageView.widthFor(carLen)), exactly(CarStageView.heightFor(carLen)))
+        car.measure(exactly(car.widthFor(carLen)), exactly(car.heightFor(carLen)))
         val nr = (g.rpmFace * NeedleView.LENGTH * 2).toInt() + 8
         needle.measure(exactly(nr), exactly(nr))
         val pr = (g.rpmFace * 2).toInt()
@@ -1110,8 +1110,8 @@ internal class SportStageView(
         media.pivotY = media.measuredHeight / 2f
         // Araç: gövde kadranın ortasında, burun yukarı (görünüm -90° döner; eksen gövdenin ortası).
         val carLen = g.carLength().toInt()
-        val bodyCx = CarStageView.carLeft(carLen) + carLen / 2f
-        val bodyCy = CarStageView.carTop(carLen) + carLen * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W / 2f
+        val bodyCx = car.carLeft(carLen) + carLen / 2f
+        val bodyCy = car.carTop(carLen) + carLen * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W / 2f
         val cl = (g.car.cx - bodyCx).toInt()
         val ct = (g.car.cy - bodyCy).toInt()
         car.layout(cl, ct, cl + car.measuredWidth, ct + car.measuredHeight)

@@ -530,7 +530,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         lockChip.measure(MeasureSpec.makeMeasureSpec(w / 2, MeasureSpec.AT_MOST), exactly(context.dp(LauncherTheme.TOUCH_MIN_DP)))
         fitCar(w, h)
         carW = carBox.width.toInt()
-        car.measure(exactly(CarStageView.widthFor(carW)), exactly(CarStageView.heightFor(carW)))
+        car.measure(exactly(car.widthFor(carW)), exactly(car.heightFor(carW)))
         floor.setCar(carBox)
         val aw = (carBox.width * AMBIENT_RX * 2).toInt()
         val ah = (carBox.height * AMBIENT_RY * 2).toInt()
@@ -590,7 +590,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         }
         // Uzun sahne (Tiggo 8): araç büyür, omuzlar ile şerit arasında ortalanır, bagaj kayması sahne kenarına göre.
         val tall = StageFit.isTall(w, h)
-        val trunkFrac = -CarAnimSpec.part(CarPart.TRUNK).overlay.x / CarAnimSpec.BASE_W
+        val trunkOverlayX = car.model.geometry.parts.getValue(CarPart.TRUNK).overlay.x
+        val trunkFrac = -trunkOverlayX / CarAnimSpec.BASE_W
         val maxW = if (tall) StageFit.tallMaxWidth(w.toFloat(), CAR_W_MAX * k, context.dpF(FIT_GAP_DP), trunkFrac) else CAR_W_MAX * k
         carBox = StageFit.centered(
             centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
@@ -605,7 +606,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         }
         // Açık bagaj kapağı gövdenin solundan taşar (base'de -79 px; bkz. CarAnimSpec TRUNK overlay); menzil bloğuyla en az
         // [FIT_GAP_DP] kalacak kadar sağa kayılır.
-        val trunkLeft = carBox.left + carBox.width * CarAnimSpec.part(CarPart.TRUNK).overlay.x / CarAnimSpec.BASE_W
+        val trunkLeft = carBox.left + carBox.width * trunkOverlayX / CarAnimSpec.BASE_W
         trunkShiftNeed = if (tall) StageFit.tallTrunkShift(w.toFloat(), carBox, context.dpF(FIT_GAP_DP), trunkFrac)
         else (rangeRight + context.dpF(FIT_GAP_DP) - trunkLeft).coerceIn(0f, context.dpF(TRUNK_SHIFT_MAX_DP))
         if (shiftAnim == null) applyShift(if (trunkOpen) trunkShiftNeed else 0f)
@@ -671,8 +672,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             it.layout(al, at, al + it.measuredWidth, at + it.measuredHeight)
             rotateAbout(it, pcx, pcy)
         }
-        val carL = carBox.left.toInt() - CarStageView.carLeft(carW)
-        val carT = carBox.top.toInt() - CarStageView.carTop(carW)
+        val carL = carBox.left.toInt() - car.carLeft(carW)
+        val carT = carBox.top.toInt() - car.carTop(carW)
         car.layout(carL, carT, carL + car.measuredWidth, carT + car.measuredHeight)
         rotateAbout(car, pcx, pcy)
         floor.setTurn(if (vertical) VERTICAL_TURN else 0f, pcx, pcy)
