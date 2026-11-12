@@ -76,6 +76,15 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     private var trunkShift = 0f
     private var trunkOpen = false
     private var shiftAnim: ValueAnimator? = null
+    /**
+     * Dikey ortalama (yalnızca dikey ekran profili): şerit yokken araç sahnenin tam ortasına iner. [centerNeed] kutunun
+     * (şerit payına göre yerleşmiş) en çok ineceği piksel, [centerDy] şu anki değer; şerit görününce yumuşakça yukarı çıkar.
+     */
+    private var centerNeed = 0f
+    private var centerDy = 0f
+    private var centerAnim: ValueAnimator? = null
+    /** Süren ortalama geçişinin hedefi ([centerAnim] varken anlamlı). */
+    private var centerTarget = 0f
 
     // --- Menzil (sol omuz): tek satır, rakam + birim + "menzil" aynı taban çizgisinde, eşit genişlikli rakamlar ---
     private val rangeNumber = sahneText(activity, RANGE_SP, Sahne.NUMERAL, 300, -0.03f).apply { includeFontPadding = false }
@@ -328,6 +337,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         main.removeCallbacks(brakeSettle)
         welcome = false
         shiftAnim?.cancel()
+        centerAnim?.cancel()
+        centerAnim = null
         shiftAnim = null
         lock.onStripChanged = null
         artKey = null
@@ -401,6 +412,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             batteryV = trip.batteryV, batteryHighHeld = trip.batteryHighHeld, fuelCapOpen = s.fuelCapOpen,
         )
         strip.bind(list) { stripText(activity, it) }
+        syncCenter(animate = carSeeded)
         strip.setDriving(if (LauncherDemo.enabled) LauncherDemo.moving == true else trip.moving == true)
     }
 
@@ -585,7 +597,9 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             )
             carBox = StageFit.lyingBody(upright, CAR_ASPECT)
             trunkShiftNeed = 0f
+            centerNeed = 0f
             if (shiftAnim == null) applyShift(0f)
+            syncCenter(false)
             return
         }
         // Uzun sahne (Tiggo 8): araç büyür, omuzlar ile şerit arasında ortalanır, bagaj kayması sahne kenarına göre.
@@ -610,6 +624,52 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         trunkShiftNeed = if (tall) StageFit.tallTrunkShift(w.toFloat(), carBox, context.dpF(FIT_GAP_DP), trunkFrac)
         else (rangeRight + context.dpF(FIT_GAP_DP) - trunkLeft).coerceIn(0f, context.dpF(TRUNK_SHIFT_MAX_DP))
         if (shiftAnim == null) applyShift(if (trunkOpen) trunkShiftNeed else 0f)
+        // Dikey ekranda şerit yokken araç sahnenin tam ortasında durur (kutu şerit payına göre yerleştiği için yukarıda kalır).
+        centerNeed = if (VehicleProfile.active.portrait) {
+            SahnePortrait.centerDrop(h.toFloat(), carBox.top, carBox.height, context.dpF(CENTER_BOTTOM_DP))
+        } else 0f
+        syncCenter(false)
+    }
+
+    private fun stripShown(): Boolean = strip.visibility == View.VISIBLE
+
+    /** Şerit görünürken araç yukarıda (şeride yer açar), değilken ortada; geçiş bagaj kaymasıyla aynı eğriyle. */
+    private fun syncCenter(animate: Boolean) {
+        val target = if (stripShown()) 0f else centerNeed
+        if (centerAnim != null && !animate) return
+        if (target == centerDy && centerAnim == null) return
+        // Aynı hedefe giden geçiş sürüyorsa dokunulmaz: aynı anda gelen ikinci çağrı (araç + yolculuk verisi) geçişi iptal edip
+        // aracı son yerine sıçratırdı.
+        if (centerAnim != null && target == centerTarget) return
+        // Alan önce boşaltılır: cancel() bitiş dinleyicisini hemen çağırır, dinleyici de son konuma atlardı.
+        centerAnim?.let { centerAnim = null; it.cancel() }
+        centerTarget = target
+        if (!animate || !ValueAnimator.areAnimatorsEnabled()) {
+            applyCenter(target)
+            return
+        }
+        val from = centerDy
+        centerAnim = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = TRUNK_SHIFT_MS
+            interpolator = android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f)
+            addUpdateListener { a -> applyCenter(from + (target - from) * a.animatedFraction) }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (centerAnim === animation) {
+                        centerAnim = null
+                        applyCenter(if (stripShown()) 0f else centerNeed)
+                    }
+                }
+            })
+            start()
+        }
+    }
+
+    private fun applyCenter(dy: Float) {
+        centerDy = dy
+        car.translationY = dy
+        ambient.forEach { it.translationY = dy }
+        floor.setShift(trunkShift, dy)
     }
 
     /** Bagaj açılınca / kapanınca araç ve zemini yumuşakça kayar (yalnızca konum canlanır; ilk durumda anında). */
@@ -654,7 +714,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         trunkShift = dx
         car.translationX = dx
         ambient.forEach { it.translationX = dx }
-        floor.setShift(dx)
+        floor.setShift(dx, centerDy)
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -834,9 +894,12 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         /** Yatay kayma (bagaj açıkken): gradyanlar yeniden kurulmaz, yalnızca tuval kaydırılır. */
         private var shift = 0f
 
-        fun setShift(dx: Float) {
-            if (dx == shift) return
+        private var shiftY = 0f
+
+        fun setShift(dx: Float, dy: Float = shiftY) {
+            if (dx == shift && dy == shiftY) return
             shift = dx
+            shiftY = dy
             invalidate()
         }
 
@@ -875,11 +938,11 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             if (w <= 0 || h <= 0) return
             if (w != builtW || h != builtH) build(w, h)
             val save = canvas.save()
-            canvas.translate(shift, 0f)
+            canvas.translate(shift, shiftY)
             var l = -shift
             var r = w - shift
-            var t = 0f
-            var b = h.toFloat()
+            var t = -shiftY
+            var b = h - shiftY
             if (turn != 0f) {
                 // Döndürülmüş tuvalde dikdörtgen tüm sahneyi örtsün (gradyan kenarları zaten saydam).
                 canvas.rotate(turn, turnX, turnY)
@@ -913,6 +976,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         /** Bagaj açıkken aracın en çok sağa kayması ve geçiş süresi. */
         const val TRUNK_SHIFT_MAX_DP = 60f
         const val TRUNK_SHIFT_MS = 420L
+        /** Ortalanan aracın sahne altında bırakacağı en az boşluk. */
+        const val CENTER_BOTTOM_DP = 8f
         const val FUEL_BAR_DP = 84
         /** Araç ile şerit payı arası. */
         const val CAR_STRIP_GAP_DP = 10

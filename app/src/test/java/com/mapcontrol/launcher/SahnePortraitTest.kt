@@ -35,4 +35,17 @@ class SahnePortraitTest {
         assertEquals(320, small.stageH)
         assertTrue(small.panelH >= 0)
     }
+
+    @Test fun carDropsToTrueCentreWhenNoStripShows() {
+        // 540 px sahne, araç şerit payı yüzünden yukarıda (üst 40, boy 300): ortalanınca üstü 120'ye iner.
+        assertEquals(80f, SahnePortrait.centerDrop(stageH = 540f, boxTop = 40f, boxH = 300f, bottomGap = 8f), 0f)
+        // Zaten ortada ya da ortanın altında: yukarı çekilmez.
+        assertEquals(0f, SahnePortrait.centerDrop(stageH = 540f, boxTop = 120f, boxH = 300f, bottomGap = 8f), 0f)
+        assertEquals(0f, SahnePortrait.centerDrop(stageH = 540f, boxTop = 200f, boxH = 300f, bottomGap = 8f), 0f)
+        // Araç sahneden uzunsa ya da altta yer yoksa taşmaz.
+        assertEquals(0f, SahnePortrait.centerDrop(stageH = 300f, boxTop = 0f, boxH = 300f, bottomGap = 8f), 0f)
+        val drop = SahnePortrait.centerDrop(stageH = 320f, boxTop = 0f, boxH = 310f, bottomGap = 8f)
+        assertEquals(2f, drop, 0f)
+        assertTrue(0f + 310f + drop <= 320f - 8f)
+    }
 }
