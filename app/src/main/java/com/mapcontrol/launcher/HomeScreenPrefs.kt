@@ -20,6 +20,7 @@ object HomeScreenPrefs {
     private const val KEY_START_EARLIEST = "launcherStartEarliest"
     private const val KEY_HOME_KEY_MAPCONTROL = "homeKeyMapControl"
     private const val KEY_CAR_VERTICAL = "car_vertical"
+    private const val KEY_CAR_MODEL = "car_model"
 
     /** "Araç ekranı": 0 = Otomatik (ekrandan), 1 = Tiggo 7, 2 = Tiggo 8, 3 = Dikey (Jaecoo). Launcher bir sonraki öne gelişinde yeniden kurulur. */
     @JvmStatic fun vehicleProfileIndex(context: Context): Int =
@@ -36,6 +37,18 @@ object HomeScreenPrefs {
 
     @JvmStatic fun setCarVertical(context: Context, vertical: Boolean) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_CAR_VERTICAL, vertical).apply()
+    }
+
+    /**
+     * "Araç modeli": 0 = Otomatik (araç ekranından), 1 = Tiggo, 2 = Jaecoo 7 ([CarModel.choose]). Launcher bir sonraki öne gelişinde
+     * yeniden kurulur. Aralık dışı kayıtlı değer Otomatik sayılır (en yakın seçeneğe yuvarlanmaz).
+     */
+    @JvmStatic fun carModelIndex(context: Context): Int =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_CAR_MODEL, CarModel.OVERRIDE_AUTO)
+            .let { if (it in CarModel.OVERRIDE_AUTO..CarModel.OVERRIDE_MAX) it else CarModel.OVERRIDE_AUTO }
+
+    @JvmStatic fun setCarModelIndex(context: Context, index: Int) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_CAR_MODEL, index.coerceIn(0, CarModel.OVERRIDE_MAX)).apply()
     }
 
     @JvmStatic fun climateWholeDegree(context: Context): Boolean =
@@ -106,7 +119,7 @@ object HomeScreenPrefs {
     /** Launcher'ın kurulumda okuduğu tercihlerin özeti; farklıysa açık launcher yeniden kurulmalıdır. */
     @JvmStatic fun signature(context: Context): String {
         val gen = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_LAYOUT_RESET_GEN, 0)
-        return "${themeIndex(context)}|${driveAccent(context)}|${bottomBarIndex(context)}|${autoDriveLayout(context)}|$gen|${VehicleProfile.compute(context).key}|${carVertical(context)}"
+        return "${themeIndex(context)}|${driveAccent(context)}|${bottomBarIndex(context)}|${autoDriveLayout(context)}|$gen|${VehicleProfile.compute(context).key}|${carVertical(context)}|${CarModel.compute(context).key}"
     }
 
     /** Ana ekranı doğrudan düzenleme modunda açar. */

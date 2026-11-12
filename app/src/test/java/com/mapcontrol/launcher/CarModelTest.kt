@@ -255,4 +255,28 @@ class CarModelTest {
         val open = closed(CarModel.JAECOO7, CarPart.DOOR_FL).apply { snap(true) }
         assertTrue(!open.spriteVisible())
     }
+
+    @Test fun automaticPicksModelFromVehicleScreen() {
+        assertEquals(CarModel.TIGGO, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.TIGGO7))
+        assertEquals(CarModel.TIGGO, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.TIGGO8))
+        assertEquals(CarModel.JAECOO7, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.PORTRAIT))
+    }
+
+    @Test fun manualChoiceWinsOverVehicleScreen() {
+        for (p in VehicleProfile.values()) {
+            assertEquals(p.name, CarModel.TIGGO, CarModel.choose(1, p))
+            assertEquals(p.name, CarModel.JAECOO7, CarModel.choose(2, p))
+            // Bilinmeyen değer Otomatik gibi davranır.
+            assertEquals(p.name, CarModel.choose(CarModel.OVERRIDE_AUTO, p), CarModel.choose(7, p))
+            assertEquals(p.name, CarModel.choose(CarModel.OVERRIDE_AUTO, p), CarModel.choose(-1, p))
+        }
+        assertEquals(CarModel.values().size, CarModel.OVERRIDE_MAX)
+    }
+
+    @Test fun demoNameParsesToModel() {
+        assertEquals(CarModel.TIGGO, CarModel.parse("tiggo"))
+        assertEquals(CarModel.JAECOO7, CarModel.parse(" Jaecoo7 "))
+        assertNull(CarModel.parse("tiggo8"))
+        assertNull(CarModel.parse(null))
+    }
 }

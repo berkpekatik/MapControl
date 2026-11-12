@@ -12,6 +12,7 @@ import com.mapcontrol.vehicle.VehicleMetricsSnapshot
  * Yalnızca debug (debuggable) derlemede ve başlatma isteğinde açıkça istenirse açılır:
  *   adb shell am start -n <paket>/com.mapcontrol.launcher.HomeLauncherActivity --ez launcher_demo true
  * Araç ekranı profili de verilebilir (`--es launcher_profile tiggo7|tiggo8`, bkz. [VehicleProfile.demoOverride]).
+ * Araç görseli de (`--es launcher_demo_car tiggo|jaecoo7`, bkz. [CarModel.demoOverride]).
  * Açıkken widget'lar aracı değil buradaki sabit değerleri gösterir; komut gönderen yollar yine
  * LauncherEdition üzerinden geçer, demo onlara dokunmaz.
  */
@@ -52,6 +53,7 @@ internal object LauncherDemo {
         if (!enabled) NavigationSource.setDemo(false)
         if (!enabled) resetSportPreview()
         if (enabled && intent.hasExtra(VehicleProfile.EXTRA_PROFILE)) VehicleProfile.demoOverride = VehicleProfile.parse(intent.getStringExtra(VehicleProfile.EXTRA_PROFILE))
+        if (enabled && intent.hasExtra(CarModel.EXTRA_MODEL)) CarModel.demoOverride = CarModel.parse(intent.getStringExtra(CarModel.EXTRA_MODEL))
         if (enabled && intent.hasExtra(EXTRA_WIFI)) wifi = intent.getBooleanExtra(EXTRA_WIFI, false)
         if (enabled && intent.hasExtra(EXTRA_CHARGING)) charging = intent.getBooleanExtra(EXTRA_CHARGING, true)
         if (enabled && intent.hasExtra(EXTRA_REAR_OFF)) rearOff = intent.getBooleanExtra(EXTRA_REAR_OFF, false)

@@ -1,5 +1,6 @@
 package com.mapcontrol.launcher
 
+import android.content.Context
 import androidx.annotation.DrawableRes
 import com.mapcontrol.R
 import com.mapcontrol.launcher.CarAnimSpec.Box
@@ -73,7 +74,8 @@ class TailGate(val cut0: Float, val cut1: Float, val openBox: FloatArray, val re
 
 /**
  * Sahne'de çizilen araç modeli: [prefix] görsel dosya ön eki (`<prefix><renk>_base` ...), tavan katmanları (renkten
- * bağımsız) ve [geometry] o takımın ölçüleri. Etkin model [active] ile okunur.
+ * bağımsız) ve [geometry] o takımın ölçüleri. Etkin model [active] ile okunur; [resolve] başlatmada bir kez (ve her yeniden
+ * kurulumda) çağrılır, böylece açık ekran çalışırken model değişmez ([VehicleProfile] ile aynı düzen).
  */
 enum class CarModel(
     val key: String,
@@ -87,10 +89,40 @@ enum class CarModel(
     JAECOO7("jaecoo7", "car_j7_", R.drawable.car_j7_roof_shade_closed, R.drawable.car_j7_roof_shade_open, R.drawable.car_j7_roof_open_hole, JAECOO7_GEOMETRY);
 
     companion object {
-        /** Etkin model: şimdilik hep Tiggo (Jaecoo 7 henüz seçilmiyor). */
+        /** Elle seçim: 0 = Otomatik, 1 = Tiggo, 2 = Jaecoo 7 ([HomeScreenPrefs.carModelIndex]). */
+        const val OVERRIDE_AUTO = 0
+        const val OVERRIDE_MAX = 2
+
+        /** Etkin model. [resolve] hiç çağrılmadıysa (birim testleri) Tiggo. */
         @Volatile
         var active: CarModel = TIGGO
             internal set
+
+        /** Demo/test: `--es launcher_demo_car tiggo|jaecoo7` (yalnızca debug ve demo açıkken); elle seçimi geçersiz kılar. */
+        @Volatile
+        var demoOverride: CarModel? = null
+
+        const val EXTRA_MODEL = "launcher_demo_car"
+
+        /**
+         * Elle seçim ([OVERRIDE_AUTO] ya da 1/2) ile araç ekranı profilinden model (saf; birim testlenir). Otomatik: dikey ekran
+         * ([VehicleProfile.PORTRAIT], Jaecoo J7/J8) Jaecoo 7, Tiggo 7 ve Tiggo 8 ekranları Tiggo.
+         */
+        fun choose(override: Int, profile: VehicleProfile): CarModel = when (override) {
+            1 -> TIGGO
+            2 -> JAECOO7
+            else -> if (profile.portrait) JAECOO7 else TIGGO
+        }
+
+        /** Verilen ad "tiggo"/"jaecoo7" ise model; aksi halde null. */
+        fun parse(name: String?): CarModel? = values().firstOrNull { it.key.equals(name?.trim(), ignoreCase = true) }
+
+        /** Elle seçim ve demo isteği dahil, bu cihaz için model (durum değiştirmez). */
+        fun compute(context: Context): CarModel =
+            demoOverride ?: choose(HomeScreenPrefs.carModelIndex(context), VehicleProfile.compute(context))
+
+        /** Etkin modeli günceller; başlatmada ve her yeniden kurulumda çağrılır. */
+        fun resolve(context: Context): CarModel = compute(context).also { active = it }
     }
 }
 
