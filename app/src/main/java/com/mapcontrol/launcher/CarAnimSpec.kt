@@ -136,8 +136,9 @@ object CarAnimSpec {
     /**
      * Cam vurgusu (4 Kasım §1, "camlara hafif renk"): açık camın üstüne hafif buz mavisi. Kutular base pikselinde, kapı
      * kapalıyken görünen yan camın yeri (üst kenar aracın solu); [door] açıldıkça vurgu söner (cam kapıyla birlikte döner).
+     * [box2]: cam iki parçaysa ikinci parça (yalnız Tiggo 8 cam tavanı: arka + ön cam, aradaki kiriş boyanmaz); null = tek kutu.
      */
-    class Glass(val box: Box, val door: CarPart?, val strength: Float = 1f)
+    class Glass(val box: Box, val door: CarPart?, val strength: Float = 1f, val box2: Box? = null)
 
     const val GLASS_MAX_ALPHA = 0.32f
     const val GLASS_CORNER = 8f
@@ -241,6 +242,12 @@ object CarAnimSpec {
     val TIRE_L: Float get() = geo.tireL
     val TIRE_W: Float get() = geo.tireW
     val TIRE_OUT: Float get() = geo.tireOut
+
+    /** Stop çubuğunun uçlardaki sönüm boyu (base px; tüm modellerde ortak). */
+    const val TAIL_TAPER = 34f
+
+    /** Stop çubuğunun [row] satırındaki (kutunun üstünden, 0..[rows]-1) uç sönümü: uçlarda 0, [TAIL_TAPER] içeride 1. */
+    fun tailTaper(row: Int, rows: Int): Float = smooth(minOf(row, rows - 1 - row).toFloat(), 0f, TAIL_TAPER)
 
     /** Lastiğin base pikseli kutusu (sol, üst, sağ, alt); [i] [TireDecode] sırası, [g] ölçüleri okunan model (varsayılan: etkin). */
     fun tireBox(i: Int, g: CarGeometry = geo): FloatArray {

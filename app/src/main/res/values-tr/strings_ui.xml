@@ -980,9 +980,11 @@
     <string name="home_screen_car_horizontal_help">Araç yan yatık durur, burnu sağa bakar.</string>
     <string name="home_screen_car_vertical_help">Araç dik durur, burnu yukarı bakar. Işıklar ve kapılar aynı şekilde çalışır.</string>
     <string name="home_screen_car_model">Araç modeli</string>
-    <string name="home_screen_car_model_tiggo">Tiggo</string>
+    <string name="home_screen_car_model_tiggo">Tiggo 7</string>
     <string name="home_screen_car_model_jaecoo7">Jaecoo 7</string>
-    <string name="home_screen_car_model_help_auto">\"Araç ekranı\" ayarını izler: Jaecoo (dikey ekran) seçiliyken Jaecoo 7, diğerlerinde Tiggo.</string>
-    <string name="home_screen_car_model_help_tiggo">Ana ekranda Tiggo görünür.</string>
+    <string name="home_screen_car_model_tiggo8">Tiggo 8 Pro Max</string>
+    <string name="home_screen_car_model_help_auto">\"Araç ekranı\" ayarını izler: Tiggo 7, Tiggo 8 Pro Max ya da Jaecoo (dikey ekran) seçiliyken Jaecoo 7.</string>
+    <string name="home_screen_car_model_help_tiggo">Ana ekranda Tiggo 7 görünür.</string>
     <string name="home_screen_car_model_help_jaecoo7">Ana ekranda Jaecoo 7 görünür.</string>
+    <string name="home_screen_car_model_help_tiggo8">Ana ekranda Tiggo 8 Pro Max görünür.</string>
 </resources>

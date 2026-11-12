@@ -44,6 +44,31 @@ internal object StageFit {
         return Box(cx - len / 2f, cy - wid / 2f, cx + len / 2f, cy + wid / 2f)
     }
 
+    /** [box] aynı merkezde [scale] katı (model ölçeği: tuval kutusu yerleşim çerçevesinden büyüktür). Ölçek 1 ise kutunun kendisi. */
+    fun scaled(box: Box, scale: Float): Box {
+        if (scale == 1f) return box
+        val cx = (box.left + box.right) / 2f
+        val cy = (box.top + box.bottom) / 2f
+        val hw = box.width * scale / 2f
+        val hh = box.height * scale / 2f
+        return Box(cx - hw, cy - hh, cx + hw, cy + hh)
+    }
+
+    /**
+     * Tuvalde [canvasFrac] konumundaki (tuval genişliğine oran; negatif = tuvalin solunda) bir noktanın, tuval aynı merkezde
+     * [scale] katı büyütüldüğünde yerleşim çerçevesinin solundan taşması (çerçeve genişliğine oran). Ölçek 1 ise eski hesabın
+     * kendisi (-[canvasFrac], kırpılmadan); büyütülmüş tuvalde taşmıyorsa 0.
+     */
+    fun frameOverflowLeft(canvasFrac: Float, scale: Float): Float =
+        if (scale == 1f) -canvasFrac else (-(0.5f + (canvasFrac - 0.5f) * scale)).coerceAtLeast(0f)
+
+    /**
+     * Tuvalde [canvasFrac] konumundaki noktanın (burun), tuval [scale] katı büyütüldüğünde yerleşim çerçevesinin sağından taşması
+     * (çerçeve genişliğine oran). Ölçek 1 ise 0: çerçeve tuvalin kendisidir, eski hesaba hiçbir şey eklenmez.
+     */
+    fun frameOverflowRight(canvasFrac: Float, scale: Float): Float =
+        if (scale == 1f) 0f else ((canvasFrac - 0.5f) * scale - 0.5f).coerceAtLeast(0f)
+
     /**
      * Sahnenin tam ortasındaki araç (§10/§11): yatayda [centerX]'e sabit, en büyük genişlik [maxW]'den [minW]'ye aranır.
      * Üstteki engellerle (omuzlardaki menzil ve kilit) yatayda çakışırsa araç onların altına iner; çakışma hesabında aracın
@@ -89,11 +114,14 @@ internal object StageFit {
     fun tallMaxWidth(stageW: Float, normalMaxW: Float, margin: Float, trunkFrac: Float): Float =
         minOf(normalMaxW * TALL_GROWTH, (stageW - 2 * margin) / (1f + trunkFrac)).coerceAtLeast(0f)
 
-    /** Uzun sahnede bagaj açıkken kayma: kapağın sol ucu sahnenin solunda en az [margin] kalacak kadar (sağa taşmadan). */
-    fun tallTrunkShift(stageW: Float, car: Box, margin: Float, trunkFrac: Float): Float {
+    /**
+     * Uzun sahnede bagaj açıkken kayma: kapağın sol ucu sahnenin solunda en az [margin] kalacak kadar (sağa taşmadan).
+     * [noseFrac]: burnun kutunun sağından taşması (genişliğe oran; yalnız ölçekli modelde, bkz. [frameOverflowRight]).
+     */
+    fun tallTrunkShift(stageW: Float, car: Box, margin: Float, trunkFrac: Float, noseFrac: Float = 0f): Float {
         val trunkLeft = car.left - car.width * trunkFrac
         val need = margin - trunkLeft
-        val room = stageW - margin - car.right
+        val room = stageW - margin - car.right - car.width * noseFrac
         return need.coerceAtMost(room).coerceAtLeast(0f)
     }
 }

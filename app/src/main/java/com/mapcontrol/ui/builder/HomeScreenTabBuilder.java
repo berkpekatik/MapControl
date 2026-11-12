@@ -398,19 +398,25 @@ public class HomeScreenTabBuilder {
                 });
     }
 
-    /** Araç modeli: Otomatik / Tiggo / Jaecoo 7 (sıra {@code HomeScreenPrefs.carModelIndex}); launcher bir sonraki açılışta yeniden kurulur. */
+    /**
+     * Araç modeli: Otomatik / Tiggo 7 / Tiggo 8 Pro Max / Jaecoo 7 (Araç ekranı ile aynı sıra). Kayıtlı değerler
+     * {@code HomeScreenPrefs.carModelIndex}: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 Pro Max; yalnız
+     * gösterim sırası farklıdır. Launcher bir sonraki açılışta yeniden kurulur.
+     */
     private void createCarModelSection(FeatureGridLayout grid) {
         UiStyles.addSegmentedControl(context, createCard(grid),
                 context.getString(R.string.home_screen_car_model),
                 new String[]{
                         context.getString(R.string.home_screen_vehicle_auto),
                         context.getString(R.string.home_screen_car_model_tiggo),
+                        context.getString(R.string.home_screen_car_model_tiggo8),
                         context.getString(R.string.home_screen_car_model_jaecoo7)},
                 new String[]{
                         context.getString(R.string.home_screen_car_model_help_auto),
                         context.getString(R.string.home_screen_car_model_help_tiggo),
+                        context.getString(R.string.home_screen_car_model_help_tiggo8),
                         context.getString(R.string.home_screen_car_model_help_jaecoo7)},
-                new int[]{0, 1, 2},
+                new int[]{0, 1, 3, 2},
                 HomeScreenPrefs.carModelIndex(context),
                 index -> {
                     HomeScreenPrefs.setCarModelIndex(context, index);

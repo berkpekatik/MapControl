@@ -66,6 +66,12 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     private val vertical = HomeScreenPrefs.carVertical(activity)
     /** Aracın gövde kutusu (sahne pikseli; açılan parçalar hariç); ölçü değişmedikçe yeniden hesaplanmaz. */
     private var carBox = StageFit.Box(0f, 0f, 0f, 0f)
+    /**
+     * Yerleşim çerçevesi: gövdesi tuvali dolduran bir aracın (Tiggo 7) kutusu. Sığdırma, zemin ışığı ve ortam ışığı buna göredir;
+     * [carBox] (tuval kutusu) aynı merkezde modelin ölçeği ([CarGeometry.stageScale]) kadar büyüktür. Ölçeği 1 olan modellerde
+     * (Tiggo 7, Jaecoo 7) ikisi aynı kutudur.
+     */
+    private var frameBox = carBox
     private var fitKey: List<Int> = emptyList()
     /**
      * Bagaj açıkken aracın sağa kayması (piksel): açık bagaj kapağı menzil yazısının altına girmesin diye en çok
@@ -543,9 +549,9 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         fitCar(w, h)
         carW = carBox.width.toInt()
         car.measure(exactly(car.widthFor(carW)), exactly(car.heightFor(carW)))
-        floor.setCar(carBox)
-        val aw = (carBox.width * AMBIENT_RX * 2).toInt()
-        val ah = (carBox.height * AMBIENT_RY * 2).toInt()
+        floor.setCar(frameBox)
+        val aw = (frameBox.width * AMBIENT_RX * 2).toInt()
+        val ah = (frameBox.height * AMBIENT_RY * 2).toInt()
         ambient.forEach { it.measure(exactly(aw), exactly(ah)) }
         val side = side(w)
         strip.measure(MeasureSpec.makeMeasureSpec(w - 2 * side, MeasureSpec.AT_MOST), exactly(context.dp(StageStrip.HEIGHT_DP)))
@@ -595,7 +601,9 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
                 maxW = CAR_W_MAX * k * CAR_ASPECT, minW = CAR_W_MIN * k * CAR_ASPECT * VERTICAL_MIN_SCALE,
                 aspect = 1f / CAR_ASPECT, gap = context.dpF(FIT_GAP_DP), above = obstacles,
             )
-            carBox = StageFit.lyingBody(upright, CAR_ASPECT)
+            // Dikeyde gövde boyu çerçeveyi (sahne yüksekliği) aşmaz: gerçek boy oranı uygulanmaz, yalnız gövde boyu eşitlenir.
+            frameBox = StageFit.lyingBody(upright, CAR_ASPECT)
+            carBox = StageFit.scaled(frameBox, car.model.geometry.bodyScale)
             trunkShiftNeed = 0f
             centerNeed = 0f
             if (shiftAnim == null) applyShift(0f)
@@ -604,10 +612,14 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         }
         // Uzun sahne (Tiggo 8): araç büyür, omuzlar ile şerit arasında ortalanır, bagaj kayması sahne kenarına göre.
         val tall = StageFit.isTall(w, h)
-        val trunkOverlayX = car.model.geometry.parts.getValue(CarPart.TRUNK).overlay.x
-        val trunkFrac = -trunkOverlayX / CarAnimSpec.BASE_W
-        val maxW = if (tall) StageFit.tallMaxWidth(w.toFloat(), CAR_W_MAX * k, context.dpF(FIT_GAP_DP), trunkFrac) else CAR_W_MAX * k
-        carBox = StageFit.centered(
+        val geo = car.model.geometry
+        val trunkOverlayX = geo.parts.getValue(CarPart.TRUNK).overlay.x
+        // Açık bagaj kapağının çerçevenin solundan taşması (çerçeve genişliğine oran; ölçekli tuvalde ölçeğe göre).
+        val trunkFrac = StageFit.frameOverflowLeft(trunkOverlayX / CarAnimSpec.BASE_W, geo.stageScale)
+        // Ölçekli modelde burun da çerçevenin sağından taşar (Tiggo 8); ölçek 1'de 0 ve hesap eskisiyle aynı.
+        val noseFrac = geo.bodySize?.let { StageFit.frameOverflowRight(it.x1 / CarAnimSpec.BASE_W, geo.stageScale) } ?: 0f
+        val maxW = if (tall) StageFit.tallMaxWidth(w.toFloat(), CAR_W_MAX * k, context.dpF(FIT_GAP_DP), trunkFrac + noseFrac) else CAR_W_MAX * k
+        frameBox = StageFit.centered(
             centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
             maxW = maxW, minW = CAR_W_MIN * k, aspect = CAR_ASPECT, gap = context.dpF(FIT_GAP_DP),
             above = obstacles,
@@ -618,15 +630,16 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             val drop = (maxBottom - box.bottom).coerceAtLeast(0f)
             box.copy(top = box.top + drop, bottom = box.bottom + drop)
         }
+        carBox = StageFit.scaled(frameBox, geo.stageScale)
         // Açık bagaj kapağı gövdenin solundan taşar (base'de -79 px; bkz. CarAnimSpec TRUNK overlay); menzil bloğuyla en az
         // [FIT_GAP_DP] kalacak kadar sağa kayılır.
         val trunkLeft = carBox.left + carBox.width * trunkOverlayX / CarAnimSpec.BASE_W
-        trunkShiftNeed = if (tall) StageFit.tallTrunkShift(w.toFloat(), carBox, context.dpF(FIT_GAP_DP), trunkFrac)
+        trunkShiftNeed = if (tall) StageFit.tallTrunkShift(w.toFloat(), frameBox, context.dpF(FIT_GAP_DP), trunkFrac, noseFrac)
         else (rangeRight + context.dpF(FIT_GAP_DP) - trunkLeft).coerceIn(0f, context.dpF(TRUNK_SHIFT_MAX_DP))
         if (shiftAnim == null) applyShift(if (trunkOpen) trunkShiftNeed else 0f)
         // Dikey ekranda şerit yokken araç sahnenin tam ortasında durur (kutu şerit payına göre yerleştiği için yukarıda kalır).
         centerNeed = if (VehicleProfile.active.portrait) {
-            SahnePortrait.centerDrop(h.toFloat(), carBox.top, carBox.height, context.dpF(CENTER_BOTTOM_DP))
+            SahnePortrait.centerDrop(h.toFloat(), frameBox.top, frameBox.height, context.dpF(CENTER_BOTTOM_DP))
         } else 0f
         syncCenter(false)
     }
@@ -722,7 +735,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         val h = b - t
         floor.layout(0, 0, w, h)
         val acx = (carBox.left + carBox.right) / 2f
-        val acy = carBox.top + carBox.height * AMBIENT_CY
+        val acy = frameBox.top + frameBox.height * AMBIENT_CY
         // Dikeyde araç, ortam ışığı ve zemin gövde kutusunun merkezi etrafında -90° döner (burun yukarı).
         val pcx = (carBox.left + carBox.right) / 2f
         val pcy = (carBox.top + carBox.bottom) / 2f

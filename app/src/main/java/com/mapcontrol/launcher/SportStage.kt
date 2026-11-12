@@ -1047,7 +1047,8 @@ internal class SportStageView(
         media.measure(exactly((mr * 2).toInt()), exactly((mr * 2).toInt()))
         media.scaleX = m.r / mr
         media.scaleY = m.r / mr
-        val carLen = g.carLength().toInt()
+        // Gövde boyu modelin ölçeğiyle eşitlenir ([CarGeometry.bodyScale]; Tiggo 7 ve Jaecoo 7'de tam 1).
+        val carLen = (g.carLength() * car.model.geometry.bodyScale).toInt()
         car.measure(exactly(car.widthFor(carLen)), exactly(car.heightFor(carLen)))
         val nr = (g.rpmFace * NeedleView.LENGTH * 2).toInt() + 8
         needle.measure(exactly(nr), exactly(nr))
@@ -1109,7 +1110,8 @@ internal class SportStageView(
         media.pivotX = media.measuredWidth / 2f
         media.pivotY = media.measuredHeight / 2f
         // Araç: gövde kadranın ortasında, burun yukarı (görünüm -90° döner; eksen gövdenin ortası).
-        val carLen = g.carLength().toInt()
+        // Gövde boyu modelin ölçeğiyle eşitlenir ([CarGeometry.bodyScale]; Tiggo 7 ve Jaecoo 7'de tam 1).
+        val carLen = (g.carLength() * car.model.geometry.bodyScale).toInt()
         val bodyCx = car.carLeft(carLen) + carLen / 2f
         val bodyCy = car.carTop(carLen) + carLen * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W / 2f
         val cl = (g.car.cx - bodyCx).toInt()
