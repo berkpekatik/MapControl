@@ -112,6 +112,98 @@ class CarModelTest {
         same(floatArrayOf(122f, 323f, 214f, 349f), CarAnimSpec.tireBox(3))
     }
 
+    @Test fun modelsUseDistinctResourcePrefixes() {
+        assertEquals(listOf("car_", "car_j7_"), CarModel.values().map { it.prefix })
+        assertEquals(CarModel.values().size, CarModel.values().map { it.key }.toSet().size)
+        // Bir modelin ön eki diğerinin renk dosyalarıyla çakışmaz ("car_j7_" hiçbir "car_<renk>_" ile başlamaz).
+        for (c in CarColor.values()) assertTrue(c.key, !"car_j7_".startsWith("car_${c.key}_") && !c.key.startsWith("j7"))
+    }
+
+    /** Jaecoo 7 ölçüleri emülatörde ayarlanan deneme değerleridir; ana noktalar sabitlenir. */
+    @Test fun jaecooGeometryKeepsTunedValues() {
+        val g = CarModel.JAECOO7.geometry
+        same(floatArrayOf(366f, 26f, 148f, 73f, 365f, 51f, 150f, 47f, 364f, -1f, 152f, 100f, 503.96f, 61.26f, 24f, 0.925f, 0.9f, 0f,
+            360f, 360f, 250f, 120f, 120f, 370.2f, 50.6f, 139.8f, 38.0f, 370.2f, 52.7f, 139.8f, 2.1f), flat(g.parts.getValue(CarPart.DOOR_FL)))
+        same(floatArrayOf(528f, 65f, 144f, 227f, 527f, 64f, 146f, 227f, 515f, 44f, 157f, 259f, 529f, 216.5f, 0f, 0.22f, 1.132f, -6f,
+            300f, 320f, 140f, 160f, 100f), flat(g.parts.getValue(CarPart.HOOD)))
+        same(floatArrayOf(85f, 86f, 63f, 184f, 84f, 85f, 65f, 186f, -20f, 65f, 191f, 228f, 0f, 0f, 0f, 1f, 1f, -40f,
+            260f, 260f, 0f, 0f, 0f), flat(g.parts.getValue(CarPart.TRUNK)))
+        same(floatArrayOf(218.47f, 399.68f, 112.31f, 242.23f, 326f, 329.70f, 57.4f),
+            floatArrayOf(g.roofX0, g.roofX1, g.roofY0, g.roofY1, g.roofSplit, g.roofFrontX0, g.roofGlassTravel))
+        same(floatArrayOf(568f, 568f, 206f, 206f), g.tireX)
+        same(floatArrayOf(53f, 302f, 53f, 302f), g.tireEdge)
+        same(floatArrayOf(73f, 60f, 157f, 295f), g.tail)
+        assertEquals(329f, g.bodyBottom, 0f)
+        same(floatArrayOf(-24f, 20f, 214f, 335f), g.trunkCrop)
+        // Dış ayna yalnız ön kapı sprite'larında.
+        assertEquals(setOf(CarPart.DOOR_FL, CarPart.DOOR_FR), g.parts.filterValues { it.mirror }.keys)
+        val gate = g.tailGate!!
+        same(floatArrayOf(89f, 269f, -105f), floatArrayOf(gate.cut0, gate.cut1, gate.reverseDx))
+        same(floatArrayOf(-52f, 62f, 32f, 288f), gate.openBox)
+        assertTrue(g.brakePoolSoftEdge)
+    }
+
+    /**
+     * Açık kapı görselleri: kutu, açılan kapının ucunu da kapsayacak kadar dışa taşar (uç düz kesilmez) ve
+     * komşu kapının kapalı görseline girmez (arka kapının kutusu ön kapının başladığı yerde biter); sağ ve sol taraf simetriktir.
+     */
+    @Test fun jaecooDoorOverlaysCoverTheSwungDoorAndStayOffTheNeighbour() {
+        val p = CarModel.JAECOO7.geometry.parts
+        val fl = p.getValue(CarPart.DOOR_FL); val rl = p.getValue(CarPart.DOOR_RL)
+        val fr = p.getValue(CarPart.DOOR_FR); val rr = p.getValue(CarPart.DOOR_RR)
+        for ((rear, front) in listOf(rl to fl, rr to fr)) {
+            assertTrue(rear.overlay.right <= front.sprite.x + 4f)
+            assertTrue(front.overlay.x >= rear.sprite.right - 4f)
+        }
+        // Gövde üstte y=26, altta y=329'da biter: açık kapı en az 20 px dışarı uzanır.
+        for (d in listOf(fl, rl)) assertTrue(d.overlay.y <= 26f - 20f)
+        for (d in listOf(fr, rr)) assertTrue(d.overlay.bottom >= 329f + 20f)
+        assertEquals(fl.overlay.h, fr.overlay.h, 0f)
+        assertEquals(rl.overlay.h, rr.overlay.h, 0f)
+        assertEquals(fl.overlay.w, fr.overlay.w, 0f)
+        // Sprite'ın son duruşu açık görsele oturtuldu: iki yanın açısı ve ölçeği birbirinin aynası (yarım derece içinde).
+        assertEquals(fl.rotationEnd, -fr.rotationEnd, 0.6f)
+        assertEquals(rl.rotationEnd, -rr.rotationEnd, 0.6f)
+    }
+
+    /**
+     * Kaput: sprite'ın son duruşu açık görseldeki kalkık kaputun boyuna oturur (görselin üst ve alt kenarına 3 px içinde; geçişte
+     * boy sıçramaz) ve kapanışta motor görseli en geç 120 ms'de söner (genişleyen kaputun üstünde yarı saydam motor kalmaz).
+     */
+    @Test fun jaecooHoodSpriteEndsOnTheRaisedLid() {
+        val h = CarModel.JAECOO7.geometry.parts.getValue(CarPart.HOOD)
+        val top = h.pivotY + (h.sprite.y - h.pivotY) * h.scaleYEnd
+        val bottom = h.pivotY + (h.sprite.bottom - h.pivotY) * h.scaleYEnd
+        assertEquals(h.overlay.y, top, 3f)
+        assertEquals(h.overlay.bottom, bottom, 3f)
+        assertTrue(h.closeXfadeMs <= 120)
+        assertTrue(h.xfadeStartMs + h.xfadeMs <= h.openMs)
+    }
+
+    /** Kalkık kapaktaki çubuğun kutusu açık bagaj görselinin içinde, kapalı çubuğun gerisindedir; kesimler çubuk kutusunun içinde. */
+    @Test fun gateBarBoxLiesOnTheOpenTrunkOverlay() {
+        for (m in CarModel.values()) {
+            val g = m.geometry
+            val gate = g.tailGate ?: continue
+            val ov = g.parts.getValue(CarPart.TRUNK).overlay
+            val b = gate.openBox
+            assertEquals(m.key, 4, b.size)
+            assertTrue(m.key, b[0] < b[2] && b[1] < b[3])
+            // LED çizgisi görselin arka (sol) kenarındadır: kutu o kenarı içerir ve gövdedeki çubuğun gerisinde kalır.
+            assertTrue(m.key, b[0] <= ov.x && ov.x < b[2] && b[2] < g.tail[0] + (g.tail[2] - g.tail[0]) / 2f)
+            assertTrue(m.key, b[1] >= ov.y - 8f && b[3] <= ov.bottom + 8f)
+            assertTrue(m.key, gate.reverseDx < 0f)
+        }
+    }
+
+    /** Jaecoo'ya özgü çizim seçenekleri Tiggo'da kapalıdır (1.5.1 çizimi değişmez). */
+    @Test fun jaecooOnlyDrawingOptionsAreOffForTiggo() {
+        val t = CarModel.TIGGO.geometry
+        assertNull(t.tailGate)
+        assertTrue(!t.brakePoolSoftEdge)
+        assertTrue(t.parts.values.none { it.mirror })
+    }
+
     /** Her modelin ölçüleri kendi içinde tutarlı: parçalar tam, paylar açık hal görsellerini kapsar, kutular tuvalin içinde. */
     @Test fun everyModelGeometryIsConsistent() {
         for (m in CarModel.values()) {
@@ -147,6 +239,20 @@ class CarModelTest {
                 assertEquals(m.key, 4, b.size)
                 assertTrue(m.key, b[0] < b[2] && b[1] < b[3])
             }
+            g.tailGate?.let { assertTrue(m.key, g.tail[1] < it.cut0 && it.cut0 < it.cut1 && it.cut1 < g.tail[3]) }
         }
+    }
+
+    /** Aynalı kapının sprite'ı kapalıyken de çizilir (base aynasız); aynasız kapınınki yalnız açılırken. */
+    @Test fun mirrorDoorSpriteStaysVisibleWhenClosed() {
+        fun closed(model: CarModel, p: CarPart) = model.geometry.parts.getValue(p)
+            .let { PartMotion(it, CubicBezier.of(it.openEasing), CubicBezier.of(it.closeEasing)) }.apply { snap(false) }
+        assertTrue(closed(CarModel.JAECOO7, CarPart.DOOR_FL).spriteVisible())
+        assertTrue(closed(CarModel.JAECOO7, CarPart.DOOR_FR).spriteVisible())
+        assertTrue(!closed(CarModel.JAECOO7, CarPart.DOOR_RL).spriteVisible())
+        for (p in CarPart.values()) assertTrue(p.name, !closed(CarModel.TIGGO, p).spriteVisible())
+        // Açık hal fotoğrafına geçince aynalı sprite da söner.
+        val open = closed(CarModel.JAECOO7, CarPart.DOOR_FL).apply { snap(true) }
+        assertTrue(!open.spriteVisible())
     }
 }

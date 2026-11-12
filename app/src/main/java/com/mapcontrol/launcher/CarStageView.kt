@@ -83,6 +83,9 @@ class CarStageView(context: Context) : ViewGroup(context) {
     private val glassKeys: List<BodyPart?> = geo.windows.keys.toList() + null
     private val glasses = glassKeys.map { if (it == null) geo.sunroof else geo.windows.getValue(it) }
     private val glassDoor = IntArray(glasses.size) { i -> glasses[i].door?.let { parts.indexOf(it) } ?: -1 }
+    /** Kapısı aynalı ([CarAnimSpec.Part.mirror], Jaecoo 7 ön kapıları) camın vurgusu kapı sprite'ının üstüne çizilir; Tiggo'da hepsi false. */
+    private val glassOverSprite = BooleanArray(glasses.size) { i -> glassDoor[i] >= 0 && specs[glassDoor[i]].mirror }
+    private val hasMirrorDoor = glassOverSprite.any { it }
     private val glassFrom = FloatArray(glasses.size)
     private val glassNow = FloatArray(glasses.size)
     private val glassTarget = FloatArray(glasses.size)
@@ -125,13 +128,20 @@ class CarStageView(context: Context) : ViewGroup(context) {
     // --- Işıklar (§11): zemindekiler gövdenin altında, lambalar üstünde ---
     private val beamTop = sprite(LightMasks.beam, HEAD_BEAM)
     private val beamBottom = sprite(LightMasks.beam, HEAD_BEAM)
-    private val brakePool = sprite(LightMasks.pool, BRAKE_POOL)
+    private val brakePool = sprite(if (geo.brakePoolSoftEdge) LightMasks.poolSoft else LightMasks.pool, BRAKE_POOL)
     private val reverseFloor = sprite(LightMasks.glow, REVERSE_FLOOR)
     private val reflection = LightSprite(context, null, 0xFFFFFFFF.toInt()).apply { alpha = REFLECTION_ALPHA }
     private val headTop = sprite(LightMasks.glow, HEAD_LAMP)
     private val headBottom = sprite(LightMasks.glow, HEAD_LAMP)
     /** Stop lambası: arka kenarın çizgisini izleyen ince ışık çubuğu (gövde silüetinden bir kez çizilir, [PartArt.tailBarOf]). */
     private val tail = sprite(null, 0xFFFFFFFF.toInt())
+    /**
+     * Yalnız ışık çubuğu bagaj kapağında olan modelde ([CarGeometry.tailGate], Jaecoo 7): çubuğun ortası kapakla gider, iki uç
+     * parça gövdede kalır. O zaman [tail] orta, [tailEnds] uçlardır (aynı kutu, aynı alfa); diğer modellerde yoktur.
+     */
+    private val tailEnds: LightSprite? = if (geo.tailGate != null) sprite(null, 0xFFFFFFFF.toInt()) else null
+    /** Aynı modelde kalkık kapağın üstündeki çubuk ([TailGate.openBox]): bagaj açıldıkça [tail] söner, bu belirir. */
+    private val tailOpen: LightSprite? = if (geo.tailGate != null) sprite(null, 0xFFFFFFFF.toInt()) else null
     private val reverseTop = sprite(LightMasks.glow, REVERSE_LAMP)
     private val reverseBottom = sprite(LightMasks.glow, REVERSE_LAMP)
     /** Sinyaller yalnızca köşe lambalarında (ön, arka); aynada ışık yok. Küçük, yumuşak, düşük alfalı kehribar. */
@@ -143,7 +153,7 @@ class CarStageView(context: Context) : ViewGroup(context) {
     private val hood = sprite(null, HOOD_GLOW)
     private val glint = GlintLayer(context)
     private val under: Array<View> = arrayOf(reflection, brakePool, reverseFloor, beamTop, beamBottom, *tires)
-    private val over: Array<View> = arrayOf(tail, headTop, headBottom, reverseTop, reverseBottom, *turnLeft, *turnRight, hood, fuelCap, glint)
+    private val over: Array<View> = arrayOf(tail, *listOfNotNull(tailEnds, tailOpen).toTypedArray(), headTop, headBottom, reverseTop, reverseBottom, *turnLeft, *turnRight, hood, fuelCap, glint)
     /** Çocukların base pikseli kutuları (gövdenin sol üstüne göre): sol, üst, sağ, alt. */
     private val boxes: Map<View, FloatArray> = mapOf(
         roofLayer to floatArrayOf(geo.roofX0 - ROOF_LAYER_PAD, geo.roofY0 - ROOF_LAYER_PAD,
@@ -169,7 +179,7 @@ class CarStageView(context: Context) : ViewGroup(context) {
         fuelCap to PartArt.capViewBox(geo),
         hood to PartArt.hoodBox(geo),
         glint to floatArrayOf(0f, 0f, CarAnimSpec.BASE_W, CarAnimSpec.BASE_H),
-    )
+    ) + listOfNotNull(tailEnds?.let { it to geo.tail }, tailOpen?.let { v -> geo.tailGate?.let { v to it.openBox } })
     private var lights = CarLights.OFF
     /** Ekran görünür ve pencereye bağlı: yanıp sönme ve parlama yalnızca bu sırada çalışır. */
     private var active = false
@@ -227,7 +237,7 @@ class CarStageView(context: Context) : ViewGroup(context) {
         for (v in over) addView(v)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         bitmaps = CarBitmaps.get(context, CarColorPrefs.get(context), model)
-        bitmaps?.let { reflection.setMask(it.reflection); hood.setMask(it.hoodMask); tail.setMask(it.tailBar) }
+        bitmaps?.let { reflection.setMask(it.reflection); hood.setMask(it.hoodMask); tail.setMask(it.tailBar); tailEnds?.setMask(it.tailEnds); tailOpen?.setMask(it.tailOpen) }
         glint.mask = bitmaps?.base
         for (i in parts.indices) {
             val s = specs[i]
@@ -364,6 +374,8 @@ class CarStageView(context: Context) : ViewGroup(context) {
         reflection.setMask(bitmaps?.reflection)
         hood.setMask(bitmaps?.hoodMask)
         tail.setMask(bitmaps?.tailBar)
+        tailEnds?.setMask(bitmaps?.tailEnds)
+        tailOpen?.setMask(bitmaps?.tailOpen)
         glint.mask = bitmaps?.base
         invalidate()
     }
@@ -497,6 +509,8 @@ class CarStageView(context: Context) : ViewGroup(context) {
         // Stop çubuğu: farla birlikte hafif (park lambası), frende tam; basınca yumuşak yanar, bırakınca daha yavaş söner.
         val brakeMs = if (l.brake) CarAnimSpec.BRAKE_IN_MS else CarAnimSpec.BRAKE_OUT_MS
         fade(tail, l.head || l.brake, animate, if (l.brake) 1f else TAIL_POSITION_ALPHA, brakeMs)
+        tailEnds?.let { fade(it, l.head || l.brake, animate, if (l.brake) 1f else TAIL_POSITION_ALPHA, brakeMs) }
+        tailOpen?.let { fade(it, l.head || l.brake, animate, if (l.brake) 1f else TAIL_POSITION_ALPHA, brakeMs) }
         fade(brakePool, l.brake, animate, 1f, brakeMs)
         fade(reverseTop, l.reverse, animate)
         fade(reverseBottom, l.reverse, animate)
@@ -634,6 +648,18 @@ class CarStageView(context: Context) : ViewGroup(context) {
         canvas.scale(k, k)
         canvas.translate(geo.padLeft, geo.padTop)
         paint.alpha = 255
+        geo.tailGate?.let { g ->
+            // Çubuğun ortası kapak görseline bağlıdır: kapalı görsel kayıp sönerken çubuk onunla kayar ve söner, açık görsel belirirken
+            // kalkık kapağın çizgisindeki çubuk belirir; uçlar gövdede kalır. Geri lambaları açık kapağın altında söner, zemin ışığı kayar.
+            val m = motions[CarPart.TRUNK.ordinal]
+            val open = m.overlayAlpha()
+            tail.translationX = specs[CarPart.TRUNK.ordinal].translateXEnd * k * m.x
+            tail.gain = m.spriteAlpha() * (1f - open)
+            tailOpen?.gain = open
+            reverseTop.gain = 1f - open
+            reverseBottom.gain = 1f - open
+            reverseFloor.translationX = g.reverseDx * k * open
+        }
         b.base?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
         if (roofLayer.visibility == VISIBLE) {
             // Tavan kendi katmanında (hareket sırasında yalnız o yeniden çizilir); gövdenin hemen üstünde.
@@ -643,7 +669,7 @@ class CarStageView(context: Context) : ViewGroup(context) {
             canvas.scale(k, k)
             canvas.translate(geo.padLeft, geo.padTop)
         }
-        drawGlass(canvas)
+        drawGlass(canvas, overSprite = false)
         // 1) Boşluklar (tüm parçalar), 2) parça + gölge + kenar ışığı, 3) açık hal fotoğrafları (anim.json zOrder).
         for (i in parts.indices) {
             val a = motions[i].gapAlpha()
@@ -652,6 +678,8 @@ class CarStageView(context: Context) : ViewGroup(context) {
             drawAt(canvas, b.gap[i], g.x, g.y, a)
         }
         for (i in parts.indices) drawSprite(canvas, i, b)
+        // Aynalı kapının sprite'ı kapalıyken de çizilir ve camı örter: o kapıların cam vurgusu sprite'ın üstüne çizilir.
+        if (hasMirrorDoor) drawGlass(canvas, overSprite = true)
         for (i in parts.indices) {
             val a = motions[i].overlayAlpha()
             if (a <= 0.001f) continue
@@ -662,9 +690,10 @@ class CarStageView(context: Context) : ViewGroup(context) {
     }
 
     /** Açık camların hafif rengi: gövdenin hemen üstünde (açılan kapının boşluğu ve parçası üstüne biner). */
-    private fun drawGlass(canvas: Canvas) {
+    private fun drawGlass(canvas: Canvas, overSprite: Boolean) {
         glassPaint.color = Sahne.ICE
         for (i in glasses.indices) {
+            if (glassOverSprite[i] != overSprite) continue
             // Tavanın konumu biliniyorsa cam tavan kendi katmanlarıyla çizilir (buz mavisi yalnız yedek).
             if (glassKeys[i] == null && roof != null) continue
             val d = glassDoor[i]
@@ -847,13 +876,42 @@ class CarStageView(context: Context) : ViewGroup(context) {
         val sprite: Array<Bitmap?>,
         val gap: Array<Bitmap?>,
         val overlay: Array<Bitmap?>,
+        /** Modelin grafit takımından bir görsel (yalnız gerekince çözülür): LED çizgisinin yeri boyadan bağımsız okunsun diye. */
+        private val grafit: (String) -> Bitmap?,
     ) {
         /** Zemindeki yansıma: gövdenin alt kenarının küçük, ters ve aşağı doğru sönen kopyası (renk başına bir kez). */
         val reflection: Bitmap? = base?.let { reflectionOf(it, model.geometry.bodyBottom) }
         /** Kaput ışığı maskesi: gövde alfası × yumuşak elips (renk başına bir kez, küçük ALPHA_8). */
         val hoodMask: Bitmap? by lazy { base?.let { PartArt.hoodMaskOf(it, model.geometry) } }
         /** Stop çubuğu: arka kenarın çizgisini izleyen ince kırmızı ışık (renk başına bir kez, küçük ARGB). */
-        val tailBar: Bitmap? by lazy { base?.let { PartArt.tailBarOf(it, model.geometry) } }
+        val tailBar: Bitmap? get() = if (model.geometry.tailGate == null) plainTailBar else gateBars[0]
+        /** Çubuğun gövdede kalan uç parçaları (yalnız [CarGeometry.tailGate] olan modelde; o zaman [tailBar] yalnız ortadır). */
+        val tailEnds: Bitmap? get() = if (model.geometry.tailGate == null) null else gateBars[1]
+        /** Kalkık kapağın üstündeki çubuk ([TailGate.openBox]; yalnız o modelde). */
+        val tailOpen: Bitmap? get() = if (model.geometry.tailGate == null) null else gateBars[2]
+
+        private val plainTailBar: Bitmap? by lazy { base?.let { PartArt.tailBarOf(it, model.geometry) } }
+
+        /**
+         * [CarGeometry.tailGate] olan modelde çubukların yeri görsellerdeki kırmızı LED çizgisinden okunur. Kırmızı boyalı takımda boya
+         * da kırmızı olduğundan okuma boyaya kayıyordu (çubuk iki yerde kopuyordu); çizginin yeri renkten bağımsızdır, o yüzden hep
+         * grafit takımdan okunur (bir kez; grafit değilse okunan görseller sonra bırakılır). Sıra: orta, uçlar, kalkık kapak.
+         */
+        private val gateBars: Array<Bitmap?> by lazy {
+            val g = model.geometry
+            val gate = g.tailGate ?: return@lazy arrayOfNulls<Bitmap>(3)
+            val own = color == CarColor.GRAFIT
+            val ref = if (own) base else grafit("base")
+            val trunk = g.parts.getValue(CarPart.TRUNK)
+            val refOpen = if (own) overlay[CarPart.TRUNK.ordinal] else grafit("overlay_" + CarPart.TRUNK.asset)
+            val bars = arrayOf(
+                ref?.let { PartArt.tailBarOf(it, g) },
+                ref?.let { PartArt.tailBarOf(it, g, centre = false) },
+                refOpen?.let { PartArt.gateOpenBarOf(it, trunk.overlay, gate) },
+            )
+            if (!own) { ref?.recycle(); refOpen?.recycle() }
+            bars
+        }
 
         companion object {
             /** Süreç boyunca yalnızca son kullanılan model ve renk tutulur; tema değişimiyle yeniden kurulan ekran yeniden çözmez. */
@@ -864,8 +922,8 @@ class CarStageView(context: Context) : ViewGroup(context) {
                 val res = context.resources
                 // Kaynak tablosunun paket adı (launcher test APK'sında uygulama kimliğinden farklı olabilir).
                 val pkg = res.getResourcePackageName(R.drawable.car_grafit_base)
-                fun load(name: String): Bitmap? = try {
-                    val id = res.getIdentifier("${model.prefix}${color.key}_$name", "drawable", pkg)
+                fun load(name: String, key: String = color.key): Bitmap? = try {
+                    val id = res.getIdentifier("${model.prefix}${key}_$name", "drawable", pkg)
                     if (id == 0) null else BitmapFactory.decodeResource(res, id, BitmapFactory.Options().apply { inScaled = false })
                 } catch (e: OutOfMemoryError) {
                     null
@@ -878,6 +936,7 @@ class CarStageView(context: Context) : ViewGroup(context) {
                     Array(all.size) { load("sprite_" + all[it].asset) },
                     Array(all.size) { load("gap_" + all[it].asset) },
                     Array(all.size) { load("overlay_" + all[it].asset) },
+                    { name -> load(name, CarColor.GRAFIT.key) },
                 ).also { cached = it }
             }
         }
@@ -992,6 +1051,25 @@ private object LightMasks {
         }
     }
 
+    /** [pool] ile aynı, ama gövde tarafındaki son %10'da (sağ kenar) sıfıra iner ([CarGeometry.brakePoolSoftEdge]; yalnız o modellerde kullanılır). */
+    val poolSoft: Bitmap? by lazy {
+        try {
+            val w = 96
+            val h = 128
+            val px = ByteArray(w * h)
+            for (y in 0 until h) for (x in 0 until w) {
+                val u = x / (w - 1f)
+                val v = (y - (h - 1) / 2f) / ((h - 1) / 2f)
+                val along = Math.pow(u.toDouble(), 1.8).toFloat() * CarAnimSpec.smooth(1f - u, 0f, 0.1f)
+                val across = Math.exp(-(v * v) / (2.0 * 0.34 * 0.34)).toFloat()
+                px[y * w + x] = (255 * along * across).toInt().coerceIn(0, 255).toByte()
+            }
+            Bitmap.createBitmap(w, h, Bitmap.Config.ALPHA_8).also { it.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(px)) }
+        } catch (e: OutOfMemoryError) {
+            null
+        }
+    }
+
     private fun radial(colors: IntArray): Bitmap? = try {
         Bitmap.createBitmap(64, 64, Bitmap.Config.ALPHA_8).also {
             Canvas(it).drawCircle(32f, 32f, 32f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1031,6 +1109,20 @@ private object LightMasks {
 private class LightSprite(context: Context, private var mask: Bitmap?, color: Int) : View(context) {
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
     private val dst = RectF()
+    private val colorAlpha = color ushr 24
+
+    /**
+     * Görünüm alfasından ayrı ikinci bir çarpan (0..1; yalnız bagaj kapağına bağlı ışıklarda kullanılır, [CarGeometry.tailGate]):
+     * görünüm alfası ışığın yanıp sönmesini canlandırırken bu, kapağın açıklığını izler. Hiç atanmazsa boya olduğu gibi kalır.
+     */
+    var gain = 1f
+        set(value) {
+            val v = if (value < 0f) 0f else if (value > 1f) 1f else value
+            if (v == field) return
+            field = v
+            paint.alpha = (colorAlpha * v).toInt()
+            invalidate()
+        }
 
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -1278,14 +1370,18 @@ private object PartArt {
      * Stop çubuğu: her satırda gövdenin arka kenarı (base alfası) bulunur, çubuk ondan [TAIL_INSET] içeride ince ve keskin bir
      * çekirdek (σ 1,3 px, ortası açık pembe-beyaz) + dar kırmızı ışıma (σ 5 px) olarak çizilir; kenar satırlar arasında
      * yumuşatılır, uçlar söner. ARGB, ~84 × 316 px, renk başına bir kez.
+     *
+     * [CarGeometry.tailGate] olan modelde çubuğun yeri tabandaki kırmızı LED çizgisidir ve çubuk ikiye ayrılır: [centre] true
+     * bagaj kapağındaki orta, false gövdede kalan uçlar. Diğer modellerde [centre] kullanılmaz.
      */
-    fun tailBarOf(base: Bitmap, geo: CarGeometry): Bitmap? = try {
+    fun tailBarOf(base: Bitmap, geo: CarGeometry, centre: Boolean = true): Bitmap? = try {
+        val gate = geo.tailGate
         // Stop çubuğunun kutusu ([CarGeometry.tail], base pikseli): arka kenar boyunca, köşelere kadar.
         val tailX0 = geo.tail[0]
         val tailX1 = geo.tail[2]
         val w = (tailX1 - tailX0).toInt()
         val h = (geo.tail[3] - geo.tail[1]).toInt()
-        val scanW = minOf(90, base.width)
+        val scanW = minOf(if (gate == null) 90 else tailX1.toInt() + 40, base.width)
         val y0 = geo.tail[1].toInt()
         val edge = FloatArray(h) { Float.NaN }
         val row = IntArray(scanW)
@@ -1293,8 +1389,12 @@ private object PartArt {
             val by = y0 + yy
             if (by < 0 || by >= base.height) continue
             base.getPixels(row, 0, scanW, 0, by, scanW, 1)
-            val x = row.indexOfFirst { (it ushr 24) > 140 }
-            if (x >= 0) edge[yy] = x.toFloat()
+            if (gate == null) {
+                val x = row.indexOfFirst { (it ushr 24) > 140 }
+                if (x >= 0) edge[yy] = x.toFloat()
+                continue
+            }
+            edge[yy] = ledX(row, scanW) - TAIL_INSET
         }
         // Satırlar arası yumuşatma (9 satırlık ortalama): kenar pürüzü çubuğu titretmesin.
         val smooth = FloatArray(h) { i ->
@@ -1307,19 +1407,91 @@ private object PartArt {
         for (yy in 0 until h) {
             val e = smooth[yy]
             if (e.isNaN()) continue
-            val along = CarAnimSpec.smooth(minOf(yy, h - 1 - yy).toFloat(), 0f, TAIL_TAPER)
-            val c = e + TAIL_INSET - tailX0
-            for (x in 0 until w) {
-                val d = x - c
-                val core = Math.exp(-(d * d) / (2.0 * 1.3 * 1.3)).toFloat()
-                val glow = 0.38f * Math.exp(-(d * d) / (2.0 * 5.0 * 5.0)).toFloat()
-                val a = (core + glow).coerceAtMost(1f) * along
-                if (a <= 0.004f) continue
-                val hot = core * core * 0.55f
-                val g = (42 + (176 - 42) * hot).toInt()
-                val b = (32 + (160 - 32) * hot).toInt()
-                out[yy * w + x] = ((a * 255).toInt().coerceIn(0, 255) shl 24) or (255 shl 16) or (g shl 8) or b
+            var along = CarAnimSpec.smooth(minOf(yy, h - 1 - yy).toFloat(), 0f, TAIL_TAPER)
+            if (gate != null) {
+                val by = (y0 + yy).toFloat()
+                if ((by in gate.cut0..gate.cut1) != centre) continue
+                // Orta parça kesim yerlerinde yumuşakça söner (base'deki iki küçük boşluk).
+                if (centre) along *= CarAnimSpec.smooth(minOf(by - gate.cut0, gate.cut1 - by), 0f, 6f)
             }
+            ledRow(out, yy * w, w, e + TAIL_INSET - tailX0, along)
+        }
+        Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    } catch (e: OutOfMemoryError) {
+        null
+    }
+
+    /** LED çizgisinin satırdaki x'i (yoksa NaN): en kırmızı piksel satırdan satıra oynar (çubuk dalgalanır); çevresinin ağırlık merkezi alınır. */
+    private fun ledX(row: IntArray, n: Int): Float {
+        var best = -1
+        var bestScore = 70
+        for (xx in 0 until n) {
+            val p = row[xx]
+            if ((p ushr 24) < 140) continue
+            val score = ((p shr 16) and 0xFF) - (((p shr 8) and 0xFF) + (p and 0xFF)) / 2
+            if (score > bestScore) { bestScore = score; best = xx }
+        }
+        if (best < 0) return Float.NaN
+        var sum = 0f
+        var wsum = 0f
+        for (xx in maxOf(0, best - 4)..minOf(n - 1, best + 4)) {
+            val p = row[xx]
+            if ((p ushr 24) < 140) continue
+            val wgt = (((p shr 16) and 0xFF) - (((p shr 8) and 0xFF) + (p and 0xFF)) / 2 - 70).toFloat()
+            if (wgt > 0f) { sum += wgt * xx; wsum += wgt }
+        }
+        return if (wsum > 0f) sum / wsum else best.toFloat()
+    }
+
+    /** Çubuğun bir satırı ([out]'ta [at]'tan başlar, [w] piksel): [c] merkezinde ince çekirdek + dar ışıma, [along] ile çarpılır. */
+    private fun ledRow(out: IntArray, at: Int, w: Int, c: Float, along: Float) {
+        for (x in 0 until w) {
+            val d = x - c
+            val core = Math.exp(-(d * d) / (2.0 * 1.3 * 1.3)).toFloat()
+            val glow = 0.38f * Math.exp(-(d * d) / (2.0 * 5.0 * 5.0)).toFloat()
+            val a = (core + glow).coerceAtMost(1f) * along
+            if (a <= 0.004f) continue
+            val hot = core * core * 0.55f
+            val g = (42 + (176 - 42) * hot).toInt()
+            val b = (32 + (160 - 32) * hot).toInt()
+            out[at + x] = ((a * 255).toInt().coerceIn(0, 255) shl 24) or (255 shl 16) or (g shl 8) or b
+        }
+    }
+
+    /**
+     * Kalkık kapağın üstündeki stop çubuğu: açık bagaj görselinde ([overlay], yeri [at]) [TailGate.openBox] içindeki kırmızı LED
+     * çizgisi satır satır okunur, çubuk [tailBarOf] ile aynı görünümde (ince çekirdek + dar ışıma) tam o çizginin üstüne çizilir;
+     * uçlarda yumuşakça söner. ARGB, kutu boyunda.
+     */
+    fun gateOpenBarOf(overlay: Bitmap, at: CarAnimSpec.Box, gate: TailGate): Bitmap? = try {
+        val box = gate.openBox
+        val w = (box[2] - box[0]).toInt()
+        val h = (box[3] - box[1]).toInt()
+        // Okunan sütunlar: kutu ile görselin kesişimi (görsel pikseli).
+        val sx0 = maxOf(0, (box[0] - at.x).toInt())
+        val sx1 = minOf(overlay.width, (box[2] - at.x).toInt())
+        val n = sx1 - sx0
+        val edge = FloatArray(h) { Float.NaN }
+        if (n > 0) {
+            val row = IntArray(n)
+            for (yy in 0 until h) {
+                val oy = (box[1] - at.y).toInt() + yy
+                if (oy < 0 || oy >= overlay.height) continue
+                overlay.getPixels(row, 0, n, sx0, oy, n, 1)
+                // Çizginin kutu içindeki yeri (base px, kutunun soluna göre).
+                edge[yy] = ledX(row, n) + sx0 + at.x - box[0]
+            }
+        }
+        val first = edge.indexOfFirst { !it.isNaN() }
+        val last = edge.indexOfLast { !it.isNaN() }
+        val out = IntArray(w * h)
+        if (first >= 0) for (yy in first..last) {
+            var sum = 0f
+            var cnt = 0
+            for (k in -4..4) { val e = edge.getOrNull(yy + k) ?: continue; if (!e.isNaN()) { sum += e; cnt++ } }
+            if (cnt == 0) continue
+            val c = sum / cnt
+            ledRow(out, yy * w, w, c, CarAnimSpec.smooth(minOf(yy - first, last - yy).toFloat(), 0f, 6f))
         }
         Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
     } catch (e: OutOfMemoryError) {
