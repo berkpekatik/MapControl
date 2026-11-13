@@ -37,4 +37,13 @@ internal object SahnePortrait {
         val panelW = ((w - gapH) / 2).coerceAtLeast(0)
         return Geometry(stageH, panelW, panelH, gapV)
     }
+
+    /**
+     * Şerit yokken aracın sahnenin tam dikey ortasına inmesi için gereken kayma (piksel, >= 0). [boxTop]/[boxH] aracın şerit
+     * payına göre yerleşmiş kutusu, [stageH] sahne yüksekliği; araç sahnenin altında en az [bottomGap] bırakır.
+     */
+    fun centerDrop(stageH: Float, boxTop: Float, boxH: Float, bottomGap: Float): Float {
+        val room = stageH - bottomGap - (boxTop + boxH)
+        return ((stageH - boxH) / 2f - boxTop).coerceIn(0f, maxOf(0f, room))
+    }
 }
