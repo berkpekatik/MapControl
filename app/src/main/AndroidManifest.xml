@@ -297,6 +297,11 @@
             android:name=".dvr.InstallPrepareReceiver"
             android:permission="android.permission.DUMP"
             android:exported="true" />
+        <!-- adb ile kaldirmadan once cihaz sahipligini birakir. DUMP: yalnizca adb shell gonderebilir. -->
+        <receiver
+            android:name=".admin.ReleaseOwnerReceiver"
+            android:permission="android.permission.DUMP"
+            android:exported="true" />
 
         <receiver
             android:name=".service.BootReceiver"
