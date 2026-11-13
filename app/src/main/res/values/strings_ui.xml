@@ -963,9 +963,9 @@
     <string name="home_screen_car_model">Car model</string>
     <string name="home_screen_car_model_tiggo">Tiggo 7</string>
     <string name="home_screen_car_model_jaecoo7">Jaecoo 7</string>
-    <string name="home_screen_car_model_tiggo8">Tiggo 8 Pro Max</string>
-    <string name="home_screen_car_model_help_auto">Follows the \"Vehicle screen\" setting: Tiggo 7, Tiggo 8 Pro Max, or Jaecoo 7 on the Jaecoo (vertical) screen.</string>
+    <string name="home_screen_car_model_tiggo8">Tiggo 8</string>
+    <string name="home_screen_car_model_help_auto">Follows the \"Vehicle screen\" setting: Tiggo 7, Tiggo 8, or Jaecoo 7 on the Jaecoo (vertical) screen.</string>
     <string name="home_screen_car_model_help_tiggo">The home screen shows the Tiggo 7.</string>
     <string name="home_screen_car_model_help_jaecoo7">The home screen shows the Jaecoo 7.</string>
-    <string name="home_screen_car_model_help_tiggo8">The home screen shows the Tiggo 8 Pro Max.</string>
+    <string name="home_screen_car_model_help_tiggo8">The home screen shows the Tiggo 8.</string>
 </resources>

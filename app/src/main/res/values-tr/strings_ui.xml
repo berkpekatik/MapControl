@@ -982,9 +982,9 @@
     <string name="home_screen_car_model">Araç modeli</string>
     <string name="home_screen_car_model_tiggo">Tiggo 7</string>
     <string name="home_screen_car_model_jaecoo7">Jaecoo 7</string>
-    <string name="home_screen_car_model_tiggo8">Tiggo 8 Pro Max</string>
-    <string name="home_screen_car_model_help_auto">\"Araç ekranı\" ayarını izler: Tiggo 7, Tiggo 8 Pro Max ya da Jaecoo (dikey ekran) seçiliyken Jaecoo 7.</string>
+    <string name="home_screen_car_model_tiggo8">Tiggo 8</string>
+    <string name="home_screen_car_model_help_auto">\"Araç ekranı\" ayarını izler: Tiggo 7, Tiggo 8 ya da Jaecoo (dikey ekran) seçiliyken Jaecoo 7.</string>
     <string name="home_screen_car_model_help_tiggo">Ana ekranda Tiggo 7 görünür.</string>
     <string name="home_screen_car_model_help_jaecoo7">Ana ekranda Jaecoo 7 görünür.</string>
-    <string name="home_screen_car_model_help_tiggo8">Ana ekranda Tiggo 8 Pro Max görünür.</string>
+    <string name="home_screen_car_model_help_tiggo8">Ana ekranda Tiggo 8 görünür.</string>
 </resources>

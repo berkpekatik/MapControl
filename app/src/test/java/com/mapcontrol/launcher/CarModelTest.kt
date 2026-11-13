@@ -205,7 +205,7 @@ class CarModelTest {
         assertTrue(t.parts.values.none { it.mirror })
     }
 
-    /** Tiggo 8 Pro Max ölçüleri görsel takımının dışa aktarımından gelir, emülatörde ayarlandı; ana noktalar sabitlenir. */
+    /** Tiggo 8 ölçüleri görsel takımının dışa aktarımından gelir, emülatörde ayarlandı; ana noktalar sabitlenir. */
     @Test fun tiggo8GeometryKeepsTunedValues() {
         val g = CarModel.TIGGO8.geometry
         assertEquals("car_t8_", CarModel.TIGGO8.prefix)

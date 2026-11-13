@@ -81,7 +81,7 @@ class CarGeometry internal constructor(
 
     /** Gövde boyunu tuvali dolduran ilk takımınkine (Tiggo 7, [BodySize.REF_PX]) eşitleyen büyütme; [bodySize] yoksa tam 1. */
     val bodyScale: Float = bodySize?.let { BodySize.REF_PX / (it.x1 - it.x0) } ?: 1f
-    /** [bodyScale] × gerçek boy oranı: Sahne'de uzun araç uzun çizilir (Tiggo 8 Pro Max, Tiggo 7'den ~%5 uzun); [bodySize] yoksa tam 1. */
+    /** [bodyScale] × gerçek boy oranı: Sahne'de uzun araç uzun çizilir (Tiggo 8, Tiggo 7'den ~%5 uzun); [bodySize] yoksa tam 1. */
     val stageScale: Float = bodySize?.let { bodyScale * it.lengthMm / BodySize.REF_LENGTH_MM } ?: 1f
 
     /** Açık parçalar base dışına taşar (kapılar yanlara, bagaj geriye); görünüm bu payları kapsar. Gölge bulanıklığı dahil. */
@@ -126,7 +126,7 @@ enum class CarModel(
     TIGGO8("tiggo8", "car_t8_", R.drawable.car_t8_roof_shade_closed, R.drawable.car_t8_roof_shade_open, R.drawable.car_t8_roof_open_hole, TIGGO8_GEOMETRY);
 
     companion object {
-        /** Elle seçim: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 Pro Max ([HomeScreenPrefs.carModelIndex]). */
+        /** Elle seçim: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 ([HomeScreenPrefs.carModelIndex]). */
         const val OVERRIDE_AUTO = 0
         const val OVERRIDE_MAX = 3
 
@@ -143,7 +143,7 @@ enum class CarModel(
 
         /**
          * Elle seçim ([OVERRIDE_AUTO] ya da 1/2/3) ile araç ekranı profilinden model (saf; birim testlenir). Otomatik: dikey ekran
-         * ([VehicleProfile.PORTRAIT], Jaecoo J7/J8) Jaecoo 7, Tiggo 8 ekranı Tiggo 8 Pro Max, Tiggo 7 ekranı Tiggo 7 ([TIGGO]).
+         * ([VehicleProfile.PORTRAIT], Jaecoo J7/J8) Jaecoo 7, Tiggo 8 ekranı Tiggo 8, Tiggo 7 ekranı Tiggo 7 ([TIGGO]).
          */
         fun choose(override: Int, profile: VehicleProfile): CarModel = when (override) {
             1 -> TIGGO
@@ -295,7 +295,7 @@ private val JAECOO7_GEOMETRY = CarGeometry(
 )
 
 /**
- * Tiggo 8 Pro Max: aynı 766 × 356 tuvalde, gövde 600 px (83..683), orta çizgi y = 177,27. Jaecoo 7'nin seçenekleri burada da
+ * Tiggo 8: aynı 766 × 356 tuvalde, gövde 600 px (83..683), orta çizgi y = 177,27. Jaecoo 7'nin seçenekleri burada da
  * açık: ön kapı sprite'ları dış aynayı taşır ([Part.mirror]), ışık çubuğunun ortası bagaj kapağındadır ([TailGate]), fren zemin
  * ışığı gövde tarafında söner ([CarGeometry.brakePoolSoftEdge]). Yalnız bu modelde: cam tavan payı ([CarGeometry.roofGlassInsetY])
  * ve gerçek boy oranı ([CarGeometry.bodySize]). Ölçüler görsel takımının dışa aktarımından gelir, emülatörde ayarlandı.

@@ -399,8 +399,8 @@ public class HomeScreenTabBuilder {
     }
 
     /**
-     * Araç modeli: Otomatik / Tiggo 7 / Tiggo 8 Pro Max / Jaecoo 7 (Araç ekranı ile aynı sıra). Kayıtlı değerler
-     * {@code HomeScreenPrefs.carModelIndex}: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 Pro Max; yalnız
+     * Araç modeli: Otomatik / Tiggo 7 / Tiggo 8 / Jaecoo 7 (Araç ekranı ile aynı sıra). Kayıtlı değerler
+     * {@code HomeScreenPrefs.carModelIndex}: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8; yalnız
      * gösterim sırası farklıdır. Launcher bir sonraki açılışta yeniden kurulur.
      */
     private void createCarModelSection(FeatureGridLayout grid) {
