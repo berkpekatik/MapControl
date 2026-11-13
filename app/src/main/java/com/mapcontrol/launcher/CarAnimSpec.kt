@@ -110,6 +110,8 @@ object CarAnimSpec {
         /** Kapı gölgesi ve dış kenar ışığı (yalnızca kapılar). */
         val shadow: Box? = null,
         val rim: Box? = null,
+        /** Kapıda dış ayna var (Jaecoo 7): kapı sprite'ı aynayı da taşır, base aynasızdır; sprite kapalıyken de çizilir. */
+        val mirror: Boolean = false,
     )
 
     val EASE_OPEN = floatArrayOf(0.2f, 0.9f, 0.25f, 1.05f)
@@ -349,7 +351,7 @@ class PartMotion(private val spec: CarAnimSpec.Part, private val openEase: (Floa
         else -> if (spriteAlpha() < 0.001f) 0f else CarAnimSpec.clamp01(x / CarAnimSpec.GAP_FADE_UNTIL)
     }
 
-    fun spriteVisible(): Boolean = x > 0.001f && spriteAlpha() > 0.001f
+    fun spriteVisible(): Boolean = (x > 0.001f || spec.mirror) && spriteAlpha() > 0.001f
 }
 
 /** Kübik Bézier yumuşatma (CSS cubic-bezier / PathInterpolator ile aynı kontrol noktaları); testlerde ve JVM'de kullanılır. */

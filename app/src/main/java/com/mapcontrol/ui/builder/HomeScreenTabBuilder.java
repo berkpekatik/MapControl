@@ -92,6 +92,7 @@ public class HomeScreenTabBuilder {
         createBottomBarSection(appearanceGrid);
         createAutoLayoutSection(appearanceGrid);
         createCarOrientationSection(appearanceGrid);
+        createCarModelSection(appearanceGrid);
         createVehicleScreenSection(appearanceGrid);
         createClimateScaleSection(appearanceGrid);
         // İki sütunlu ızgarada iki hücre sonrası "Araç ekranı"nın tam altıdır.
@@ -394,6 +395,26 @@ public class HomeScreenTabBuilder {
                 horizontal -> {
                     HomeScreenPrefs.setCarVertical(context, !horizontal);
                     callback.log("Ana ekran araç görünümü: " + (horizontal ? "yatay" : "dikey"));
+                });
+    }
+
+    /** Araç modeli: Otomatik / Tiggo / Jaecoo 7 (sıra {@code HomeScreenPrefs.carModelIndex}); launcher bir sonraki açılışta yeniden kurulur. */
+    private void createCarModelSection(FeatureGridLayout grid) {
+        UiStyles.addSegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_car_model),
+                new String[]{
+                        context.getString(R.string.home_screen_vehicle_auto),
+                        context.getString(R.string.home_screen_car_model_tiggo),
+                        context.getString(R.string.home_screen_car_model_jaecoo7)},
+                new String[]{
+                        context.getString(R.string.home_screen_car_model_help_auto),
+                        context.getString(R.string.home_screen_car_model_help_tiggo),
+                        context.getString(R.string.home_screen_car_model_help_jaecoo7)},
+                new int[]{0, 1, 2},
+                HomeScreenPrefs.carModelIndex(context),
+                index -> {
+                    HomeScreenPrefs.setCarModelIndex(context, index);
+                    callback.log("Ana ekran araç modeli: " + index);
                 });
     }
 

@@ -952,4 +952,10 @@
     <string name="home_screen_car_vertical">Vertical</string>
     <string name="home_screen_car_horizontal_help">The car lies sideways with its nose to the right.</string>
     <string name="home_screen_car_vertical_help">The car stands upright with its nose up. Lights and doors work the same.</string>
+    <string name="home_screen_car_model">Car model</string>
+    <string name="home_screen_car_model_tiggo">Tiggo</string>
+    <string name="home_screen_car_model_jaecoo7">Jaecoo 7</string>
+    <string name="home_screen_car_model_help_auto">Follows the \"Vehicle screen\" setting: Jaecoo 7 when it is Jaecoo (vertical screen), Tiggo otherwise.</string>
+    <string name="home_screen_car_model_help_tiggo">The home screen shows the Tiggo.</string>
+    <string name="home_screen_car_model_help_jaecoo7">The home screen shows the Jaecoo 7.</string>
 </resources>
