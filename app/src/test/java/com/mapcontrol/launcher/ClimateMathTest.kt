@@ -125,4 +125,73 @@ class ClimateMathTest {
         assertFalse(ClimateWriter.setFan(0, quiet = true))
         assertFalse(ClimateWriter.setFan(-1, quiet = true))
     }
+
+    private fun flow(face: Boolean, foot: Boolean, window: Boolean) = AirFlow(face, foot, window)
+
+    /** OEM tablosu (Tiggo 7 setBlowMode, Tiggo 8 onWindModePicStatus): okunan 6 yüz+cam, 7 üçü; 5 hiçbiri. */
+    @Test fun airFlowReadTable() {
+        assertEquals(flow(true, false, false), ClimateMath.airFlowFromRead(0))
+        assertEquals(flow(true, true, false), ClimateMath.airFlowFromRead(1))
+        assertEquals(flow(false, true, false), ClimateMath.airFlowFromRead(2))
+        assertEquals(flow(false, true, true), ClimateMath.airFlowFromRead(3))
+        assertEquals(flow(false, false, true), ClimateMath.airFlowFromRead(4))
+        assertEquals(flow(false, false, false), ClimateMath.airFlowFromRead(5))
+        assertEquals(flow(true, false, true), ClimateMath.airFlowFromRead(6))
+        assertEquals(flow(true, true, true), ClimateMath.airFlowFromRead(7))
+        assertNull(ClimateMath.airFlowFromRead(8))
+        assertNull(ClimateMath.airFlowFromRead(-1))
+        assertNull(ClimateMath.airFlowFromRead(null))
+    }
+
+    /** Yazma okumadan farklı: yüz+cam 5, üçü 6 (OEM onWindModeFaceDefrostingClick / FaceFootDefrostingClick); hiçbiri yazılmaz. */
+    @Test fun airFlowWriteDiffersFromReadForFaceWindowCombos() {
+        assertEquals(0, ClimateMath.airFlowWriteValue(flow(true, false, false)))
+        assertEquals(1, ClimateMath.airFlowWriteValue(flow(true, true, false)))
+        assertEquals(2, ClimateMath.airFlowWriteValue(flow(false, true, false)))
+        assertEquals(3, ClimateMath.airFlowWriteValue(flow(false, true, true)))
+        assertEquals(4, ClimateMath.airFlowWriteValue(flow(false, false, true)))
+        assertEquals(5, ClimateMath.airFlowWriteValue(flow(true, false, true)))
+        assertEquals(6, ClimateMath.airFlowWriteValue(flow(true, true, true)))
+        assertNull(ClimateMath.airFlowWriteValue(flow(false, false, false)))
+        // Okunanı aynen geri yazmak yanlış olurdu: okunan 6 (yüz+cam) → yazılan 5.
+        assertEquals(5, ClimateMath.airFlowWriteValue(ClimateMath.airFlowFromRead(6)!!))
+        assertEquals(6, ClimateMath.airFlowWriteValue(ClimateMath.airFlowFromRead(7)!!))
+        // Her yazma değeri izin listesinde (WidgetWritePolicy ClimateAirFlow 0..6).
+        for (raw in 0..7) ClimateMath.airFlowFromRead(raw)?.let { f ->
+            ClimateMath.airFlowWriteValue(f)?.let { assertTrue(it in 0..6) }
+        }
+    }
+
+    @Test fun ventToggle() {
+        val foot = flow(false, true, false)
+        assertEquals(flow(true, true, false), foot.with(AirFlow.Vent.FACE, true))
+        assertEquals(flow(false, false, false), foot.with(AirFlow.Vent.FOOT, false))
+        assertTrue(foot.isOn(AirFlow.Vent.FOOT))
+        assertFalse(foot.isOn(AirFlow.Vent.WINDOW))
+    }
+
+    /** Devridaim: okuma 0 = açık (OEM getCirculationState), yazma 1 aç / 2 kapat. */
+    @Test fun recirculation() {
+        assertEquals(true, ClimateMath.recircOn(0))
+        assertEquals(false, ClimateMath.recircOn(1))
+        assertEquals(false, ClimateMath.recircOn(2))
+        assertNull(ClimateMath.recircOn(null))
+        assertEquals(1, ClimateMath.recircValue(true))
+        assertEquals(2, ClimateMath.recircValue(false))
+    }
+
+    /** Hava yönü / devridaim açık (sahibin kararı); beyaz liste yalnız OEM yazma değerlerini geçirir. */
+    @Test fun airWritesOpenButOnlyOemValues() {
+        assertTrue(ClimateWriter.AIR_WRITE_VERIFIED)
+        assertTrue(ClimateWriter.airEnabled())
+        val hv = com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo.MODULE_HVAC
+        val mode = com.desaysv.ivi.extra.project.carinfo.HvacID.ID_AC_MODE_ADJUST
+        val circ = com.desaysv.ivi.extra.project.carinfo.HvacID.ID_AC_CIRCULATION_MODE
+        for (v in 0..6) assertTrue(WidgetWritePolicy.evaluate(hv, mode, v) is WidgetWritePolicy.Verdict.Allowed)
+        // 7 yalnız okunur (üçü), yazılmaz.
+        assertTrue(WidgetWritePolicy.evaluate(hv, mode, 7) is WidgetWritePolicy.Verdict.NotWhitelisted)
+        assertTrue(WidgetWritePolicy.evaluate(hv, circ, 1) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(WidgetWritePolicy.evaluate(hv, circ, 2) is WidgetWritePolicy.Verdict.Allowed)
+        assertTrue(WidgetWritePolicy.evaluate(hv, circ, 0) is WidgetWritePolicy.Verdict.NotWhitelisted)
+    }
 }

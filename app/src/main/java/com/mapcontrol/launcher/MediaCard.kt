@@ -87,6 +87,8 @@ class MediaCard(
         clipToOutline = true
         addView(artworkImage, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         addView(placeholderIcon, FrameLayout.LayoutParams(context.dp(40), context.dp(40), Gravity.CENTER))
+        setOnClickListener { openCardApp() }
+        isClickable = false
     }
     private val artworkGap = gap(context, 32)
 
@@ -98,7 +100,11 @@ class MediaCard(
         v.contentDescription = context.getString(R.string.launcher_media_source_change)
         v.setOnClickListener { if (mode != Mode.NO_ACCESS) openSourcePicker() }
     }
-    private val titleView = text(context, LauncherTheme.TITLE_SP, bold = true).also { v -> theme.bind { v.setTextColor(LauncherTheme.TEXT) } }
+    private val titleView = text(context, LauncherTheme.TITLE_SP, bold = true).also { v ->
+        theme.bind { v.setTextColor(LauncherTheme.TEXT) }
+        v.setOnClickListener { openCardApp() }
+        v.isClickable = false
+    }
     private val artistView = text(context, 28f).also { v -> theme.bind { v.setTextColor(LauncherTheme.TEXT_SECONDARY) } }
 
     // --- İlerleme ---
@@ -510,6 +516,7 @@ class MediaCard(
         val artist = oneLine(rawArtist)
         val radioBand = radio?.band
         val textChanged = modeChanged || source != lastSource || title != lastTitle || artist != lastArtist || radioBand != lastRadio
+        updateOpenTarget(MediaSourcePick.appToOpen(newMode != Mode.NO_ACCESS, source, LauncherDemo.enabled))
         if (textChanged) {
             val radioChanged = radioBand != lastRadio
             lastSource = source
@@ -684,6 +691,28 @@ class MediaCard(
     }
 
     /** Paket adını uygulama etiketine çevirir; bulunamazsa paket adı kalır. */
+    /** Başlık / kapak dokunuşunun açacağı uygulama ([MediaSourcePick.appToOpen]); yoksa dokunma alanı yok. */
+    private var openTarget: String? = null
+
+    private fun updateOpenTarget(pkg: String?) {
+        if (pkg == openTarget) return
+        openTarget = pkg
+        val clickable = pkg != null
+        titleView.isClickable = clickable
+        artworkBox.isClickable = clickable
+        artworkBox.contentDescription = pkg?.let { context.getString(R.string.launcher_media_open_app, appLabel(it)) }
+        artworkBox.importantForAccessibility =
+            if (clickable) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+    }
+
+    /** Kartın uygulamasını açar (oturumun "şu an çalıyor" ekranı ya da başlatıcı). */
+    private fun openCardApp() {
+        val pkg = openTarget ?: return
+        if (!controller.openApp(pkg)) {
+            android.widget.Toast.makeText(context, R.string.launcher_media_open_failed, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun appLabel(pkg: String): String = try {
         val pm = context.packageManager
         pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()

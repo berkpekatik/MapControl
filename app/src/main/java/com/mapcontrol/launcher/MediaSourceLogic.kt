@@ -168,6 +168,52 @@ internal object TrackInfo {
 }
 
 /**
+ * Telefon önceliğinin "yalnızca odak" geçişi ([OemBtFocus]) tuttu mu (saf; [OemAudioSource] kilit altında kullanır).
+ *
+ * Odak istendikten sonra kaynak [OemAudioSource.BT_MUSIC]'e geçerse yol çalışıyor demektir. Denetim anında ([confirm])
+ * geçmemişse bu araçta yol çalışmıyor sayılır (süreç boyunca eski `MUSIC_PLAY` yolu) ve BT hâlâ çalıyorsa bu geçiş de
+ * eski yoldan yapılır. BT durmuşsa düşülmez: bildirim sesi gibi kısa bir çalmaydı, telefona oynat gönderilmemeli.
+ */
+internal class FocusOnlySwitch {
+    /** null: henüz denenmedi; true: kaynak BT'ye geçti; false: geçmedi. */
+    var works: Boolean? = null
+        private set
+    private var pending = false
+
+    /** Bu araçta yalnızca odak yolu denenmeli mi (bir kez tutmadıysa hayır). */
+    fun shouldTry(): Boolean = works != false
+
+    fun onRequested() {
+        pending = true
+    }
+
+    /** Kullanıcı kaynak seçti ya da kartın Oynat'ına bastı: denetim artık bir şey yapmaz. */
+    fun cancel() {
+        pending = false
+    }
+
+    /** OEM kaynak bildirimi. */
+    fun onSource(type: Int) {
+        if (pending && type == OemAudioSource.BT_MUSIC) {
+            pending = false
+            works = true
+        }
+    }
+
+    /** Zamanlanmış denetim. true: eski yola düş (kaynak geçmedi, telefon hâlâ çalıyor). */
+    fun confirm(source: Int?, btPlaying: Boolean?): Boolean {
+        if (!pending) return false
+        pending = false
+        if (source == OemAudioSource.BT_MUSIC) {
+            works = true
+            return false
+        }
+        works = false
+        return btPlaying == true
+    }
+}
+
+/**
  * Telefon önceliğiyle yapılan geçişi kısa çalmada geri alma kararı (saf; [OemAudioSource] kilit altında kullanır).
  *
  * Telefon önceliği OEM'in kendi kaynağından (radyo/USB, [MediaSourcePick.isOemOwnSource]) BT'ye geçtikten sonra BT

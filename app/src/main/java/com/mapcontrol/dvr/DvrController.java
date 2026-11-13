@@ -850,11 +850,34 @@ public final class DvrController {
     }
 
     public void loadClips(ClipsCallback cb) {
+        loadClips(false, cb);
+    }
+
+    /**
+     * usb false: arac ici klipler. usb true: USB'deki kayit klasoru (USB/MapControl) ve aktarilan
+     * klipler (USB/MapControl/Klipler) birlikte; USB takili degilse liste null doner.
+     */
+    public void loadClips(boolean usb, ClipsCallback cb) {
         final Set<String> active = activeBases();
         io.execute(() -> {
-            List<DvrClipStore.Clip> clips = DvrClipStore.list(internalDir, active);
+            List<DvrClipStore.Clip> clips;
+            if (usb) {
+                File root = findUsbRoot(app);
+                clips = root != null ? DvrClipStore.listMerged(usbClipDirs(root), active) : null;
+            } else {
+                clips = DvrClipStore.list(internalDir, active);
+            }
             main.post(() -> cb.onClips(clips));
         });
+    }
+
+    /** USB'de kliplerin bulunabilecegi klasorler: once kayit, sonra aktarma klasoru. */
+    public static List<File> usbClipDirs(File usbRoot) {
+        File dir = new File(usbRoot, USB_DIR_NAME);
+        List<File> out = new ArrayList<>();
+        out.add(dir);
+        out.add(new File(dir, USB_EXPORT_DIR_NAME));
+        return out;
     }
 
     public interface ExportCallback {

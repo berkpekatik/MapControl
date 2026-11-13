@@ -286,3 +286,17 @@ class MediaSourcePickTest {
         assertEquals(8, MediaSourcePick.openReason(9, oldAudioApp = false)) // svaudioapp: 8 araçta doğrulandı
     }
 }
+
+class MediaCardOpenAppTest {
+    @Test fun thirdPartyAppOpens() {
+        org.junit.Assert.assertEquals("com.spotify.music", MediaSourcePick.appToOpen(true, "com.spotify.music", demo = false))
+    }
+
+    @Test fun bluetoothRadioDemoAndNoSourceDoNot() {
+        org.junit.Assert.assertNull(MediaSourcePick.appToOpen(true, MediaSourcePick.BT_PKG, demo = false))
+        org.junit.Assert.assertNull(MediaSourcePick.appToOpen(true, MediaSourcePick.OEM_AUDIO_PKG, demo = false))
+        org.junit.Assert.assertNull(MediaSourcePick.appToOpen(true, "com.spotify.music", demo = true))
+        org.junit.Assert.assertNull(MediaSourcePick.appToOpen(false, "com.spotify.music", demo = false))
+        org.junit.Assert.assertNull(MediaSourcePick.appToOpen(true, null, demo = false))
+    }
+}

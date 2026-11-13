@@ -469,6 +469,13 @@
     <string name="camera360_viewer_select_all">Tümünü seç</string>
     <string name="camera360_viewer_select_none">Temizle</string>
     <string name="camera360_viewer_select_hint">Seçmek için kliplere dokunun</string>
+    <string name="camera360_viewer_source_internal">Araç</string>
+    <string name="camera360_viewer_source_usb">USB</string>
+    <string name="camera360_viewer_no_usb">USB takılı değil</string>
+    <string name="camera360_viewer_usb_removed">USB çıkarıldı, araç içi kliplere dönüldü</string>
+    <string name="camera360_viewer_empty_usb">USB\'de klip yok</string>
+    <string name="camera360_viewer_empty_usb_sub">USB\'deki %1$s klasöründeki kayıtlar burada görünür.</string>
+    <string name="camera360_viewer_fullscreen">Tam ekran</string>
     <string name="camera360_export_n">USB (%1$d)</string>
     <string name="camera360_delete">Sil</string>
     <string name="camera360_delete_n">Sil (%1$d)</string>
@@ -952,7 +959,7 @@
     <string name="gps_status_lost">SİNYAL KOPTU</string>
     <string name="gps_status_lost_hint">Telefon yeniden bekleniyor</string>
     <string name="gps_status_needs_mock">İZİN GEREKLİ</string>
-    <string name="gps_status_needs_mock_hint">Geliştirici seçenekleri \u2192 Sahte konum uygulamasını seç \u2192 MapControl</string>
+    <string name="gps_status_needs_mock_hint">Sahte konum izni yok. MapControl\'ı Installer ile yeniden kurun</string>
     <string name="gps_status_location_off">KONUM KAPALI</string>
     <string name="gps_status_location_off_hint">Sistem konumunu açın</string>
     <string name="gps_status_network_error">AĞ YOK</string>

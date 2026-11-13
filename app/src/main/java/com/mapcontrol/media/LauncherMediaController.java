@@ -394,6 +394,40 @@ public final class LauncherMediaController {
         }
     }
 
+    /**
+     * Kartın başlığına / kapağına dokunuldu: [pkg] uygulamasını açar. Etkin oturum bu uygulamanınsa oturumun kendi
+     * "şu an çalıyor" ekranı ({@link MediaController#getSessionActivity}), yoksa uygulamanın başlatıcı etkinliği.
+     * Açılamazsa false.
+     */
+    public boolean openApp(@Nullable String pkg) {
+        if (pkg == null) {
+            return false;
+        }
+        MediaController active = activeController;
+        if (active != null && pkg.equals(active.getPackageName())) {
+            try {
+                android.app.PendingIntent session = active.getSessionActivity();
+                if (session != null) {
+                    session.send();
+                    return true;
+                }
+            } catch (Exception ignored) {
+                // iptal edilmiş PendingIntent: başlatıcıya düşülür
+            }
+        }
+        try {
+            Intent launch = appContext.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (launch == null) {
+                return false;
+            }
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            appContext.startActivity(launch);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void rememberSource(@Nullable String pkg) {
         if (pkg == null || pkg.equals(lastSource)) {
             return;

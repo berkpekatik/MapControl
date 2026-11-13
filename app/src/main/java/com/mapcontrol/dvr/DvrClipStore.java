@@ -174,6 +174,28 @@ public final class DvrClipStore {
         return out;
     }
 
+    /**
+     * Birden fazla klasorun kliplerini tek listede birlestirir (USB: kayit klasoru + aktarilan
+     * klipler). Ayni anahtar birden cok klasorde varsa ilk klasordeki tutulur. Klasorlerin id
+     * sayaclari ayri oldugundan siralama zamana gore yapilir: en yeni basta.
+     */
+    public static List<Clip> listMerged(List<File> dirs, Set<String> excludeBases) {
+        Map<String, Clip> byBase = new HashMap<>();
+        List<Clip> out = new ArrayList<>();
+        for (File dir : dirs) {
+            for (Clip c : list(dir, excludeBases)) {
+                if (byBase.containsKey(c.base)) continue;
+                byBase.put(c.base, c);
+                out.add(c);
+            }
+        }
+        Collections.sort(out, (a, b) -> {
+            int c = Long.compare(b.timeMs, a.timeMs);
+            return c != 0 ? c : Long.compare(b.id, a.id);
+        });
+        return out;
+    }
+
     public static long totalBytes(Collection<Clip> clips) {
         long total = 0;
         for (Clip c : clips) total += c.bytes;

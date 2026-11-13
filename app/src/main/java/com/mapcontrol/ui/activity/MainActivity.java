@@ -218,6 +218,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout.LayoutParams mainContentParams;
     private int sidebarWidthPx;
     private boolean contentWide;
+    /** Kamera 360 izleme ekrani tam ekranda: ust cubuk gizli. */
+    private boolean contentFullscreen;
     private int screenWidthPx;
     private TopBarBuilder topBarBuilder;
     private LinearLayout topBar;
@@ -805,6 +807,7 @@ public class MainActivity extends AppCompatActivity {
         });
         camera360TabContent = camera360TabBuilder.getTabContent();
         camera360TabBuilder.setWideListener(this::setContentWide);
+        camera360TabBuilder.setFullscreenListener(this::setContentFullscreen);
         camera360TabBuilder.setSubpageListener((isNested, subpageTitle) -> {
             if (currentTab == TAB_CAMERA_360 && topBarBuilder != null) {
                 if (isNested && subpageTitle != null && !subpageTitle.isEmpty()) {
@@ -1324,7 +1327,7 @@ public class MainActivity extends AppCompatActivity {
         }
         updateNavigationDockParent();
         if (topBarBuilder != null) {
-            topBarBuilder.setTopBarVisible(true);
+            topBarBuilder.setTopBarVisible(!contentFullscreen);
         }
         ImmersiveFullscreenHelper.setImmersiveFullscreen(this, active);
     }
@@ -1355,6 +1358,15 @@ public class MainActivity extends AppCompatActivity {
         if (contentWide == wide) return;
         contentWide = wide;
         applyLauncherChrome(LauncherModeManager.isEnabled(this));
+    }
+
+    /** Sekme içeriği (Kamera 360 izleme) tam ekran ister: üst çubuk da gizlenir. */
+    private void setContentFullscreen(boolean fullscreen) {
+        if (contentFullscreen == fullscreen) return;
+        contentFullscreen = fullscreen;
+        if (topBarBuilder != null) {
+            topBarBuilder.setTopBarVisible(!fullscreen);
+        }
     }
 
     /**

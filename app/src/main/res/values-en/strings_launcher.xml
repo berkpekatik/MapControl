@@ -124,6 +124,10 @@
     <string name="launcher_climate_fan">Fan speed</string>
     <string name="launcher_climate_off">Off</string>
     <string name="launcher_climate_increase">Increase</string>
+    <string name="launcher_climate_air_face">Face vents</string>
+    <string name="launcher_climate_air_foot">Foot vents</string>
+    <string name="launcher_climate_air_window">Windshield vents</string>
+    <string name="launcher_climate_recirc">Recirculation</string>
     <string name="launcher_climate_decrease">Decrease</string>
     <string name="launcher_health_row_battery">Battery</string>
     <string name="launcher_health_all_ok">All normal</string>
@@ -184,7 +188,7 @@
     <string name="launcher_toggle_show">Show</string>
     <string name="launcher_toggle_hide">Hide</string>
     <string name="launcher_climate_oem_panel">Factory climate panel on change</string>
-    <string name="launcher_climate_oem_panel_hint">Hide: changing temperature/fan from the bottom bar does not open the OEM climate panel. Swiping up on the bar always opens it.</string>
+    <string name="launcher_climate_oem_panel_hint">Hide: changing temperature/fan from the bottom bar does not open the OEM climate panel. Swiping up on the bar and the physical climate buttons always open it.</string>
     <string name="launcher_wifi_connected">Wi-Fi connected</string>
     <string name="launcher_phone_charging_icon">Phone charging</string>
     <string name="launcher_bt_off">Bluetooth off</string>
@@ -244,4 +248,6 @@
     <string name="launcher_sport_ambient">Sport ambient color</string>
     <string name="launcher_sport_ambient_unverified">Sport ambient color (not verified yet)</string>
     <string name="launcher_sport_close_oem_dialog">Close drive mode popup</string>
+    <string name="launcher_media_open_app">Open %1$s</string>
+    <string name="launcher_media_open_failed">Could not open the app</string>
 </resources>

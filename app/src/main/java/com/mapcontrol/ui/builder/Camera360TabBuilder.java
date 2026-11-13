@@ -72,6 +72,7 @@ public class Camera360TabBuilder {
     private final CameraGlEngine engine = CameraGlEngine.get();
     private final DvrController dvr;
     private java.util.function.Consumer<Boolean> wideListener;
+    private java.util.function.Consumer<Boolean> fullscreenListener;
     private final CameraRecorder recorder;
     private final Camera360Ui ui;
     private Camera360AutoView autoView;
@@ -258,6 +259,9 @@ public class Camera360TabBuilder {
         clipViewer = new Camera360ClipViewer(ui, dvr, this::enterMenu, wide -> {
             java.util.function.Consumer<Boolean> l = wideListener;
             if (l != null) l.accept(wide);
+        }, full -> {
+            java.util.function.Consumer<Boolean> l = fullscreenListener;
+            if (l != null) l.accept(full);
         });
         viewerRoot = clipViewer.build();
         viewerRoot.setVisibility(View.GONE);
@@ -320,6 +324,11 @@ public class Camera360TabBuilder {
     /** Izleme ekrani sol menunun gizlenmesini (true) / geri gelmesini (false) ister. */
     public void setWideListener(java.util.function.Consumer<Boolean> listener) {
         wideListener = listener;
+    }
+
+    /** Izleme ekrani tam ekran oynatmada ust cubugun gizlenmesini (true) / geri gelmesini (false) ister. */
+    public void setFullscreenListener(java.util.function.Consumer<Boolean> listener) {
+        fullscreenListener = listener;
     }
 
     private void showOnly(View visible) {

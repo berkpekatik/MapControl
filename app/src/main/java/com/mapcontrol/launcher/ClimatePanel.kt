@@ -188,7 +188,9 @@ internal object ClimatePanelPrefs {
  * buz çözme açar; klima kapatma ve arka cam ısıtma açmaz). Panel açılışı değişen değerden ~0,5 sn ÖNCE de gelebilir.
  *
  * Kural: panel göründü VE (değişiklikten sonraki [CHANGE_MATCH_MS] ya da açılıştan sonraki [SHOW_BEFORE_CHANGE_MS] içinde bir
- * klima değeri değişti ya da dock yazmamız oldu) VE kullanıcı paneli bilerek açmadı → kapat. Son değişiklikten sonra [SETTLE_MS] (ve her kapatmadan sonra [RESHOW_MS]) boyunca yeniden
+ * klima değeri değişti ya da dock yazmamız oldu) VE kullanıcı paneli bilerek açmadı → kapat. Yalnızca BİZİM alt çubuk
+ * yazmalarımız sayılır: ECU'dan gelen değer değişikliği ancak son yazmamızdan sonraki [OWN_ECHO_MS] içindeyse (yazmamızın
+ * yansıması) değişikliktir ([Lock.hvacChange]). Fiziksel klima tuşu ve OEM dock'u ile açılan panel açık kalır. Son değişiklikten sonra [SETTLE_MS] (ve her kapatmadan sonra [RESHOW_MS]) boyunca yeniden
  * açılışlar da kapatılır; pencere başına en çok [MAX_CLOSES]. Çevresinde değişiklik olmayan açılış (OEM uygulaması, sesli
  * komut, OEM'in kendi yukarı kaydırması) olduğu gibi bırakılır. Araca hiçbir şey yazılmaz; kapatmayı OEM servisi yapar
  * ([ClimatePanel.close]).
@@ -206,6 +208,12 @@ internal object ClimatePanelPolicy {
      * kendi ayarıdır: o panel kapatılmaz.
      */
     const val SHOW_BEFORE_CHANGE_MS = 1_000L
+
+    /**
+     * Bizim dock yazmamızdan sonra ECU'nun değeri yansıtması için tanınan süre. Bu süre dışında gelen değer değişikliği
+     * fiziksel tuş / OEM dock'udur: koruma onlara karışmaz (kullanıcı tuşa basınca paneli görmek ister).
+     */
+    const val OWN_ECHO_MS = 2_000L
 
     /** Son değişiklikten sonra yeniden açılışların kapatıldığı süre (her yeni değişiklik uzatır). */
     const val SETTLE_MS = 2_500L
@@ -263,6 +271,7 @@ internal object ClimatePanelPolicy {
         private var explicitAt = never
         private var explicitShown = false
         private var visible = false
+        private var lastOwnAt = never
 
         /** Bu kavgadaki (ardışık yeniden açılışlar) kapatma sayısı; ayrı tuş basışlarında sıfırlanır. */
         var closes = 0
@@ -282,8 +291,20 @@ internal object ClimatePanelPolicy {
             pendingShowAt = never
         }
 
-        /** Klima değeri değişti (tuş, OEM dock, bizim dock). [visibleNow]: panel şu an açık mı. */
-        fun change(t: Long, visibleNow: Boolean, showPref: Boolean, canAct: Boolean): Decision {
+        /**
+         * ECU'dan gelen klima değeri değişikliği. Yalnızca bizim son yazmamızdan sonraki [OWN_ECHO_MS] içindeyse (yazmanın
+         * yansıması) [change] sayılır; değilse fiziksel tuş ya da OEM dock'udur → [Decision.NONE], pencere de açılmaz.
+         */
+        fun hvacChange(t: Long, visibleNow: Boolean, showPref: Boolean, canAct: Boolean): Decision {
+            if (t - lastOwnAt > OWN_ECHO_MS) return Decision.NONE
+            return change(t, visibleNow, showPref, canAct, own = false)
+        }
+
+        /**
+         * Bizim alt çubuk (dock) yazmamız ([own] true) ya da yansıması. [visibleNow]: panel şu an açık mı.
+         */
+        fun change(t: Long, visibleNow: Boolean, showPref: Boolean, canAct: Boolean, own: Boolean = true): Decision {
+            if (own) lastOwnAt = t
             if (!inWindow(t)) closes = 0
             lastChangeAt = t
             val pendingMatch = visibleNow && t - pendingShowAt in 0..SHOW_BEFORE_CHANGE_MS
@@ -387,7 +408,8 @@ internal object ClimatePanelPolicy {
  *    ECU'nun 9=1'iyle açılır; aynı bildirimi OEM de dinler, o yüzden en erken sinyal budur).
  * - `Settings.System` görünürlük anahtarları ([ClimatePanelBits.SHOW_KEYS]) için ContentObserver: OEM klima uygulaması panel açılınca
  *    "true" yazar; anında gelir ve VDBus aboneliği düşmüşse de çalışır.
- *  - Bizim dock yazmamız ([arm]): yazmadan önce değişiklik olarak sayılır.
+ *  - Bizim dock yazmamız ([arm]): yazmadan önce değişiklik olarak sayılır. ECU değer değişikliği yalnızca bundan sonraki
+ *    [ClimatePanelPolicy.OWN_ECHO_MS] içinde sayılır; fiziksel tuş ve OEM dock'u ile açılan panel kapatılmaz.
  * Karar [ClimatePanelPolicy.Lock]'ta; her karar `ClimatePanel` etiketiyle tek satır günlüğe yazılır (yalnızca sayı/kimlik).
  * Tüm durum tek bir arka iş parçacığında değişir.
  */
@@ -543,7 +565,7 @@ internal object ClimatePanelGuard {
         if (id !in ClimatePanelPolicy.CONTROL_IDS) return
         val previous = values[id]
         values[id] = v
-        if (ClimatePanelPolicy.isChange(previous, v)) onChange(now(), "hvac$id")
+        if (ClimatePanelPolicy.isChange(previous, v)) onChange(now(), "hvac$id", own = false)
     }
 
     private fun onSettings() {
@@ -555,9 +577,11 @@ internal object ClimatePanelGuard {
         if (settingsShown && !was) onShown("settings") else if (wasVisible && !visible()) lock.hidden(now())
     }
 
-    private fun onChange(t: Long, src: String) {
+    /** [own]: bizim dock yazmamız ([arm]); değilse ECU değer bildirimi (yalnız yazmamızın yansımasıysa sayılır). */
+    private fun onChange(t: Long, src: String, own: Boolean = true) {
         if (!modeOn()) return
-        val d = lock.change(t, visible(), showPref(), ClimatePanelBits.closeCanAct(hv9))
+        val canAct = ClimatePanelBits.closeCanAct(hv9)
+        val d = if (own) lock.change(t, visible(), showPref(), canAct) else lock.hvacChange(t, visible(), showPref(), canAct)
         if (d != ClimatePanelPolicy.Decision.NONE) act(d, "change", src, t)
     }
 

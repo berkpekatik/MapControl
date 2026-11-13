@@ -461,6 +461,9 @@ internal object LauncherDemo {
     val FAN_LEVEL: Int get() = climate.getOrNull(2)?.toInt() ?: 3
     /** Demo klima gücü (HVAC 18 yerine): alt çubuk fan dokunuşu araç yerine bunu değiştirir. */
     @Volatile var climateOn: Boolean = true
+    /** Demo hava yönü ve devridaim (HVAC 6 / 8 yerine): Tiggo 8 alt çubuk düğmeleri araç yerine bunları değiştirir. */
+    @Volatile var airFlow: AirFlow = AirFlow(face = false, foot = true, window = false)
+    @Volatile var recirc: Boolean = false
     val DRIVER_VENT_LEVEL get() = seatLevel(vent = true, driver = true)
     val PASSENGER_VENT_LEVEL get() = seatLevel(vent = true, driver = false)
 

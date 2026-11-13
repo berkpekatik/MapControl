@@ -47,6 +47,9 @@ internal class ClimateControl(
     private var pendingFan: Int? = null
     /** Dokunuşla istenen klima gücü; araç okuması yetişene (en geç [CONFIRM_MS]) kadar gösterilir. */
     private var pendingPower: Boolean? = null
+    /** Dokunuşla istenen hava yönü ve devridaim (Tiggo 8 düğmeleri); güç gibi bekler. */
+    private var pendingAir: AirFlow? = null
+    private var pendingRecirc: Boolean? = null
     private var dragging = false
     private var toast: Toast? = null
 
@@ -62,11 +65,18 @@ internal class ClimateControl(
     val fanView: View get() = fan.view
     val passengerView: View get() = passenger.view
 
+    /** Hava yönü / devridaim düğmeleri ilk istendiğinde kurulur (yalnız Tiggo 8 çubuğu ister). */
+    private val airCells = HashMap<AirButton, AirCell>()
+
+    fun airView(button: AirButton): View = airCells.getOrPut(button) { AirCell(button).also { it.show() } }.view
+
     private val revert = Runnable {
         pendingDriver = null
         pendingPassenger = null
         pendingFan = null
         pendingPower = null
+        pendingAir = null
+        pendingRecirc = null
         render()
     }
 
@@ -112,6 +122,77 @@ internal class ClimateControl(
         driver.show(shownTemp(ClimateSide.DRIVER))
         passenger.show(shownTemp(ClimateSide.PASSENGER))
         fan.show(shownFan(), off = shownPower() == false)
+        airCells.values.forEach { it.show() }
+    }
+
+    private fun shownAir(): AirFlow? = pendingAir ?: readout.airFlow
+
+    private fun shownRecirc(): Boolean? = pendingRecirc ?: readout.recirc
+
+    // --- Hava yönü ve devridaim (Tiggo 8) ---
+
+    /**
+     * Yön düğmesi: o menfezi aç/kapa, sonucu tek HVAC 6 değeri olarak yaz (OEM Tiggo 8 `BlowModeClick` gibi). Son açık yön
+     * kapatılamaz (OEM de o dokunuşu yok sayar). Okuma yoksa dokunuş bir şey yapmaz: neyin değişeceği bilinmez.
+     */
+    private fun toggleVent(vent: AirFlow.Vent) {
+        val now = shownAir() ?: return
+        val next = now.with(vent, !now.isOn(vent))
+        if (ClimateMath.airFlowWriteValue(next) == null) return
+        pendingAir = next
+        if (LauncherDemo.enabled) {
+            LauncherDemo.airFlow = next
+            afterCommit(canWrite = true)
+            return
+        }
+        val canWrite = ClimateWriter.airEnabled()
+        afterCommit(canWrite)
+        if (!canWrite) return
+        quietWrite("air_flow")
+        io.runSafely { ClimateWriter.setAirFlow(next) }
+    }
+
+    /** Devridaim düğmesi: açıksa dış havaya, değilse iç havaya (bilinmiyorsa OEM gibi açar). HVAC 8 ← 1/2. */
+    private fun toggleRecirc() {
+        val on = shownRecirc() != true
+        pendingRecirc = on
+        if (LauncherDemo.enabled) {
+            LauncherDemo.recirc = on
+            afterCommit(canWrite = true)
+            return
+        }
+        val canWrite = ClimateWriter.airEnabled()
+        afterCommit(canWrite)
+        if (!canWrite) return
+        quietWrite("recirc")
+        io.runSafely { ClimateWriter.setRecirc(on) }
+    }
+
+    /**
+     * Tek ikonlu dock düğmesi: seçiliyken buz mavisi (OEM'deki mavi gibi), değilken sakin ikon rengi; okuma yokken soluk.
+     * Basınca dock'un basılı katmanı; dokunsal geri bildirim.
+     */
+    private inner class AirCell(private val button: AirButton) {
+        private val glyph = icon(context, button.icon, AIR_ICON_DP)
+
+        val view: FrameLayout = FrameLayout(context).apply {
+            theme.bind { foreground = dockPressOverlay(context) }
+            isClickable = true
+            isFocusable = true
+            contentDescription = context.getString(button.label)
+            addView(glyph, FrameLayout.LayoutParams(context.dp(AIR_ICON_DP), context.dp(AIR_ICON_DP), Gravity.CENTER))
+            setOnClickListener { v ->
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                if (button == AirButton.RECIRC) toggleRecirc() else toggleVent(button.vent!!)
+            }
+        }
+
+        fun show() {
+            val on: Boolean? = if (button == AirButton.RECIRC) shownRecirc() else shownAir()?.isOn(button.vent!!)
+            glyph.setTint(if (on == true) (if (sportOn) SportInk.ICON_ACTIVE else Sahne.ICE) else Sahne.CONTROL_ICON)
+            glyph.alpha = if (on == null) 0.4f else 1f
+            view.isSelected = on == true
+        }
     }
 
     // --- Onay ("commit") ---
@@ -619,6 +700,7 @@ internal class ClimateControl(
         private const val SAHNE_TEMP_SP = 46f
         private const val SAHNE_FAN_SP = 40f
         private const val SAHNE_FAN_ICON_DP = 30
+        private const val AIR_ICON_DP = 34
         private const val SAHNE_TRACK_W_DP = 220
         private const val SAHNE_TRACK_H_DP = 8
         /** Spor: fan kademesi küçük yay göstergesi (aynı genişlik, biraz daha yüksek kutu). */
@@ -705,4 +787,12 @@ private class FanTrack(context: android.content.Context) : View(context) {
         paint.color = Sahne.ICE
         canvas.drawRoundRect(rect, r, r, paint)
     }
+}
+
+/** Tiggo 8 alt çubuğunun klima düğmeleri: üç menfez (HVAC 6, birlikte seçilebilir) ve devridaim (HVAC 8). */
+internal enum class AirButton(@androidx.annotation.DrawableRes val icon: Int, @androidx.annotation.StringRes val label: Int, val vent: AirFlow.Vent?) {
+    FACE(R.drawable.ic_climate_air_face, R.string.launcher_climate_air_face, AirFlow.Vent.FACE),
+    FOOT(R.drawable.ic_climate_air_foot, R.string.launcher_climate_air_foot, AirFlow.Vent.FOOT),
+    WINDOW(R.drawable.ic_climate_air_window, R.string.launcher_climate_air_window, AirFlow.Vent.WINDOW),
+    RECIRC(R.drawable.ic_climate_recirc, R.string.launcher_climate_recirc, null),
 }
