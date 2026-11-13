@@ -57,7 +57,33 @@ class CarGeometry internal constructor(
     val tailGate: TailGate? = null,
     /** Fren zemin ışığı gövde tarafındaki kenarında sıfıra iner (Jaecoo 7: kutu yuvarlak arka köşelerden taşar). false = 1.5.1 maskesi (Tiggo). */
     val brakePoolSoftEdge: Boolean = false,
+    /**
+     * Cam tavan, tavan katmanı kutusunun ([roofY0]..[roofY1]) içinde üstten ve alttan bu kadar içeride başlar (Tiggo 8: çerçeve payı;
+     * kayan panel ve kenar çizgileri camın dışına çizilmez). 0 = kutunun tamamı cam (Tiggo 7, Jaecoo 7).
+     */
+    val roofGlassInsetY: Float = 0f,
+    /**
+     * Gövdenin tuvaldeki yeri ve aracın gerçek boyu (yalnız Tiggo 8): araç, Tiggo 7'ye göre gerçek boy oranında çizilir
+     * ([bodyScale], [stageScale]). null = ölçek tam 1, tuval çerçeveyi olduğu gibi doldurur (Tiggo 7; Jaecoo 7 onaylanan boyunda).
+     */
+    val bodySize: BodySize? = null,
+    /**
+     * Camın yuvarlak ön kenarı, tavan katmanı kutusunun ön ucundan ([roofX1]) bu kadar içeridedir (yalnız Tiggo 8): tavan açıkken
+     * kenar ışığının ön çizgisi camın kenarına oturur. 0 = kutunun ucu (Tiggo 7, Jaecoo 7).
+     */
+    val roofGlassInsetFront: Float = 0f,
 ) {
+    /** Camın üst ve alt satırı: perde kenarı ve kenar ışığı bunların içinde kalır; pay 0 iken tam [roofY0] / [roofY1]. */
+    val roofGlassY0: Float = roofY0 + roofGlassInsetY
+    val roofGlassY1: Float = roofY1 - roofGlassInsetY
+    /** Camın ön kenarı (kenar ışığının ön çizgisi); pay 0 iken tam [roofX1]. */
+    val roofGlassX1: Float = roofX1 - roofGlassInsetFront
+
+    /** Gövde boyunu tuvali dolduran ilk takımınkine (Tiggo 7, [BodySize.REF_PX]) eşitleyen büyütme; [bodySize] yoksa tam 1. */
+    val bodyScale: Float = bodySize?.let { BodySize.REF_PX / (it.x1 - it.x0) } ?: 1f
+    /** [bodyScale] × gerçek boy oranı: Sahne'de uzun araç uzun çizilir (Tiggo 8, Tiggo 7'den ~%5 uzun); [bodySize] yoksa tam 1. */
+    val stageScale: Float = bodySize?.let { bodyScale * it.lengthMm / BodySize.REF_LENGTH_MM } ?: 1f
+
     /** Açık parçalar base dışına taşar (kapılar yanlara, bagaj geriye); görünüm bu payları kapsar. Gölge bulanıklığı dahil. */
     val padLeft: Float = maxOf(0f, -parts.values.minOf { minOf(it.overlay.x, it.sprite.x + it.translateXEnd) })
     val padTop: Float = maxOf(0f, -parts.values.minOf { it.overlay.y }) + CarAnimSpec.SHADOW_BLUR * 2
@@ -65,15 +91,25 @@ class CarGeometry internal constructor(
     val padBottom: Float = maxOf(0f, parts.values.maxOf { it.overlay.bottom } - CarAnimSpec.BASE_H) + CarAnimSpec.SHADOW_BLUR * 2
 }
 
+/** Gövdenin tuvaldeki uçları ([x0] arka uç .. [x1] burun; aynasız, base px) ve aracın gerçek boyu ([lengthMm]). */
+class BodySize(val x0: Float, val x1: Float, val lengthMm: Float) {
+    companion object {
+        /** Ölçek referansı: Tiggo 7 takımı (gövde 764 px, 4500 mm). */
+        const val REF_PX = 764f
+        const val REF_LENGTH_MM = 4500f
+    }
+}
+
 /**
  * Bagaj kapağındaki ışık çubuğu: [cut0]..[cut1] ortayı gövdedeki uç parçalardan ayıran kesim (base y). Kapak kalkınca orta parça
  * kapakla söner, yerine [openBox] (base px: sol, üst, sağ, alt) içinde açık bagaj görselindeki LED çizgisinden okunan çubuk belirir.
  * [reverseDx]: bagaj açıkken geri vites zemin ışığının kapağın arkasına kayması (base px); geri lambaları söner.
+ * [brakeDx]: bagaj açıkken fren zemin ışığının aynı yöne kayması (yalnız Tiggo 8: kalkık kapak ışığı örter); 0 = yerinde kalır.
  */
-class TailGate(val cut0: Float, val cut1: Float, val openBox: FloatArray, val reverseDx: Float)
+class TailGate(val cut0: Float, val cut1: Float, val openBox: FloatArray, val reverseDx: Float, val brakeDx: Float = 0f)
 
 /**
- * Sahne'de çizilen araç modeli: [prefix] görsel dosya ön eki (`<prefix><renk>_base` ...), tavan katmanları (renkten
+ * Sahne'de çizilen araç modeli ([TIGGO] = Tiggo 7, ilk takım; adı ve `car_` ön eki değişmedi): [prefix] görsel dosya ön eki (`<prefix><renk>_base` ...), tavan katmanları (renkten
  * bağımsız) ve [geometry] o takımın ölçüleri. Etkin model [active] ile okunur; [resolve] başlatmada bir kez (ve her yeniden
  * kurulumda) çağrılır, böylece açık ekran çalışırken model değişmez ([VehicleProfile] ile aynı düzen).
  */
@@ -86,35 +122,41 @@ enum class CarModel(
     val geometry: CarGeometry,
 ) {
     TIGGO("tiggo", "car_", R.drawable.car_roof_shade_closed, R.drawable.car_roof_shade_open, R.drawable.car_roof_open_hole, TIGGO_GEOMETRY),
-    JAECOO7("jaecoo7", "car_j7_", R.drawable.car_j7_roof_shade_closed, R.drawable.car_j7_roof_shade_open, R.drawable.car_j7_roof_open_hole, JAECOO7_GEOMETRY);
+    JAECOO7("jaecoo7", "car_j7_", R.drawable.car_j7_roof_shade_closed, R.drawable.car_j7_roof_shade_open, R.drawable.car_j7_roof_open_hole, JAECOO7_GEOMETRY),
+    TIGGO8("tiggo8", "car_t8_", R.drawable.car_t8_roof_shade_closed, R.drawable.car_t8_roof_shade_open, R.drawable.car_t8_roof_open_hole, TIGGO8_GEOMETRY);
 
     companion object {
-        /** Elle seçim: 0 = Otomatik, 1 = Tiggo, 2 = Jaecoo 7 ([HomeScreenPrefs.carModelIndex]). */
+        /** Elle seçim: 0 = Otomatik, 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 ([HomeScreenPrefs.carModelIndex]). */
         const val OVERRIDE_AUTO = 0
-        const val OVERRIDE_MAX = 2
+        const val OVERRIDE_MAX = 3
 
-        /** Etkin model. [resolve] hiç çağrılmadıysa (birim testleri) Tiggo. */
+        /** Etkin model. [resolve] hiç çağrılmadıysa (birim testleri) Tiggo 7 ([TIGGO]). */
         @Volatile
         var active: CarModel = TIGGO
             internal set
 
-        /** Demo/test: `--es launcher_demo_car tiggo|jaecoo7` (yalnızca debug ve demo açıkken); elle seçimi geçersiz kılar. */
+        /** Demo/test: `--es launcher_demo_car tiggo|jaecoo7|tiggo8` (yalnızca debug ve demo açıkken); elle seçimi geçersiz kılar. */
         @Volatile
         var demoOverride: CarModel? = null
 
         const val EXTRA_MODEL = "launcher_demo_car"
 
         /**
-         * Elle seçim ([OVERRIDE_AUTO] ya da 1/2) ile araç ekranı profilinden model (saf; birim testlenir). Otomatik: dikey ekran
-         * ([VehicleProfile.PORTRAIT], Jaecoo J7/J8) Jaecoo 7, Tiggo 7 ve Tiggo 8 ekranları Tiggo.
+         * Elle seçim ([OVERRIDE_AUTO] ya da 1/2/3) ile araç ekranı profilinden model (saf; birim testlenir). Otomatik: dikey ekran
+         * ([VehicleProfile.PORTRAIT], Jaecoo J7/J8) Jaecoo 7, Tiggo 8 ekranı Tiggo 8, Tiggo 7 ekranı Tiggo 7 ([TIGGO]).
          */
         fun choose(override: Int, profile: VehicleProfile): CarModel = when (override) {
             1 -> TIGGO
             2 -> JAECOO7
-            else -> if (profile.portrait) JAECOO7 else TIGGO
+            3 -> TIGGO8
+            else -> when (profile) {
+                VehicleProfile.PORTRAIT -> JAECOO7
+                VehicleProfile.TIGGO8 -> TIGGO8
+                VehicleProfile.TIGGO7 -> TIGGO
+            }
         }
 
-        /** Verilen ad "tiggo"/"jaecoo7" ise model; aksi halde null. */
+        /** Verilen ad "tiggo"/"jaecoo7"/"tiggo8" ise model; aksi halde null. */
         fun parse(name: String?): CarModel? = values().firstOrNull { it.key.equals(name?.trim(), ignoreCase = true) }
 
         /** Elle seçim ve demo isteği dahil, bu cihaz için model (durum değiştirmez). */
@@ -250,4 +292,77 @@ private val JAECOO7_GEOMETRY = CarGeometry(
     trunkCrop = floatArrayOf(-24f, 20f, 214f, 335f),
     tailGate = TailGate(cut0 = 89f, cut1 = 269f, openBox = floatArrayOf(-52f, 62f, 32f, 288f), reverseDx = -105f),
     brakePoolSoftEdge = true,
+)
+
+/**
+ * Tiggo 8: aynı 766 × 356 tuvalde, gövde 600 px (83..683), orta çizgi y = 177,27. Jaecoo 7'nin seçenekleri burada da
+ * açık: ön kapı sprite'ları dış aynayı taşır ([Part.mirror]), ışık çubuğunun ortası bagaj kapağındadır ([TailGate]), fren zemin
+ * ışığı gövde tarafında söner ([CarGeometry.brakePoolSoftEdge]). Yalnız bu modelde: cam tavan payı ([CarGeometry.roofGlassInsetY])
+ * ve gerçek boy oranı ([CarGeometry.bodySize]). Ölçüler görsel takımının dışa aktarımından gelir, emülatörde ayarlandı.
+ */
+private val TIGGO8_GEOMETRY = CarGeometry(
+    parts = mapOf(
+        CarPart.DOOR_FL to door(Box(383f, 37f, 133f, 58f), Box(382f, 59f, 135f, 36f), Box(382f, -25f, 144f, 120f),
+            507.65f, 83.45f, 37.5f, 1.09f, 1.24f, Box(387.2f, 58.6f, 124.8f, 27f), Box(387.2f, 60.7f, 84f, 2.1f), mirror = true),
+        CarPart.DOOR_RL to door(Box(257f, 55f, 129f, 39f), Box(258f, 55f, 129f, 40f), Box(231f, -25f, 155f, 121f),
+            390.44f, 49.08f, 40f, 0.96f, 1.24f, Box(263.2f, 54.6f, 118.8f, 31f), Box(293f, 60.0f, 89f, 2.1f)),
+        CarPart.DOOR_FR to door(Box(383f, 260f, 133f, 58f), Box(382f, 260f, 135f, 36f), Box(382f, 259f, 144f, 121f),
+            507.65f, 271.09f, -37.5f, 1.09f, 1.24f, Box(387.2f, 269.8f, 124.8f, 27f), Box(387.2f, 292.2f, 84f, 2.1f), mirror = true),
+        CarPart.DOOR_RR to door(Box(257f, 261f, 129f, 39f), Box(258f, 260f, 129f, 40f), Box(231f, 259f, 155f, 121f),
+            390.44f, 305.46f, -40f, 0.96f, 1.24f, Box(263.2f, 269.8f, 118.8f, 31f), Box(293f, 292.9f, 89f, 2.1f)),
+        CarPart.HOOD to Part(Kind.LID, Box(532f, 70f, 129f, 215f), Box(531f, 69f, 130f, 216f), Box(511f, 69f, 150f, 217f),
+            553.7f, 177.27f, 0f, 0.24f, 1f, -12.09f, 300, CarAnimSpec.EASE_OPEN, 320, CarAnimSpec.EASE_CLOSE, 220, 120, 120),
+        CarPart.TRUNK to Part(Kind.SLIDE_FADE, Box(83f, 94f, 103f, 165f), Box(83f, 95f, 104f, 165f), Box(12f, 85f, 174f, 185f),
+            0f, 0f, 0f, 1f, 1f, -40f, 260, CarAnimSpec.EASE_STANDARD, 260, CarAnimSpec.EASE_STANDARD, 0, 0, 0),
+    ),
+    // Ön cam vurgusu A direğine doğru daralan kısma girmez (kısa kutu).
+    windows = mapOf(
+        BodyPart.WINDOW_LF to Glass(Box(393.7f, 79.0f, 62.0f, 10.4f), CarPart.DOOR_FL),
+        BodyPart.WINDOW_LR to Glass(Box(302.0f, 80.5f, 72.16f, 12.23f), CarPart.DOOR_RL),
+        BodyPart.WINDOW_RF to Glass(Box(393.7f, 265.13f, 62.0f, 10.4f), CarPart.DOOR_FR),
+        BodyPart.WINDOW_RR to Glass(Box(302.0f, 261.8f, 72.16f, 12.23f), CarPart.DOOR_RR),
+    ),
+    // Yedek cam vurgusu (tavan konumu okunamazsa): yalnız iki cam; çerçeve payı ve aradaki kiriş boyanmaz.
+    sunroof = Glass(Box(225.23f, 114.79f, 53.82f, 124.95f), null, strength = 0.6f, box2 = Box(288.12f, 114.79f, 132.71f, 124.95f)),
+    roofX0 = 223.23f,
+    roofX1 = 425.33f,
+    roofY0 = 108.99f,
+    roofY1 = 245.54f,
+    roofSplit = 279.05f,
+    roofFrontX0 = 288.12f,
+    roofGlassTravel = 64.49f,
+    tireX = floatArrayOf(565.33f, 565.33f, 221.6f, 221.6f),
+    tireEdge = floatArrayOf(58.83f, 296.17f, 56.04f, 298.96f),
+    tireL = 92f,
+    tireW = 24f,
+    tireOut = 7f,
+    // Yakıt kapağı sol arka çamurlukta (görünüşte üst kenar), arka lastiğin gerisinde (lastik uyarısıyla tek blok olmasın; taraf tahmin).
+    fuelCap = Box(145.81f, 68.94f, 26f, 11f),
+    hoodCx = 599.28f,
+    hoodCy = 177.27f,
+    hoodRx = 61.4f,
+    hoodRy = 95.68f,
+    beamTop = floatArrayOf(650.53f, -2.26f, 900.53f, 187.74f),
+    beamBottom = floatArrayOf(650.53f, 166.8f, 900.53f, 356.8f),
+    brakePool = floatArrayOf(-214f, 27.27f, 116f, 327.27f),
+    reverseFloor = floatArrayOf(-26.53f, 93.27f, 173.47f, 261.27f),
+    headTop = floatArrayOf(605.53f, 58.74f, 687.53f, 126.74f),
+    headBottom = floatArrayOf(605.53f, 227.8f, 687.53f, 295.8f),
+    reverseTop = floatArrayOf(83.47f, 102.77f, 139.47f, 152.77f),
+    reverseBottom = floatArrayOf(83.47f, 201.77f, 139.47f, 251.77f),
+    turnLeftFront = floatArrayOf(596.84f, 51.12f, 666.84f, 111.12f),
+    turnLeftRear = floatArrayOf(80.56f, 56.23f, 150.56f, 116.23f),
+    turnRightFront = floatArrayOf(596.84f, 243.42f, 666.84f, 303.42f),
+    turnRightRear = floatArrayOf(80.56f, 238.31f, 150.56f, 298.31f),
+    // Kutu merceğin uçlarından (y ≈ 78 / 276) ~20 px taşar: uç sönümü ([CarAnimSpec.TAIL_TAPER]) kesimlerden önce biter, gövdedeki uç
+    // parçalar orta çubukla aynı güçte yanar.
+    tail = floatArrayOf(71.47f, 58f, 155.47f, 296.5f),
+    bodyBottom = 318f,
+    trunkCrop = floatArrayOf(8f, 20.27f, 238.81f, 334.27f),
+    // Kalkık kapağın LED çizgisi açık bagaj görselinde x 16..21, y 97..258 (grafit takımdan ölçüldü); kutu çizgiyi ortalar.
+    tailGate = TailGate(cut0 = 96.45f, cut1 = 258.08f, openBox = floatArrayOf(-24f, 90f, 60f, 265f), reverseDx = -70f, brakeDx = -70f),
+    brakePoolSoftEdge = true,
+    roofGlassInsetY = 5.8f,
+    bodySize = BodySize(x0 = 83f, x1 = 683f, lengthMm = 4722f),
+    roofGlassInsetFront = 4.5f,
 )

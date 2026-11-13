@@ -12,7 +12,7 @@ import com.mapcontrol.vehicle.VehicleMetricsSnapshot
  * Yalnızca debug (debuggable) derlemede ve başlatma isteğinde açıkça istenirse açılır:
  *   adb shell am start -n <paket>/com.mapcontrol.launcher.HomeLauncherActivity --ez launcher_demo true
  * Araç ekranı profili de verilebilir (`--es launcher_profile tiggo7|tiggo8`, bkz. [VehicleProfile.demoOverride]).
- * Araç görseli de (`--es launcher_demo_car tiggo|jaecoo7`, bkz. [CarModel.demoOverride]).
+ * Araç görseli de (`--es launcher_demo_car tiggo|jaecoo7|tiggo8`, bkz. [CarModel.demoOverride]).
  * Açıkken widget'lar aracı değil buradaki sabit değerleri gösterir; komut gönderen yollar yine
  * LauncherEdition üzerinden geçer, demo onlara dokunmaz.
  */

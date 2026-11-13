@@ -40,7 +40,7 @@ object HomeScreenPrefs {
     }
 
     /**
-     * "Araç modeli": 0 = Otomatik (araç ekranından), 1 = Tiggo, 2 = Jaecoo 7 ([CarModel.choose]). Launcher bir sonraki öne gelişinde
+     * "Araç modeli": 0 = Otomatik (araç ekranından), 1 = Tiggo 7, 2 = Jaecoo 7, 3 = Tiggo 8 ([CarModel.choose]). Launcher bir sonraki öne gelişinde
      * yeniden kurulur. Aralık dışı kayıtlı değer Otomatik sayılır (en yakın seçeneğe yuvarlanmaz).
      */
     @JvmStatic fun carModelIndex(context: Context): Int =

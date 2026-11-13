@@ -113,10 +113,11 @@ class CarModelTest {
     }
 
     @Test fun modelsUseDistinctResourcePrefixes() {
-        assertEquals(listOf("car_", "car_j7_"), CarModel.values().map { it.prefix })
+        assertEquals(listOf("car_", "car_j7_", "car_t8_"), CarModel.values().map { it.prefix })
         assertEquals(CarModel.values().size, CarModel.values().map { it.key }.toSet().size)
         // Bir modelin ön eki diğerinin renk dosyalarıyla çakışmaz ("car_j7_" hiçbir "car_<renk>_" ile başlamaz).
         for (c in CarColor.values()) assertTrue(c.key, !"car_j7_".startsWith("car_${c.key}_") && !c.key.startsWith("j7"))
+        for (c in CarColor.values()) assertTrue(c.key, !"car_t8_".startsWith("car_${c.key}_") && !c.key.startsWith("t8"))
     }
 
     /** Jaecoo 7 ölçüleri emülatörde ayarlanan deneme değerleridir; ana noktalar sabitlenir. */
@@ -204,6 +205,192 @@ class CarModelTest {
         assertTrue(t.parts.values.none { it.mirror })
     }
 
+    /** Tiggo 8 ölçüleri görsel takımının dışa aktarımından gelir, emülatörde ayarlandı; ana noktalar sabitlenir. */
+    @Test fun tiggo8GeometryKeepsTunedValues() {
+        val g = CarModel.TIGGO8.geometry
+        assertEquals("car_t8_", CarModel.TIGGO8.prefix)
+        same(floatArrayOf(383f, 37f, 133f, 58f, 382f, 59f, 135f, 36f, 382f, -25f, 144f, 120f, 507.65f, 83.45f, 37.5f, 1.09f, 1.24f, 0f,
+            360f, 360f, 250f, 120f, 120f, 387.2f, 58.6f, 124.8f, 27f, 387.2f, 60.7f, 84f, 2.1f), flat(g.parts.getValue(CarPart.DOOR_FL)))
+        same(floatArrayOf(257f, 261f, 129f, 39f, 258f, 260f, 129f, 40f, 231f, 259f, 155f, 121f, 390.44f, 305.46f, -40f, 0.96f, 1.24f, 0f,
+            360f, 360f, 250f, 120f, 120f, 263.2f, 269.8f, 118.8f, 31f, 293f, 292.9f, 89f, 2.1f), flat(g.parts.getValue(CarPart.DOOR_RR)))
+        same(floatArrayOf(532f, 70f, 129f, 215f, 531f, 69f, 130f, 216f, 511f, 69f, 150f, 217f, 553.7f, 177.27f, 0f, 0.24f, 1f, -12.09f,
+            300f, 320f, 220f, 120f, 120f), flat(g.parts.getValue(CarPart.HOOD)))
+        same(floatArrayOf(83f, 94f, 103f, 165f, 83f, 95f, 104f, 165f, 12f, 85f, 174f, 185f, 0f, 0f, 0f, 1f, 1f, -40f,
+            260f, 260f, 0f, 0f, 0f), flat(g.parts.getValue(CarPart.TRUNK)))
+        same(floatArrayOf(223.23f, 425.33f, 108.99f, 245.54f, 279.05f, 288.12f, 64.49f),
+            floatArrayOf(g.roofX0, g.roofX1, g.roofY0, g.roofY1, g.roofSplit, g.roofFrontX0, g.roofGlassTravel))
+        same(floatArrayOf(565.33f, 565.33f, 221.6f, 221.6f), g.tireX)
+        same(floatArrayOf(58.83f, 296.17f, 56.04f, 298.96f), g.tireEdge)
+        same(floatArrayOf(92f, 24f, 7f), floatArrayOf(g.tireL, g.tireW, g.tireOut))
+        // Yakıt kapağı sol arka çamurlukta (görünüşte üst kenar), arka lastiğin gerisinde: lastik uyarısıyla tek blok olmaz.
+        same(floatArrayOf(145.81f, 68.94f, 26f, 11f), box(g.fuelCap))
+        assertTrue(g.fuelCap.right < CarAnimSpec.tireBox(2, g)[0])
+        same(floatArrayOf(-214f, 27.27f, 116f, 327.27f), g.brakePool)
+        same(floatArrayOf(-26.53f, 93.27f, 173.47f, 261.27f), g.reverseFloor)
+        // Ön cam vurgusu A direğine doğru daralan kısma girmez (kısa kutu).
+        same(floatArrayOf(393.7f, 79.0f, 62.0f, 10.4f), box(g.windows.getValue(BodyPart.WINDOW_LF).box))
+        same(floatArrayOf(71.47f, 58f, 155.47f, 296.5f), g.tail)
+        assertEquals(318f, g.bodyBottom, 0f)
+        same(floatArrayOf(8f, 20.27f, 238.81f, 334.27f), g.trunkCrop)
+        // Jaecoo 7 ile aynı seçenekler: dış ayna ön kapı sprite'larında, ışık çubuğunun ortası bagaj kapağında, fren ışığı yumuşak kenarlı.
+        assertEquals(setOf(CarPart.DOOR_FL, CarPart.DOOR_FR), g.parts.filterValues { it.mirror }.keys)
+        val gate = g.tailGate!!
+        same(floatArrayOf(96.45f, 258.08f, -70f, -70f), floatArrayOf(gate.cut0, gate.cut1, gate.reverseDx, gate.brakeDx))
+        same(floatArrayOf(-24f, 90f, 60f, 265f), gate.openBox)
+        assertTrue(g.brakePoolSoftEdge)
+        // Sol ve sağ kapılar orta çizgiye (y = 177,27) göre simetrik.
+        for ((l, r) in listOf(CarPart.DOOR_FL to CarPart.DOOR_FR, CarPart.DOOR_RL to CarPart.DOOR_RR)) {
+            val a = g.parts.getValue(l)
+            val b = g.parts.getValue(r)
+            assertEquals(a.pivotX, b.pivotX, 0f)
+            assertEquals(2 * 177.27f, a.pivotY + b.pivotY, 0.02f)
+            assertEquals(a.rotationEnd, -b.rotationEnd, 0f)
+            same(floatArrayOf(a.scaleXEnd, a.scaleYEnd), floatArrayOf(b.scaleXEnd, b.scaleYEnd))
+        }
+    }
+
+    /** Tiggo 8'e özgü seçenekler: cam tavan payı ve gerçek boy oranı (gövde boyu Tiggo 7'ninkine, sonra gerçek boya oranlanır). */
+    @Test fun tiggo8OnlyOptionsKeepTunedValues() {
+        val t7 = CarModel.TIGGO.geometry
+        val t8 = CarModel.TIGGO8.geometry
+        assertEquals(5.8f, t8.roofGlassInsetY, 0f)
+        // Pay cam kutusunu tüketmez (kayan panele yer kalır).
+        assertTrue(2 * t8.roofGlassInsetY < (t8.roofY1 - t8.roofY0) / 4f)
+        val size = t8.bodySize!!
+        same(floatArrayOf(83f, 683f, 4722f), floatArrayOf(size.x0, size.x1, size.lengthMm))
+        assertEquals(764f / 600f, t8.bodyScale, 0.0005f)
+        assertEquals(764f / 600f * 4722f / 4500f, t8.stageScale, 0.0005f)
+        // Aynı çerçevede gövde boyu (px) = ölçek × tuvaldeki gövde boyu: Tiggo 8 / Tiggo 7 = gerçek boy oranı.
+        val t7Body = t7.stageScale * BodySize.REF_PX
+        assertEquals(4722f / 4500f, t8.stageScale * (size.x1 - size.x0) / t7Body, 0.0005f)
+    }
+
+    /**
+     * Tiggo 8 için eklenen her çizim seçeneği Tiggo 7 ve Jaecoo 7'de kapalıdır: ölçekler tam 1 (kayan nokta hatası da yok), cam
+     * tavan payı 0. Bu ikisinde çizim, seçenekler eklenmeden önceki kodla aynı sayılarla yapılır.
+     */
+    @Test fun tiggo8OnlyDrawingOptionsAreOffForTiggoAndJaecoo() {
+        for (m in listOf(CarModel.TIGGO, CarModel.JAECOO7)) {
+            val g = m.geometry
+            assertNull(m.key, g.bodySize)
+            assertEquals(m.key, 1f, g.bodyScale, 0f)
+            assertEquals(m.key, 1f, g.stageScale, 0f)
+            assertEquals(m.key, 0f, g.roofGlassInsetY, 0f)
+            // Ölçek 1 iken yerleşim yardımcıları girdiyi olduğu gibi verir (aynı nesne / aynı bit).
+            val box = StageFit.Box(101.3f, 57.7f, 913.9f, 435.1f)
+            assertSame(m.key, box, StageFit.scaled(box, g.stageScale))
+            assertSame(m.key, box, StageFit.scaled(box, g.bodyScale))
+            val trunkX = g.parts.getValue(CarPart.TRUNK).overlay.x
+            assertEquals(m.key, -trunkX / CarAnimSpec.BASE_W, StageFit.frameOverflowLeft(trunkX / CarAnimSpec.BASE_W, g.stageScale), 0f)
+            assertEquals(m.key, 0f, StageFit.frameOverflowRight(1f, g.stageScale), 0f)
+        }
+        // Seçenekler yalnız Tiggo 8'de açık.
+        assertEquals(listOf(CarModel.TIGGO8), CarModel.values().filter { it.geometry.bodySize != null })
+        assertEquals(listOf(CarModel.TIGGO8), CarModel.values().filter { it.geometry.roofGlassInsetY != 0f })
+    }
+
+    /** Kapı sprite'ının açık haldeki dönüşümü ([CarStageView.drawSprite] ile aynı sıra: pivot · dönme · ölçek). */
+    private fun swung(p: CarAnimSpec.Part, x: Float, y: Float): FloatArray {
+        val dx = (x - p.pivotX) * p.scaleXEnd
+        val dy = (y - p.pivotY) * p.scaleYEnd
+        val r = Math.toRadians(p.rotationEnd.toDouble())
+        val c = Math.cos(r).toFloat()
+        val s = Math.sin(r).toFloat()
+        return floatArrayOf(p.pivotX + dx * c - dy * s, p.pivotY + dx * s + dy * c)
+    }
+
+    /**
+     * Tiggo 8 kapı kenar ışığı sprite'ın dış kenar satırındadır (grafit sprite'lardan ölçüldü: üst kapılarda dış kenar y = 60,
+     * alt kapılarda son dolu satır 294; arka kapının arka ucu x < 293'te içe kıvrılır) ve aynalı kapıda aynadan (x ≥ 474) önce biter.
+     */
+    @Test fun tiggo8DoorRimsLieOnTheDoorEdgeAndStopBeforeTheMirror() {
+        val g = CarModel.TIGGO8.geometry
+        val edgeTop = 60f
+        val edgeBottom = 295f
+        val mirrorX0 = 474f
+        for ((p, s) in g.parts.filterKeys { it.isDoor }) {
+            val rim = s.rim!!
+            val upper = s.pivotY < CarAnimSpec.BASE_H / 2
+            if (upper) assertTrue("$p", rim.y >= edgeTop - 0.01f && rim.y <= edgeTop + 1f)
+            else assertTrue("$p", rim.bottom <= edgeBottom + 0.01f && rim.bottom >= edgeBottom - 1f)
+            assertEquals("$p", 2.1f, rim.h, 0f)
+            assertTrue("$p", rim.x >= s.sprite.x && rim.right <= s.sprite.right)
+            if (s.mirror) assertTrue("$p", rim.right < mirrorX0) else assertTrue("$p", rim.x >= 293f)
+        }
+        // Sol ve sağ kenar ışıkları orta çizgiye göre simetrik (aynı x, y yansımış).
+        for ((l, r) in listOf(CarPart.DOOR_FL to CarPart.DOOR_FR, CarPart.DOOR_RL to CarPart.DOOR_RR)) {
+            val a = g.parts.getValue(l).rim!!
+            val b = g.parts.getValue(r).rim!!
+            same(floatArrayOf(a.x, a.w), floatArrayOf(b.x, b.w))
+            // Görsel tam piksele oturur: dış kenar satırları 60 ve 295 (toplam 355; orta çizginin iki katı 354,54).
+            assertEquals(2 * 177.27f, a.y + b.bottom, 0.6f)
+        }
+    }
+
+    /**
+     * Tiggo 8 arka kapıları: açılan sprite'ın dış kenarının ucu, açık kapı görselindeki dış kenarın ucuna oturur (grafit görselden
+     * ölçüldü: sol arka (291, -22); sağ arka orta çizgiye göre yansıması). Geçişte iki kapı V biçiminde ayrışmasın.
+     */
+    @Test fun tiggo8RearDoorSwingEndsOnTheOpenDoorArt() {
+        val g = CarModel.TIGGO8.geometry
+        val rl = g.parts.getValue(CarPart.DOOR_RL)
+        val rr = g.parts.getValue(CarPart.DOOR_RR)
+        val tipL = swung(rl, 263f, 56f)
+        val tipR = swung(rr, 263f, 2 * 177.27f - 56f)
+        assertTrue("rl ${tipL.toList()}", Math.hypot((tipL[0] - 291f).toDouble(), (tipL[1] + 22f).toDouble()) <= 4.0)
+        assertTrue("rr ${tipR.toList()}", Math.hypot((tipR[0] - 291f).toDouble(), (tipR[1] - (2 * 177.27f + 22f)).toDouble()) <= 4.0)
+        // Açık hal görselinin kutusu dönen kapının ucunu kapsar.
+        assertTrue(tipL[0] >= rl.overlay.x && tipL[1] >= rl.overlay.y - 1f)
+        assertTrue(tipR[0] >= rr.overlay.x && tipR[1] <= rr.overlay.bottom + 1f)
+    }
+
+    /**
+     * Stop çubuğunun uç sönümü: Tiggo 8'de kutu merceğin dışına taşar, kesimlerde (gövdedeki uç parçaların iç ucu) çubuk tam güçtedir.
+     * Tiggo 7 ve Jaecoo 7 kutuları ve ortak sönüm boyu değişmedi.
+     */
+    @Test fun tiggo8TailBarIsAtFullStrengthAtTheGateCuts() {
+        val g = CarModel.TIGGO8.geometry
+        val gate = g.tailGate!!
+        val rows = (g.tail[3] - g.tail[1]).toInt()
+        val y0 = g.tail[1].toInt()
+        assertEquals(1f, CarAnimSpec.tailTaper(gate.cut0.toInt() - y0, rows), 0f)
+        assertEquals(1f, CarAnimSpec.tailTaper(gate.cut1.toInt() + 1 - y0, rows), 0f)
+        // Merceğin ucunda (y ≈ 78 / 276) yarıdan fazla, kutunun ucunda 0.
+        assertTrue(CarAnimSpec.tailTaper(78 - y0, rows) > 0.5f && CarAnimSpec.tailTaper(276 - y0, rows) > 0.5f)
+        assertEquals(0f, CarAnimSpec.tailTaper(0, rows), 0f)
+        assertEquals(0f, CarAnimSpec.tailTaper(rows - 1, rows), 0f)
+        assertEquals(2 * 177.27f, g.tail[1] + g.tail[3], 0.05f)
+        assertEquals(34f, CarAnimSpec.TAIL_TAPER, 0f)
+        same(floatArrayOf(-12f, 20f, 72f, 336f), CarModel.TIGGO.geometry.tail)
+        same(floatArrayOf(73f, 60f, 157f, 295f), CarModel.JAECOO7.geometry.tail)
+    }
+
+    /** Tiggo 8 seçenekleri diğer modellerde kapalıdır: fren ışığı kayması, iki parçalı cam vurgusu, cam satırları. */
+    @Test fun tiggo8ReviewOptionsAreOffForTiggoAndJaecoo() {
+        assertEquals(0f, CarModel.JAECOO7.geometry.tailGate!!.brakeDx, 0f)
+        same(floatArrayOf(89f, 269f, -105f), CarModel.JAECOO7.geometry.tailGate!!.let { floatArrayOf(it.cut0, it.cut1, it.reverseDx) })
+        for (m in listOf(CarModel.TIGGO, CarModel.JAECOO7)) {
+            val g = m.geometry
+            assertTrue(m.key, (g.windows.values + g.sunroof).all { it.box2 == null })
+            // Cam satırları katman kutusunun kendisi (aynı bit): perde kenarı ve kenar ışığı eski yerinde.
+            assertEquals(m.key, g.roofY0, g.roofGlassY0, 0f)
+            assertEquals(m.key, g.roofY1, g.roofGlassY1, 0f)
+            assertEquals(m.key, g.roofX1, g.roofGlassX1, 0f)
+            assertEquals(m.key, 0f, g.roofGlassInsetFront, 0f)
+        }
+        val t8 = CarModel.TIGGO8.geometry
+        assertEquals(t8.roofY0 + 5.8f, t8.roofGlassY0, 0f)
+        assertEquals(t8.roofY1 - 5.8f, t8.roofGlassY1, 0f)
+        assertEquals(t8.roofX1 - 4.5f, t8.roofGlassX1, 0f)
+        assertTrue(t8.tailGate!!.brakeDx < 0f)
+        // Yedek cam tavan vurgusu: iki cam, çerçeve payının içinde, aradaki kiriş (roofSplit..roofFrontX0) boş.
+        val a = t8.sunroof.box
+        val b = t8.sunroof.box2!!
+        assertTrue(a.y >= t8.roofGlassY0 && a.bottom <= t8.roofGlassY1 + 0.01f && b.y == a.y && b.h == a.h)
+        assertTrue(a.right <= t8.roofSplit && b.x >= t8.roofFrontX0 && b.right <= t8.roofX1)
+        assertTrue(t8.windows.values.all { it.box2 == null })
+    }
+
     /** Her modelin ölçüleri kendi içinde tutarlı: parçalar tam, paylar açık hal görsellerini kapsar, kutular tuvalin içinde. */
     @Test fun everyModelGeometryIsConsistent() {
         for (m in CarModel.values()) {
@@ -251,6 +438,7 @@ class CarModelTest {
         assertTrue(closed(CarModel.JAECOO7, CarPart.DOOR_FR).spriteVisible())
         assertTrue(!closed(CarModel.JAECOO7, CarPart.DOOR_RL).spriteVisible())
         for (p in CarPart.values()) assertTrue(p.name, !closed(CarModel.TIGGO, p).spriteVisible())
+        for (p in CarPart.values()) assertEquals(p.name, p == CarPart.DOOR_FL || p == CarPart.DOOR_FR, closed(CarModel.TIGGO8, p).spriteVisible())
         // Açık hal fotoğrafına geçince aynalı sprite da söner.
         val open = closed(CarModel.JAECOO7, CarPart.DOOR_FL).apply { snap(true) }
         assertTrue(!open.spriteVisible())
@@ -258,7 +446,7 @@ class CarModelTest {
 
     @Test fun automaticPicksModelFromVehicleScreen() {
         assertEquals(CarModel.TIGGO, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.TIGGO7))
-        assertEquals(CarModel.TIGGO, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.TIGGO8))
+        assertEquals(CarModel.TIGGO8, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.TIGGO8))
         assertEquals(CarModel.JAECOO7, CarModel.choose(CarModel.OVERRIDE_AUTO, VehicleProfile.PORTRAIT))
     }
 
@@ -266,6 +454,7 @@ class CarModelTest {
         for (p in VehicleProfile.values()) {
             assertEquals(p.name, CarModel.TIGGO, CarModel.choose(1, p))
             assertEquals(p.name, CarModel.JAECOO7, CarModel.choose(2, p))
+            assertEquals(p.name, CarModel.TIGGO8, CarModel.choose(3, p))
             // Bilinmeyen değer Otomatik gibi davranır.
             assertEquals(p.name, CarModel.choose(CarModel.OVERRIDE_AUTO, p), CarModel.choose(7, p))
             assertEquals(p.name, CarModel.choose(CarModel.OVERRIDE_AUTO, p), CarModel.choose(-1, p))
@@ -276,7 +465,8 @@ class CarModelTest {
     @Test fun demoNameParsesToModel() {
         assertEquals(CarModel.TIGGO, CarModel.parse("tiggo"))
         assertEquals(CarModel.JAECOO7, CarModel.parse(" Jaecoo7 "))
-        assertNull(CarModel.parse("tiggo8"))
+        assertEquals(CarModel.TIGGO8, CarModel.parse("tiggo8"))
+        assertNull(CarModel.parse("tiggo7"))
         assertNull(CarModel.parse(null))
     }
 }
