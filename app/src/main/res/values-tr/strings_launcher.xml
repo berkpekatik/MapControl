@@ -3,12 +3,14 @@
 <resources>
     <string name="launcher_settings">Ayarlar</string>
     <string name="launcher_appearance">Görünüm</string>
-    <string name="launcher_degrees" formatted="true">%1$d°</string>
+    <string name="launcher_degrees" formatted="true">%1$s°</string>
     <string name="launcher_nav_dialog_cancel">Vazgeç</string>
     <string name="launcher_media_idle_hint">Başlatmak için bir müzik uygulaması aç</string>
     <string name="launcher_media_prev">Önceki</string>
     <string name="launcher_media_radio">Radyo</string>
     <string name="launcher_media_source_title">Ses kaynağı</string>
+    <string name="launcher_media_source_choose">Kaynak seç</string>
+    <string name="launcher_media_source_failed">Ses kaynağı değiştirilemedi</string>
     <string name="launcher_media_source_change">Ses kaynağını değiştir</string>
     <string name="launcher_media_source_bt">Bluetooth</string>
     <string name="launcher_media_source_fm">Radyo FM</string>
@@ -24,6 +26,8 @@
     <string name="launcher_tires_warning">Lastik basıncı düşük</string>
     <string name="launcher_tires_low_wheel">Lastik basıncı düşük: %1$s %2$d psi</string>
     <string name="launcher_tires_warning_short">Lastik uyarısı</string>
+    <string name="launcher_tire_wheel_warning" formatted="true">Lastik uyarısı: %1$s</string>
+    <string name="launcher_tire_label_warning">Uyarı</string>
     <string name="launcher_app_empty">Uygulama ekle</string>
     <string name="launcher_app_pick_title">Uygulama seç</string>
     <string name="launcher_widget_media">Medya</string>
@@ -85,7 +89,7 @@
     <string name="launcher_health_low_fuel">Yakıt az</string>
     <string name="launcher_health_hot">Motor sıcak</string>
     <string name="launcher_health_volt_only" formatted="true">%1$s V</string>
-    <string name="launcher_temp_c" formatted="true">%1$d°C</string>
+    <string name="launcher_temp_c" formatted="true">%1$s°C</string>
     <string name="launcher_widget_air">Hava kalitesi</string>
     <string name="launcher_days_value" formatted="true">%1$d gün</string>
     <string name="launcher_air_good">İyi</string>
@@ -110,7 +114,9 @@
     <string name="launcher_bottom_bar_ours">MapControl</string>
     <string name="launcher_bottom_bar_hidden">Gizli</string>
     <string name="launcher_bar_home">Ana ekran</string>
+    <string name="launcher_rec_open_camera">Kamera kaydı sürüyor, Kamera 360\'ı aç</string>
     <string name="launcher_bar_apps">Uygulamalar</string>
+    <string name="launcher_bar_add_app">Uygulama ekle</string>
     <string name="launcher_bar_settings">Ayarlar</string>
     <string name="launcher_read_only_climate">Salt okuma: klima araçtan değiştirilir</string>
     <string name="launcher_climate_pending">Klima kontrolü araç testinden sonra açılacak</string>
@@ -118,7 +124,12 @@
     <string name="launcher_climate_driver">Sürücü sıcaklığı</string>
     <string name="launcher_climate_passenger">Yolcu sıcaklığı</string>
     <string name="launcher_climate_fan">Fan kademesi</string>
+    <string name="launcher_climate_off">Kapalı</string>
     <string name="launcher_climate_increase">Artır</string>
+    <string name="launcher_climate_air_face">Yüze üfleme</string>
+    <string name="launcher_climate_air_foot">Ayağa üfleme</string>
+    <string name="launcher_climate_air_window">Ön cama üfleme</string>
+    <string name="launcher_climate_recirc">İç hava sirkülasyonu</string>
     <string name="launcher_climate_decrease">Azalt</string>
     <string name="launcher_health_row_battery">Akü</string>
     <string name="launcher_health_all_ok">Her şey normal</string>
@@ -179,7 +190,7 @@
     <string name="launcher_toggle_show">Göster</string>
     <string name="launcher_toggle_hide">Gizle</string>
     <string name="launcher_climate_oem_panel">Klima değişince fabrika paneli</string>
-    <string name="launcher_climate_oem_panel_hint">Gizle: alt çubuktan sıcaklık/fan değişince OEM klima paneli açılmaz. Çubukta yukarı kaydırma paneli her zaman açar.</string>
+    <string name="launcher_climate_oem_panel_hint">Gizle: alt çubuktan sıcaklık/fan değişince OEM klima paneli açılmaz. Çubukta yukarı kaydırma ve fiziksel klima tuşları paneli her zaman açar.</string>
     <string name="launcher_wifi_connected">Wi-Fi bağlı</string>
     <string name="launcher_phone_charging_icon">Telefon şarj oluyor</string>
     <string name="launcher_bt_off">Bluetooth kapalı</string>
@@ -239,4 +250,6 @@
     <string name="launcher_sport_ambient">Spor modunda ambiyans rengi</string>
     <string name="launcher_sport_ambient_unverified">Spor modunda ambiyans rengi (henüz doğrulanmadı)</string>
     <string name="launcher_sport_close_oem_dialog">Sürüş modu penceresini kapat</string>
+    <string name="launcher_media_open_app">%1$s uygulamasını aç</string>
+    <string name="launcher_media_open_failed">Uygulama açılamadı</string>
 </resources>

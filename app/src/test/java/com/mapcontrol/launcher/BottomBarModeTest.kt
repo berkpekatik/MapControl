@@ -39,9 +39,9 @@ class BottomBarModeTest {
         assertTrue(BottomBarMode.HIDDEN.hidesOemBar)
     }
 
-    @Test fun drawsOurBarUnlessOemBarOrHidden() {
+    @Test fun drawsOurBarOnlyWhenOurs() {
         assertTrue(BottomBarMode.drawsOurBar(BottomBarMode.OURS, oemBarPresent = true))
-        assertTrue(BottomBarMode.drawsOurBar(BottomBarMode.ORIGINAL, oemBarPresent = false))
+        assertFalse(BottomBarMode.drawsOurBar(BottomBarMode.ORIGINAL, oemBarPresent = false))
         assertFalse(BottomBarMode.drawsOurBar(BottomBarMode.ORIGINAL, oemBarPresent = true))
         assertFalse(BottomBarMode.drawsOurBar(BottomBarMode.HIDDEN, oemBarPresent = false))
     }

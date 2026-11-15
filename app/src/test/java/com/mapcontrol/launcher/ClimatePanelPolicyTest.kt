@@ -20,12 +20,47 @@ class ClimatePanelPolicyTest {
         assertFalse(ClimatePanelPolicy.mayAct(false))
     }
 
-    @Test fun hardwareKeyPopupIsClosed() {
-        // Tuşa basış: değer değişti, panel hemen ardından açıldı → kapat.
+    @Test fun ourDockWritePopupIsClosed() {
+        // Alt çubuktan yazma: değer değişti, panel hemen ardından açıldı → kapat.
         val l = lock()
         assertEquals(Decision.NONE, l.change(1_000, visibleNow = false, showPref = false, canAct = true))
         assertEquals(Decision.CLOSE, l.shown(1_120, showPref = false, canAct = true))
         assertEquals(1, l.closes)
+    }
+
+    @Test fun hardwareKeyPopupStaysOpen() {
+        // Fiziksel klima tuşu / OEM dock: ECU değeri değişti, bizim yazmamız yok → panel açık kalır.
+        val l = lock()
+        assertEquals(Decision.NONE, l.hvacChange(1_000, visibleNow = false, showPref = false, canAct = true))
+        assertEquals(Decision.PENDING, l.shown(1_120, showPref = false, canAct = true))
+        // Panel değerden önce açıldıysa da (tuşta ~0,5 sn önce) sonradan gelen değer kapatmaz.
+        assertEquals(Decision.NONE, l.hvacChange(1_600, visibleNow = true, showPref = false, canAct = true))
+        assertEquals(0, l.closes)
+    }
+
+    @Test fun echoOfOurWriteStillCounts() {
+        // Bizim yazmamızdan sonra ECU'nun yansıttığı değer (panel değerden önce açılmış) → kapat.
+        val l = lock()
+        l.change(5_000, visibleNow = false, showPref = false, canAct = true)
+        l.hidden(5_100)
+        val late = lock()
+        late.change(5_000, visibleNow = false, showPref = false, canAct = true)
+        assertEquals(Decision.CLOSE, late.shown(5_300, showPref = false, canAct = true))
+        // Yazmamızdan çok sonra gelen ECU değişikliği artık tuştur: pencere açılmaz.
+        val keys = lock()
+        keys.change(5_000, visibleNow = false, showPref = false, canAct = true)
+        assertEquals(Decision.NONE, keys.hvacChange(5_000 + ClimatePanelPolicy.OWN_ECHO_MS + 1, false, false, true))
+        assertFalse(keys.inWindow(5_000 + ClimatePanelPolicy.SETTLE_MS + 1))
+    }
+
+    @Test fun ownEchoWithinWindowMatchesPendingPopup() {
+        val l = lock()
+        l.change(9_000, visibleNow = false, showPref = false, canAct = true) // yazma
+        l.hidden(9_050)
+        // Pencere dışında (SETTLE sonrası) açılış bekler, ama yazmamızın yansıması eşleşirse kapatır.
+        val p = lock()
+        p.change(9_000, visibleNow = false, showPref = false, canAct = true)
+        assertEquals(Decision.CLOSE, p.shown(9_200, showPref = false, canAct = true))
     }
 
     @Test fun popupBeforeTheValueChangeIsClosedWhenTheChangeArrives() {

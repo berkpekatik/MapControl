@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import android.util.Log
+import com.desaysv.ivi.extra.project.carinfo.CarSettingID
 import com.desaysv.ivi.extra.project.carinfo.HvacID
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
@@ -57,6 +58,17 @@ internal object TripDecode {
      * doğrulandı (2026-11-06, Tiggo 7): ham 144 = gösterge 17 °C, ham 140 = 15 °C. 255 (0xFF) ve −40..80 dışı geçersiz.
      */
     fun outsideC(raw: Int?): Double? = raw?.takeIf { it in 0..254 }?.let { it / 2.0 - 55.0 }?.takeIf { it in -40.0..80.0 }
+
+    /**
+     * Dış sıcaklığın ekran metni (° işareti hariç), göstergeyle birebir: tam derecede "10", buçukta "9,5" (yerel ayırıcı).
+     * Eskiden `Math.round` kullanılıyordu; 9,5 → 10 ve −2,5 → −2 yazıyordu, gösterge ise 9,5 / −2,5 gösteriyor.
+     * Değer en yakın 0,5'e oturtulur (araç zaten 0,5 adımlı; internet havası da aynı biçimde görünür).
+     */
+    fun outsideText(c: Double, locale: java.util.Locale = java.util.Locale.getDefault()): String {
+        val halves = Math.round(c * 2.0)
+        return if (halves % 2L == 0L) (halves / 2L).toString()
+        else String.format(locale, "%.1f", halves / 2.0)
+    }
 
     /** Anlık tüketim (sinyal 70): ham/10 L/100 km. 0xFFFF (araç duruyor) ve aralık dışı değer geçersizdir. */
     fun instantL100(raw: Int?): Double? = raw?.takeIf { it in 0..999 }?.let { it / 10.0 }
@@ -119,6 +131,27 @@ internal object TripDecode {
 
     /** Sıfırlamadan beri ortalama hız (sinyal 41): ham/10, gösterge gibi tam sayıya yuvarlanmadan kırpılır (456 -> 45). */
     fun avgSpeedKmh(raw: Int?): Int? = raw?.takeIf { it in 1..3000 }?.let { it / 10 }
+
+    /** Ham değer 0xFFFF: "değer yok" kabul edilir (OEM geçersiz değer tanımlamıyor, varsayım). */
+    private const val INVALID_U16 = 0xFFFF
+
+    /**
+     * Servise kalan km (ReadOnly 93 `ID_ICMT_DISTANCE`, T7 ve T8'de aynı; OEM baytları big-endian birleştirip doğrudan km
+     * gösteriyor). 0xFFFF ve 0..99 999 dışı geçersiz; hatırlatma kapalıysa ([serviceReminderOn] false) hiç gösterilmez.
+     */
+    fun serviceKm(raw: Int?, tipRaw: Int?): Int? =
+        raw?.takeIf { serviceReminderOn(tipRaw) && it != INVALID_U16 && it in 0..99_999 }
+
+    /** Servise kalan gün (ReadOnly 94 `ID_ICMT_DAY`): 0xFFFF ve 0..9 999 dışı geçersiz; hatırlatma kapalıysa gösterilmez. */
+    fun serviceDays(raw: Int?, tipRaw: Int?): Int? =
+        raw?.takeIf { serviceReminderOn(tipRaw) && it != INVALID_U16 && it in 0..9_999 }
+
+    /**
+     * Bakım hatırlatma anahtarı (CarSetting 176 `ID_CAR_MAINTANCE_TIP`): OEM araç ayarları açıkken 1, kapalıyken 0 yazar.
+     * Yalnızca açıkça 0 okunduğunda kapalı sayılır; okunamazsa (sinyal yok, eski yazılım) bakım gösterilmeye devam eder.
+     * Kapalıyken araç 93/94'te 0 gönderirse yanlış "bakım zamanı geçti" uyarısı çıkmasın diye.
+     */
+    fun serviceReminderOn(tipRaw: Int?): Boolean = tipRaw != 0
 }
 
 /**
@@ -183,6 +216,7 @@ internal object TripSource {
     private const val T_SLOW = 4
     private val RO = VDEventCarInfo.MODULE_READONLY_INFO
     private val HVAC = VDEventCarInfo.MODULE_HVAC
+    private val CS = VDEventCarInfo.MODULE_CAR_SETTING
 
     internal fun liveIntervalMs(rpmRaw: Int?, speedKmh: Int?): Long = TripDecode.liveIntervalMs(rpmRaw, speedKmh)
 
@@ -278,9 +312,10 @@ internal object TripSource {
             d = d.copy(batteryHighHeld = overVoltage.update(d.batteryV, now))
         }
         if (mask and T_SLOW != 0) {
+            val serviceTip = CarSignals.readInt(CS, CarSettingID.ID_CAR_MAINTANCE_TIP)
             d = d.copy(
-                serviceKm = ro(ReadOnlyID.ID_ICMT_DISTANCE)?.takeIf { it in 0..99_999 },
-                serviceDays = ro(ReadOnlyID.ID_ICMT_DAY)?.takeIf { it in 0..9_999 },
+                serviceKm = TripDecode.serviceKm(ro(ReadOnlyID.ID_ICMT_DISTANCE), serviceTip),
+                serviceDays = TripDecode.serviceDays(ro(ReadOnlyID.ID_ICMT_DAY), serviceTip),
                 pm25In = hvac(HvacID.ID_AC_PM25_INCAR)?.takeIf { it in 0..999 },
                 pm25Out = hvac(HvacID.ID_AC_PM25_OUTCAR)?.takeIf { it in 0..999 },
                 totalKm = TripDecode.totalKm(ro(ReadOnlyID.ID_GRAND_TOTAL_KM), ro(ReadOnlyIds.TOTAL_MILEAGE)),

@@ -536,7 +536,7 @@ internal class SportStageView(
             lastBest = s.lastWasBest
             results = s.results
             ready = s.stopped && !s.timing
-            range = snap.rangeKm.takeIf { snap.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+            range = if (snap.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(activity, snap) else null
             gaugeKmh = when {
                 !snap.connected -> null
                 VehicleMetricsSnapshot.isValid(snap.displaySpeed) || VehicleMetricsSnapshot.isValid(snap.actualSpeed) -> snap.preferredSpeed()
@@ -1047,8 +1047,9 @@ internal class SportStageView(
         media.measure(exactly((mr * 2).toInt()), exactly((mr * 2).toInt()))
         media.scaleX = m.r / mr
         media.scaleY = m.r / mr
-        val carLen = g.carLength().toInt()
-        car.measure(exactly(CarStageView.widthFor(carLen)), exactly(CarStageView.heightFor(carLen)))
+        // Gövde boyu modelin ölçeğiyle eşitlenir ([CarGeometry.bodyScale]; Tiggo 7 ve Jaecoo 7'de tam 1).
+        val carLen = (g.carLength() * car.model.geometry.bodyScale).toInt()
+        car.measure(exactly(car.widthFor(carLen)), exactly(car.heightFor(carLen)))
         val nr = (g.rpmFace * NeedleView.LENGTH * 2).toInt() + 8
         needle.measure(exactly(nr), exactly(nr))
         val pr = (g.rpmFace * 2).toInt()
@@ -1109,9 +1110,10 @@ internal class SportStageView(
         media.pivotX = media.measuredWidth / 2f
         media.pivotY = media.measuredHeight / 2f
         // Araç: gövde kadranın ortasında, burun yukarı (görünüm -90° döner; eksen gövdenin ortası).
-        val carLen = g.carLength().toInt()
-        val bodyCx = CarStageView.carLeft(carLen) + carLen / 2f
-        val bodyCy = CarStageView.carTop(carLen) + carLen * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W / 2f
+        // Gövde boyu modelin ölçeğiyle eşitlenir ([CarGeometry.bodyScale]; Tiggo 7 ve Jaecoo 7'de tam 1).
+        val carLen = (g.carLength() * car.model.geometry.bodyScale).toInt()
+        val bodyCx = car.carLeft(carLen) + carLen / 2f
+        val bodyCy = car.carTop(carLen) + carLen * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W / 2f
         val cl = (g.car.cx - bodyCx).toInt()
         val ct = (g.car.cy - bodyCy).toInt()
         car.layout(cl, ct, cl + car.measuredWidth, ct + car.measuredHeight)

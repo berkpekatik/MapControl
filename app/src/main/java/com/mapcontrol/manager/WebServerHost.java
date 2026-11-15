@@ -41,7 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       Elle kapatılan sunucu aynı kontakta kendiliğinden açılmaz.</li>
  *   <li><b>Ağ:</b> Wi-Fi bağlanınca, hotspot açılıp kapanınca ya da adres değişince mDNS kaydı yenilenir, arayüz
  *       (QR adresi) güncellenir; açık olması istenen sunucu düşmüşse yeniden açılır.</li>
- *   <li><b>Bekçi:</b> 30 sn'de bir; açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar.</li>
+ *   <li><b>Bekçi:</b> 30 sn'de bir; açık olması istenen sunucu sağlıklı değilse üstel beklemeyle yeniden açar.
+ *       Aynı turda Wi-Fi bağlantısı da yoklanır: "bağlı" görünüp ağ geçidine ulaşamayan bağlantı onarılır
+ *       ({@link WifiLinkWatchdog}).</li>
  *   <li><b>Activity yokken gelen komut:</b> uygulama başlatma, klavye, link açma ve silme doğrudan
  *       yapılır (launcher üstüne MapControl açılmaz); APK kurma activity ister, kuyruğa alınır ve activity öne
  *       getirilir.</li>
@@ -113,6 +115,7 @@ public final class WebServerHost {
     });
     private volatile String lastError;
     private final AtomicBoolean restarting = new AtomicBoolean();
+    private final WifiLinkWatchdog wifiLink;
 
     private volatile WebServerManager.WebServerListener ui;
     private boolean monitoring;
@@ -128,6 +131,7 @@ public final class WebServerHost {
         @Override
         public void run() {
             check("bekçi");
+            wifiLink.tick();
             main.postDelayed(this, WATCHDOG_MS);
         }
     };
@@ -139,6 +143,8 @@ public final class WebServerHost {
 
     private WebServerHost(Context app) {
         this.app = app;
+        // Takılı kalan Wi-Fi onarılınca ağ değişti bildirimi gelmeyebilir: mDNS ve QR adresi burada da yenilensin.
+        this.wifiLink = new WifiLinkWatchdog(app, () -> main.post(networkChanged));
         this.manager = new WebServerManager(app);
         this.manager.setListener(new Forwarder());
     }

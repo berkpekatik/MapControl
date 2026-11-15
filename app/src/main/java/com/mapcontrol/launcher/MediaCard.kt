@@ -56,7 +56,7 @@ class MediaCard(
     override fun stripState(): StripState? = stripNow
     override fun stripTap(part: Int) {
         when (mode) {
-            Mode.IDLE -> controller.launchLastSource()
+            Mode.IDLE -> playFromIdle()
             Mode.SESSION -> controller.playPause()
             else -> controller.openNotificationAccessSettings()
         }
@@ -87,6 +87,8 @@ class MediaCard(
         clipToOutline = true
         addView(artworkImage, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         addView(placeholderIcon, FrameLayout.LayoutParams(context.dp(40), context.dp(40), Gravity.CENTER))
+        setOnClickListener { openCardApp() }
+        isClickable = false
     }
     private val artworkGap = gap(context, 32)
 
@@ -98,7 +100,11 @@ class MediaCard(
         v.contentDescription = context.getString(R.string.launcher_media_source_change)
         v.setOnClickListener { if (mode != Mode.NO_ACCESS) openSourcePicker() }
     }
-    private val titleView = text(context, LauncherTheme.TITLE_SP, bold = true).also { v -> theme.bind { v.setTextColor(LauncherTheme.TEXT) } }
+    private val titleView = text(context, LauncherTheme.TITLE_SP, bold = true).also { v ->
+        theme.bind { v.setTextColor(LauncherTheme.TEXT) }
+        v.setOnClickListener { openCardApp() }
+        v.isClickable = false
+    }
     private val artistView = text(context, 28f).also { v -> theme.bind { v.setTextColor(LauncherTheme.TEXT_SECONDARY) } }
 
     // --- İlerleme ---
@@ -138,7 +144,7 @@ class MediaCard(
     private val playButton = iconButton(
         context, R.drawable.ic_mdi_play, context.getString(R.string.launcher_media_play),
         sizeDp = LauncherTheme.PLAY_BUTTON_DP, background = LauncherTheme.ACCENT, tint = LauncherTheme.ON_ACCENT, circle = true,
-    ) { if (mode == Mode.IDLE) controller.launchLastSource() else controller.playPause() }
+    ) { if (mode == Mode.IDLE) playFromIdle() else controller.playPause() }
     private val nextButton = iconButton(
         context, R.drawable.ic_mdi_skip_next, context.getString(R.string.launcher_media_next),
         sizeDp = LauncherTheme.MEDIA_BUTTON_DP, circle = true,
@@ -510,6 +516,10 @@ class MediaCard(
         val artist = oneLine(rawArtist)
         val radioBand = radio?.band
         val textChanged = modeChanged || source != lastSource || title != lastTitle || artist != lastArtist || radioBand != lastRadio
+        updateOpenTarget(
+            MediaSourcePick.appToOpen(newMode != Mode.NO_ACCESS, source, LauncherDemo.enabled),
+            MediaSourcePick.radioToOpen(source, radio?.band, LauncherDemo.enabled),
+        )
         if (textChanged) {
             val radioChanged = radioBand != lastRadio
             lastSource = source
@@ -522,7 +532,12 @@ class MediaCard(
                 else -> appLabel(source)
             }
             // Seçici açılabilir (izin varken): kaynak adının yanında küçük ok.
-            sourceLabel.text = if (sourceName.isEmpty() || newMode == Mode.NO_ACCESS) sourceName else "$sourceName  ▾"
+            sourceLabel.text = when {
+                newMode == Mode.NO_ACCESS -> sourceName
+                // Oturum ve son kaynak yokken de seçici açılabilsin.
+                sourceName.isEmpty() -> context.getString(R.string.launcher_media_source_choose) + "  ▾"
+                else -> "$sourceName  ▾"
+            }
             if (radioChanged) {
                 placeholderIcon.setImageResource(
                     if (radio != null) R.drawable.ic_mdi_radio else if (sahne) R.drawable.ic_sahne_note else R.drawable.ic_mdi_music_note,
@@ -679,6 +694,55 @@ class MediaCard(
     }
 
     /** Paket adını uygulama etiketine çevirir; bulunamazsa paket adı kalır. */
+    /** Başlık / kapak dokunuşunun açacağı uygulama ([MediaSourcePick.appToOpen]); yoksa dokunma alanı yok. */
+    private var openTarget: String? = null
+    /** Radyo oturumunda açılacak OEM radyo ekranı ([MediaSourcePick.radioToOpen]); [openTarget] ile birlikte dolmaz. */
+    private var openRadio: MediaSourcePick.RadioOpen? = null
+
+    private fun updateOpenTarget(pkg: String?, radio: MediaSourcePick.RadioOpen?) {
+        if (pkg == openTarget && radio == openRadio) return
+        openTarget = pkg
+        openRadio = radio
+        val clickable = pkg != null || radio != null
+        titleView.isClickable = clickable
+        artworkBox.isClickable = clickable
+        artworkBox.contentDescription = when {
+            pkg != null -> context.getString(R.string.launcher_media_open_app, appLabel(pkg))
+            radio != null -> context.getString(R.string.launcher_media_open_app, context.getString(R.string.launcher_media_radio))
+            else -> null
+        }
+        artworkBox.importantForAccessibility =
+            if (clickable) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+    }
+
+    /** Kartın uygulamasını açar (oturumun "şu an çalıyor" ekranı ya da başlatıcı); radyoda OEM radyo çalma ekranı. */
+    private fun openCardApp() {
+        val radio = openRadio
+        val ok = when {
+            radio != null -> openRadioScreen(radio) || controller.openApp(radio.pkg)
+            else -> controller.openApp(openTarget ?: return)
+        }
+        if (!ok) {
+            android.widget.Toast.makeText(context, R.string.launcher_media_open_failed, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** OEM ses uygulamasını ([MediaSourcePick.RadioOpen]) eklerle başlatır; tek etkinlik singleTask, açıksa onNewIntent alır. */
+    private fun openRadioScreen(radio: MediaSourcePick.RadioOpen): Boolean = try {
+        val launch = context.packageManager.getLaunchIntentForPackage(radio.pkg)
+        if (launch == null) {
+            false
+        } else {
+            launch.putExtra(MediaSourcePick.EXTRA_SOURCE_KEY, radio.sourceKey)
+            launch.putExtra(MediaSourcePick.EXTRA_NAVIGATION_FLAG, radio.navigationFlag)
+            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(launch)
+            true
+        }
+    } catch (e: Exception) {
+        false
+    }
+
     private fun appLabel(pkg: String): String = try {
         val pm = context.packageManager
         pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
@@ -736,15 +800,32 @@ class MediaCard(
         // Telefon adı yalnızca ekranda gösterilir (günlüğe yazılmaz).
         val phone = if (demo) PhoneDemo.DEVICE_NAME else HfpLink.deviceName()
         sourcePicker = showLauncherSheet(activity, R.string.launcher_media_source_title, widthDp = PICKER_WIDTH_DP) { d ->
-            val list = this
+            // Açık uygulamalarla satırlar ekrana sığmayabilir: liste kayar.
+            val list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+            addView(android.widget.ScrollView(activity).apply {
+                isVerticalScrollBarEnabled = false
+                addView(list)
+            }, sheetFullWidth())
+            fun addRow(row: View) {
+                if (list.childCount > 0) list.addView(gap(activity, 12, vertical = true))
+                list.addView(row, sheetFullWidth())
+            }
+            val cardOnApp = !demo && mode == Mode.SESSION && MediaSourcePick.isThirdParty(lastSource)
             fun add(type: Int) {
-                if (list.childCount > 2) list.addView(gap(activity, 12, vertical = true))
-                list.addView(sourceRow(activity, type, SourceChoice.isCurrent(type, current), if (type == OemAudioSource.BT_MUSIC) phone else null) {
+                addRow(sourceRow(activity, type, SourceChoice.isCurrent(type, current, cardOnApp), if (type == OemAudioSource.BT_MUSIC) phone else null) {
                     d.dismiss()
                     pickSource(type)
-                }, sheetFullWidth())
+                })
             }
             SourceChoice.entries(usbAvailable = false).forEach { add(it) }
+            if (!demo) {
+                controller.appSessionPackages().forEach { pkg ->
+                    addRow(appRow(activity, pkg, current = mode == Mode.SESSION && pkg == lastSource) {
+                        d.dismiss()
+                        controller.selectApp(pkg)
+                    })
+                }
+            }
             if (demo) {
                 if (LauncherDemo.usb) add(SourceChoice.USB0)
             } else {
@@ -759,7 +840,23 @@ class MediaCard(
             bind(LauncherDemo.media())
             return
         }
-        if (type == OemAudioSource.BT_MUSIC) controller.selectBluetooth() else OemAudioSource.openSource(context, type)
+        if (type == OemAudioSource.BT_MUSIC) {
+            controller.selectBluetooth()
+        } else {
+            OemAudioSource.openSource(context, type) {
+                android.widget.Toast.makeText(context, R.string.launcher_media_source_failed, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** Boşta Oynat: bilinen OEM kaynağı ya da son uygulama açılır; ikisi de olmazsa kullanıcı kaynağı seçer. */
+    private fun playFromIdle() {
+        val source = oemSource()
+        if (source != null && MediaSourcePick.idlePlayOpensOem(controller.lastSourcePackage(), source)) {
+            pickSource(source)
+        } else if (!controller.launchLastSource()) {
+            openSourcePicker()
+        }
     }
 
     private fun sourceRow(activity: Activity, type: Int, current: Boolean, hint: String?, onClick: () -> Unit): View {
@@ -769,7 +866,23 @@ class MediaCard(
             SourceChoice.AM -> R.drawable.ic_mdi_radio to R.string.launcher_media_source_am
             else -> R.drawable.ic_mdi_usb to R.string.launcher_media_source_usb
         }
-        val label = activity.getString(labelRes)
+        return pickerRow(activity, icon(activity, iconRes, 36, if (current) LauncherTheme.ACCENT else LauncherTheme.TEXT_SECONDARY),
+            activity.getString(labelRes), hint, current, onClick)
+    }
+
+    private fun appRow(activity: Activity, pkg: String, current: Boolean, onClick: () -> Unit): View {
+        val image = ImageView(activity).apply {
+            try {
+                setImageDrawable(activity.packageManager.getApplicationIcon(pkg))
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                // uygulama bu arada kaldırılmış olabilir; satır simgesiz kalır
+            }
+            layoutParams = LinearLayout.LayoutParams(activity.dp(36), activity.dp(36))
+        }
+        return pickerRow(activity, image, appLabel(pkg), null, current, onClick)
+    }
+
+    private fun pickerRow(activity: Activity, leading: View, label: String, hint: String?, current: Boolean, onClick: () -> Unit): View {
         return LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -777,7 +890,7 @@ class MediaCard(
             minimumHeight = activity.dp(PICKER_ROW_DP)
             val p = activity.dp(24)
             setPadding(p, 0, p, 0)
-            addView(icon(activity, iconRes, 36, if (current) LauncherTheme.ACCENT else LauncherTheme.TEXT_SECONDARY))
+            addView(leading)
             addView(gap(activity, 20))
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL

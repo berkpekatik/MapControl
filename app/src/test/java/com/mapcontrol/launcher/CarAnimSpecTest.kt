@@ -149,10 +149,15 @@ class CarAnimSpecTest {
 
     @Test fun everyColourShipsEveryLayer() {
         val dir = listOf(File("src/main/res/drawable-nodpi"), File("app/src/main/res/drawable-nodpi")).first { it.isDirectory }
-        for (c in CarColor.values()) {
-            assertTrue(File(dir, "car_${c.key}_base.webp").isFile)
-            for (p in CarPart.values()) for (layer in listOf("sprite", "gap", "overlay")) {
-                assertTrue("${c.key} $layer ${p.asset}", File(dir, "car_${c.key}_${layer}_${p.asset}.webp").isFile)
+        for (m in CarModel.values()) {
+            for (c in CarColor.values()) {
+                assertTrue("${m.key} ${c.key}", File(dir, "${m.prefix}${c.key}_base.webp").isFile)
+                for (p in CarPart.values()) for (layer in listOf("sprite", "gap", "overlay")) {
+                    assertTrue("${m.key} ${c.key} $layer ${p.asset}", File(dir, "${m.prefix}${c.key}_${layer}_${p.asset}.webp").isFile)
+                }
+            }
+            for (roof in listOf("shade_closed", "shade_open", "open_hole")) {
+                assertTrue("${m.key} $roof", File(dir, "${m.prefix}roof_$roof.webp").isFile)
             }
         }
     }

@@ -317,6 +317,10 @@ object PhoneSource {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, intent: Intent?) {
             // Bağlantı yayını durum oturmadan gelebilir: kısa gecikmeyle yeniden yoklanır ve veri okunur.
+            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val st = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)
+                com.mapcontrol.GlitchTip.breadcrumb("bt", "adapter state=$st call=${snap.call.kind}")
+            }
             main.removeCallbacks(reprobeTask)
             main.postDelayed(reprobeTask, SETTLE_MS)
         }
@@ -989,6 +993,7 @@ object PhoneSource {
                 downloadRequested = false
                 vdbusData?.resetCacheTotal()
             }
+            if (connected != lastHfpConnected) com.mapcontrol.GlitchTip.breadcrumb("bt", "hfp connected=$connected")
             lastHfpConnected = connected
             // Farklı telefon: bellekteki rehber/geçmiş, fotoğraflar ve disk önbelleği silinir (adres yalnızca özet
             // olarak tutulur, günlüğe yazılmaz).
@@ -1205,7 +1210,10 @@ object PhoneSource {
             if (!next.inCall) teardown() else update { it.copy(call = next) }
             return
         }
-        if (next.kind != prev.kind) Log.i(TAG, "arama: ${prev.kind} → ${next.kind}")
+        if (next.kind != prev.kind) {
+            Log.i(TAG, "arama: ${prev.kind} → ${next.kind}")
+            com.mapcontrol.GlitchTip.breadcrumb("call", "${prev.kind} -> ${next.kind} src=${stateSource?.name}")
+        }
         update { it.copy(call = next) }
         if (next.inCall && !prev.inCall) startPoll()
         if (next.kind == CallKind.ACTIVE && prev.kind != CallKind.ACTIVE) seedAudioAndMic()

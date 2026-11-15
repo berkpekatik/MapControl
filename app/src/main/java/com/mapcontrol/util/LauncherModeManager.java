@@ -34,6 +34,12 @@ public final class LauncherModeManager {
     private static final String HOME_ALIAS_CLASS = "com.mapcontrol.ui.activity.MainActivityHomeAlias";
     /** Güncelleme başına en fazla bir kez (kullanıcıyı sürekli rahatsız etmemek için) rol isteği yapılır. */
     private static final String KEY_HOME_ROLE_ASKED_VERSION = "launcherHomeRoleAskedVersion";
+    /**
+     * Otomatik onay basıldı ama HOME değişmedi: bu araç yazılımı HOME'u kendi başlatıcısına bağlıyor (Chery T18/T28 SOP7, 10 Kasım;
+     * OEM başlatıcı listede bile yok). Ana ekran seçimi bir daha kendiliğinden açılmaz; Home tuşu erişilebilirlikle zaten bize gelir.
+     * Ana ekran sekmesindeki bağlantı elle açmaya devam eder.
+     */
+    private static final String KEY_HOME_ROLE_LOCKED = "launcherHomeRoleLocked";
 
     /** Basit tanı loglaması için minimal callback; MainActivity/SettingsTabBuilder'daki log()'a bağlanır. */
     public interface LogSink {
@@ -76,9 +82,38 @@ public final class LauncherModeManager {
             com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.start(context);
         } else {
             clearDeviceOwnerHomePin(context);
+            closeLauncherTasks(context);
             com.mapcontrol.media.BtSessionWatcher.stop();
             com.mapcontrol.launcher.ClimatePanelGuard.INSTANCE.stop();
         }
+    }
+
+    private static final String HOME_LAUNCHER_CLASS = "com.mapcontrol.launcher.HomeLauncherActivity";
+    private static final String APP_ENTRY_CLASS = "com.mapcontrol.ui.activity.AppEntryActivity";
+
+    /**
+     * Mod kapanınca açık launcher görevi kapatılır. Simge girişi launcher göreviyle aynı ilişkide olduğundan görev kalırsa sistem
+     * simgeye basışta girişi çalıştırmadan o görevi öne getirir ve kullanıcı yine launcher'ı görür (araçta görüldü).
+     */
+    private static void closeLauncherTasks(Context context) {
+        try {
+            android.app.ActivityManager am = context.getSystemService(android.app.ActivityManager.class);
+            for (android.app.ActivityManager.AppTask task : am.getAppTasks()) {
+                android.app.ActivityManager.RecentTaskInfo info = task.getTaskInfo();
+                String base = info.baseActivity != null ? info.baseActivity.getClassName() : null;
+                String top = info.topActivity != null ? info.topActivity.getClassName() : null;
+                if (isLauncherTask(base, top)) {
+                    task.finishAndRemoveTask();
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Görev listesi okunamazsa mod yine kapanır.
+        }
+    }
+
+    /** Görev launcher görevi mi: kökü simge girişi ya da launcher, veya en üstünde launcher var. */
+    static boolean isLauncherTask(String baseClass, String topClass) {
+        return APP_ENTRY_CLASS.equals(baseClass) || HOME_LAUNCHER_CLASS.equals(baseClass) || HOME_LAUNCHER_CLASS.equals(topClass);
     }
 
     private static void setHomeAliasEnabled(Context context, boolean enabled) {
@@ -209,7 +244,7 @@ public final class LauncherModeManager {
      * @return diyalog/ekran gösterildiyse true
      */
     public static boolean requestHomeRoleOncePerVersion(Activity activity, int requestCode) {
-        if (!isEnabled(activity) || isDefaultHome(activity)) {
+        if (!isEnabled(activity) || isDefaultHome(activity) || isHomeRoleLocked(activity)) {
             return false;
         }
         if (pinHomeAsDeviceOwner(activity) && isDefaultHome(activity)) {
@@ -228,6 +263,35 @@ public final class LauncherModeManager {
             }
             prefs.edit().putLong(KEY_HOME_ROLE_ASKED_VERSION, version).apply();
         } catch (Exception e) {
+            return false;
+        }
+        return requestHomeRoleIfNeeded(activity, requestCode);
+    }
+
+    /** Otomatik ana ekran seçimi bu araçta işe yaramadı mı ({@link #KEY_HOME_ROLE_LOCKED}). */
+    public static boolean isHomeRoleLocked(Context context) {
+        if (context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_HOME_ROLE_LOCKED, false)) {
+            return true;
+        }
+        // İşaretten önceki sürümler yalnız teşhis dosyası yazıyordu: o araçta da ekran bir daha açılmasın.
+        if (HomeRoleDiag.lastReportUnchanged(context)) {
+            markHomeRoleLocked(context);
+            return true;
+        }
+        return false;
+    }
+
+    /** Onaya basıldı ama HOME değişmedi: seçim ekranı bir daha kendiliğinden açılmaz. */
+    public static void markHomeRoleLocked(Context context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_HOME_ROLE_LOCKED, true).apply();
+    }
+
+    /**
+     * Otomatik yol (launcher modu açılınca): seçim bu araçta işe yaramadıysa ekran açılmaz. Elle açma
+     * ({@link #requestHomeRoleIfNeeded}, {@link #openHomeChooser}) değişmez.
+     */
+    public static boolean requestHomeRoleAutomatically(Activity activity, int requestCode) {
+        if (isHomeRoleLocked(activity)) {
             return false;
         }
         return requestHomeRoleIfNeeded(activity, requestCode);

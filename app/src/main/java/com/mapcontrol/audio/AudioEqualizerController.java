@@ -82,6 +82,10 @@ public final class AudioEqualizerController {
             releaseEffects();
             return;
         }
+        // Her servis komutunda çağrılır: efekt zaten doğruysa kapatıp açmak sesi keser.
+        if (effectsMatch(saved)) {
+            return;
+        }
         releaseEffects();
         if (openEffects()) {
             applyEffects(saved);
@@ -309,6 +313,10 @@ public final class AudioEqualizerController {
         float postGainDb = saved.gainMb / 100f;
         float thresholdDb = OUTPUT_CEILING_DB - postGainDb;
         try {
+            // Başka bir efekt denetimi aldıysa değerler tutsa da efektimiz sese uygulanmıyor olabilir.
+            if (!dynamics.hasControl()) {
+                return false;
+            }
             if (dynamics.getEnabled() != (anyNonZero(bands) || saved.gainMb > 0)) {
                 return false;
             }

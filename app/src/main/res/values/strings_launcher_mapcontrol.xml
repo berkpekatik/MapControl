@@ -32,4 +32,13 @@
     <string name="launcher_fn_cluster_start">Mirror</string>
     <string name="launcher_fn_cluster_stop">Stop</string>
     <string name="launcher_fn_cluster_no_target">No target app chosen</string>
+    <string name="launcher_fn_split_axis">Split direction</string>
+    <string name="launcher_fn_split_apps">Apps</string>
+    <string name="launcher_fn_split_slot">App %1$d</string>
+    <string name="launcher_fn_split_none">Not selected</string>
+    <string name="launcher_fn_split_more">More settings</string>
+    <string name="launcher_fn_split_back">Back</string>
+    <string name="launcher_fn_split_clear">Clear</string>
+    <string name="launcher_fn_split_loading">Loading apps…</string>
+    <string name="launcher_fn_split_empty">No apps available.</string>
 </resources>

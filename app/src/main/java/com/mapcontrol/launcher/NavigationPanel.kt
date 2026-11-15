@@ -1,7 +1,6 @@
 package com.mapcontrol.launcher
 
 import android.app.AlertDialog
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -190,18 +189,30 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     override val view: View get() = root
     override fun applySpan(span: Span) = Unit
 
+    /** Ev / İş telefondan değişti: kutular hemen yenilenir. */
+    private val placesListener: () -> Unit = {
+        homeTile.bind()
+        workTile.bind()
+    }
+
     override fun onVisible() {
         visible = true
         refreshMapApp()
         NavigationSource.addListener(listener)
+        NavPlaces.addListener(placesListener)
+        placesListener() // gizliyken değişmiş olabilir
     }
 
     override fun onHidden() {
         visible = false
         NavigationSource.removeListener(listener)
+        NavPlaces.removeListener(placesListener)
     }
 
-    override fun release() = NavigationSource.removeListener(listener)
+    override fun release() {
+        NavigationSource.removeListener(listener)
+        NavPlaces.removeListener(placesListener)
+    }
 
     private fun bind() {
         val s = current
@@ -269,7 +280,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         homeTile.bind()
         workTile.bind()
         val installed = driveMap() != null
-        // MapControl'da harita yoksa düğme sürüş ekranını "+ Harita ekle" seçicisiyle açar.
+        // Harita yoksa düğme "+ Harita ekle" seçicisini açar (MapControl varken).
         val canPick = !installed && drivePicker
         (mapButton.getChildAt(1) as TextView).setText(when {
             installed -> R.string.launcher_nav_open_map
@@ -338,20 +349,43 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     /** Sürüş ekranının harita yarısı: kartın paketi, yoksa seçicide seçilen diğer uygulama; ikisi de yoksa null (seçici). */
     private fun driveMap(): String? = DrivePolicy.mapSlot(mapPackage(), DriveMapPrefs.other(context), ::installed)
 
-    /** Kart / "Haritayı aç": sürüş ekranı. MapControl yoksa eskisi gibi harita tam ekran. */
+    /**
+     * Kart / "Haritayı aç": harita her zaman bölmesiz, tam ekran açılır (her araçta aynı davranış; sürüş ekranı bölmesi
+     * "Bölünmüş ekran" kutusunda). Harita seçili değilse "+ Harita ekle" seçicisi kendi tam ekranında açılır.
+     */
     private fun openMap() {
         val pkg = driveMap()
-        DriveScreen.open(context, pkg, null) { openMapFull(pkg) }
+        if (pkg == null) {
+            if (drivePicker) openMapPicker()
+            return
+        }
+        openMapFull(pkg)
     }
 
+    /**
+     * Tam ekran: MapControl varsa sürüş ekranından yarım kalmış harita penceresi de tam ekrana taşınır (yoksa Android eski yarım
+     * pencereyi öne getirirdi); MapControl yoksa düz başlatma.
+     */
     private fun openMapFull(pkg: String?) {
         pkg ?: return
-        io.runSafely { if (!DriveScreen.openLeftover(context, pkg)) AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0) }
+        if (drivePicker) DriveScreen.openFullScreen(context, pkg)
+        else io.runSafely { AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0) }
+    }
+
+    /** "+ Harita ekle": seçici bölmesiz açılır; seçilen harita seçicinin (tam ekran) penceresinde başlar. */
+    private fun openMapPicker() {
+        try {
+            context.startActivity(Intent().setClassName(context.packageName, com.mapcontrol.util.SplitSlot.MAP_PICKER_CLASS)
+                .putExtra(com.mapcontrol.ui.activity.DriveMapPickerActivity.EXTRA_FULL_SCREEN, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            android.util.Log.w("NavigationPanel", "map picker: ${e.javaClass.simpleName}")
+        }
     }
 
     /**
      * Ayarlı konuma rota (Yandex: yandexmaps:// / yandexnavi://, Google: google.navigation:, diğer: geo:); konum yoksa [label]
-     * araması. Rota sürüş ekranının harita yarısında açılır; MapControl yoksa harita tam ekran.
+     * araması. Rota bölmesiz, tam ekran açılır ([DriveScreen.openRoute]); başlatılamazsa harita tam ekran.
      */
     private fun openPlace(place: String, label: String) {
         val pkg = driveMap()
@@ -361,15 +395,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         }
         val uri = NavPlaces.get(context, place)?.let { (lat, lon) -> NavPlaces.routeUri(pkg, lat, lon) } ?: NavPlaces.searchUri(pkg, label)
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        DriveScreen.open(context, pkg, intent) {
-            try {
-                context.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
-                openMapFull(pkg)
-            } catch (e: SecurityException) {
-                openMapFull(pkg)
-            }
-        }
+        DriveScreen.openRoute(context, pkg, intent) { openMapFull(pkg) }
     }
 
     /** Sistem bildirim erişimi ayarı; kullanıcı kendisi açar. */
@@ -404,7 +430,8 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
             .setPositiveButton(R.string.launcher_nav_place_save) { _, _ ->
                 val ll = NavParse.parseLatLon(input.text?.toString())
                 if (ll == null) Toast.makeText(context, R.string.launcher_nav_place_invalid, Toast.LENGTH_SHORT).show()
-                else NavPlaces.set(context, place, ll)
+                // Koordinat değişmediyse telefondan gelen yer adı kalır; elle yeni koordinatın adı yoktur.
+                else NavPlaces.set(context, place, ll, NavPlaces.label(context, place).takeIf { NavPlaces.get(context, place) == ll })
                 bind()
             }
             .setNeutralButton(R.string.launcher_nav_place_clear) { _, _ ->
@@ -470,7 +497,12 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         }
 
         fun bind() {
-            sub.setText(if (NavPlaces.get(context, place) != null) R.string.launcher_nav_route_hint else R.string.launcher_nav_set_hint)
+            val name = NavPlaces.label(context, place)
+            when {
+                NavPlaces.get(context, place) == null -> sub.setText(R.string.launcher_nav_set_hint)
+                name != null -> sub.text = name // telefondan gelen yer adı
+                else -> sub.setText(R.string.launcher_nav_route_hint)
+            }
             view.contentDescription = context.getString(label) + ", " + sub.text
         }
     }
@@ -490,19 +522,46 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
     }
 }
 
-/** Ev / iş konumları (profil bağımsız, yer tutucu ayar) ve harita derin bağlantıları (Yandex, Google). */
-internal object NavPlaces {
+/**
+ * Ev / iş konumları (profil bağımsız) ve harita derin bağlantıları (Yandex, Google). Konum araçtaki kutudan elle ya da
+ * telefondan (`PUT /nav/places`, [NavPlacesDoc]) yazılır; telefon yanında yer adını da verir ([label], kartın alt satırı).
+ * Araçta elle yazılan koordinatın adı yoktur: eski ad silinir. Değişiklik [addListener] ile ana iş parçacığında bildirilir.
+ */
+object NavPlaces {
     const val HOME = "home"
     const val WORK = "work"
     private const val PREFS = "launcher_nav"
+    private const val LABEL_SUFFIX = "_label"
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+    private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
 
-    fun get(context: Context, place: String): Pair<Double, Double>? =
-        NavParse.parseLatLon(context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(place, null))
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun set(context: Context, place: String, latLon: Pair<Double, Double>?) {
-        val e = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+    fun get(context: Context, place: String): Pair<Double, Double>? = NavParse.parseLatLon(prefs(context).getString(place, null))
+
+    fun label(context: Context, place: String): String? = prefs(context).getString(place + LABEL_SUFFIX, null)?.ifEmpty { null }
+
+    fun set(context: Context, place: String, latLon: Pair<Double, Double>?, label: String? = null) {
+        val e = prefs(context).edit()
         if (latLon == null) e.remove(place) else e.putString(place, format(latLon.first, latLon.second))
+        if (latLon == null || label.isNullOrEmpty()) e.remove(place + LABEL_SUFFIX) else e.putString(place + LABEL_SUFFIX, label)
         e.apply()
+        main.post { listeners.forEach { it() } }
+    }
+
+    fun addListener(l: () -> Unit) { listeners += l }
+    fun removeListener(l: () -> Unit) { listeners -= l }
+
+    /** Telefona giden belge ([NavPlacesDoc.toJson] girdisi). */
+    @JvmStatic
+    fun readAll(context: Context): Map<String, NavPlacesDoc.Place?> = NavPlacesDoc.PLACES.associateWith { place ->
+        get(context, place)?.let { (lat, lon) -> NavPlacesDoc.Place(lat, lon, label(context, place)) }
+    }
+
+    /** Telefondan doğrulanmış değişiklikler ([NavPlacesDoc.parse]); null olan yer silinir. */
+    @JvmStatic
+    fun writeAll(context: Context, changes: Map<String, NavPlacesDoc.Place?>) {
+        for ((place, p) in changes) set(context, place, p?.let { it.lat to it.lon }, p?.label)
     }
 
     fun format(lat: Double, lon: Double): String = String.format(Locale.US, "%.6f, %.6f", lat, lon)

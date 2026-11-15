@@ -66,8 +66,6 @@ public class FloatingBackButtonManager {
     private View floatingButton;
     private WindowManager.LayoutParams params;
     private boolean isShowing = false;
-    /** Ana ekran (HomeLauncherActivity/MiniDashActivity) öndeyken true: hub gizlenir, ayar ve konum korunur. */
-    private static volatile boolean sSuppressed;
 
     private LinearLayout cardInner;
     private AppCompatImageButton btnBack;
@@ -94,6 +92,12 @@ public class FloatingBackButtonManager {
     private float longPressDownRawY;
     private Runnable longPressRunnable;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private static final java.util.concurrent.ExecutorService BACK_EXECUTOR =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> new Thread(r, "FloatingBack"));
+    private static final long BACK_BUSY_MAX_MS = 3_000L;
+    private static final long DUMPSYS_TIMEOUT_MS = 1_500L;
+    private final java.util.concurrent.atomic.AtomicLong backBusySince =
+            new java.util.concurrent.atomic.AtomicLong(0L);
     /** Kök dinleyicide basılı tutulan hub hücresi (ripple + bırakınca animasyon). */
     private View pressedHubButton;
 
@@ -141,6 +145,11 @@ public class FloatingBackButtonManager {
     }
 
     private void log(String message) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            // Geri işlemi arka planda; günlük geri çağrısı UI'ya yazar.
+            handler.post(() -> log(message));
+            return;
+        }
         if (logCallback != null) {
             logCallback.log(message);
         } else {
@@ -300,7 +309,7 @@ public class FloatingBackButtonManager {
         if (target == btnBack) {
             if (!suppressBackTap) {
                 performHubTap(btnBack, rawX, rawY);
-                simulateBackButton();
+                requestBack();
             }
             return;
         }
@@ -526,26 +535,6 @@ public class FloatingBackButtonManager {
         }
     }
 
-    /**
-     * Launcher öndeyken yüzen geri/menü hub'ı görünmez yapılır (ayar kapanmaz, pencere kalır, yoklama yok);
-     * başka uygulama öne geçince aynen geri gelir. Ana iş parçacığından çağrılır (yaşam döngüsü).
-     */
-    public static void setSuppressed(boolean suppressed) {
-        sSuppressed = suppressed;
-        FloatingBackButtonManager m = sInstance;
-        if (m != null) m.applySuppressed();
-    }
-
-    private synchronized void applySuppressed() {
-        View root = floatingButton;
-        if (root == null) return;
-        if (sSuppressed && menuOpen && menuContainer != null) {
-            menuContainer.setVisibility(View.GONE);
-            menuOpen = false;
-        }
-        root.setVisibility(sSuppressed ? View.GONE : View.VISIBLE);
-    }
-
     public synchronized void show() {
         log("[INFO] Floating Back hub show() çağrıldı");
 
@@ -767,7 +756,6 @@ public class FloatingBackButtonManager {
             if (windowManager != null && floatingButton != null && params != null) {
                 windowManager.addView(floatingButton, params);
                 isShowing = true;
-                applySuppressed();
                 registerThemeConfigCallback();
                 log("[SUCCESS] Floating Back hub gösterildi");
             }
@@ -879,6 +867,31 @@ public class FloatingBackButtonManager {
         animatorSet.start();
     }
 
+    /**
+     * Geri dokunuşu arka planda işlenir: ön plan paketi dumpsys ile okunur ve sistem yavaşken saniyelerce sürebilir
+     * (GlitchTip #2266/#2258: UI thread'inde ANR). İş sürerken gelen dokunuş bırakılır, takılan iş
+     * [BACK_BUSY_MAX_MS] sonra engel olmaz.
+     */
+    private void requestBack() {
+        long now = SystemClock.elapsedRealtime();
+        long started = backBusySince.get();
+        if (started != 0L && now - started < BACK_BUSY_MAX_MS) {
+            log("[DEBUG] Floating Back: önceki geri işlemi sürüyor, dokunuş atlandı");
+            return;
+        }
+        backBusySince.set(now);
+        BACK_EXECUTOR.execute(() -> {
+            try {
+                simulateBackButton();
+            } catch (Throwable t) {
+                log("[ERROR] Floating Back: " + t.getClass().getSimpleName());
+            } finally {
+                backBusySince.compareAndSet(now, 0L);
+            }
+        });
+    }
+
+    /** Arka plan iş parçacığında çalışır; UI işleri [handler] ile ana iş parçacığına gönderilir. */
     private void simulateBackButton() {
         String foregroundPackage = getForegroundPackage();
 
@@ -941,6 +954,9 @@ public class FloatingBackButtonManager {
         try {
             try {
                 java.lang.Process process = Runtime.getRuntime().exec("dumpsys activity activities");
+                // Takılırsa akış kapanır, readLine biter (iş parçacığı sonsuza kadar beklemez).
+                Runnable kill = process::destroy;
+                handler.postDelayed(kill, DUMPSYS_TIMEOUT_MS);
                 java.io.BufferedReader reader =
                         new java.io.BufferedReader(new java.io.InputStreamReader(process.getInputStream()));
                 String line;
@@ -957,11 +973,14 @@ public class FloatingBackButtonManager {
                             }
                             String packageName = line.substring(startIndex, endIndex).trim();
                             reader.close();
+                            handler.removeCallbacks(kill);
+                            process.destroy();
                             return packageName;
                         }
                     }
                 }
                 reader.close();
+                handler.removeCallbacks(kill);
             } catch (Exception e) {
                 log("[DEBUG] Floating Back: dumpsys hatası - " + e.getMessage());
             }

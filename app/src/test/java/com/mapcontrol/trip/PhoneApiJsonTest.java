@@ -19,8 +19,18 @@ public class PhoneApiJsonTest {
                 Arrays.asList(new TripRecord.Point(40.76, 29.93, 12), new TripRecord.Point(40.77, 29.94, 55)));
         assertEquals("{\"trips\":[{\"id\":\"t1\",\"startedAt\":1000,\"endedAt\":61000,\"distanceKm\":38,"
                 + "\"fuelUsedMl\":2900,\"avgSpeedKmh\":52,\"maxSpeedKmh\":98,\"movingMinutes\":38,"
+                + "\"fuelStartPercent\":70,\"fuelEndPercent\":62,"
                 + "\"route\":[[40.760000,29.930000,12],[40.770000,29.940000,55]]}]}",
                 PhoneApiJson.trips(Collections.singletonList(t)));
+    }
+
+    @Test
+    public void unreadableFuelPercentIsLeftOut() {
+        TripRecord t = new TripRecord("t2", 1000, 61_000, 14_000, 14_038, 38, TripReading.INVALID, 101, 0, 600, 520,
+                52, 98, 0L, Double.NaN, Double.NaN, Double.NaN, Double.NaN, Collections.emptyList());
+        String json = PhoneApiJson.trips(Collections.singletonList(t));
+        assertFalse(json, json.contains("fuelStartPercent"));
+        assertFalse(json, json.contains("fuelEndPercent"));
     }
 
     @Test

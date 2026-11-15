@@ -353,7 +353,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
 
     private fun render() {
         val s = snapshot
-        val range = s.rangeKm.takeIf { s.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+        val range = if (s.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(context, s) else null
         val tenths = s.fuelTenthsOrNull()
         // Tam yüzde ancak onda bir değer gösterilenden 0,6 uzaklaşınca değişir; düşük yakıtta anlık izlenir.
         val fuel = if (tenths == null) null else {
@@ -487,11 +487,13 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
             when (seg) {
                 AlertSeg.TIRE -> when {
                     doorsShown -> context.getString(R.string.launcher_tires_warning_short)
-                    tireLow?.wheel != null -> context.getString(
+                    tireLow?.wheel != null && tireLow.bar != null -> context.getString(
                         R.string.launcher_tires_low_wheel,
                         context.getString(TIRE_WHEEL_NAMES[tireLow.wheel]),
-                        TireDecode.psi(tireLow.bar ?: 0.0),
+                        TireDecode.psi(tireLow.bar),
                     )
+                    // Basınç değeri olmayan yazılım (T19C): yalnızca uyarı maskesinden gelen tekerlek.
+                    tireLow?.wheel != null -> context.getString(R.string.launcher_tire_wheel_warning, context.getString(TIRE_WHEEL_NAMES[tireLow.wheel]))
                     else -> context.getString(R.string.launcher_tires_warning)
                 }
                 AlertSeg.WINDOWS -> if (windows.size == 1) context.getString(R.string.launcher_part_open, context.getString(windows[0].label))

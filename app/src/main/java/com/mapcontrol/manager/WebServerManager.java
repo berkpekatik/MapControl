@@ -31,7 +31,9 @@ import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,6 +52,7 @@ public class WebServerManager {
     private static final int MAX_JSON_POST_BYTES = 65536;
     /** {@code PUT /automation} gövdesi için üst sınır. */
     private static final int MAX_AUTOMATION_BYTES = 32 * 1024;
+    private static final int MAX_NAV_PLACES_BYTES = 4 * 1024;
 
     /** open-maps JSON içindeki url alanı: POST üst sınırına yakın; Yandex sctx gibi çok uzun paylaşım linklerine izin */
     private static final int MAX_OPEN_URL_CHARS = MAX_JSON_POST_BYTES - 200;
@@ -352,6 +355,10 @@ public class WebServerManager {
                     handlePhonePrefsGet(output, requestHeader);
                 } else if ("PUT".equals(method) && "/prefs".equals(path)) {
                     handlePhonePrefsPut(input, output, requestHeader);
+                } else if ("GET".equals(method) && "/nav/places".equals(path)) {
+                    handleNavPlacesGet(output, requestHeader);
+                } else if ("PUT".equals(method) && "/nav/places".equals(path)) {
+                    handleNavPlacesPut(input, output, requestHeader);
                 } else if ("GET".equals(method) && "/automation".equals(path)) {
                     handleAutomationGet(output, requestHeader);
                 } else if ("PUT".equals(method) && "/automation".equals(path)) {
@@ -513,130 +520,26 @@ public class WebServerManager {
             
             if (listener != null) listener.onLog("Boundary: " + boundary);
 
-            // Body'yi Content-Length kadar oku (deterministik yaklaşım)
-            BufferedInputStream bufferedInput = new BufferedInputStream(input, 65536);
-            byte[] bodyBytes = new byte[(int) contentLength];
-            long totalBodyRead = 0;
-            
-            // Content-Length kadar oku
-            while (totalBodyRead < contentLength) {
-                int bytesRead = bufferedInput.read(bodyBytes, (int) totalBodyRead, 
-                                                   (int) (contentLength - totalBodyRead));
-                if (bytesRead == -1) {
-                    if (listener != null) listener.onLog("[ERROR] Erken EOF: " + totalBodyRead + " / " + contentLength + " byte okundu");
-                    sendErrorResponse(output, 400, "Body eksik: " + totalBodyRead + " / " + contentLength + " byte okundu");
-                    return;
-                }
-                totalBodyRead += bytesRead;
-            }
-            
-            if (listener != null) listener.onLog("Body okundu: " + totalBodyRead + " bytes (Content-Length: " + contentLength + ")");
-            
-            // Body içinde ilk part'ın header'ını bul (\r\n\r\n ile biten)
-            byte[] doubleCrlf = "\r\n\r\n".getBytes(StandardCharsets.UTF_8);
-            int doubleCrlfPos = -1;
-            
-            for (int i = 0; i <= bodyBytes.length - doubleCrlf.length; i++) {
-                boolean matches = true;
-                for (int j = 0; j < doubleCrlf.length; j++) {
-                    if (bodyBytes[i + j] != doubleCrlf[j]) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    doubleCrlfPos = i + doubleCrlf.length;
-                    break;
-                }
-            }
-            
-            if (doubleCrlfPos == -1) {
+            // Gövde akış olarak işlenir: dosya belleğe alınmadan diske yazılır (GlitchTip #2301 OOM).
+            MultipartStream.Limited body = new MultipartStream.Limited(
+                    new BufferedInputStream(input, MultipartStream.BUF), contentLength);
+
+            byte[] headerBytes = MultipartStream.readPartHeader(body, 16 * 1024);
+            if (headerBytes == null) {
                 if (listener != null) listener.onLog("[ERROR] Body içinde \\r\\n\\r\\n bulunamadı");
                 sendErrorResponse(output, 400, "Multipart header bulunamadı");
                 return;
             }
-            
-            // Filename'i header'dan çıkar
-            String partHeader = new String(bodyBytes, 0, doubleCrlfPos, StandardCharsets.UTF_8);
-            String fileName = null;
-            
-            int filenameIndex = partHeader.indexOf("filename=\"");
-            if (filenameIndex == -1) {
-                filenameIndex = partHeader.indexOf("filename=");
-                if (filenameIndex != -1) {
-                    // Tırnaksız filename
-                    int filenameStart = filenameIndex + 9;
-                    int filenameEnd = partHeader.indexOf("\r\n", filenameStart);
-                    if (filenameEnd == -1) filenameEnd = partHeader.length();
-                    fileName = partHeader.substring(filenameStart, filenameEnd).trim();
-                }
-            } else {
-                // Tırnaklı filename
-                int filenameStart = filenameIndex + 10;
-                int filenameEnd = partHeader.indexOf("\"", filenameStart);
-                if (filenameEnd != -1) {
-                    fileName = partHeader.substring(filenameStart, filenameEnd);
-                }
-            }
-            
-            if (fileName == null || fileName.isEmpty()) {
+            String partHeader = new String(headerBytes, StandardCharsets.UTF_8);
+            String fileName = MultipartStream.fileName(partHeader);
+            if (fileName == null) {
                 if (listener != null) listener.onLog("[ERROR] Filename bulunamadı");
                 sendErrorResponse(output, 400, "Filename bulunamadı");
                 return;
             }
-            
+
             if (listener != null) listener.onLog("Filename: " + fileName);
-            
-            // Dosya içeriğinin başlangıcı: doubleCrlfPos
-            int fileDataStart = doubleCrlfPos;
-            
-            // Boundary'yi body içinde ara (\r\n--boundary formatında)
-            byte[] boundaryBytes = ("\r\n" + boundary).getBytes(StandardCharsets.UTF_8);
-            int boundaryPos = -1;
-            
-            for (int i = fileDataStart; i <= bodyBytes.length - boundaryBytes.length; i++) {
-                boolean matches = true;
-                for (int j = 0; j < boundaryBytes.length; j++) {
-                    if (bodyBytes[i + j] != boundaryBytes[j]) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    boundaryPos = i;
-                    break;
-                }
-            }
-            
-            if (boundaryPos == -1) {
-                if (listener != null) listener.onLog("[ERROR] Boundary body içinde bulunamadı");
-                sendErrorResponse(output, 400, "Boundary bulunamadı");
-                return;
-            }
-            
-            // Dosya içeriğinin sonu: boundaryPos (boundary'den önceki \r\n dosyaya dahil değil)
-            // boundaryPos'tan önceki 2 byte \r\n olabilir, kontrol et
-            int fileDataEnd = boundaryPos;
-            if (fileDataEnd >= 2 && 
-                bodyBytes[fileDataEnd - 2] == 0x0D && 
-                bodyBytes[fileDataEnd - 1] == 0x0A) {
-                fileDataEnd -= 2; // \r\n'yi çıkar
-            }
-            
-            int fileDataLength = fileDataEnd - fileDataStart;
-            
-            if (listener != null) {
-                listener.onLog("Dosya offset'leri - Başlangıç: " + fileDataStart + 
-                             ", Bitiş: " + fileDataEnd + 
-                             ", Uzunluk: " + fileDataLength + " bytes");
-            }
-            
-            if (fileDataLength <= 0) {
-                if (listener != null) listener.onLog("[ERROR] Dosya içeriği boş");
-                sendErrorResponse(output, 400, "Dosya içeriği boş");
-                return;
-            }
-            
+
             // Download klasörüne kaydet
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (!downloadDir.exists()) {
@@ -645,24 +548,26 @@ public class WebServerManager {
                     listener.onLog("[WARN] Download klasörü oluşturulamadı: " + downloadDir.getAbsolutePath());
                 }
             }
-            
+
             file = new File(downloadDir, fileName);
             // Aynı isimde dosya varsa numara ekle
             int counter = 1;
             int dotIndex = fileName.lastIndexOf('.');
             String nameWithoutExt = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
             String ext = dotIndex > 0 ? fileName.substring(dotIndex) : "";
-            
+
             while (file.exists()) {
                 fileName = nameWithoutExt + " (" + counter + ")" + ext;
                 file = new File(downloadDir, fileName);
                 counter++;
             }
-            
-            // Dosya içeriğini yaz
+
+            // Dosya içeriği "\r\n--boundary"a kadar diske akar.
+            byte[] boundaryBytes = ("\r\n" + boundary).getBytes(StandardCharsets.UTF_8);
+            long fileDataLength;
             try {
                 fileOutputStream = new FileOutputStream(file);
-                fileOutputStream.write(bodyBytes, fileDataStart, fileDataLength);
+                fileDataLength = MultipartStream.copyUntil(body, boundaryBytes, fileOutputStream);
                 fileOutputStream.flush();
                 fileOutputStream.close();
                 fileOutputStream = null;
@@ -673,12 +578,35 @@ public class WebServerManager {
                     } catch (Exception ex) {
                         // Ignore
                     }
+                    fileOutputStream = null;
                 }
+                file.delete();
                 if (listener != null) listener.onLog("[ERROR] Dosya yazma hatası: " + e.getMessage());
                 sendErrorResponse(output, 500, "Dosya yazma hatası: " + e.getMessage());
                 return;
             }
-            
+
+            if (fileDataLength < 0) {
+                file.delete();
+                if (listener != null) listener.onLog("[ERROR] Boundary body içinde bulunamadı");
+                sendErrorResponse(output, 400, "Boundary bulunamadı");
+                return;
+            }
+            if (fileDataLength == 0) {
+                file.delete();
+                if (listener != null) listener.onLog("[ERROR] Dosya içeriği boş");
+                sendErrorResponse(output, 400, "Dosya içeriği boş");
+                return;
+            }
+
+            // Kapanış ayıracı ve kalan gövde okunur; okunan toplam Content-Length ile karşılaştırılır.
+            body.drain();
+            long totalBodyRead = body.consumed();
+            if (listener != null) {
+                listener.onLog("Body okundu: " + totalBodyRead + " bytes (Content-Length: " + contentLength
+                        + "), dosya: " + fileDataLength + " bytes");
+            }
+
             // Dosya yazımını doğrula
             long actualFileSize = file.length();
             if (actualFileSize != fileDataLength) {
@@ -1085,6 +1013,57 @@ public class WebServerManager {
         }
     }
 
+    /** {@code GET /nav/places}: launcher'ın Ev / İş konumları; bkz. {@link com.mapcontrol.launcher.NavPlacesDoc}. */
+    private void handleNavPlacesGet(OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            sendJson200(output, com.mapcontrol.launcher.NavPlacesDoc.toJson(
+                    com.mapcontrol.launcher.NavPlaces.readAll(context)).toString());
+        } catch (Exception e) {
+            sendErrorResponse(output, 500, "nav_places: " + e.getMessage());
+        }
+    }
+
+    /**
+     * {@code PUT /nav/places}: belgedeki yer yazılır, {@code null} olan silinir, olmayana dokunulmaz. Tanınan yerin değeri
+     * geçersizse hiçbiri yazılmaz ({@code 422 nav_places_invalid: home}). Yanıt güncel belgedir. Konum kişisel veridir:
+     * günlüğe yalnızca hangi yerin değiştiği yazılır.
+     */
+    private void handleNavPlacesPut(InputStream input, OutputStream output, String requestHeader) {
+        if (!requirePairedPhone(output, requestHeader)) {
+            return;
+        }
+        try {
+            int cl = parseContentLengthFromHeaders(requestHeader);
+            if (cl < 0) {
+                sendErrorResponse(output, 400, "Content-Length gerekli");
+                return;
+            }
+            if (cl > MAX_NAV_PLACES_BYTES) {
+                sendErrorResponse(output, 413, "nav_places_too_large");
+                return;
+            }
+            JSONObject root = new JSONObject(new String(readFixedBodyFromStream(input, cl), StandardCharsets.UTF_8));
+            List<String> errors = new ArrayList<>();
+            Map<String, com.mapcontrol.launcher.NavPlacesDoc.Place> changes =
+                    com.mapcontrol.launcher.NavPlacesDoc.parse(root, errors);
+            if (changes == null) {
+                sendErrorResponse(output, 422, "nav_places_invalid: " + android.text.TextUtils.join(",", errors));
+                return;
+            }
+            com.mapcontrol.launcher.NavPlaces.writeAll(context, changes);
+            if (listener != null && !changes.isEmpty()) listener.onLog("Telefondan konum yazıldı: " + changes.keySet());
+            sendJson200(output, com.mapcontrol.launcher.NavPlacesDoc.toJson(
+                    com.mapcontrol.launcher.NavPlaces.readAll(context)).toString());
+        } catch (JSONException e) {
+            sendErrorResponse(output, 400, "nav_places: " + e.getMessage());
+        } catch (Exception e) {
+            sendErrorResponse(output, 400, "nav_places: " + e.getMessage());
+        }
+    }
+
     /**
      * Cam tavan, klima, hafıza modu ve MapControl tercihlerinin yedek belgesi; bkz. {@link AutomationBackup}.
      * Yanıta belge dışı bir bilgi eklenir: {@code pristine} (araçta yedeğe girecek hiçbir ayar yazılı değil).
@@ -1135,6 +1114,8 @@ public class WebServerManager {
                 sendErrorResponse(output, 422, "automation_invalid: " + android.text.TextUtils.join(",", result.errors));
                 return;
             }
+            // Klima derece ölçeği bellekte tutulur; geri yüklenen tercih hemen geçerli olsun.
+            com.mapcontrol.launcher.HomeScreenPrefs.applyClimateScale(context);
             if (listener != null) listener.onLog("Telefondan ayarlar geri yüklendi");
             // Yanıt güncel belgedir; bu araçta uygulanmayan alanlar belge dışı "skipped" olarak eklenir.
             JSONObject fresh = AutomationBackup.export(main, sunroof, env);

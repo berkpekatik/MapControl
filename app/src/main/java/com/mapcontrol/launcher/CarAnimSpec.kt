@@ -71,11 +71,15 @@ object CarColorPrefs {
  * Kapı animasyonu ölçüleri: `.impeccable/mocks/premium/doors/android/anim.json` (sürüm 2) elle aktarıldı.
  * Birimler base.webp pikselidir (766 × 356); her katman base'in sol üst köşesine göredir. Dönüşüm sırası
  * View ile aynı: pivot etrafında öteleme · dönme (saat yönü +) · ölçek (kapının kendi eksenlerinde).
+ * Araç modeline bağlı ölçüler (parça kutuları, tavan, camlar, lastikler ...) etkin modelden okunur ([CarModel.active],
+ * değerler [CarGeometry]); tuval boyu ve süreler tüm modellerde ortaktır.
  */
 object CarAnimSpec {
 
     const val BASE_W = 766f
     const val BASE_H = 356f
+
+    private val geo: CarGeometry get() = CarModel.active.geometry
 
     class Box(val x: Float, val y: Float, val w: Float, val h: Float) {
         val right get() = x + w
@@ -106,6 +110,8 @@ object CarAnimSpec {
         /** Kapı gölgesi ve dış kenar ışığı (yalnızca kapılar). */
         val shadow: Box? = null,
         val rim: Box? = null,
+        /** Kapıda dış ayna var (Jaecoo 7): kapı sprite'ı aynayı da taşır, base aynasızdır; sprite kapalıyken de çizilir. */
+        val mirror: Boolean = false,
     )
 
     val EASE_OPEN = floatArrayOf(0.2f, 0.9f, 0.25f, 1.05f)
@@ -123,45 +129,25 @@ object CarAnimSpec {
     const val TRUNK_OVERLAY_TO = 0.85f
     const val TRUNK_SPRITE_FROM = 0.3f
 
-    private fun door(sprite: Box, gap: Box, overlay: Box, px: Float, py: Float, rot: Float, sx: Float, sy: Float, shadow: Box, rim: Box) =
-        Part(Kind.HINGE, sprite, gap, overlay, px, py, rot, sx, sy, 0f, 360, EASE_OPEN, 360, EASE_CLOSE, 250, 120, 120, shadow, rim)
-
-    val parts: Map<CarPart, Part> = mapOf(
-        CarPart.DOOR_FL to door(Box(350f, 16f, 169f, 56f), Box(349f, 15f, 171f, 59f), Box(336f, -64f, 253f, 134f),
-            522.73f, 20.25f, 37f, 0.825f, 0.85f, Box(354.1f, 14.6f, 160.9f, 48.0f), Box(354.1f, 16.7f, 160.9f, 2.1f)),
-        CarPart.DOOR_RL to door(Box(169f, 22f, 186f, 50f), Box(167f, 22f, 190f, 52f), Box(124f, -76f, 239f, 146f),
-            356.88f, 25.89f, 45f, 0.775f, 0.95f, Box(173.4f, 18.8f, 177.8f, 43.8f), Box(173.4f, 21.0f, 177.8f, 2.1f)),
-        CarPart.DOOR_FR to door(Box(350f, 283f, 169f, 61f), Box(349f, 281f, 172f, 65f), Box(336f, 287f, 253f, 146f),
-            522.73f, 333.59f, -45f, 0.775f, 1.15f, Box(354.1f, 291.9f, 160.9f, 53.6f), Box(354.1f, 341.3f, 160.9f, 2.1f)),
-        CarPart.DOOR_RR to door(Box(169f, 283f, 187f, 57f), Box(167f, 281f, 190f, 59f), Box(124f, 287f, 239f, 146f),
-            351.24f, 327.24f, -45f, 0.775f, 0.85f, Box(172.7f, 291.9f, 179.3f, 50.1f), Box(172.7f, 337.8f, 179.3f, 2.1f)),
-        CarPart.HOOD to Part(Kind.LID, Box(546f, 41f, 220f, 275f), Box(544f, 39f, 222f, 278f), Box(541f, 31f, 220f, 302f),
-            590.47f, 177.62f, 0f, 0.42f, 1.05f, -42.34f, 300, EASE_OPEN, 320, EASE_CLOSE, 220, 120, 120),
-        CarPart.TRUNK to Part(Kind.SLIDE_FADE, Box(0f, 38f, 70f, 287f), Box(0f, 38f, 72f, 287f), Box(-79f, 12f, 209f, 325f),
-            0f, 0f, 0f, 1f, 1f, -22.58f, 260, EASE_STANDARD, 260, EASE_STANDARD, 0, 0, 0),
-    )
+    val parts: Map<CarPart, Part> get() = geo.parts
 
     fun part(p: CarPart): Part = parts.getValue(p)
 
     /**
      * Cam vurgusu (4 Kasım §1, "camlara hafif renk"): açık camın üstüne hafif buz mavisi. Kutular base pikselinde, kapı
      * kapalıyken görünen yan camın yeri (üst kenar aracın solu); [door] açıldıkça vurgu söner (cam kapıyla birlikte döner).
+     * [box2]: cam iki parçaysa ikinci parça (yalnız Tiggo 8 cam tavanı: arka + ön cam, aradaki kiriş boyanmaz); null = tek kutu.
      */
-    class Glass(val box: Box, val door: CarPart?, val strength: Float = 1f)
+    class Glass(val box: Box, val door: CarPart?, val strength: Float = 1f, val box2: Box? = null)
 
     const val GLASS_MAX_ALPHA = 0.32f
     const val GLASS_CORNER = 8f
     const val GLASS_FADE_MS = 280L
 
-    internal val windows: Map<BodyPart, Glass> = mapOf(
-        BodyPart.WINDOW_LF to Glass(Box(352f, 47f, 128f, 22f), CarPart.DOOR_FL),
-        BodyPart.WINDOW_LR to Glass(Box(205f, 47f, 126f, 22f), CarPart.DOOR_RL),
-        BodyPart.WINDOW_RF to Glass(Box(352f, 286f, 128f, 22f), CarPart.DOOR_FR),
-        BodyPart.WINDOW_RR to Glass(Box(205f, 286f, 126f, 22f), CarPart.DOOR_RR),
-    )
+    internal val windows: Map<BodyPart, Glass> get() = geo.windows
 
     /** Cam tavanın camı (tavan açıkken aynı renk; geniş yüzey olduğundan daha hafif). */
-    val sunroof = Glass(Box(163f, 96f, 268f, 156f), null, strength = 0.6f)
+    val sunroof: Glass get() = geo.sunroof
 
     // --- Panoramik tavan ([RoofState]; katmanlar car_roof_*.webp, base pikselinin 2 katı) ---
 
@@ -169,16 +155,16 @@ object CarAnimSpec {
      * Tavan camının dış kutusu (base pikseli; car_*_base'deki ince açık kenar çizgisinin içi). Arka panel solda
      * ([ROOF_X0]..[ROOF_SPLIT]), ön panel sağda ([ROOF_FRONT_X0]..[ROOF_X1]); burun sağda olduğundan "ön" = sağ.
      */
-    const val ROOF_X0 = 162f
-    const val ROOF_X1 = 438f
-    const val ROOF_Y0 = 95f
-    const val ROOF_Y1 = 254f
-    const val ROOF_SPLIT = 291f
-    const val ROOF_FRONT_X0 = 293f
+    val ROOF_X0: Float get() = geo.roofX0
+    val ROOF_X1: Float get() = geo.roofX1
+    val ROOF_Y0: Float get() = geo.roofY0
+    val ROOF_Y1: Float get() = geo.roofY1
+    val ROOF_SPLIT: Float get() = geo.roofSplit
+    val ROOF_FRONT_X0: Float get() = geo.roofFrontX0
     /** Katman bitmap'lerinin ölçeği (base pikseli başına piksel). */
     const val ROOF_ART_SCALE = 2f
     /** Ön panelin tam açıkken arkaya kayma yolu (panel genişliğinin ~%82'si; geri kalanı çerçevenin altında kalır). */
-    const val ROOF_GLASS_TRAVEL = 118f
+    val ROOF_GLASS_TRAVEL: Float get() = geo.roofGlassTravel
     /** Duran tavanda yeni konum okununca kısa yumuşak geçiş ([RoofFollower]). */
     const val ROOF_EASE_MS = 420L
     /** Hareket durunca gösterilen konumun okunan değere yerleşme süresi. */
@@ -207,10 +193,10 @@ object CarAnimSpec {
     fun glassAlpha(fade: Float, doorOpen: Float): Float = GLASS_MAX_ALPHA * clamp01(fade) * (1f - clamp01(doorOpen))
 
     /** Açık parçalar base dışına taşar (kapılar yanlara, bagaj geriye); görünüm bu payları kapsar. Gölge bulanıklığı dahil. */
-    val padLeft: Float = maxOf(0f, -parts.values.minOf { minOf(it.overlay.x, it.sprite.x + it.translateXEnd) })
-    val padTop: Float = maxOf(0f, -parts.values.minOf { it.overlay.y }) + SHADOW_BLUR * 2
-    val padRight: Float = maxOf(0f, parts.values.maxOf { it.overlay.right } - BASE_W)
-    val padBottom: Float = maxOf(0f, parts.values.maxOf { it.overlay.bottom } - BASE_H) + SHADOW_BLUR * 2
+    val padLeft: Float get() = geo.padLeft
+    val padTop: Float get() = geo.padTop
+    val padRight: Float get() = geo.padRight
+    val padBottom: Float get() = geo.padBottom
 
     // --- Dijital ikiz ışıkları (§11) ---
 
@@ -251,17 +237,23 @@ object CarAnimSpec {
      * kemer x≈144..192, gövde kenarı y≈23 / 338; ön kemer x≈592..656, y≈26 / 337) gövde kenarından [TIRE_OUT] kadar taşar.
      * [TIRE_X] lastik merkezi, [TIRE_EDGE] o taraftaki gövde kenarı; lastik [TIRE_L] × [TIRE_W].
      */
-    val TIRE_X = floatArrayOf(622f, 622f, 168f, 168f)
-    val TIRE_EDGE = floatArrayOf(26f, 337f, 23f, 338f)
-    const val TIRE_L = 92f
-    const val TIRE_W = 26f
-    const val TIRE_OUT = 11f
+    val TIRE_X: FloatArray get() = geo.tireX
+    val TIRE_EDGE: FloatArray get() = geo.tireEdge
+    val TIRE_L: Float get() = geo.tireL
+    val TIRE_W: Float get() = geo.tireW
+    val TIRE_OUT: Float get() = geo.tireOut
 
-    /** Lastiğin base pikseli kutusu (sol, üst, sağ, alt); [i] [TireDecode] sırası. */
-    fun tireBox(i: Int): FloatArray {
+    /** Stop çubuğunun uçlardaki sönüm boyu (base px; tüm modellerde ortak). */
+    const val TAIL_TAPER = 34f
+
+    /** Stop çubuğunun [row] satırındaki (kutunun üstünden, 0..[rows]-1) uç sönümü: uçlarda 0, [TAIL_TAPER] içeride 1. */
+    fun tailTaper(row: Int, rows: Int): Float = smooth(minOf(row, rows - 1 - row).toFloat(), 0f, TAIL_TAPER)
+
+    /** Lastiğin base pikseli kutusu (sol, üst, sağ, alt); [i] [TireDecode] sırası, [g] ölçüleri okunan model (varsayılan: etkin). */
+    fun tireBox(i: Int, g: CarGeometry = geo): FloatArray {
         val top = i % 2 == 0
-        val y0 = if (top) TIRE_EDGE[i] - TIRE_OUT else TIRE_EDGE[i] + TIRE_OUT - TIRE_W
-        return floatArrayOf(TIRE_X[i] - TIRE_L / 2f, y0, TIRE_X[i] + TIRE_L / 2f, y0 + TIRE_W)
+        val y0 = if (top) g.tireEdge[i] - g.tireOut else g.tireEdge[i] + g.tireOut - g.tireW
+        return floatArrayOf(g.tireX[i] - g.tireL / 2f, y0, g.tireX[i] + g.tireL / 2f, y0 + g.tireW)
     }
 
     /**
@@ -269,13 +261,13 @@ object CarAnimSpec {
      * (x≈172) gerisinde; gövde kenarına (y≈338) oturan küçük kapak. Taraf OEM kardeş model görsellerinden (sol yan görünüşte
      * arka çamurluk temiz) ve araç fotoğraflarından tahmin. TODO: göstergedeki yakıt pompası okunun yönüyle doğrula.
      */
-    val FUEL_CAP = Box(127f, 321f, 26f, 11f)
+    val FUEL_CAP: Box get() = geo.fuelCap
 
     /** Kaput ışığı (motor suyu / akü uyarısı): kaputun ortası ve yarıçapları; gövde alfasıyla kırpılır. */
-    const val HOOD_CX = 655f
-    const val HOOD_CY = 178f
-    const val HOOD_RX = 118f
-    const val HOOD_RY = 132f
+    val HOOD_CX: Float get() = geo.hoodCx
+    val HOOD_CY: Float get() = geo.hoodCy
+    val HOOD_RX: Float get() = geo.hoodRx
+    val HOOD_RY: Float get() = geo.hoodRy
 
     // --- Eğri yardımcıları (anim.json formülleri) ---
 
@@ -366,7 +358,7 @@ class PartMotion(private val spec: CarAnimSpec.Part, private val openEase: (Floa
         else -> if (spriteAlpha() < 0.001f) 0f else CarAnimSpec.clamp01(x / CarAnimSpec.GAP_FADE_UNTIL)
     }
 
-    fun spriteVisible(): Boolean = x > 0.001f && spriteAlpha() > 0.001f
+    fun spriteVisible(): Boolean = (x > 0.001f || spec.mirror) && spriteAlpha() > 0.001f
 }
 
 /** Kübik Bézier yumuşatma (CSS cubic-bezier / PathInterpolator ile aynı kontrol noktaları); testlerde ve JVM'de kullanılır. */

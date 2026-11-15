@@ -58,7 +58,7 @@ class DataCheckSheet(private val activity: Activity) {
     private val io = LauncherIo.serial()
     private val tracker = ChangeTracker()
     private val rows = ArrayList<Row>()
-    private val signalRows = HashMap<CheckSignal, Row>()
+    private val signalRows = LinkedHashMap<CheckSignal, Row>()
     private val gpsRow = Row("GPS", "Son konum", "LocationManager")
     private val accessRow = Row("Medya", "Bildirim erişimi", "enabled_notification_listeners")
     private val sessionRow = Row("Medya", "Aktif oturum", "MediaSessionManager")
@@ -208,6 +208,10 @@ class DataCheckSheet(private val activity: Activity) {
         for (s in samples) {
             val key = s.row.group + "/" + s.row.name
             val changed = tracker.update(key, s.rawText + "|" + s.status, now)
+            // Lastik testi ve tarama: değişen her değer logcat'e (adb logcat -s DataCheck), sürüş sırasında izlemek için.
+            if (changed == now && s.status != CheckStatus.NO_DATA && s.row.group.let { it == TIRE_GROUP || it.startsWith(SCAN_GROUP) }) {
+                Log.i(TAG, "TIRE ${s.row.idLabel} raw=${s.rawText} -> ${s.decodedText}")
+            }
             s.row.raw.text = s.rawText
             s.row.decoded.text = s.decodedText
             s.row.dot.background = oval(colorOf(s.status))
@@ -231,7 +235,7 @@ class DataCheckSheet(private val activity: Activity) {
         val connected = proxy.isServiceConnnected
         for ((signal, row) in signalRows) {
             val raw = if (connected) CarSignals.read(signal.module, signal.id) else null
-            val decoded = if (raw == null || raw.isEmpty()) null else signal.decode(CheckClassify.combine(raw))
+            val decoded = if (raw == null || raw.isEmpty()) null else signal.decodeRaw(raw)
             val status = CheckClassify.classify(raw, decoded)
             out += Sample(row, rawText(raw), decodedText(status, decoded, raw), status)
         }
@@ -328,6 +332,8 @@ class DataCheckSheet(private val activity: Activity) {
     companion object {
         const val TAG = "DataCheck"
         const val EXTRA = "launcher_data_check"
+        private const val TIRE_GROUP = "Lastik testi"
+        private const val SCAN_GROUP = "ReadOnly tarama"
         private const val POLL_MS = 1_000L
         private const val SHEET_WIDTH_DP = 1100
         /** Başlık, ipucu, gösterge, düğme ve iç boşluk için ayrılan yükseklik; kalanı kaydırılan liste. */

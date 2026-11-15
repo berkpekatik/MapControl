@@ -135,6 +135,7 @@ internal fun stripText(context: Context, a: MiniAlerts.Item): String = when (a.k
         when {
             bar != null && wheel != null -> context.getString(R.string.launcher_strip_tire_wheel, context.getString(wheel), TireDecode.psi(bar))
             bar != null -> context.getString(R.string.launcher_mini_alert_tire_psi, TireDecode.psi(bar))
+            wheel != null -> context.getString(R.string.launcher_tire_wheel_warning, context.getString(wheel))
             else -> context.getString(R.string.launcher_mini_alert_tire)
         }
     }

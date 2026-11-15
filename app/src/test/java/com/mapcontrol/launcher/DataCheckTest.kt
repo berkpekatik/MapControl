@@ -53,6 +53,34 @@ class DataCheckTest {
         assertEquals("Açık", decode("Tavan perdesi", "Perde", 5))
     }
 
+    private fun tireRow(name: String) = DataCheckTable.signals.first { it.group == "Lastik testi" && it.name == name }
+
+    @Test fun tireWarningMaskFollowsOemBitOrder() {
+        val warn = tireRow("Uyarı maskesi (95)")
+        assertEquals("Normal (0)", warn.decodeRaw(intArrayOf(0)))
+        assertEquals("Uyarı: Ön sol (0b0001)", warn.decodeRaw(intArrayOf(1)))
+        assertEquals("Uyarı: Ön sol, Arka sağ (0b1001)", warn.decodeRaw(intArrayOf(9)))
+        assertNull(warn.decodeRaw(intArrayOf(0xFF)))
+    }
+
+    @Test fun tirePressureRowDecodesArrayWithoutCombining() {
+        val p = tireRow("Basınç (140)")
+        assertEquals(
+            "4 eleman: Ön sol 31 psi / 2.11 bar · Ön sağ 30 psi / 2.09 bar · Arka sol 30 psi / 2.10 bar · Arka sağ 30 psi / 2.10 bar",
+            p.decodeRaw(intArrayOf(154, 152, 153, 153)),
+        )
+        assertNull(p.decodeRaw(intArrayOf(0, 0, 0, 0)))
+        assertNull(p.decodeRaw(intArrayOf(154, 154)))
+        assertEquals("durum 1, sıfırlama sonucu 0 (anlam doğrulanmadı)", tireRow("TPMS durum / sıfırlama (231)").decodeRaw(intArrayOf(1, 0)))
+    }
+
+    @Test fun scanCoversUnknownReadOnlyIdsOnly() {
+        val scan = DataCheckTable.signals.filter { it.group.startsWith("ReadOnly tarama") }.map { it.id }
+        assertTrue(120 in scan && 160 in scan && 141 in scan)
+        assertTrue(140 !in scan && 150 !in scan)
+        assertEquals("Lastik testi", DataCheckTable.groups.first())
+    }
+
     @Test fun tableHasUniqueSignalsAndAllGroups() {
         val keys = DataCheckTable.signals.map { it.key }
         assertEquals(keys.size, keys.toSet().size)

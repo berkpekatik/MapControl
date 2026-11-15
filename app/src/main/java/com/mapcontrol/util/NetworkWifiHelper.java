@@ -32,6 +32,8 @@ public final class NetworkWifiHelper {
     private static final String AP_STATUS_EXTRA = "ap_status";
     /** {@code WifiManager.WIFI_AP_STATE_DISABLED}. */
     private static final int WIFI_AP_STATE_DISABLED = 11;
+    /** {@code WifiManager.WIFI_AP_STATE_FAILED}. */
+    private static final int WIFI_AP_STATE_FAILED = 14;
     private static final long AP_WAIT_MS = 3000L;
     private static final long AP_POLL_MS = 300L;
     private static final long FORGET_VERIFY_MS = 1500L;
@@ -85,6 +87,23 @@ public final class NetworkWifiHelper {
             }
         }
         return false;
+    }
+
+    /**
+     * Araç erişim noktası kapalı mı (kapalı ya da başarısız durumda). Durum okunamazsa null.
+     */
+    @Nullable
+    public static Boolean isAccessPointOff(@NonNull Context context) {
+        WifiManager wm = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        Method method = wifiApStateMethod();
+        if (wm == null || method == null) {
+            return null;
+        }
+        Integer state = readApState(wm, method);
+        if (state == null) {
+            return null;
+        }
+        return state == WIFI_AP_STATE_DISABLED || state == WIFI_AP_STATE_FAILED;
     }
 
     /**

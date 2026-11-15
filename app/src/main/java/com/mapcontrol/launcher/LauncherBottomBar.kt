@@ -35,11 +35,11 @@ enum class BottomBarMode(val key: String, @StringRes val label: Int) {
             parse(stored) ?: legacyFullscreen?.let(::fromLegacyFullscreen) ?: ORIGINAL
 
         /**
-         * Launcher'ın kendi çubuğu çizilir mi: Bizimki'nde her zaman; "Orijinal" seçiliyken OEM çubuğu yoksa da
-         * (emülatör `launcher_oem_inset` olmadan, Desay olmayan ünite). Gizli'de çubuk yok.
+         * Launcher'ın kendi çubuğu yalnız "Bizimki"nde çizilir. "Orijinal" aracın kendi çubuğu demektir; OEM çubuğu
+         * algılanmasa da (Desay paketi olmayan araç/ürün yazılımı) launcher'a çubuk eklenmez. Gizli'de çubuk yok.
          */
-        fun drawsOurBar(mode: BottomBarMode, oemBarPresent: Boolean): Boolean =
-            mode == OURS || (mode == ORIGINAL && !oemBarPresent)
+        @Suppress("UNUSED_PARAMETER")
+        fun drawsOurBar(mode: BottomBarMode, oemBarPresent: Boolean): Boolean = mode == OURS
 
         /**
          * Sistem OEM çubuğunu zorla mı gösteriyor: Bizimki/Gizli'de gezinme çubuğunu gizlemiştik ama pencere inset'i onu görünür

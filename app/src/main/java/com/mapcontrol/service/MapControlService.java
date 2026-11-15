@@ -107,6 +107,13 @@ public class MapControlService extends Service {
         sendBroadcast(intent);
     }
 
+    private static volatile boolean skipClusterSplashOnce;
+
+    /** Uygulama güncellemesinden sonraki başlatma: araç açılışı olmadığı için göstergeye karşılama ekranı basılmaz. */
+    public static void skipClusterSplashOnNextCreate() {
+        skipClusterSplashOnce = true;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -114,7 +121,11 @@ public class MapControlService extends Service {
         BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduleClusterBootSplash();
+        if (skipClusterSplashOnce) {
+            skipClusterSplashOnce = false;
+        } else {
+            scheduleClusterBootSplash();
+        }
         scheduleEqualizerKeeper();
 
         // Power mode kontrolünü başlat
@@ -132,6 +143,8 @@ public class MapControlService extends Service {
         }
         SunroofAutomationEngine.getInstance(this).start();
         SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
+        // Kamera 360 > sinyalde göstergede yan kamera (anahtar kapalıysa yalnızca ayarı dinler).
+        com.mapcontrol.dvr.TurnCamera.INSTANCE.start(this);
         if (DmsFaceRecognitionManager.isEnabled(this)
                 && checkSelfPermission(android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -282,20 +295,6 @@ public class MapControlService extends Service {
         return START_STICKY;
     }
 
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        try {
-            Intent restart = new Intent(getApplicationContext(), MapControlService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(restart);
-            } else {
-                startService(restart);
-            }
-        } catch (Exception ignored) {
-        }
-        super.onTaskRemoved(rootIntent);
-    }
-
     /**
      * Ayarlarda açık kayıtlıysa (varsayılan: açık) overlay'i ana iş parçacığında çizer.
      */
@@ -333,6 +332,7 @@ public class MapControlService extends Service {
         ClimateAutomationEngine.getInstance(this).stop();
         SunroofAutomationEngine.getInstance(this).stop();
         SunroofGestureOverlayManager.getInstance(this).stop();
+        com.mapcontrol.dvr.TurnCamera.INSTANCE.stop();
         DmsFaceRecognitionManager.stop(this);
         com.mapcontrol.gps.GpsLinkManager.get(this).stop();
         super.onDestroy();
@@ -517,6 +517,12 @@ public class MapControlService extends Service {
      */
     private void pollWelcomeScreen() {
         try {
+            // "En erken" başlangıç: araç servisi bağlanıp güç okunmadan launcher açılır (süre ve deneme sınırı maybeLaunchHome'da).
+            if (BootSession.isUiPending(this)
+                    && com.mapcontrol.launcher.HomeKey.bootOpensLauncher(this)
+                    && com.mapcontrol.launcher.HomeScreenPrefs.startEarliest(this)) {
+                maybeLaunchHome();
+            }
             if (!CarInfoProxy.getInstance().isServiceConnnected()) {
                 try {
                     CarInfoProxy.getInstance().init(getApplicationContext());

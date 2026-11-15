@@ -49,6 +49,18 @@ public class BootReceiver extends BroadcastReceiver {
 
         Intent serviceIntent = new Intent(app, MapControlService.class);
         serviceIntent.putExtra(EXTRA_BOOT, true);
+        startService(app, serviceIntent);
+    }
+
+    /** Açılış dışındaki girişler (launcher, güncelleme): kullanıcı otomatik başlatmayı kapattıysa servis başlatılmaz. */
+    public static void startServiceIfAutoStartEnabled(Context context) {
+        Context app = context.getApplicationContext();
+        if (app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_BOOT_AUTO_START, true)) {
+            startService(app, new Intent(app, MapControlService.class));
+        }
+    }
+
+    private static void startService(Context app, Intent serviceIntent) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 app.startForegroundService(serviceIntent);

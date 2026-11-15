@@ -128,6 +128,8 @@ class HomeLauncherActivity : Activity() {
     private var resumed = false
     /** Kurulumda/tema uygulanırken geçerli olan tercih özeti ([HomeScreenPrefs.signature]). */
     private var appliedSignature = ""
+    /** Bu ekranın kurulduğu araç modeli ([CarModel.active] başka bir ekran kurulurken değişebilir). */
+    private var builtModel = CarModel.TIGGO
     /** Öne gelirken tercih değiştiği için yeniden kurulma bekleniyor; bu kopya düzenleme moduna girmez. */
     private var recreating = false
     private var sheet: android.app.Dialog? = null
@@ -152,6 +154,7 @@ class HomeLauncherActivity : Activity() {
         SportSpeedLog.applyFrom(this, intent)
         // Orta alan kurulmadan önce: düzen deposu ve alt çubuk biçimi etkin araç profiline göre.
         VehicleProfile.resolve(this)
+        builtModel = CarModel.resolve(this)
         LauncherDemo.applyPreview(intent, restored = savedInstanceState != null)
         LauncherDemo.applyMoving(intent)
         // Debug: telefon panelinde asistan düğmesi (yeniden kurulumda eski istek ayarın üstüne yazmasın).
@@ -177,13 +180,18 @@ class HomeLauncherActivity : Activity() {
         motionPolicy.reset(if (DriveMotion.driving) LayoutMode.DRIVE else LayoutMode.PARK)
         LauncherInfo.mode = activeMode
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) { consumeAppearanceExtra(intent); consumeEditExtra(intent) }
+        // Yönelim manifestte kilitli değil: dikey ekran (Jaecoo) dikey, diğer araçlar eskisi gibi yatay tutulur.
+        requestedOrientation = if (VehicleProfile.active.portrait) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        if (savedInstanceState == null) { consumeAppearanceExtra(intent); consumeEditExtra(intent); consumeDataCheckExtra(intent) }
+        // Simge yönlendirmesi ayarların tam açılışına ulaşmaz; ekolayzer, kamera ve yolculuk kaydı bu servise bağlı.
+        if (savedInstanceState == null) com.mapcontrol.service.BootReceiver.startServiceIfAutoStartEnabled(this)
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
         hideSystemBars()
 
-        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair)
-        // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir; OEM çubuğu yokken "Orijinal" de
-        // bizim çubuğa düşer. "Gizli"de çubuk yok.
+        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair, onRecording = { LauncherEdition.mapcontrol(this).openTab(this, MapControlTab.CAMERA_360) })
+        // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir. "Orijinal"de (OEM çubuğu
+        // algılanmasa da) ve "Gizli"de launcher çubuğu yok.
         ourBar = if (BottomBarMode.drawsOurBar(LauncherBottomBar.mode(this), oemBar)) OurBottomBar(this, onPhoneTap = ::onPhoneButton) else null
         val ourBar = this.ourBar
         // Kompakt arama hapı başlıktaki saatin sağına yerleşir (saati örtmez); konumları başlıktan okur.
@@ -297,6 +305,7 @@ class HomeLauncherActivity : Activity() {
         }
         consumeAppearanceExtra(intent)
         consumeEditExtra(intent)
+        consumeDataCheckExtra(intent)
         consumeShowCall(intent)
         PhonePrefs.applyShowAssistantExtra(this, intent)
         LauncherDemo.applyDriveMode(intent)
@@ -308,9 +317,23 @@ class HomeLauncherActivity : Activity() {
             VehicleProfile.demoOverride = VehicleProfile.parse(intent.getStringExtra(VehicleProfile.EXTRA_PROFILE))
             if (VehicleProfile.compute(this) != VehicleProfile.active) ThemeTransition.recreate(this)
         }
+        if (LauncherDemo.enabled && intent?.hasExtra(CarModel.EXTRA_MODEL) == true) {
+            CarModel.demoOverride = CarModel.parse(intent.getStringExtra(CarModel.EXTRA_MODEL))
+            if (CarModel.compute(this) != CarModel.active) ThemeTransition.recreate(this)
+        }
     }
 
     /** MapControl Ayarlar'daki "Ana ekran görünümü" bağlantısı: [EXTRA_OPEN_APPEARANCE] ile gelince Görünüm panelini açar. */
+    /** MapControl Ayarlar'daki "Veri Kontrolü" düğmesi: [EXTRA_OPEN_DATA_CHECK] ile gelince Veri kontrolü panelini açar. */
+    private fun consumeDataCheckExtra(intent: android.content.Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_DATA_CHECK, false) != true) return
+        intent.removeExtra(EXTRA_OPEN_DATA_CHECK)
+        window.decorView.post {
+            if (isFinishing || isDestroyed) return@post
+            dataCheckExtra = (dataCheckExtra ?: DataCheckSheet(this)).also { it.show() }
+        }
+    }
+
     private fun consumeAppearanceExtra(intent: android.content.Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_APPEARANCE, false) != true) return
         intent.removeExtra(EXTRA_OPEN_APPEARANCE)
@@ -407,7 +430,8 @@ class HomeLauncherActivity : Activity() {
         }
         if (started) fresh.onVisible()
         window.decorView.invalidate()
-        appliedSignature = HomeScreenPrefs.signature(this)
+        // Araç modeli arka planda değiştiyse imza yutulmaz: onResume farkı görür ve yeniden kurar (model yalnızca onCreate'te çözülür).
+        if (CarModel.compute(this) == builtModel) appliedSignature = HomeScreenPrefs.signature(this)
     }
 
     /** Tema geçişi örtüsü açıkken yeni kurulan widget'ların onVisible'ı bekletilir (yoklama/metrik patlamaları ilk karede çıkmasın). */
@@ -716,7 +740,6 @@ class HomeLauncherActivity : Activity() {
     override fun onResume() {
         super.onResume()
         hideSystemBars()
-        LauncherEdition.setHomeForeground(true)
         // Açılışta (MapControlService) ana ekran istendi: göründüğü onaylanır, tekrar denenmez.
         LauncherEdition.onLauncherShown(this)
         resumed = true
@@ -760,7 +783,6 @@ class HomeLauncherActivity : Activity() {
         resumed = false
         welcome?.finish()
         welcomeArmUntil = 0L
-        LauncherEdition.setHomeForeground(false)
         super.onPause()
     }
 
@@ -897,6 +919,16 @@ class HomeLauncherActivity : Activity() {
         windowFocused = hasFocus
         if (hasFocus) { hideSystemBars(); sportTick() }
     }
+
+    /** Çok parmaklı cam tavan / perde hareketleri; düzenleme modunda ve üstte sayfa varken çalışmaz. */
+    private val sunroofSwipe by lazy {
+        com.mapcontrol.vehicle.SunroofSwipeDispatcher(this) {
+            !editing && sheet == null && wifiPanel == null && bluetoothPanel?.isShowing != true
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean =
+        sunroofSwipe.dispatch(ev) { super.dispatchTouchEvent(it) }
 
     /** Etkin düzeni (Park/Sürüş) Sahne'ye uygular. */
     private fun loadForMode() = sahne.setMode(activeMode)
@@ -1273,6 +1305,8 @@ class HomeLauncherActivity : Activity() {
         const val EDIT_EXIT_KMH = 5
         /** MapControl Ayarlar'dan gelir (bkz. SettingsTabBuilder): açılışta Görünüm panelini gösterir. */
         const val EXTRA_OPEN_APPEARANCE = "launcher_open_appearance"
+        /** MapControl Ayarlar > Log Kaydı'ndaki "Veri Kontrolü" düğmesi: Veri kontrolü panelini açar (yalnızca okur). */
+        const val EXTRA_OPEN_DATA_CHECK = "launcher_open_data_check"
         const val FADE_OUT_MS = 120L
         const val FADE_IN_MS = 200L
         /** Tema geçişiyle yeniden kurulmada etkin düzeni korur. */

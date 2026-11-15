@@ -514,7 +514,8 @@ object SahneSlots {
 class SahneStore(
     context: Context,
     private val mode: LayoutMode,
-    vehicle: VehicleProfile = VehicleProfile.compute(context),
+    /** Bu deponun araç ekranı (biçim ve dosya adı buna göre). */
+    val vehicle: VehicleProfile = VehicleProfile.compute(context),
 ) {
     init {
         // Yapılandırma kararları (direksiyon ısıtma, sürüş modları): kayıtlı değer hemen, araçtan okuma arka planda.
@@ -525,8 +526,8 @@ class SahneStore(
     private val prefs = context.applicationContext.getSharedPreferences(prefsName(Profiles.current(context), vehicle), Context.MODE_PRIVATE)
     private val key = key(mode)
 
-    /** Tiggo 8: her yanda üst üste iki panel (dört panelli biçim); Tiggo 7 iki panelli kalır. */
-    val quad: Boolean = vehicle == VehicleProfile.TIGGO8
+    /** Tiggo 8 ve dikey ekran: dört panelli biçim; Tiggo 7 iki panelli kalır. */
+    val quad: Boolean = vehicle.quad
 
     fun load(): SahneLayout {
         val raw = prefs.getString(key, null)
@@ -560,6 +561,11 @@ class SahneStore(
         fun key(mode: LayoutMode): String = if (mode == LayoutMode.DRIVE) DRIVE else PARK
 
         fun prefsName(profile: Int, vehicle: VehicleProfile = VehicleProfile.TIGGO7): String =
-            Profiles.key(PREFS, profile) + if (vehicle == VehicleProfile.TIGGO8) "_t8" else ""
+            Profiles.key(PREFS, profile) + when (vehicle) {
+                VehicleProfile.TIGGO7 -> ""
+                VehicleProfile.TIGGO8 -> "_t8"
+                // Dikey ekranın düzeni ayrı saklanır: aynı paneller farklı boyda, ileride ayrı varsayılanlar alabilir.
+                VehicleProfile.PORTRAIT -> "_pt"
+            }
     }
 }

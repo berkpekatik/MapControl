@@ -18,12 +18,12 @@ internal object TrunkArt {
     private val cache = HashMap<String, Bitmap?>()
 
     /** Kırpma (base pikseli): bagaj açılınca araçtan geriye taşan kapak dahil, arka kapılara kadar. */
-    private const val CROP_LEFT = -60f
-    private const val CROP_RIGHT = 200f
-    private const val CROP_TOP = 6f
-    private const val CROP_BOTTOM = 350f
+    private val CROP_LEFT: Float get() = CarModel.active.geometry.trunkCrop[0]
+    private val CROP_TOP: Float get() = CarModel.active.geometry.trunkCrop[1]
+    private val CROP_RIGHT: Float get() = CarModel.active.geometry.trunkCrop[2]
+    private val CROP_BOTTOM: Float get() = CarModel.active.geometry.trunkCrop[3]
 
-    fun key(context: Context, open: Boolean): String = "trunk_" + CarColorPrefs.get(context).key + if (open) "_open" else ""
+    fun key(context: Context, open: Boolean): String = "trunk_" + CarModel.active.prefix.removePrefix("car_") + CarColorPrefs.get(context).key + if (open) "_open" else ""
 
     fun drawable(context: Context, open: Boolean): Drawable? {
         val k = key(context, open)
@@ -35,7 +35,7 @@ internal object TrunkArt {
         val res = context.resources
         val pkg = res.getResourcePackageName(R.drawable.car_grafit_base)
         fun load(name: String): Bitmap? {
-            val id = res.getIdentifier("car_${color.key}_$name", "drawable", pkg)
+            val id = res.getIdentifier("${CarModel.active.prefix}${color.key}_$name", "drawable", pkg)
             return if (id == 0) null else BitmapFactory.decodeResource(res, id, BitmapFactory.Options().apply { inScaled = false })
         }
         val base = load("base")

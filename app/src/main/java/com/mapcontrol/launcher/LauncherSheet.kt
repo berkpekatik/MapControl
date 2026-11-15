@@ -51,13 +51,22 @@ fun showLauncherSheet(
             if (edge) decorView.setPadding(0, 0, 0, 0)
             setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
-        else setLayout(activity.dp(widthDp), ViewGroup.LayoutParams.WRAP_CONTENT)
+        // Ekrandan geniş istenen sayfa kenarlarda pay bırakacak kadar daralır (dikey ekranda 1440 dp'lik araç detayı taşıyordu).
+        else setLayout(sheetWidthPx(activity.dp(widthDp), activity.resources.displayMetrics.widthPixels, activity.dp(SHEET_EDGE_DP)),
+            ViewGroup.LayoutParams.WRAP_CONTENT)
         setGravity(Gravity.CENTER)
     }
     dialog.hideOemBarIfNeeded(activity)
     dialog.show()
     return dialog
 }
+
+/** Sayfanın kenarlarda en az bırakacağı pay (dp). */
+internal const val SHEET_EDGE_DP = 24
+
+/** İstenen sayfa genişliği; ekrana ([screenPx]) iki yanda [edgePx] payla sığmıyorsa sığan genişlik (saf). */
+internal fun sheetWidthPx(wantedPx: Int, screenPx: Int, edgePx: Int): Int =
+    if (screenPx <= 0) wantedPx else minOf(wantedPx, maxOf(0, screenPx - 2 * edgePx))
 
 /**
  * Diyalog penceresi açılınca sistem gezinme çubuğunu geri getirmesin: "Bizimki"/"Gizli" alt çubuk kipinde

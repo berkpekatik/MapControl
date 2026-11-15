@@ -35,9 +35,6 @@ internal object LauncherEdition {
     @Suppress("UNUSED_PARAMETER")
     fun init(context: Context) = Unit
 
-    /** Launcher (ana ekran / Mini gösterge) öndeyken yüzen MapControl geri okunu gizler; başka uygulama önde iken eskisi gibi. */
-    fun setHomeForeground(front: Boolean) = com.mapcontrol.manager.FloatingBackButtonManager.setSuppressed(front)
-
     /** Ana ekran göründü: açılışta (MapControlService) istenen arayüz açılmış sayılır ve yeniden başlatılmaz. */
     fun onLauncherShown(context: Context) = com.mapcontrol.util.BootSession.markUiLaunched(context)
 

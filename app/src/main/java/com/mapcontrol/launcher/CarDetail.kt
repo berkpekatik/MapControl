@@ -63,8 +63,12 @@ internal object CarDetail {
     fun psi(t: TireReading?): List<Int?> =
         if (t == null || !t.perWheel) List(TireReading.WHEELS) { null } else t.values.map { v -> v?.let { TireDecode.psi(it) } }
 
-    fun low(t: TireReading?): List<Boolean> =
-        if (t == null || !t.perWheel) List(TireReading.WHEELS) { false } else t.values.map { TireDecode.isLow(it) }
+    /** Tekerlek başına uyarı: değer eşiğin altında ya da uyarı maskesinde (ReadOnly 95) işaretli. */
+    fun low(t: TireReading?): List<Boolean> {
+        val byValue = if (t == null || !t.perWheel) List(TireReading.WHEELS) { false } else t.values.map { TireDecode.isLow(it) }
+        val mask = t?.warnWheels ?: return byValue
+        return byValue.zip(mask) { a, b -> a || b }
+    }
 
     /**
      * [openings]: kapılar/bagaj/tavan (gövde okunamadıysa null); [extra]: camlar ve kaput (okunmayan parça haritada yok);
@@ -114,6 +118,23 @@ internal class CarDetailSheet(private val activity: Activity) {
 
     fun show(onDismiss: () -> Unit): Dialog {
         val d = showLauncherSheet(activity, R.string.launcher_detail_title, SHEET_WIDTH_DP) {
+            if (VehicleProfile.active.portrait) {
+                // Dikey ekran (Jaecoo): üç sütun yan yana sığmaz; araç ve basınçlar üstte ortada, altında iki sütun.
+                addView(tireMap, LinearLayout.LayoutParams(context.dp(PORTRAIT_TIRE_W_DP), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    gravity = Gravity.CENTER_HORIZONTAL
+                })
+                addView(View(context), LinearLayout.LayoutParams(1, context.dp(24)))
+                addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(bodyRows, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    addView(View(context).apply { setBackgroundColor(Sahne.STRIP_HAIR) },
+                        LinearLayout.LayoutParams(context.dp(1), ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                            marginStart = context.dp(24); marginEnd = context.dp(24)
+                        })
+                    addView(stateRows, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.2f))
+                }, sheetFullWidth())
+                return@showLauncherSheet
+            }
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -158,7 +179,7 @@ internal class CarDetailSheet(private val activity: Activity) {
         val (windows, windowsOpen) = list(m.windows, WINDOW_NAMES)
         row(s(R.string.launcher_detail_windows), windows, windowsOpen)
         row(s(R.string.launcher_detail_sunroof), openClosed(m.sunroof), m.sunroof == true)
-        row(s(R.string.launcher_detail_outside), m.outsideC?.let { activity.getString(R.string.launcher_temp_c, Math.round(it).toInt()) } ?: dash, false)
+        row(s(R.string.launcher_detail_outside), m.outsideC?.let { activity.getString(R.string.launcher_temp_c, TripDecode.outsideText(it)) } ?: dash, false)
         rows = stateRows
         val number = java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault())
         val service = listOfNotNull(
@@ -237,11 +258,15 @@ internal class CarDetailSheet(private val activity: Activity) {
 
         private fun carW(w: Int) = (w * CAR_FRACTION).toInt()
 
+        /** Çizilen tuval genişliği: gövde [carW] çerçevesini doldursun diye modelin ölçeğiyle büyür ([CarGeometry.bodyScale]; Tiggo 7 ve Jaecoo 7'de tam 1). */
+        private fun drawW(cw: Int) = (cw * car.model.geometry.bodyScale).toInt()
+
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
             val w = MeasureSpec.getSize(widthMeasureSpec)
             val cw = carW(w)
-            car.measure(MeasureSpec.makeMeasureSpec(CarStageView.widthFor(cw), MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(CarStageView.heightFor(cw), MeasureSpec.EXACTLY))
+            val dw = drawW(cw)
+            car.measure(MeasureSpec.makeMeasureSpec(car.widthFor(dw), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(car.heightFor(dw), MeasureSpec.EXACTLY))
             val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
             labels.forEach { it.measure(free, free) }
             val labelH = labels.maxOf { it.measuredHeight }
@@ -256,8 +281,11 @@ internal class CarDetailSheet(private val activity: Activity) {
             val ch = (cw * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W).toInt()
             val bodyLeft = (w - cw) / 2
             val bodyTop = (h - ch) / 2
-            val cl = bodyLeft - CarStageView.carLeft(cw)
-            val ct = bodyTop - CarStageView.carTop(cw)
+            // Tuval, gövde çerçevesiyle aynı merkezde modelin ölçeği kadar büyük (ölçek 1 ise aynı kutu).
+            val dw = drawW(cw)
+            val dh = (dw * CarAnimSpec.BASE_H / CarAnimSpec.BASE_W).toInt()
+            val cl = bodyLeft - (dw - cw) / 2 - car.carLeft(dw)
+            val ct = bodyTop - (dh - ch) / 2 - car.carTop(dw)
             car.layout(cl, ct, cl + car.measuredWidth, ct + car.measuredHeight)
             val gap = context.dp(LABEL_GAP_DP)
             labels.forEachIndexed { i, label ->
@@ -282,7 +310,8 @@ internal class CarDetailSheet(private val activity: Activity) {
             }
 
             fun bind(wheel: String, psi: Int?, low: Boolean) {
-                value.text = psi?.let { context.getString(R.string.launcher_sahne_psi, it) } ?: context.getString(R.string.launcher_unavailable)
+                value.text = psi?.let { context.getString(R.string.launcher_sahne_psi, it) }
+                    ?: context.getString(if (low) R.string.launcher_tire_label_warning else R.string.launcher_unavailable)
                 value.setTextColor(if (low) Sahne.AMBER else if (psi != null) Sahne.NUMERAL else Sahne.INK_3)
                 name.text = wheel
                 contentDescription = "$wheel, ${value.text}"
@@ -292,6 +321,8 @@ internal class CarDetailSheet(private val activity: Activity) {
 
     private companion object {
         const val SHEET_WIDTH_DP = 1440
+        /** Dikey ekranda üstteki araç + basınç alanının genişliği. */
+        const val PORTRAIT_TIRE_W_DP = 560
         const val ROW_H_DP = 44
         const val CAR_FRACTION = 0.76f
         const val LABEL_GAP_DP = 10

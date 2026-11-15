@@ -70,8 +70,50 @@ internal object MediaSourcePick {
 
     fun isOemOwnSource(type: Int?) = type != null && type in OEM_OWN_SOURCES
 
+    /** OEM radyo kaynakları (FM_AM 8, FM 9, AM 10, DAB 24). */
+    private val RADIO_SOURCES = setOf(8, 9, 10, 24)
+
+    /**
+     * Kaynak açma (OPEN_SOURCE) yükünün açılış nedeni. Eski ses uygulamalı yazılımlarda (`com.desaysv.audioapp`, Chery T18/T28
+     * SOP6/SOP7) neden 8 radyoda "cards_start" olur: ses uygulaması radyoyu açmaz, yalnız açık radyo ekranına "çalmaya devam"
+     * yollar; arka planda açtığımız için ekran yok ve hiçbir şey çalmaz (araç logu 10 Kasım: seçimden sonra kaynak 9'a geçmedi).
+     * Aracın kendi başlatıcısı bu yazılımda 13 gönderir ("other_app_start" → OPEN_RADIO, son istasyon çalar). Diğer yazılımda
+     * (`svaudioapp`) 8 araçta doğrulandı, dokunulmaz; BT ve USB de değişmez.
+     */
+    fun openReason(type: Int, oldAudioApp: Boolean): Int =
+        if (oldAudioApp && type in RADIO_SOURCES) OemAudioSource.REASON_OTHER_APP else OemAudioSource.REASON_CARDS
+
     /** Oturum üçüncü taraf bir uygulamanınki mi (BT ya da OEM ses uygulaması değil). */
-    private fun isThirdParty(pkg: String?) = pkg != null && !isBluetooth(pkg) && !isOemAudio(pkg)
+    fun isThirdParty(pkg: String?) = pkg != null && !isBluetooth(pkg) && !isOemAudio(pkg)
+
+    /**
+     * Kartın başlığına / kapağına dokununca açılacak uygulama: kartta (çalan ya da boşta sürdürülecek) üçüncü taraf bir
+     * medya uygulaması varsa onun paketi; Bluetooth, radyo/USB (OEM ses uygulaması), demo ve erişim yokken null.
+     */
+    fun appToOpen(hasSource: Boolean, pkg: String?, demo: Boolean): String? =
+        if (hasSource && !demo && isThirdParty(pkg)) pkg else null
+
+    /** OEM ses uygulamasının tek etkinliğini (`MainActivity`, singleTask) radyo çalma ekranında açan ekler. */
+    data class RadioOpen(val pkg: String, val sourceKey: String, val navigationFlag: Int)
+
+    const val EXTRA_SOURCE_KEY = "source_key"
+    const val EXTRA_NAVIGATION_FLAG = "NavigationFlag"
+
+    /**
+     * Radyo kartına dokununca açılacak OEM radyo ekranı; radyo değilse / demoda null. Değerler her yazılımın kendi mini
+     * çalarının "çalma ekranına git" davranışından alındı (APK'lar decompile edildi):
+     * - `svaudioapp` (T19C / T1E24, tiggo7): `MainActivity.R()` → FM/AM bayrak 1, DAB 2; "radio" anahtarı radyo parçasına gider.
+     * - `audioapp` (T18/T28, tiggo8): `MainFragment.d()` → AM ("am", 1), FM/DAB ("radio", 2).
+     * onNewIntent iki ek de varsa (anahtar null değil, bayrak -1 değil) sayfayı değiştirir; açık uygulamada da çalışır.
+     */
+    fun radioToOpen(pkg: String?, band: RadioDisplay.Band?, demo: Boolean): RadioOpen? {
+        if (demo || band == null || pkg == null || !isOemAudio(pkg)) return null
+        return if (pkg == OEM_AUDIO_PKG_OLD) {
+            if (band == RadioDisplay.Band.AM) RadioOpen(pkg, "am", 1) else RadioOpen(pkg, "radio", 2)
+        } else {
+            RadioOpen(pkg, "radio", if (band == RadioDisplay.Band.DAB) 2 else 1)
+        }
+    }
 
     /**
      * Seçilecek oturumun sırası; liste boşsa -1. [current] seçili oturumun sırası (yoksa -1). [follow]: kartın izleyeceği OEM
@@ -82,11 +124,12 @@ internal object MediaSourcePick {
      * 5) BT. 6) İlk oturum.
      */
     @JvmOverloads
-    fun pick(cands: List<Cand>, current: Int, follow: Int? = null): Int {
+    fun pick(cands: List<Cand>, current: Int, follow: Int? = null, userPicked: Boolean = false): Int {
         if (cands.isEmpty()) return -1
         cands.indexOfFirst { it.playing }.let { if (it >= 0) return it }
         val bt = cands.indexOfFirst { isBluetooth(it.pkg) }
-        if (follow != null && !(current in cands.indices && isThirdParty(cands[current].pkg))) {
+        // Kullanıcının seçicideki seçimi duraklatılmış üçüncü taraf uygulamadan da önce gelir.
+        if (follow != null && (userPicked || !(current in cands.indices && isThirdParty(cands[current].pkg)))) {
             if (follow == OemAudioSource.BT_MUSIC && bt >= 0) return bt
             if (isOemOwnSource(follow)) cands.indexOfFirst { isOemAudio(it.pkg) }.let { if (it >= 0) return it }
         }
@@ -99,6 +142,17 @@ internal object MediaSourcePick {
 
     /** Oynat'tan önce OEM kaynağı Bluetooth müziğine geçirilmeli mi: kaynak okunamadıysa (null) da geçirilir (OEM gibi zararsız). */
     fun needsBtSwitch(currentSourceType: Int?): Boolean = currentSourceType != OemAudioSource.BT_MUSIC
+
+    /** Oynat: kart OEM ses oturumundaysa ve kaynak OEM'inse (radyo/USB) BT'ye geçilmez. */
+    fun keepOemOnPlay(activePkg: String?, oemSource: Int?): Boolean = isOemAudio(activePkg) && isOemOwnSource(oemSource)
+
+    /** Kart radyoda mı: OEM radyo oturumu üstveri ve çalma durumu bildirmez (araçta `state=2`, `metadata=null`), kaynağa bakılır. */
+    fun radioActive(activePkg: String?, oemSource: Int?): Boolean =
+        isOemAudio(activePkg) && RadioDisplay.bandOfSource(oemSource) != null
+
+    /** Boşta Oynat: OEM kaynağı biliniyorsa o açılır; kartın gösterdiği son uygulama üçüncü tarafsa o uygulama açılır. */
+    fun idlePlayOpensOem(lastPkg: String?, oemSource: Int?): Boolean =
+        isOemOwnSource(oemSource) && !isThirdParty(lastPkg)
 
     /**
      * Oynat'ta izlenecek yol. BT servisi bağlıysa kaynak 13 olsa bile `MUSIC_PLAY` gider: `CURRENT_SOURCE_TYPE` OEM'in son
@@ -170,21 +224,53 @@ internal class SourceFollow {
         private set
     private var switchedLive = false
     private var hadBt = false
+    private var picked: Int? = null
+    private var pickedAt = 0L
 
-    /** Yeni kaynak; değiştiyse true. İlk değer geçiş sayılmaz, sonraki her değişim geçiştir. */
+    /** Kullanıcı kart seçicisinden OEM kaynağı seçti ve seçim hâlâ geçerli. */
+    val userPicked: Boolean get() = picked != null
+
+    /** Yeni kaynak; değiştiyse true. İlk değer geçiş sayılmaz, sonraki her değişim geçiştir. Başka kaynağa geçiş seçimi siler. */
     fun onSource(type: Int): Boolean {
         val old = source
         if (old == type) return false
         source = type
         switchedLive = old != null
+        if (type != picked) picked = null
+        oemPaused = false
         return true
     }
 
-    /** [hasBt]: aday oturumlarda Bluetooth oturumu var mı. Yeni beliren BT oturumu canlı geçişi siler. */
-    fun follow(hasBt: Boolean): Int? {
-        if (hasBt && !hadBt) switchedLive = false
+    /** Kartın Duraklat'ıyla OEM radyosu duraklatıldı; radyo oturumu durum bildirmediği için burada tutulur. */
+    var oemPaused = false
+
+    /** Seçicideki Radyo/USB seçimi: kaynak zaten [type] olsa bile kart ona bağlanır. */
+    fun onUserPick(type: Int, now: Long) {
+        picked = type
+        pickedAt = now
+        oemPaused = false
+    }
+
+    /** BT seçildi ya da telefon önceliği BT'ye geçirdi. */
+    fun clearUserPick() {
+        picked = null
+    }
+
+    /**
+     * [hasBt]: aday oturumlarda Bluetooth oturumu var mı. Yeni beliren BT oturumu canlı geçişi siler; kullanıcı seçimini
+     * yalnızca seçim eskiyse siler (süreç uyku boyunca yaşar: dünkü radyo seçimi sabah bağlanan telefonun önüne geçmesin).
+     */
+    fun follow(hasBt: Boolean, now: Long): Int? {
+        if (hasBt && !hadBt) {
+            switchedLive = false
+            if (now - pickedAt >= USER_PICK_KEEP_MS) picked = null
+        }
         hadBt = hasBt
-        return MediaSourcePick.follow(source, switchedLive)
+        return picked ?: MediaSourcePick.follow(source, switchedLive)
+    }
+
+    companion object {
+        const val USER_PICK_KEEP_MS = 30 * 60_000L
     }
 }
 
@@ -212,8 +298,12 @@ internal object OemAudioSource {
 
     const val BT_MUSIC = 13
     const val PLAY_ACTION_OPEN_SOURCE = 6
+    const val PLAY_ACTION_PLAY = 1
+    const val PLAY_ACTION_PAUSE = 2
     /** VDValueMedia REASON_CARDS: OEM kart ve SystemUI yolu, iki araçta da var. */
     const val REASON_CARDS = 8
+    /** VDValueMedia: başka uygulamadan açılış (aracın kendi başlatıcısının kaynak değiştirme nedeni; bkz. [MediaSourcePick.openReason]). */
+    const val REASON_OTHER_APP = 13
     const val DISPLAY_BACKGROUND = 2
     const val INTENT_DEFAULT_VIEW = 1
 
@@ -230,7 +320,11 @@ internal object OemAudioSource {
 
     /** Komut gittikten sonra BT oturumuna yedek oynat göndermeden önce beklenen süre (odak el değiştirsin). */
     private const val SETTLE_MS = 800L
+    /** Parça bilgisi geç gelirse telefon önceliği yeniden denemesi (geçişten ms; OEM ~1000 ms'de duraklatır). */
+    private val INFO_RETRY_MS = longArrayOf(300L, 700L)
     private const val BIND_WAIT_MS = 1_500L
+    /** Yalnızca odak isteğinden sonra kaynağın BT'ye geçmesi için beklenen süre. */
+    private const val FOCUS_CONFIRM_MS = 1_000L
 
     private val io by lazy { Executors.newSingleThreadExecutor { r -> Thread(r, "oem-audio-source").apply { isDaemon = true } } }
     private val main by lazy { Handler(Looper.getMainLooper()) }
@@ -238,11 +332,17 @@ internal object OemAudioSource {
     @Volatile private var bus: VDBus? = null
 
     /** Yedek yol: OEM kartıyla aynı yük, ama arka planda (OEM medya ekranı öne gelmez). */
-    fun switchPayload(type: Int = BT_MUSIC): VDMediaPlay = VDMediaPlay().apply {
+    fun switchPayload(type: Int = BT_MUSIC, reason: Int = REASON_CARDS): VDMediaPlay = mediaPayload(type, PLAY_ACTION_OPEN_SOURCE, reason)
+
+    /** OEM radyo/USB için oynat ya da duraklat (oturumu `actions=0` bildirir, oturum komutu işlemez). */
+    fun playbackPayload(type: Int, play: Boolean): VDMediaPlay =
+        mediaPayload(type, if (play) PLAY_ACTION_PLAY else PLAY_ACTION_PAUSE)
+
+    private fun mediaPayload(type: Int, action: Int, reason: Int = REASON_CARDS): VDMediaPlay = VDMediaPlay().apply {
         putMediaType(type)
-        putPlayAction(PLAY_ACTION_OPEN_SOURCE)
+        putPlayAction(action)
         putMediaPlayActionInfo(VDMediaPlayActionInfo().apply {
-            putReason(REASON_CARDS)
+            putReason(reason)
             putDisPlayView(DISPLAY_BACKGROUND)
             putIntent(INTENT_DEFAULT_VIEW)
         })
@@ -376,7 +476,18 @@ internal object OemAudioSource {
 
     /** Kartın izleyeceği kaynak ([SourceFollow.follow]); [hasBt]: aday oturumlarda Bluetooth oturumu var mı. */
     @Synchronized
-    fun followSource(hasBt: Boolean): Int? = sourceFollow.follow(hasBt)
+    fun followSource(hasBt: Boolean): Int? = sourceFollow.follow(hasBt, SystemClock.elapsedRealtime())
+
+    @Synchronized
+    fun isOemPaused(): Boolean = sourceFollow.oemPaused
+
+    /** Seçicide üçüncü taraf uygulama seçildi: önceki radyo/USB seçimi kartı geri çekmesin. */
+    @Synchronized
+    fun onAppSelected() = sourceFollow.clearUserPick()
+
+    /** İzlenen kaynak kullanıcının kart seçicisindeki seçimi mi ([SourceFollow.userPicked]). */
+    @Synchronized
+    fun isSourceUserPicked(): Boolean = sourceFollow.userPicked
 
     private val notifyListener = VDNotifyListener { event, _ ->
         if (event == null || event.id != VDEventMedia.CURRENT_SOURCE_TYPE) return@VDNotifyListener
@@ -407,7 +518,17 @@ internal object OemAudioSource {
         if (watching) return
         val b = ensureBus(context) ?: return
         watching = true
+        val app = context.applicationContext
+        // Telefon önceliğinin "yalnızca odak" yolu da önceden bağlanır (OEM 1 sn içinde duraklatır).
+        OemBtFocus.bind(app)
         io.execute {
+            // Komutlar aynı kuyrukta olduğu için biçim ilk komuttan önce belirlenir.
+            // Biçim tespiti araç yazılımına bağlı; burada atılan bir hata (ör. LinkageError) io iş parçacığını ve süreci öldürmesin.
+            try {
+                MediaPlayFormat.apply(app)
+            } catch (t: Throwable) {
+                Log.w(TAG, "format: ${t.javaClass.simpleName}")
+            }
             try {
                 b.registerVDBindListener(bindListener)
                 b.registerVDNotifyListener(notifyListener)
@@ -446,9 +567,11 @@ internal object OemAudioSource {
         // Sonraki her değişim (bildirim ya da aboneliğin kaçırdığını yakalayan okuma) geçiştir ([SourceFollow]).
         if (!sourceFollow.onSource(type)) return
         Log.i(TAG, "source: $old -> $type live=$live")
+        focusSwitch.onSource(type)
         // Kullanıcı OEM uygulamasında BT dışı kaynak seçti: telefon önceliği bir süre karışmaz. BT kopunca OEM'in kendi
         // radyoya düşüşü seçim sayılmaz ([PhonePriority.onOemSourceAway]).
         if (old != null && type != BT_MUSIC) {
+            revert.cancel() // kaynak zaten BT dışında (kullanıcı ya da bizim geri dönüşümüz)
             val pick = phonePriority.onOemSourceAway(SystemClock.elapsedRealtime())
             Log.i(TAG, "phone-priority: oemSourceAway=$type userPick=$pick")
         }
@@ -461,7 +584,12 @@ internal object OemAudioSource {
     private val phonePriority = PhonePriority()
 
     @Synchronized
-    private fun markOwnPlay() = phonePriority.onOwnPlay(SystemClock.elapsedRealtime())
+    private fun markOwnPlay() {
+        revert.cancel()
+        focusSwitch.cancel()
+        phonePriority.onOwnPlay(SystemClock.elapsedRealtime())
+        sourceFollow.clearUserPick()
+    }
 
     /**
      * `com.android.bluetooth` A2DP oturumunun çalma durumu (süreç boyu yaşayan BtSessionWatcher her gözlemde çağırır;
@@ -471,6 +599,13 @@ internal object OemAudioSource {
      */
     fun onBtPlayback(context: Context, playing: Boolean?) {
         val now = SystemClock.elapsedRealtime()
+        lastBtPlaying = playing
+        // Kısa çalma geri dönüşü: telefon önceliğiyle geçildikten sonra BT hemen durduysa önceki kaynak geri açılır.
+        if (synchronized(this) { revert.onBtState(playing, now) }) {
+            revertContext = context.applicationContext
+            main.removeCallbacks(revertTask)
+            main.postDelayed(revertTask, PriorityRevert.SETTLE_MS + 50L)
+        }
         // Ayar ve ses kipi kilit dışında okunur (update/readSource io'da aynı kilidi alır; ilk okuma diske gidebilir).
         // Yalnızca geçişte okunur (oturum çalarken ~500 ms'de bir durum yollar); karar yine kilit altında verilir.
         val transition = playing == true && synchronized(this) { phonePriority.isTransition(true) }
@@ -483,20 +618,140 @@ internal object OemAudioSource {
                 phonePriority.onBtGone(now)
                 null
             } else {
-                phonePriority.onBtState(playing, now, source, { enabled }, { calling })
+                phonePriority.onBtState(playing, now, source, { enabled }, { calling }, ::btTrackInfo)
             }
         } ?: return
+        if (decision == PhonePriority.Decision.NO_TRACK_INFO) {
+            // Parça bilgisi çalma durumundan sonra gelebilir; OEM telefonu ~1 sn'de duraklatmadan önce iki kez bakılır.
+            Log.i(TAG, "phone-priority: no track info yet oemSource=$source")
+            infoContext = context.applicationContext
+            infoRetryPending = true
+            main.removeCallbacks(infoRetryTask)
+            INFO_RETRY_MS.forEach { main.postDelayed(infoRetryTask, it) }
+            return
+        }
+        onPriorityDecision(context, decision, source, enabled, calling)
+    }
+
+    private fun onPriorityDecision(context: Context, decision: PhonePriority.Decision, source: Int?, enabled: Boolean, calling: Boolean) {
         if (decision == PhonePriority.Decision.NO_TRANSITION) return
         if (decision != PhonePriority.Decision.SWITCH) {
-            Log.i(TAG, "phone-priority: skip=$decision oemSource=$source")
+            Log.i(TAG, "phone-priority: skip=$decision oemSource=$source enabled=$enabled calling=$calling")
             return
         }
         if (ensureBus(context) == null) {
             Log.i(TAG, "phone-priority: no VDBus oemSource=$source")
             return
         }
+        synchronized(this) {
+            sourceFollow.clearUserPick()
+            revert.onSwitched(source, SystemClock.elapsedRealtime())
+        }
         val from = source
-        io.execute { sendBtSwitch("phone-priority", from) }
+        io.execute { sendPrioritySwitch(from) }
+    }
+
+    /** Kilit: `this`. */
+    private val focusSwitch = FocusOnlySwitch()
+
+    /**
+     * io: telefon önceliği geçişi. Önce yalnızca BT müzik odağı istenir ([OemBtFocus]); telefona oynat gitmez, böylece
+     * mesaj bildirimi sesinde telefonda duraklatılmış şarkı başlamaz (ses bitince BT durur, [PriorityRevert] radyoya döner).
+     * Yol yoksa ya da bu araçta bir kez tutmadıysa ([FocusOnlySwitch]) eski `MUSIC_PLAY` yolu ([sendBtSwitch]).
+     */
+    private fun sendPrioritySwitch(source: Int?) {
+        val t0 = SystemClock.elapsedRealtime()
+        val tryFocus = synchronized(this) { focusSwitch.shouldTry() }
+        val status = if (tryFocus) OemBtFocus.requestFocus() else null
+        if (status != OemBtFocus.STATUS_SUCCESS) {
+            if (tryFocus) Log.i(TAG, "phone-priority: focus-only unavailable status=$status")
+            sendBtSwitch("phone-priority", source)
+            return
+        }
+        synchronized(this) { focusSwitch.onRequested() }
+        main.removeCallbacks(focusConfirmTask)
+        main.postDelayed(focusConfirmTask, FOCUS_CONFIRM_MS)
+        Log.i(TAG, "phone-priority: oemSource=$source path=FOCUS_ONLY ${SystemClock.elapsedRealtime() - t0}ms")
+    }
+
+    /** Odak istendikten sonra kaynak BT'ye geçti mi; geçmediyse ve telefon hâlâ çalıyorsa eski yol (ana iş parçacığı). */
+    private val focusConfirmTask = Runnable {
+        var source: Int? = null
+        val playing = lastBtPlaying
+        val fallback = synchronized(this) {
+            source = sourceFollow.source
+            focusSwitch.confirm(source, playing)
+        }
+        val works = synchronized(this) { focusSwitch.works }
+        Log.i(TAG, "phone-priority: focus-only works=$works oemSource=$source btPlaying=$playing fallback=$fallback")
+        if (works == false) com.mapcontrol.GlitchTip.breadcrumb("media", "phone-priority focus-only no source change")
+        if (fallback) io.execute { sendBtSwitch("phone-priority", source) }
+    }
+
+    /** Ana iş parçacığı: BT oturumu şu an anlamlı bir parça bildiriyor mu (BtSessionWatcher'ın izlediği oturum). */
+    private fun btTrackInfo(): Boolean = try {
+        com.mapcontrol.media.BtSessionWatcher.hasTrackInfo()
+    } catch (t: Throwable) {
+        true // okunamazsa eski davranış: engelleme
+    }
+
+    /** Ana iş parçacığı: BT oturumunun parça bilgisi değişti; bekleyen deneme varsa hemen yapılır. */
+    fun onBtMetadataChanged() {
+        if (infoRetryPending) main.post(infoRetryTask)
+    }
+
+    private var infoRetryPending = false
+    @Volatile private var lastBtPlaying: Boolean? = null
+    private var infoContext: Context? = null
+    private var revertContext: Context? = null
+
+    /** Kilit: `this`. */
+    private val revert = PriorityRevert()
+
+    /** Parça bilgisi geç geldiyse telefon önceliğini yeniden dener (ana iş parçacığı). */
+    private val infoRetryTask = Runnable { runInfoRetry() }
+
+    private fun runInfoRetry() {
+        val context = infoContext ?: return
+        val now = SystemClock.elapsedRealtime()
+        val enabled = PhonePriorityGate.allowed(LauncherModeManager.isEnabled(context), MediaPrefs.phonePriority(context))
+        val calling = inCall(context)
+        var source: Int? = null
+        val decision = synchronized(this) {
+            source = sourceFollow.source
+            phonePriority.retry(now, source, { enabled }, { calling }, ::btTrackInfo)
+        }
+        if (decision == PhonePriority.Decision.NO_TRACK_INFO) return // sonraki deneme bekler
+        infoRetryPending = false
+        main.removeCallbacks(infoRetryTask)
+        if (decision == PhonePriority.Decision.NO_TRANSITION) {
+            Log.i(TAG, "phone-priority: skip=NO_TRACK_INFO oemSource=$source")
+            return
+        }
+        onPriorityDecision(context, decision, source, enabled, calling)
+    }
+
+    /** Geçişten hemen sonra BT durdu: önceki OEM kaynağına dön (ana iş parçacığı). */
+    private val revertTask: Runnable = Runnable {
+        val context = revertContext ?: return@Runnable
+        val target = synchronized(this) {
+            revert.due(SystemClock.elapsedRealtime(), lastBtPlaying, sourceFollow.source)
+        } ?: return@Runnable
+        if (ensureBus(context) == null) return@Runnable
+        val reason = MediaSourcePick.openReason(target, usesOldAudioApp(context))
+        io.execute {
+            startBind(VDServiceDef.ServiceType.MEDIA)
+            val media = connect(VDServiceDef.ServiceType.MEDIA)
+            val sent = try {
+                media?.set(VDMediaPlay.createEvent(VDEventMedia.MEDIA_SOURCE_PLAY_STATUS, switchPayload(target, reason)))
+                media != null
+            } catch (t: Throwable) {
+                Log.w(TAG, "phone-priority revert: failed ${t.javaClass.simpleName}")
+                false
+            }
+            Log.i(TAG, "phone-priority revert: BT stopped right after switch -> $target reason=$reason sent=$sent")
+            com.mapcontrol.GlitchTip.breadcrumb("media", "phone-priority revert -> $target sent=$sent")
+        }
     }
 
     /** Arama ya da sesli görüşme sürüyor mu (ses kipi normal değil). */
@@ -539,26 +794,65 @@ internal object OemAudioSource {
      * Kart seçicisinden BT dışı kaynak ([type]: FM 9, AM 10, USB0 3): OEM kartı / SystemUI gibi `MEDIA_SOURCE_PLAY_STATUS
      * {type, playAction 6, reason 8}`, ama arka planda
      * (disPlayView 2; intent görünümü yalnızca ön planda anlamlı). Telefon önceliği
-     * bir süre karışmaz. Yalnızca kullanıcı dokunuşuyla çağrılır.
+     * bir süre karışmaz. Yalnızca kullanıcı dokunuşuyla çağrılır. Gönderilirse kart bu kaynağa bağlanır (kaynak zaten buysa
+     * OEM değişim bildirmez, bu yüzden kart burada yeniden seçim yapar); gönderilemezse [onFailed] ana iş parçacığında çalışır.
      */
-    fun openSource(context: Context, type: Int) {
-        synchronized(this) { phonePriority.onUserPick(SystemClock.elapsedRealtime()) }
+    fun openSource(context: Context, type: Int, onFailed: () -> Unit) {
+        synchronized(this) {
+            revert.cancel()
+            focusSwitch.cancel()
+            phonePriority.onUserPick(SystemClock.elapsedRealtime())
+        }
         if (ensureBus(context) == null) {
             Log.i(TAG, "pick: target=$type no VDBus")
+            onFailed()
             return
         }
+        val reason = MediaSourcePick.openReason(type, usesOldAudioApp(context))
         io.execute {
             val t0 = SystemClock.elapsedRealtime()
             startBind(VDServiceDef.ServiceType.MEDIA)
             val media = connect(VDServiceDef.ServiceType.MEDIA)
             val sent = try {
-                media?.set(VDMediaPlay.createEvent(VDEventMedia.MEDIA_SOURCE_PLAY_STATUS, switchPayload(type)))
+                media?.set(VDMediaPlay.createEvent(VDEventMedia.MEDIA_SOURCE_PLAY_STATUS, switchPayload(type, reason)))
                 media != null
             } catch (t: Throwable) {
                 Log.w(TAG, "pick: target=$type failed ${t.javaClass.simpleName}")
                 false
             }
-            Log.i(TAG, "pick: target=$type path=OPEN_SOURCE sent=$sent ${SystemClock.elapsedRealtime() - t0}ms")
+            Log.i(TAG, "pick: target=$type reason=$reason path=OPEN_SOURCE sent=$sent ${SystemClock.elapsedRealtime() - t0}ms")
+            if (sent) {
+                synchronized(this) { sourceFollow.onUserPick(type, SystemClock.elapsedRealtime()) }
+                main.post { sourceListeners.forEach { it.onOemSourceChanged(type) } }
+            } else {
+                main.post(onFailed)
+            }
+        }
+    }
+
+    /** Kartın radyo/USB Oynat-Duraklat'ı: OEM medya servisine gider; VDBus yoksa [fallback] (oturum komutu) çalışır. */
+    fun oemPlayback(context: Context, type: Int, play: Boolean, fallback: Runnable) {
+        if (ensureBus(context) == null) {
+            fallback.run()
+            return
+        }
+        io.execute {
+            startBind(VDServiceDef.ServiceType.MEDIA)
+            val media = connect(VDServiceDef.ServiceType.MEDIA)
+            val sent = try {
+                media?.set(VDMediaPlay.createEvent(VDEventMedia.MEDIA_SOURCE_PLAY_STATUS, playbackPayload(type, play)))
+                media != null
+            } catch (t: Throwable) {
+                Log.w(TAG, "playback: failed ${t.javaClass.simpleName}")
+                false
+            }
+            Log.i(TAG, "playback: type=$type play=$play sent=$sent")
+            if (sent) {
+                synchronized(this) { sourceFollow.oemPaused = !play }
+                main.post { sourceListeners.forEach { it.onOemSourceChanged(type) } }
+            } else {
+                main.post(fallback)
+            }
         }
     }
 
@@ -597,6 +891,18 @@ internal object OemAudioSource {
     }
 
     /** VDBus init ana iş parçacığında (diğer VDBus kullanıcıları gibi); bağlanma ve binder çağrıları arka planda. */
+    @Volatile private var oldAudioApp: Boolean? = null
+
+    /** Araçta yalnız eski OEM ses uygulaması mı var ([MediaSourcePick.OEM_AUDIO_PKG_OLD]); süreç başına bir kez okunur. */
+    private fun usesOldAudioApp(context: Context): Boolean = oldAudioApp ?: run {
+        val pm = context.packageManager
+        fun has(pkg: String) = try { pm.getPackageInfo(pkg, 0); true } catch (e: Exception) { false }
+        (has(MediaSourcePick.OEM_AUDIO_PKG_OLD) && !has(MediaSourcePick.OEM_AUDIO_PKG)).also {
+            oldAudioApp = it
+            Log.i(TAG, "audio app: old=$it")
+        }
+    }
+
     private fun ensureBus(context: Context): VDBus? {
         bus?.let { return it }
         return try {

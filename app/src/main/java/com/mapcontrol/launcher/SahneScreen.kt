@@ -47,6 +47,8 @@ class SahneScreen(
     private val rightPanel = GlassPanel(activity, glow = false)
     /** Dört panelli biçimde (Tiggo 8) her yanın alt paneli; iki panelli biçimde hiç eklenmez. */
     private val quad = parkStore.quad
+    /** Dikey ekran (Jaecoo): sahne üstte tam genişlik, dört panel altında 2×2 ([SahnePortrait]). */
+    private val portrait = parkStore.vehicle.portrait
     private val leftLowerPanel = GlassPanel(activity, glow = false)
     private val rightLowerPanel = GlassPanel(activity, glow = false)
     private val panels: List<GlassPanel> =
@@ -624,9 +626,20 @@ class SahneScreen(
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         setMeasuredDimension(w, h)
-        val k = w / DESIGN_W
         val stripH = context.dp(STRIP_H_DP)
         val gapV = context.dp(GAP_V_DP)
+        if (portrait) {
+            val g = portraitGeometry(w, h)
+            panels.forEach { it.measure(exactly(g.panelW), exactly(g.panelH)) }
+            stage.measure(exactly(w), exactly(g.stageH))
+            strip.measure(exactly(w), exactly(stripH))
+            sport?.measure(exactly(w), exactly(h))
+            overlays.forEach { (ref, o) ->
+                if (ref.kind == SahneSlotKind.PANEL) o.measure(exactly(g.panelW), exactly(g.panelH))
+            }
+            return
+        }
+        val k = w / DESIGN_W
         val bandH = h - stripH - gapV
         val panelW = (PANEL_W * k).toInt()
         val gapH = (GAP_H * k).toInt()
@@ -646,20 +659,30 @@ class SahneScreen(
         val h = b - t
         val stripH = context.dp(STRIP_H_DP)
         val gapV = context.dp(GAP_V_DP)
-        val bandH = h - stripH - gapV
-        val k = w / DESIGN_W
-        val panelW = (PANEL_W * k).toInt()
-        val gapH = (GAP_H * k).toInt()
-        val panelH = panelHeight(bandH, gapV)
-        leftPanel.layout(0, 0, leftPanel.measuredWidth, panelH)
-        rightPanel.layout(w - rightPanel.measuredWidth, 0, w, panelH)
-        if (quad) {
-            leftLowerPanel.layout(0, bandH - panelH, panelW, bandH)
-            rightLowerPanel.layout(w - panelW, bandH - panelH, w, bandH)
+        if (portrait) {
+            val g = portraitGeometry(w, h)
+            panels.forEachIndexed { i, p ->
+                val pl = g.panelLeft(i, w)
+                val pt = g.panelTop(i)
+                p.layout(pl, pt, pl + g.panelW, pt + g.panelH)
+            }
+            stage.layout(0, 0, w, g.stageH)
+        } else {
+            val bandH = h - stripH - gapV
+            val k = w / DESIGN_W
+            val panelW = (PANEL_W * k).toInt()
+            val gapH = (GAP_H * k).toInt()
+            val panelH = panelHeight(bandH, gapV)
+            leftPanel.layout(0, 0, leftPanel.measuredWidth, panelH)
+            rightPanel.layout(w - rightPanel.measuredWidth, 0, w, panelH)
+            if (quad) {
+                leftLowerPanel.layout(0, bandH - panelH, panelW, bandH)
+                rightLowerPanel.layout(w - panelW, bandH - panelH, w, bandH)
+            }
+            // Sahne ekranın ortasında (araç saat ve şeritle aynı eksende); kapalı yan boş kalır.
+            val stageL = stageInset(panelW, gapH)
+            stage.layout(stageL, 0, stageL + stage.measuredWidth, bandH + gapV)
         }
-        // Sahne ekranın ortasında (araç saat ve şeritle aynı eksende); kapalı yan boş kalır.
-        val stageL = stageInset(panelW, gapH)
-        stage.layout(stageL, 0, stageL + stage.measuredWidth, bandH + gapV)
         strip.layout(0, h - stripH, w, h)
         sport?.layout(0, 0, w, h)
         overlays.forEach { (ref, o) ->
@@ -696,6 +719,9 @@ class SahneScreen(
 
     /** Panel yüksekliği: iki panelli biçimde bant boyu, dört panelli biçimde aralarında [GAP_V_DP] boşlukla yarısı. */
     private fun panelHeight(bandH: Int, gapV: Int): Int = if (quad) (bandH - gapV) / 2 else bandH
+
+    private fun portraitGeometry(w: Int, h: Int): SahnePortrait.Geometry = SahnePortrait.geometry(
+        w, h, context.dp(STRIP_H_DP), context.dp(GAP_V_DP), context.dp(GAP_V_DP), context.dp(SahnePortrait.STAGE_MIN_DP))
 
     private fun exactly(px: Int) = MeasureSpec.makeMeasureSpec(maxOf(0, px), MeasureSpec.EXACTLY)
 

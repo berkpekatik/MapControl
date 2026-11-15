@@ -8,6 +8,31 @@ import org.junit.Test
 
 class TripDecodeTest {
 
+    @Test fun serviceValuesRejectInvalidRaw() {
+        assertEquals(3978, TripDecode.serviceKm(3978, 1))
+        assertEquals(0, TripDecode.serviceKm(0, 1))              // gerçekten zamanı gelmiş
+        assertNull(TripDecode.serviceKm(0xFFFF, 1))              // "değer yok", 65.535 km yazmasın
+        assertNull(TripDecode.serviceKm(100_000, 1))
+        assertNull(TripDecode.serviceKm(-1, 1))
+        assertNull(TripDecode.serviceKm(null, 1))
+        assertEquals(155, TripDecode.serviceDays(155, 1))
+        assertNull(TripDecode.serviceDays(0xFFFF, 1))
+        assertNull(TripDecode.serviceDays(10_000, 1))
+    }
+
+    @Test fun serviceHiddenOnlyWhenReminderExplicitlyOff() {
+        // 176 = 0: kullanıcı hatırlatmayı kapattı; 93/94'teki 0 "bakım geçti" sayılmasın.
+        assertNull(TripDecode.serviceKm(0, 0))
+        assertNull(TripDecode.serviceDays(0, 0))
+        assertNull(TripDecode.serviceKm(3978, 0))
+        // Okunamadı (eski yazılım / sinyal yok): eskisi gibi gösterilir.
+        assertEquals(3978, TripDecode.serviceKm(3978, null))
+        assertEquals(155, TripDecode.serviceDays(155, null))
+        assertTrue(TripDecode.serviceReminderOn(1))
+        assertTrue(TripDecode.serviceReminderOn(null))
+        assertFalse(TripDecode.serviceReminderOn(0))
+    }
+
     @Test fun outsideTemperatureIsHalfDegreesMinus55() {
         // Araçta iki nokta: ham 144 = gösterge 17 °C, ham 140 = 15 °C.
         assertEquals(17.0, TripDecode.outsideC(144)!!, 1e-9)
@@ -18,6 +43,16 @@ class TripDecodeTest {
         assertNull(TripDecode.outsideC(255))     // 0xFF
         assertNull(TripDecode.outsideC(0xFFFF))
         assertNull(TripDecode.outsideC(null))
+    }
+
+    @Test fun outsideTextMatchesCluster() {
+        val tr = java.util.Locale("tr", "TR")
+        assertEquals("10", TripDecode.outsideText(10.0, tr))
+        assertEquals("9,5", TripDecode.outsideText(9.5, tr))      // eskiden 10 yazıyordu
+        assertEquals("-2,5", TripDecode.outsideText(-2.5, tr))    // eskiden -2 yazıyordu
+        assertEquals("0", TripDecode.outsideText(-0.2, tr))
+        assertEquals("9.5", TripDecode.outsideText(9.5, java.util.Locale.US))
+        assertEquals("17", TripDecode.outsideText(TripDecode.outsideC(144)!!, tr))
     }
 
     @Test fun instantIsTenths() {

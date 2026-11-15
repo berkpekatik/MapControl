@@ -258,6 +258,15 @@ final class Camera360Ui {
             return enabled;
         }
 
+        /** Dar yerler (izleme ekrani kontrol satiri, baslik) icin daha kucuk yazi ve yukseklik. */
+        void setItemStyle(float textSp, int minHeightPx) {
+            for (TextView t : items) {
+                t.setTextSize(textSp);
+                t.setMinHeight(minHeightPx);
+                t.setMinimumHeight(minHeightPx);
+            }
+        }
+
         private void refresh() {
             for (int i = 0; i < items.length; i++) {
                 boolean on = i == selected;

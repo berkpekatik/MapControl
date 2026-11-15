@@ -1,6 +1,7 @@
 package com.mapcontrol.launcher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -94,5 +95,40 @@ class StageFitTest {
         assertTrue(car.right + shift <= 879f - 16f + 0.5f)
         // Kapak zaten içerdeyse kayma yok.
         assertEquals(0f, StageFit.tallTrunkShift(879f, StageFit.Box(300f, 0f, 500f, 90f), 16f, frac), 0f)
+    }
+
+    /** Model ölçeği: kutu aynı merkezde büyür; ölçek 1 kutunun kendisini verir. */
+    @Test fun scaledKeepsCentre() {
+        val box = StageFit.Box(100f, 50f, 500f, 250f)
+        assertSame(box, StageFit.scaled(box, 1f))
+        val big = StageFit.scaled(box, 1.25f)
+        assertEquals(500f, big.width, 0.001f)
+        assertEquals(250f, big.height, 0.001f)
+        assertEquals(300f, (big.left + big.right) / 2f, 0.001f)
+        assertEquals(150f, (big.top + big.bottom) / 2f, 0.001f)
+    }
+
+    /** Bagaj taşması çerçeveye göre: ölçek 1'de eski hesabın kendisi; büyüyen tuvalde tuvalin içindeki kapak da çerçeveden taşar. */
+    @Test fun frameOverflowFollowsScale() {
+        assertEquals(79f / 766f, StageFit.frameOverflowLeft(-79f / 766f, 1f), 0f)
+        // Ölçek 1'de kırpma da yok (eski ifade -x / genişlik idi).
+        assertEquals(-12f / 766f, StageFit.frameOverflowLeft(12f / 766f, 1f), 0f)
+        val s = 764f / 600f * 4722f / 4500f
+        assertEquals(0.147f, StageFit.frameOverflowLeft(12f / 766f, s), 0.001f)
+        assertEquals(0f, StageFit.frameOverflowLeft(0.4f, s), 0f)
+    }
+
+    /** Burun taşması: ölçek 1'de hep 0 (tuval çerçevenin kendisi); Tiggo 8'de burun (683 / 766) çerçeveden ~%2 taşar ve kayma payından düşülür. */
+    @Test fun noseOverflowOnlyWhenScaled() {
+        assertEquals(0f, StageFit.frameOverflowRight(683f / 766f, 1f), 0f)
+        assertEquals(0f, StageFit.frameOverflowRight(1.2f, 1f), 0f)
+        val s = 764f / 600f * 4722f / 4500f
+        val nose = StageFit.frameOverflowRight(683f / 766f, s)
+        assertEquals(0.0236f, nose, 0.001f)
+        val car = StageFit.Box(120f, 0f, 1220f, 511f)
+        // Pay yokken eski sonuç; payla kayma burnun taşması kadar kısalır.
+        assertEquals(StageFit.tallTrunkShift(1280f, car, 24f, 0.147f), StageFit.tallTrunkShift(1280f, car, 24f, 0.147f, 0f), 0f)
+        assertEquals(36f, StageFit.tallTrunkShift(1280f, car, 24f, 0.147f), 0.001f)
+        assertEquals(36f - 1100f * nose, StageFit.tallTrunkShift(1280f, car, 24f, 0.147f, nose), 0.001f)
     }
 }

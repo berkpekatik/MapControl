@@ -1,7 +1,10 @@
 package com.mapcontrol.ui.builder;
 
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -10,6 +13,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaDataSource;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.DateUtils;
@@ -54,9 +58,10 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * "Izleme Ekrani": arac ici klipler (gun gruplu liste) + 4 acinin senkron oynatimi
- * (tek dosya kayitta mozaik, aci secilince ilgili ceyrek buyutulur), silinme geri
- * sayimi, coklu secimle USB'ye aktarma ve silme.
+ * "Izleme Ekrani": arac ici veya USB'deki klipler (kaynak basliktan secilir, gun gruplu
+ * liste) + 4 acinin senkron oynatimi (tek dosya kayitta mozaik, aci secilince ilgili ceyrek
+ * buyutulur), coklu secimle USB'ye aktarma ve silme. Kisa ekranlarda (Tiggo 7, 1920x720)
+ * kontroller tek satirda toplanir; tam ekran dugmesi liste, baslik ve ust cubugu gizler.
  */
 final class Camera360ClipViewer {
     private static final int CAM_COUNT = CameraRecorder.CAM_SUFFIX.length;
@@ -64,21 +69,40 @@ final class Camera360ClipViewer {
     private static final int DRIFT_MS = 250;
     private static final int RATIO_W = 16;
     private static final int RATIO_H = 10;
+    /** Bu yukseklikten (dp) kisa ekranlarda video icin dikey yer kazanan sikistirilmis duzen. */
+    private static final int COMPACT_HEIGHT_DP = 820;
 
     private final Camera360Ui ui;
     private final DvrController dvr;
     private final Runnable onBack;
     /** true: sol menu gizlensin (tam genislik), false: geri gelsin. */
     private final Consumer<Boolean> onWide;
+    /** true: ust cubuk da gizlensin (tam ekran oynatma). */
+    private final Consumer<Boolean> onFullscreen;
     private SwitchCompat wideSwitch;
     private boolean wide;
+    private boolean fullscreen;
+    /** Kisa ekran: aci secici, oynatma ve klip islemleri video altinda tek satir. */
+    private final boolean compact;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Locale locale;
 
     private View root;
+    private View headerView;
     private TextView summaryPill;
+    private Camera360Ui.Choice sourceChoice;
+    /** true: USB'deki klipler (USB/MapControl + USB/MapControl/Klipler), false: arac ici. */
+    private boolean usbSource;
     private View body;
+    private View listCard;
+    private View infoRow;
     private View emptyView;
+    private TextView emptyTitle;
+    private TextView emptySub;
+    /** Video uzerinde secili klip/kaynak etiketi (sikistirilmis duzende ve tam ekranda). */
+    private TextView stageTitle;
+    private ImageView fullscreenButton;
+    private BroadcastReceiver volumeReceiver;
     private ScrollView listScroll;
     private LinearLayout listColumn;
     private final List<View> rowViews = new ArrayList<>();
@@ -156,12 +180,15 @@ final class Camera360ClipViewer {
         }
     };
 
-    Camera360ClipViewer(Camera360Ui ui, DvrController dvr, Runnable onBack, Consumer<Boolean> onWide) {
+    Camera360ClipViewer(Camera360Ui ui, DvrController dvr, Runnable onBack, Consumer<Boolean> onWide,
+                        Consumer<Boolean> onFullscreen) {
         this.ui = ui;
         this.dvr = dvr;
         this.onBack = onBack;
         this.onWide = onWide;
+        this.onFullscreen = onFullscreen;
         this.locale = ui.context.getResources().getConfiguration().getLocales().get(0);
+        this.compact = ui.context.getResources().getConfiguration().screenHeightDp < COMPACT_HEIGHT_DP;
     }
 
     View build() {
@@ -170,10 +197,17 @@ final class Camera360ClipViewer {
 
         LinearLayout header = ui.header(R.string.camera360_menu_viewer);
         summaryPill = ui.statusPill();
-        ui.attachIcon(summaryPill, R.drawable.ic_mdi_folder, ui.themeColor(R.color.textSecondaryCool), 16);
         summaryPill.setTextColor(ui.themeColor(R.color.textSecondaryCool));
         summaryPill.setBackground(ui.roundRect(ui.themeColor(R.color.surfaceCardInner), 14));
         header.addView(summaryPill);
+        sourceChoice = ui.choice(new String[]{
+                ui.context.getString(R.string.camera360_viewer_source_internal),
+                ui.context.getString(R.string.camera360_viewer_source_usb)}, 0, idx -> pickSource(idx == 1));
+        sourceChoice.setItemStyle(14, ui.dp(36));
+        LinearLayout.LayoutParams scp = new LinearLayout.LayoutParams(ui.dp(170), LinearLayout.LayoutParams.WRAP_CONTENT);
+        scp.setMarginStart(ui.dp(10));
+        header.addView(sourceChoice.view, scp);
+        applySourceChrome();
         selectButton = ui.iconButton(R.drawable.ic_mdi_check, 44, v -> setSelecting(!selecting));
         LinearLayout.LayoutParams sbp = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(44));
         sbp.setMarginStart(ui.dp(10));
@@ -187,8 +221,9 @@ final class Camera360ClipViewer {
         rp.setMarginStart(ui.dp(10));
         header.addView(refresh, rp);
         LinearLayout.LayoutParams hp = ui.matchWrap();
-        hp.bottomMargin = ui.dp(10);
+        hp.bottomMargin = ui.dp(compact ? 6 : 10);
         page.addView(header, hp);
+        headerView = header;
 
         FrameLayout content = new FrameLayout(ui.context);
         page.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -265,6 +300,7 @@ final class Camera360ClipViewer {
                 ui.dp(ui.isWide() ? 300 : 220), LinearLayout.LayoutParams.MATCH_PARENT);
         lp.setMarginEnd(ui.dp(12));
         row.addView(listCard, lp);
+        this.listCard = listCard;
 
         LinearLayout playerCol = new LinearLayout(ui.context);
         playerCol.setOrientation(LinearLayout.VERTICAL);
@@ -274,11 +310,11 @@ final class Camera360ClipViewer {
         labels[0] = ui.context.getString(R.string.camera360_all);
         for (int i = 0; i < CAM_COUNT; i++) labels[i + 1] = ui.camShortName(i);
         angleChoice = ui.choice(labels, 0, idx -> setFocus(idx - 1));
-        playerCol.addView(angleChoice.view, ui.matchWrap());
+        if (!compact) playerCol.addView(angleChoice.view, ui.matchWrap());
 
         FrameLayout stage = new FrameLayout(ui.context);
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        sp.topMargin = ui.dp(8);
+        if (!compact) sp.topMargin = ui.dp(8);
         playerCol.addView(stage, sp);
         RatioFrame ratio = new RatioFrame(ui.context, RATIO_W / (float) RATIO_H);
         GradientDrawable stageBg = ui.roundRect(Color.BLACK, 16);
@@ -306,8 +342,22 @@ final class Camera360ClipViewer {
             target.addView(cells[i], cp);
         }
 
-        playerCol.addView(buildInfoRow(), ui.matchWrapTop(10));
-        playerCol.addView(buildControls(), ui.matchWrapTop(6));
+        stageTitle = ui.overlayPill("");
+        stageTitle.setSingleLine(true);
+        stageTitle.setVisibility(View.GONE);
+        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        tp.setMargins(0, ui.dp(8), ui.dp(8), 0);
+        ratio.addView(stageTitle, tp);
+
+        infoRow = buildInfoRow();
+        if (compact) {
+            playerCol.addView(buildCompactControls(), ui.matchWrapTop(8));
+        } else {
+            playerCol.addView(infoRow, ui.matchWrapTop(10));
+            playerCol.addView(buildControls(), ui.matchWrapTop(6));
+        }
+        applyStageTitleVisibility();
         return row;
     }
 
@@ -513,27 +563,101 @@ final class Camera360ClipViewer {
         clipMeta.setSingleLine(true);
         texts.addView(clipMeta);
 
+        createClipButtons();
+        if (compact) return row;
+        LinearLayout.LayoutParams xp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44));
+        xp.setMarginEnd(ui.dp(8));
+        row.addView(deleteButton, xp);
+        row.addView(exportButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44)));
+        return row;
+    }
+
+    /** Secili klibin sil / USB'ye aktar dugmeleri; sikistirilmis duzende yalnizca ikon. */
+    private void createClipButtons() {
         deleteButton = actionButton(R.drawable.ic_mdi_delete, Camera360Ui.COLOR_REC);
-        deleteButton.setText(R.string.camera360_delete);
         deleteButton.setOnClickListener(v -> {
             if (current >= 0 && current < clips.size()) {
                 confirmDelete(Collections.singletonList(clips.get(current)));
             }
         });
-        LinearLayout.LayoutParams xp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44));
-        xp.setMarginEnd(ui.dp(8));
-        row.addView(deleteButton, xp);
-
         exportButton = actionButton(R.drawable.ic_mdi_usb, ui.themeColor(R.color.buttonPrimary));
-        exportButton.setText(R.string.camera360_export);
         exportButton.setOnClickListener(v -> {
             if (current >= 0 && current < clips.size()) {
                 startExport(Collections.singletonList(clips.get(current)), exportButton);
             }
         });
-        row.addView(exportButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44)));
+        if (compact) {
+            deleteButton.setContentDescription(ui.context.getString(R.string.camera360_delete));
+            exportButton.setContentDescription(ui.context.getString(R.string.camera360_export));
+            for (Button b : new Button[]{deleteButton, exportButton}) {
+                b.setCompoundDrawablePadding(0);
+                b.setPadding(ui.dp(12), 0, ui.dp(12), 0);
+                b.setMinWidth(ui.dp(46));
+                b.setMinimumWidth(ui.dp(46));
+            }
+        } else {
+            deleteButton.setText(R.string.camera360_delete);
+            exportButton.setText(R.string.camera360_export);
+        }
+    }
+
+    /** Ust kosede tam ekran ac/kapa dugmesi. */
+    private ImageView buildFullscreenButton() {
+        fullscreenButton = ui.iconButton(R.drawable.ic_mdi_fullscreen, 44, v -> setFullscreen(!fullscreen));
+        fullscreenButton.setContentDescription(ui.context.getString(R.string.camera360_viewer_fullscreen));
+        return fullscreenButton;
+    }
+
+    /**
+     * Kisa ekran (Tiggo 7) kontrol satiri: onceki/oynat/sonraki, sure, ilerleme, aci secici,
+     * sil, aktar, tam ekran. Ayri baslik/aci satirlari kalkar, video bu yuksekligi kazanir.
+     */
+    private View buildCompactControls() {
+        LinearLayout row = new LinearLayout(ui.context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        prevButton = ui.iconButton(R.drawable.ic_mdi_skip_previous, 44, v -> step(+1));
+        row.addView(prevButton);
+        playButton = ui.iconButton(R.drawable.ic_mdi_play, 48, v -> togglePlay());
+        playButton.setColorFilter(Color.WHITE);
+        ui.setPressableBackground(playButton, Camera360Ui.oval(ui.themeColor(R.color.buttonPrimary)), 24);
+        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48));
+        pp.setMargins(ui.dp(6), 0, ui.dp(6), 0);
+        row.addView(playButton, pp);
+        nextButton = ui.iconButton(R.drawable.ic_mdi_skip_next, 44, v -> step(-1));
+        row.addView(nextButton);
+
+        timeView = ui.text(13, R.color.textSecondaryCool, false);
+        timeView.setTypeface(Typeface.MONOSPACE);
+        timeView.setSingleLine(true);
+        timeView.setText("00:00 / 00:00");
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tp.setMarginStart(ui.dp(10));
+        row.addView(timeView, tp);
+
+        seekBar = buildSeekBar();
+        row.addView(seekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        angleChoice.setItemStyle(13, ui.dp(38));
+        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(ui.dp(290), LinearLayout.LayoutParams.WRAP_CONTENT);
+        ap.setMarginStart(ui.dp(6));
+        row.addView(angleChoice.view, ap);
+
+        LinearLayout.LayoutParams xp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44));
+        xp.setMarginStart(ui.dp(8));
+        row.addView(deleteButton, xp);
+        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, ui.dp(44));
+        ep.setMarginStart(ui.dp(6));
+        row.addView(exportButton, ep);
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(44));
+        fp.setMarginStart(ui.dp(6));
+        row.addView(buildFullscreenButton(), fp);
         return row;
     }
 
@@ -561,7 +685,16 @@ final class Camera360ClipViewer {
         tp.setMarginStart(ui.dp(14));
         row.addView(timeView, tp);
 
-        seekBar = new SeekBar(ui.context);
+        seekBar = buildSeekBar();
+        row.addView(seekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(ui.dp(44), ui.dp(44));
+        fp.setMarginStart(ui.dp(8));
+        row.addView(buildFullscreenButton(), fp);
+        return row;
+    }
+
+    private SeekBar buildSeekBar() {
+        SeekBar seekBar = new SeekBar(ui.context);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
@@ -579,8 +712,7 @@ final class Camera360ClipViewer {
                 seekAll(bar.getProgress());
             }
         });
-        row.addView(seekBar, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        return row;
+        return seekBar;
     }
 
     private View buildEmpty() {
@@ -592,6 +724,7 @@ final class Camera360ClipViewer {
         TextView title = ui.text(20, R.color.textPrimary, true);
         title.setText(R.string.camera360_viewer_empty);
         title.setGravity(Gravity.CENTER);
+        emptyTitle = title;
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         tp.topMargin = ui.dp(14);
@@ -600,6 +733,8 @@ final class Camera360ClipViewer {
         sub.setText(R.string.camera360_viewer_empty_sub);
         sub.setGravity(Gravity.CENTER);
         box.addView(sub);
+        emptySub = sub;
+        applySourceChrome();
         return box;
     }
 
@@ -616,6 +751,12 @@ final class Camera360ClipViewer {
     void onShow() {
         visible = true;
         usbPresent = DvrController.findUsbRoot(ui.context) != null;
+        if (usbSource && !usbPresent) {
+            // USB kaynagindayken USB cikarilmis: arac ici kliplere don.
+            usbSource = false;
+            applySourceChrome();
+        }
+        registerVolumeReceiver();
         updateExportButton();
         reloadClips(true);
         main.removeCallbacks(ticker);
@@ -624,7 +765,9 @@ final class Camera360ClipViewer {
 
     void onHide() {
         visible = false;
-        // Izleme ekranindan cikinca (geri/sekme degisimi) sol menu her zaman geri gelir.
+        unregisterVolumeReceiver();
+        // Izleme ekranindan cikinca (geri/sekme degisimi) tam ekran kapanir, sol menu geri gelir.
+        setFullscreen(false);
         setWide(false);
         main.removeCallbacks(ticker);
         releasePlayers();
@@ -632,11 +775,150 @@ final class Camera360ClipViewer {
         updatePlayButton();
     }
 
+    // ---------- Tam ekran ----------
+
+    /** Baslik, liste ve ust cubuk gizlenir; video tum ekrana yayilir (kontrol satiri kalir). */
+    private void setFullscreen(boolean on) {
+        if (fullscreen == on) return;
+        fullscreen = on;
+        if (headerView != null) headerView.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (listCard != null) listCard.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (infoRow != null) infoRow.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (fullscreenButton != null) {
+            fullscreenButton.setImageResource(on ? R.drawable.ic_mdi_fullscreen_exit : R.drawable.ic_mdi_fullscreen);
+        }
+        applyStageTitleVisibility();
+        // Sol menu: tam ekranda her zaman gizli; cikista "Genis" anahtarinin durumuna doner.
+        if (onWide != null) onWide.accept(on || wide);
+        if (onFullscreen != null) onFullscreen.accept(on);
+    }
+
+    private void applyStageTitleVisibility() {
+        if (stageTitle == null) return;
+        boolean show = (compact || fullscreen) && stageTitle.getText().length() > 0;
+        stageTitle.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    // ---------- Kaynak (arac ici / USB) ----------
+
+    private void pickSource(boolean usb) {
+        if (usb == usbSource) return;
+        if (usb && !usbPresent) {
+            usbPresent = DvrController.findUsbRoot(ui.context) != null;
+            if (!usbPresent) {
+                Toast.makeText(ui.context, R.string.camera360_viewer_no_usb, Toast.LENGTH_SHORT).show();
+                updateExportButton();
+                return;
+            }
+        }
+        if (exporting) return;
+        setSource(usb);
+    }
+
+    private void setSource(boolean usb) {
+        if (usb == usbSource) return;
+        usbSource = usb;
+        releasePlayers();
+        playing = false;
+        current = -1;
+        if (selecting) setSelecting(false);
+        // Yeni kaynagin listesi gelince her zaman yeniden kurulur (arada eski satirlar kalir, bos ekran yanip sonmez).
+        listBuiltDay = -1;
+        applySourceChrome();
+        updateInfo();
+        if (visible) reloadClips(true);
+    }
+
+    /** USB'deyken oynatici dosyayi acik tutmasin diye kaynagi arac iciye dondurur. */
+    private void fallbackToInternal() {
+        if (!usbSource) return;
+        setSource(false);
+        Toast.makeText(ui.context, R.string.camera360_viewer_usb_removed, Toast.LENGTH_LONG).show();
+    }
+
+    /** Kaynak secici, ozet ikonu, bos ekran metni ve aktarma dugmelerinin gorunurlugu. */
+    private void applySourceChrome() {
+        if (sourceChoice != null) sourceChoice.setSelected(usbSource ? 1 : 0);
+        if (summaryPill != null) {
+            ui.attachIcon(summaryPill, usbSource ? R.drawable.ic_mdi_usb : R.drawable.ic_mdi_car,
+                    ui.themeColor(usbSource ? R.color.oemAccent : R.color.textSecondaryCool), 16);
+        }
+        if (emptyTitle != null) {
+            emptyTitle.setText(usbSource ? R.string.camera360_viewer_empty_usb : R.string.camera360_viewer_empty);
+        }
+        if (emptySub != null) {
+            emptySub.setText(usbSource
+                    ? ui.context.getString(R.string.camera360_viewer_empty_usb_sub, DvrController.USB_DIR_NAME)
+                    : ui.context.getString(R.string.camera360_viewer_empty_sub));
+        }
+        // USB'deki klip zaten USB'de: aktarma anlamsiz.
+        int exportVis = usbSource ? View.GONE : View.VISIBLE;
+        if (exportButton != null) exportButton.setVisibility(exportVis);
+        if (selExportButton != null) selExportButton.setVisibility(exportVis);
+    }
+
+    /**
+     * USB ayrilirken vold, dosyasi acik sureci oldurebilir: USB'den oynatilan klip varsa
+     * oynaticilar hemen birakilir ve arac ici kliplere donulur.
+     */
+    private void registerVolumeReceiver() {
+        if (volumeReceiver != null) return;
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_MEDIA_EJECT);
+        filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        filter.addAction(Intent.ACTION_MEDIA_BAD_REMOVAL);
+        filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        filter.addDataScheme("file");
+        volumeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (!visible) return;
+                if (Intent.ACTION_MEDIA_MOUNTED.equals(intent.getAction())) {
+                    usbPresent = true;
+                    updateExportButton();
+                    return;
+                }
+                usbPresent = false;
+                if (usbSource) {
+                    fallbackToInternal();
+                } else {
+                    updateExportButton();
+                }
+            }
+        };
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ui.context.registerReceiver(volumeReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                ui.context.registerReceiver(volumeReceiver, filter);
+            }
+        } catch (Throwable t) {
+            volumeReceiver = null;
+        }
+    }
+
+    private void unregisterVolumeReceiver() {
+        if (volumeReceiver == null) return;
+        try {
+            ui.context.unregisterReceiver(volumeReceiver);
+        } catch (Throwable ignored) {
+        }
+        volumeReceiver = null;
+    }
+
     // ---------- Klip listesi ----------
 
     private void reloadClips(boolean autoSelect) {
-        dvr.loadClips(list -> {
-            if (!visible) return;
+        final boolean fromUsb = usbSource;
+        dvr.loadClips(fromUsb, loaded -> {
+            if (!visible || fromUsb != usbSource) return;
+            if (loaded == null) {
+                // USB kaynagi secili ama USB yok.
+                usbPresent = false;
+                fallbackToInternal();
+                return;
+            }
+            List<DvrClipStore.Clip> list = loaded;
             String keepBase = current >= 0 && current < clips.size() ? clips.get(current).base : null;
             // Kayit surerken liste sik yenilenir; icerik ayniysa satirlar yeniden kurulmaz.
             boolean unchanged = listBuiltDay == todayKey() && rowViews.size() == list.size()
@@ -700,6 +982,8 @@ final class Camera360ClipViewer {
         selected.retainAll(present);
         boolean empty = clips.isEmpty();
         if (empty && selecting) setSelecting(false);
+        // Bos ekranda tam ekran cikis dugmesi (kontrol satiri) gorunmez; baslik geri gelsin.
+        if (empty) setFullscreen(false);
         body.setVisibility(empty ? View.GONE : View.VISIBLE);
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         summaryPill.setText(ui.context.getString(R.string.camera360_viewer_summary,
@@ -1226,6 +1510,7 @@ final class Camera360ClipViewer {
                     usbPresent = usb;
                     updateExportButton();
                 }
+                if (!usb && usbSource) fallbackToInternal();
             });
         }
     }
@@ -1247,6 +1532,8 @@ final class Camera360ClipViewer {
         if (!has) {
             clipTitle.setText("");
             clipMeta.setText("");
+            stageTitle.setText("");
+            applyStageTitleVisibility();
             seekBar.setProgress(0);
             durationMs = 0;
             updateTime(0);
@@ -1254,8 +1541,13 @@ final class Camera360ClipViewer {
         }
         DvrClipStore.Clip c = clips.get(current);
         SimpleDateFormat timeFmt = new SimpleDateFormat("HH:mm:ss", locale);
-        clipTitle.setText(dayLabel(c.timeMs) + " · " + timeFmt.format(new Date(c.timeMs)));
+        String title = dayLabel(c.timeMs) + " · " + timeFmt.format(new Date(c.timeMs));
+        clipTitle.setText(title);
         clipMeta.setText(metaText(c));
+        String source = ui.context.getString(usbSource
+                ? R.string.camera360_viewer_source_usb : R.string.camera360_viewer_source_internal);
+        stageTitle.setText(source + " · " + title);
+        applyStageTitleVisibility();
         seekBar.setProgress(0);
         updateTime(0);
     }
@@ -1272,7 +1564,7 @@ final class Camera360ClipViewer {
             return;
         }
         exportButton.setAlpha(usbPresent && has ? 1f : 0.5f);
-        exportButton.setText(R.string.camera360_export);
+        exportButton.setText(compact ? "" : ui.context.getString(R.string.camera360_export));
     }
 
     private void startExport(List<DvrClipStore.Clip> targets, Button button) {

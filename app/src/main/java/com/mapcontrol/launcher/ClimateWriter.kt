@@ -127,25 +127,73 @@ internal object ClimateMath {
     const val AC_ON = 1
     const val AC_OFF = 2
 
-    /** Açmada güç yazmasından sonra A/C + otomatik için bekleme (OEM postDelayed 150L). */
-    const val POWER_FOLLOW_UP_MS = 150L
+    /**
+     * Klima gücü ham değeri (HVAC 18): 1 aç / 2 kapat. OEM SystemUI'deki klima güç düğmesiyle aynı tek yazma
+     * (`HvacModel.onPowerClick`: `sendItemValue(HVAC, 18, açık ? 2 : 1)`); A/C (1) ve otomatik (4) yazılmaz, klima son
+     * ayarlarıyla açılır. 0 yazılmaz.
+     */
+    fun powerValue(on: Boolean): Int = if (on) POWER_ON else POWER_OFF
+
+    /** HVAC 18 okuması: 1 açık, başka bilinen değer kapalı (OEM `getPowerState`: `== 1`); okunamadıysa null. */
+    fun powerOn(raw: Int?): Boolean? = raw?.let { it == POWER_ON }
 
     /**
-     * Klimayı açma/kapatma yazma planı (HVAC kimliği → ham değer), MapControl konfor otomasyonuyla aynı
-     * (ClimateAutomationWrites CLIMATE; eşitlik JVM testiyle korunur):
-     *  - Aç: önce [first] = 18 ← 1, [POWER_FOLLOW_UP_MS] sonra [followUp] = 1 ← 1, 4 ← 1.
-     *  - Kapat: [first] = 1 ← 2, 18 ← 2, 4 ← 2; [followUp] boş.
-     * Not: sıcaklık/fan yazmadan önceki otomatik açma ([powerOnBeforeWrite]) bilerek yalnız 18 ← 1 kalır (OEM sesli komutu
-     * gibi); orada A/C ve otomatiği açmak kullanıcının o an yazdığı fanı/ayarı ezer.
+     * Hava yönü (HVAC 6) OKUMASI → yüz / ayak / cam. Tiggo 7 (`SVHvac` `HvacPageView.setBlowMode`) ve Tiggo 8 (SystemUI
+     * `MainViewModel.onWindModePicStatus`) aynı tabloyu kullanır: 0 yüz, 1 yüz+ayak, 2 ayak, 3 ayak+cam, 4 cam,
+     * 5 hiçbiri (OEM üçünü de söndürür), 6 yüz+cam, 7 üçü. Bilinmeyen ya da okunamayan değer null.
      */
-    class PowerPlan(val first: List<Pair<Int, Int>>, val followUp: List<Pair<Int, Int>>)
+    fun airFlowFromRead(raw: Int?): AirFlow? = when (raw) {
+        0 -> AirFlow(face = true, foot = false, window = false)
+        1 -> AirFlow(face = true, foot = true, window = false)
+        2 -> AirFlow(face = false, foot = true, window = false)
+        3 -> AirFlow(face = false, foot = true, window = true)
+        4 -> AirFlow(face = false, foot = false, window = true)
+        5 -> AirFlow(face = false, foot = false, window = false)
+        6 -> AirFlow(face = true, foot = false, window = true)
+        7 -> AirFlow(face = true, foot = true, window = true)
+        else -> null
+    }
 
-    fun powerPlan(on: Boolean): PowerPlan = if (on) {
-        PowerPlan(listOf(HvacID.ID_AC_WORKING to POWER_ON),
-            listOf(HvacID.ID_AC_STATE to AC_ON, HvacID.ID_AC_AUTO_STATE to AC_ON))
-    } else {
-        PowerPlan(listOf(HvacID.ID_AC_STATE to AC_OFF, HvacID.ID_AC_WORKING to POWER_OFF, HvacID.ID_AC_AUTO_STATE to AC_OFF),
-            emptyList())
+    /**
+     * Hava yönü YAZMA değeri (HVAC 6). Okumadan farklı: yüz+cam 5 (okunan 6), üçü 6 (okunan 7). OEM'in iki aracı da böyle
+     * yazar (Tiggo 8 `HvacModel.onWindMode*Click`, Tiggo 7 `HvacModel.E0/C0/H/Q0/p/G/C`). Hiçbiri seçili değilse null:
+     * OEM o dokunuşu yok sayar (en az bir yön açık kalır).
+     */
+    fun airFlowWriteValue(f: AirFlow): Int? = when (Triple(f.face, f.foot, f.window)) {
+        Triple(true, false, false) -> 0
+        Triple(true, true, false) -> 1
+        Triple(false, true, false) -> 2
+        Triple(false, true, true) -> 3
+        Triple(false, false, true) -> 4
+        Triple(true, false, true) -> 5
+        Triple(true, true, true) -> 6
+        else -> null
+    }
+
+    /** Devridaim (HVAC 8) yazması: 1 iç hava (devridaim açık), 2 dış hava. 0 yazılmaz (OEM `onCirculationClick`). */
+    const val RECIRC_ON = 1
+    const val RECIRC_OFF = 2
+
+    fun recircValue(on: Boolean): Int = if (on) RECIRC_ON else RECIRC_OFF
+
+    /** HVAC 8 okuması: 0 devridaim açık, başka değer dış hava (OEM `getCirculationState`: `== 0`); okunamadıysa null. */
+    fun recircOn(raw: Int?): Boolean? = raw?.let { it == 0 }
+}
+
+/** Hava yönü: yüz, ayak ve ön cam menfezleri (birlikte seçilebilir; bkz. [ClimateMath.airFlowFromRead]). */
+internal data class AirFlow(val face: Boolean, val foot: Boolean, val window: Boolean) {
+    enum class Vent { FACE, FOOT, WINDOW }
+
+    fun with(vent: Vent, on: Boolean): AirFlow = when (vent) {
+        Vent.FACE -> copy(face = on)
+        Vent.FOOT -> copy(foot = on)
+        Vent.WINDOW -> copy(window = on)
+    }
+
+    fun isOn(vent: Vent): Boolean = when (vent) {
+        Vent.FACE -> face
+        Vent.FOOT -> foot
+        Vent.WINDOW -> window
     }
 }
 
@@ -156,14 +204,37 @@ internal object ClimateMath {
  */
 internal object ClimateWriter {
 
-    /** Panel kimlikleri (10/13/12) ve güç sırası (18/1/4) araçta DOĞRULANMADI; doğrulanınca true yapılır. */
+    /** Panel kimlikleri (10/13/12) araçta DOĞRULANMADI; doğrulanınca true yapılır. */
     const val CLIMATE_WRITE_VERIFIED = false
+
+    /**
+     * Klima gücü (HVAC 18 ← 1/2, alt çubuk fan dokunuşu). OEM SystemUI'nin güç düğmesiyle birebir aynı yazma
+     * (decompile, `HvacModel.onPowerClick`). ARAÇ TESTİ BEKLİYOR (11 Kasım 2026): testte 18 geri okuması değişmezse ya da
+     * klima davranışı farklıysa false yapılır; o zaman dokunuş araca dokunmaz, bilgi mesajı gösterir.
+     */
+    const val CLIMATE_POWER_WRITE_VERIFIED = true
 
     /**
      * Dock kimlikleri araçta doğrulandı: sürücü 76 / yolcu 78 sıcaklığı ve fan 77 yazınca geri okumada panel değerleri
      * (10/13/12) yeni değere geçti.
      */
     const val CLIMATE_DOCK_WRITE_VERIFIED = true
+
+    /**
+     * Hava yönü (HVAC 6) ve devridaim (HVAC 8): Tiggo 8 alt çubuğundaki dört düğme. Yazma değerleri iki aracın OEM koduyla
+     * aynı ([ClimateMath.airFlowWriteValue], [ClimateMath.recircValue]). Araç testi yapılmadan sahibin kararıyla AÇILDI
+     * (13 Kasım 2026; araç uzakta, değerler OEM decompile'ıyla birebir). Her yazma `WidgetWrite` günlüğüne 3 sn geri okumayla
+     * düşer (hvac6_air_flow / hvac8_recirc); araç değeri yok sayıyorsa ya da beklenmeyen değer okunuyorsa false yapılır.
+     */
+    const val AIR_WRITE_VERIFIED = true
+
+    /** Hava yönü / devridaim yazılabilir mi ([AIR_WRITE_VERIFIED], yazmalar açık, salt-okur değil). */
+    fun airEnabled(): Boolean = canWrite(
+        WidgetWritePolicy.gate(AIR_WRITE_VERIFIED, LauncherEdition.WRITES_ON), LauncherEdition.READ_ONLY)
+
+    /** Klima gücü yazılabilir mi ([CLIMATE_POWER_WRITE_VERIFIED], yazmalar açık, salt-okur değil). */
+    fun powerEnabled(): Boolean = canWrite(
+        WidgetWritePolicy.gate(CLIMATE_POWER_WRITE_VERIFIED, LauncherEdition.WRITES_ON), LauncherEdition.READ_ONLY)
 
     /** Saf kapı: yalnızca doğrulanmışsa ve salt-okur sürüm değilse yazılır. */
     fun canWrite(verified: Boolean, readOnly: Boolean): Boolean = verified && !readOnly
@@ -222,18 +293,25 @@ internal object ClimateWriter {
     }
 
     /**
-     * Klimayı açar/kapatır, MapControl ile aynı sıra ([ClimateMath.powerPlan]). Arka planda çağrılır (açmada 150 ms bekler).
-     * Kapalıyken (yazma kapısı) ya da servis yokken false döner; ilk yazma reddedilirse devam yazmaları gönderilmez.
+     * Klimayı açar ([on]) ya da kapatır: HVAC 18 ← 1/2, OEM güç düğmesi gibi tek yazma ([ClimateMath.powerValue]).
+     * Kapalıyken ([powerEnabled] false) ya da servis yokken false döner ve araca dokunmaz. Arka planda çağrılır.
      */
     fun setPower(on: Boolean): Boolean {
-        if (!enabled(quiet = false)) return false
-        val plan = ClimateMath.powerPlan(on)
-        for ((id, raw) in plan.first) if (!send(id, raw)) return false
-        if (plan.followUp.isEmpty()) return true
-        android.os.SystemClock.sleep(ClimateMath.POWER_FOLLOW_UP_MS)
-        var ok = true
-        for ((id, raw) in plan.followUp) ok = send(id, raw) && ok
-        return ok
+        if (!powerEnabled()) return false
+        return send(HvacID.ID_AC_WORKING, ClimateMath.powerValue(on))
+    }
+
+    /** Hava yönünü yazar (HVAC 6, tek değer). Kapalıyken ya da hiçbir yön seçili değilken false döner ve araca dokunmaz. */
+    fun setAirFlow(flow: AirFlow): Boolean {
+        if (!airEnabled()) return false
+        val raw = ClimateMath.airFlowWriteValue(flow) ?: return false
+        return send(HvacID.ID_AC_MODE_ADJUST, raw)
+    }
+
+    /** Devridaimi açar ([on]: iç hava) ya da kapatır (dış hava): HVAC 8 ← 1/2. Kapalıyken false döner ve araca dokunmaz. */
+    fun setRecirc(on: Boolean): Boolean {
+        if (!airEnabled()) return false
+        return send(HvacID.ID_AC_CIRCULATION_MODE, ClimateMath.recircValue(on))
     }
 
     /**

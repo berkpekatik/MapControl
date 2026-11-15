@@ -263,7 +263,8 @@ public final class SplitScreenLauncher {
             Log.e(TAG, "Invalid usable bounds: " + usable);
             return Result.BAD_BOUNDS;
         }
-        Rect[] parts = split(usable, ratio);
+        // Kullanıcının bölme yönü (Otomatik / Sol-sağ / Üst-alt); sürüş ekranı launcher düzenine bağlı, hep otomatik.
+        Rect[] parts = split(usable, ratio, opts.drive ? Axis.AUTO : SplitScreenStore.getAxis(app));
         // Serbest pencere başlığı (küçült/kapat, ~42 px) pencerenin içinde çizilir; üst kenarı kullanılabilir alanın üstüne
         // değen yarılar başlık kadar yukarı alınır ki başlık durum çubuğunun altında kalsın ve içerik tam yarıyı alsın.
         // Sürüş ekranında itilmez: öykünücüde (7 Kasım) görev sınırı kabul edildi ama pencere yine durum çubuğunun altından
@@ -568,11 +569,53 @@ public final class SplitScreenLauncher {
         return !tiggo8Class;
     }
 
-    /** Sol/sağ ya da üst/alt; bölme ekseni {@link #sideBySideFor}. Oran bu eksene uygulanır. */
+    /** Bölme yönü: otomatik (ekran ölçüsüne göre, {@link #sideBySideFor}) ya da kullanıcının elle seçtiği. */
+    public enum Axis {
+        AUTO("auto"),
+        SIDE_BY_SIDE("side"),
+        TOP_BOTTOM("stack");
+
+        @NonNull
+        public final String id;
+
+        Axis(@NonNull String id) {
+            this.id = id;
+        }
+
+        @NonNull
+        public static Axis fromId(@Nullable String id) {
+            for (Axis axis : values()) {
+                if (axis.id.equals(id)) {
+                    return axis;
+                }
+            }
+            return AUTO;
+        }
+    }
+
+    /** Saf kural (birim testlenir): elle seçim önce gelir, otomatikte {@link #sideBySideFor}. */
+    static boolean sideBySide(@NonNull Axis axis, int width, int height) {
+        switch (axis) {
+            case SIDE_BY_SIDE:
+                return true;
+            case TOP_BOTTOM:
+                return false;
+            default:
+                return sideBySideFor(width, height);
+        }
+    }
+
+    /** Otomatik yönde bölme (sürüş ekranı). */
     @NonNull
     static Rect[] split(@NonNull Rect usable, @NonNull Ratio ratio) {
+        return split(usable, ratio, Axis.AUTO);
+    }
+
+    /** Sol/sağ ya da üst/alt; eksen {@link #sideBySide}. Oran bu eksene uygulanır. */
+    @NonNull
+    static Rect[] split(@NonNull Rect usable, @NonNull Ratio ratio, @NonNull Axis axis) {
         float share = ratio.firstShare;
-        if (sideBySideFor(usable.width(), usable.height())) {
+        if (sideBySide(axis, usable.width(), usable.height())) {
             int edge = usable.left + (int) (usable.width() * share);
             return new Rect[]{
                     new Rect(usable.left, usable.top, edge, usable.bottom),
@@ -584,10 +627,14 @@ public final class SplitScreenLauncher {
                 new Rect(usable.left, edge, usable.right, usable.bottom)};
     }
 
-    /** Ekranın yan yana mı bölüneceği; önizleme ile gerçek bölme aynı kuralı kullanır. */
+    /** Ekranın yan yana mı bölüneceği (kayıtlı yönle); önizleme ile gerçek bölme aynı kuralı kullanır. */
     public static boolean splitsSideBySide(@NonNull Context context) {
+        return splitsSideBySide(context, SplitScreenStore.getAxis(context));
+    }
+
+    public static boolean splitsSideBySide(@NonNull Context context, @NonNull Axis axis) {
         android.util.DisplayMetrics dm = context.getResources().getDisplayMetrics();
-        return sideBySideFor(dm.widthPixels, dm.heightPixels);
+        return sideBySide(axis, dm.widthPixels, dm.heightPixels);
     }
 
     /** Serbest pencere açılış seçenekleri (aşağıdaki pencere seçenekleriyle aynı anahtarlar): mod 5, [bounds], ekran 0. */

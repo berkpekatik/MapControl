@@ -313,6 +313,12 @@ public final class DisplayHelper {
         }
     }
 
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    private static boolean onMainThread() {
+        return android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
+    }
+
     /**
      * Görünümü soldurup kaldırır; solma sonu çalışmazsa (iptal, görünür değil) süre + 150 ms sonra yine kaldırılır.
      */
@@ -322,10 +328,11 @@ public final class DisplayHelper {
             if (done[0]) {
                 return;
             }
-            done[0] = true;
             try {
                 wm.removeViewImmediate(view);
+                done[0] = true;
             } catch (Exception ignored) {
+                // Başarısızsa işaretleme: diğer yol (animasyon sonu / gecikmeli yedek) yeniden denesin.
             }
         };
         try {
@@ -349,13 +356,71 @@ public final class DisplayHelper {
 
     // --- Boot Splash ----------------------------------------------------------------------------
 
+    private static volatile boolean bootSplashBlockedForInstall;
+
+    /**
+     * Uygulama kurulumu süreci öldürmeden önce gösterge çizimini solmadan kaldırır ve kaldırılana kadar bekler; çizim
+     * {@link #allowBootSplashAfterInstall()} çağrılana kadar yeniden gösterilmez. Bloklar: ana thread'den çağırma.
+     *
+     * @return çizim açıktı ve kaldırıldıysa true
+     */
+    public static boolean removeBootSplashForInstall(long timeoutMs) throws InterruptedException {
+        bootSplashBlockedForInstall = true;
+        final boolean[] removed = {false};
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                cancelBootSplashAnimations();
+                View view = bootSplashView;
+                android.view.WindowManager wm = bootSplashWindowManager;
+                bootSplashView = null;
+                bootSplashWindowManager = null;
+                bootSplashParams = null;
+                bootSplashDisplayContext = null;
+                bootSplashDisplayId = Display.INVALID_DISPLAY;
+                if (view != null && wm != null) {
+                    wm.removeViewImmediate(view);
+                    removed[0] = true;
+                }
+            } catch (Exception ignored) {
+            } finally {
+                done.countDown();
+            }
+        });
+        done.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        return removed[0];
+    }
+
+    public static void allowBootSplashAfterInstall() {
+        bootSplashBlockedForInstall = false;
+    }
+
     /**
      * Cluster (secondary) ekrana boot/welcome overlay'i bastırır. Kullanıcı uygulamadan ekran
      * yansıtana kadar oradaki siyahlığı doldurur. {@link #hideBootSplash()} çağrılana kadar kalır.
      */
     public static void showBootSplashOnDisplay(Context context, int displayId) {
+        showBootSplashOnDisplay(context, displayId, false);
+    }
+
+    /**
+     * @param evenIfProjectionOpen true yalnız göstergede ön planda uygulama olmadığı doğrulanınca ("Ana Ekrana Al"
+     *                             sonrası boş gösterge); diğer yollar yansıtma açıkken splash basmaz.
+     */
+    public static void showBootSplashOnDisplay(Context context, int displayId, boolean evenIfProjectionOpen) {
+        // Pencere hep ana thread'de eklenip kaldırılır; başka thread'de eklenen görünümü ana thread kaldıramaz
+        // (removeViewImmediate hata verir, yakalanır) ve splash göstergede sahipsiz kalır.
+        if (!onMainThread()) {
+            MAIN.post(() -> showBootSplashOnDisplay(context, displayId, evenIfProjectionOpen));
+            return;
+        }
+        // Yansıtma açıkken splash, göstergedeki uygulamanın (ör. Yandex) üstünü örter: harita arkada çalışır ama
+        // görünmez, ana ekranda "Aç" da uygulamayı göstergede öne getirdiği için hiçbir şey olmaz gibi görünür.
+        if (!evenIfProjectionOpen && ClusterNavigationState.getLastKnownOpen()) {
+            return;
+        }
         try {
-            if (bootSplashView != null) {
+            if (bootSplashView != null || bootSplashBlockedForInstall) {
                 return;
             }
             DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
@@ -402,15 +467,25 @@ public final class DisplayHelper {
                     android.graphics.PixelFormat.TRANSLUCENT
             );
 
+            bootSplashWindowManager.addView(overlay, bootSplashParams);
             bootSplashView = overlay;
-            bootSplashWindowManager.addView(bootSplashView, bootSplashParams);
 
             startBootSplashAnimations(overlay, bootSplashAnimators);
         } catch (Exception ignored) {
+            // Eklenemediyse alan dolu kalmasın; yoksa sonraki gösterimler erken döner.
+            bootSplashView = null;
+            bootSplashWindowManager = null;
+            bootSplashParams = null;
+            bootSplashDisplayContext = null;
+            bootSplashDisplayId = Display.INVALID_DISPLAY;
         }
     }
 
     public static void hideBootSplash() {
+        if (!onMainThread()) {
+            MAIN.post(DisplayHelper::hideBootSplash);
+            return;
+        }
         try {
             cancelBootSplashAnimations();
             if (bootSplashView != null && bootSplashWindowManager != null) {
@@ -435,6 +510,11 @@ public final class DisplayHelper {
      */
     public static void refreshBootSplashAfterConfigurationChange(Context applicationContext) {
         if (bootSplashView == null || bootSplashParams == null) {
+            return;
+        }
+        if (ClusterNavigationState.getLastKnownOpen()) {
+            // Yansıtma açıkken kalmış bir splash varsa yenilemek yerine kaldır.
+            hideBootSplash();
             return;
         }
         if (bootSplashDisplayId == Display.INVALID_DISPLAY) {

@@ -83,4 +83,35 @@ public class DvrClipStoreTest {
         assertEquals(60, DvrClipStore.reclaimableBytes(dir, null));
         assertEquals(4, DvrClipStore.nextId(dir));
     }
+    @Test
+    public void mergedUsbListIncludesExportsNewestFirstWithoutDuplicates() throws IOException {
+        File dir = usbDir();
+        File export = new File(dir, "Klipler");
+        // Ayni klip hem kayit hem aktarma klasorunde: kayit klasorundeki tutulur.
+        write(export, "s_2026-01-02_10-03-00_id_3.mp4", 99);
+        // Arac icinden aktarilan klip: id sayaci farkli (buyuk) ama zamanca en yeni degil.
+        write(export, "f_m_2026-01-02_09-58-00_id_500.mp4", 7);
+        write(export, "b_m_2026-01-02_09-58-00_id_500.mp4", 8);
+        List<File> dirs = java.util.Arrays.asList(dir, export, new File(dir, "yok"));
+        List<DvrClipStore.Clip> clips = DvrClipStore.listMerged(dirs, null);
+        assertEquals(java.util.Arrays.asList(
+                "2026-01-02_10-03-00_id_3",
+                "2026-01-02_10-00-00_id_2",
+                "2026-01-02_09-58-00_id_500",
+                "2026-01-02_09-57-00_id_1",
+                "2026-01-01_10-00-00",
+                "2025-12-31_10-00-00_id_9"), bases(clips));
+        assertEquals(30, clips.get(0).bytes);
+        assertEquals(15, clips.get(2).bytes);
+    }
+
+    @Test
+    public void mergedListSkipsActiveClip() throws IOException {
+        File dir = usbDir();
+        Set<String> active = Collections.singleton("2026-01-02_10-03-00_id_3");
+        List<DvrClipStore.Clip> clips = DvrClipStore.listMerged(
+                java.util.Arrays.asList(dir, new File(dir, "Klipler")), active);
+        assertEquals("2026-01-02_10-00-00_id_2", clips.get(0).base);
+        assertEquals(4, clips.size());
+    }
 }

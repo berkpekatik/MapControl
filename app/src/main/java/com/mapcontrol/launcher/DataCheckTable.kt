@@ -61,14 +61,20 @@ internal class ChangeTracker {
     }
 }
 
-/** Tablodaki bir VDBus sinyali. [decode] birleşik ham değeri okunur metne çevirir; geçersizse null. */
+/**
+ * Tablodaki bir VDBus sinyali. [decode] birleşik ham değeri okunur metne çevirir; geçersizse null.
+ * [rawDecode] verilirse birleştirme yapılmaz, dizi olduğu gibi çözülür (lastik basıncı gibi eleman başına anlamlı yükler).
+ */
 internal class CheckSignal(
     val group: String,
     val name: String,
     val module: Int,
     val id: Int,
     val decode: (Int) -> String?,
+    val rawDecode: ((IntArray) -> String?)? = null,
 ) {
+    fun decodeRaw(raw: IntArray): String? = rawDecode?.invoke(raw) ?: if (rawDecode == null) decode(CheckClassify.combine(raw)) else null
+
     val moduleName: String get() = DataCheckTable.moduleName(module)
     val key: String get() = "$moduleName#$id"
 }
@@ -82,6 +88,8 @@ internal object DataCheckTable {
 
     /** HvacID.ID_CIRCULATION_MODE: yeni yazılımda devridaim durumu (bu SDK jar'ında yok); yalnızca veri denetimi tablosunda okunur. */
     private const val ID_CIRCULATION_MODE_NEW = 111
+    /** CarSettingID.ID_TPMS_RESET: yeni Desay yazılımında (bu SDK jar'ında yok). */
+    private const val ID_TPMS_RESET = 231
     private const val RO = VDEventCarInfo.MODULE_READONLY_INFO
     private const val SET = VDEventCarInfo.MODULE_CAR_SETTING
     private const val HVAC = VDEventCarInfo.MODULE_HVAC
@@ -176,11 +184,56 @@ internal object DataCheckTable {
     /** Cam (CarSetting 100..): 2 kapalı, diğerleri açık / hareket. */
     val window: (Int) -> String? = { v -> if (v == 2) "Kapalı" else "Açık ($v)" }
 
+    // ---- Lastik testi (araç ölçümü için; T19C / T1E24 farkı) ----
+
+    /** Tekerlek adları, ReadOnly 140 eleman sırası ve ReadOnly 95 bit sırası (bit0 ön sol ... bit3 arka sağ). */
+    val WHEELS = listOf("Ön sol", "Ön sağ", "Arka sol", "Arka sağ")
+
+    /**
+     * ReadOnly 95, OEM SVVehicleSetting gibi: bit0 ön sol, bit1 ön sağ, bit2 arka sol, bit3 arka sağ.
+     * 0 normal; 0..15 dışı null (sarı).
+     */
+    val tireWarnMask: (Int) -> String? = { v ->
+        when {
+            v !in 0..0x0F -> null
+            v == 0 -> "Normal (0)"
+            else -> "Uyarı: " + WHEELS.filterIndexed { i, _ -> (v shr i) and 1 == 1 }.joinToString(", ") +
+                " (0b" + Integer.toBinaryString(v).padStart(4, '0') + ")"
+        }
+    }
+
+    /** ReadOnly 140: [TireDecode] ile tekerlek başına psi/bar; çözülemezse null (ham dizi yine görünür). */
+    fun tirePressure(raw: IntArray): String? {
+        val t = TireDecode.parse(raw) ?: return null
+        val names = if (t.perWheel) WHEELS else listOf("Tek değer")
+        return "${raw.size} eleman: " + t.values.mapIndexed { i, b ->
+            names[i] + " " + (b?.let { String.format(java.util.Locale.US, "%d psi / %.2f bar", TireDecode.psi(it), it) } ?: "—")
+        }.joinToString(" · ")
+    }
+
+    /** CarSetting 231 (ID_TPMS_RESET): OEM [0] sistem durumu, [1] sıfırlama sonucu okur; anlamları doğrulanmadı. */
+    fun tpmsStatus(raw: IntArray): String =
+        "durum ${raw[0]}" + (raw.getOrNull(1)?.let { ", sıfırlama sonucu $it" } ?: "") + " (anlam doğrulanmadı)"
+
+    /** Tarama satırı: yalnızca cevap geldiğini ve eleman sayısını söyler; anlam yok. */
+    fun rawCount(raw: IntArray): String = "${raw.size} eleman"
+
+    /** T19C'de bilinen ReadOnly tablosu 129'da biter; 4x4'te 154'e çıkar. Arada başka bir lastik kimliği var mı diye taranır. */
+    val SCAN_IDS = 120..160
+
     // ---- Tablo ----
 
     val signals: List<CheckSignal> = buildList {
         fun s(group: String, name: String, module: Int, id: Int, decode: (Int) -> String?) =
             add(CheckSignal(group, name, module, id, decode))
+        fun sr(group: String, name: String, module: Int, id: Int, rawDecode: (IntArray) -> String?) =
+            add(CheckSignal(group, name, module, id, unverified, rawDecode))
+
+        // En üstte: araçta ilk bakılacak grup.
+        val tire = "Lastik testi"
+        s(tire, "Uyarı maskesi (95)", RO, ReadOnlyID.ID_TIRE_PRESSURE_WARNING, tireWarnMask)
+        sr(tire, "Basınç (140)", RO, ReadOnlyIds.TIRE_PRESSURE, ::tirePressure)
+        sr(tire, "TPMS durum / sıfırlama (231)", SET, ID_TPMS_RESET, ::tpmsStatus)
 
         val car = "Araç kartı"
         s(car, "Menzil", RO, ReadOnlyID.ID_ENDURANCE_KM, num(0..2000, "km"))
@@ -193,7 +246,6 @@ internal object DataCheckTable {
         s(car, "Bagaj", RO, ReadOnlyID.ID_TRUNK_STATE, openClosed)
         s(car, "Cam tavan (SPF operate)", SET, CarSettingID.ID_CAR_SPF_OPERATE, sunroofOperate)
         s(car, "Cam tavan (SPF konum)", SET, CarSettingID.ID_CAR_SPF_POSI, sunroofPosi)
-        s(car, "Lastik basıncı uyarısı", RO, ReadOnlyID.ID_TIRE_PRESSURE_WARNING, labels(0 to "Normal", 1 to "Uyarı"))
 
         s("Sürüş modu", "Sürüş modu", NE, NewEnergyID.ID_DRIVE_MODE, driveMode)
 
@@ -215,6 +267,9 @@ internal object DataCheckTable {
         val service = "Bakım"
         s(service, "Servise kalan km", RO, ReadOnlyID.ID_ICMT_DISTANCE, num(0..99_999, "km"))
         s(service, "Servise kalan gün", RO, ReadOnlyID.ID_ICMT_DAY, num(0..9_999, "gün"))
+        s(service, "Bakım hatırlatma (176)", SET, CarSettingID.ID_CAR_MAINTANCE_TIP) { v ->
+            when (v) { 1 -> "açık"; 0 -> "kapalı"; else -> "ham $v" }
+        }
 
         val air = "Hava kalitesi"
         s(air, "PM2.5 kabin içi", HVAC, HvacID.ID_AC_PM25_INCAR, num(0..999, "µg/m³"))
@@ -265,7 +320,6 @@ internal object DataCheckTable {
 
         // Tiggo 8 yazılımının yeni sinyalleri: ham değer görülsün diye anlamı doğrulanmadı sayılır.
         val oem = "Yeni sinyaller"
-        s(oem, "Lastik basıncı (140)", RO, ReadOnlyIds.TIRE_PRESSURE, unverified)
         s(oem, "Toplam km (150)", RO, ReadOnlyIds.TOTAL_MILEAGE, unverified)
         s(oem, "Toplam yakıt (153)", RO, ReadOnlyIds.TOTAL_FUEL, unverified)
         s(oem, "Sürüş süresi, çalışma (151)", RO, ReadOnlyIds.DRIVING_TIME_AFTER_RUNNING, unverified)
@@ -274,6 +328,10 @@ internal object DataCheckTable {
         s(oem, "Klima gücü (HVAC 18)", HVAC, HvacID.ID_AC_WORKING, unverified)
         s(oem, "Devridaim (HVAC 8)", HVAC, HvacID.ID_AC_CIRCULATION_MODE, unverified)
         s(oem, "Devridaim (HVAC 111)", HVAC, ID_CIRCULATION_MODE_NEW, unverified)
+
+        val scan = "ReadOnly tarama (${SCAN_IDS.first}–${SCAN_IDS.last})"
+        // Tabloda zaten olan kimlikler (140, 150..153) atlanır: anahtarlar tekil kalır.
+        for (id in SCAN_IDS) if (none { it.module == RO && it.id == id }) sr(scan, "ReadOnly $id", RO, id, ::rawCount)
     }
 
     /** Grup sırası, tablodaki ilk görünüşe göre. */

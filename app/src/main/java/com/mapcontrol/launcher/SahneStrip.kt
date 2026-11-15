@@ -188,6 +188,16 @@ internal class StripItemView(
     private val type: WidgetType? = null,
 ) : LinearLayout(context) {
 
+    /**
+     * Dikey ekranda (Jaecoo) şerit yuvası ~210 dp: yatay ölçülerle yazıya ~93 dp kalıyor, "Göstergeye yansıt" gibi başlıklar
+     * kesiliyordu. Orada görsel kutusu, paylar ve en küçük yazı boyları sıkılaşır (yazıya ~129 dp); yatay araçlar aynen kalır.
+     */
+    private val compact = VehicleProfile.active.portrait
+    private val padDp = if (compact) COMPACT_PAD_DP else PAD_DP
+    private val artDp = if (compact) COMPACT_ART_DP else ART_DP
+    private val artBoxWDp = if (compact) COMPACT_ART_BOX_W_DP else ART_BOX_W_DP
+    private val textGapDp = if (compact) COMPACT_TEXT_GAP_DP else TEXT_GAP_DP
+
     private val iconView = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -200,14 +210,14 @@ internal class StripItemView(
         SahneFonts.apply(this, 400)
         maxLines = 1
         androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-            this, TITLE_MIN_SP, TITLE_SP.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
+            this, if (compact) COMPACT_TITLE_MIN_SP else TITLE_MIN_SP, TITLE_SP.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
     }
     private val value = text(context, VALUE_SP).apply {
         SahneFonts.apply(this, 500)
         maxLines = 1
         // Uzun değer şeritte kesilmez ve kaymaz: [VALUE_SP]'den küçülerek sığar.
         androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-            this, VALUE_MIN_SP, VALUE_SP.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
+            this, if (compact) COMPACT_VALUE_MIN_SP else VALUE_MIN_SP, VALUE_SP.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
     }
     private val badge = ImageView(context).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     private val valueRow = LinearLayout(context).apply {
@@ -236,10 +246,10 @@ internal class StripItemView(
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(context.dp(PAD_DP), 0, context.dp(PAD_DP), 0)
+        setPadding(context.dp(padDp), 0, context.dp(padDp), 0)
         minimumHeight = context.dp(LauncherTheme.TOUCH_MIN_DP)
-        addView(iconBox, LayoutParams(context.dp(ART_BOX_W_DP), context.dp(ART_DP)))
-        addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.dp(TEXT_GAP_DP) })
+        addView(iconBox, LayoutParams(context.dp(artBoxWDp), context.dp(artDp)))
+        addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.dp(textGapDp) })
         isClickable = true
         isFocusable = true
         setOnClickListener { onTap(0) }
@@ -328,9 +338,9 @@ internal class StripItemView(
     private fun resizeIcon(mode: Int) {
         if (mode == sizing) return
         sizing = mode
-        val dp = when (mode) { SIZE_ART -> ART_DP; SIZE_APP -> APP_ICON_DP; else -> ICON_DP }
+        val dp = when (mode) { SIZE_ART -> artDp; SIZE_APP -> APP_ICON_DP; else -> ICON_DP }
         iconView.layoutParams = (iconView.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-            width = context.dp(if (mode == SIZE_ART) ART_BOX_W_DP else dp)
+            width = context.dp(if (mode == SIZE_ART) artBoxWDp else dp)
             height = context.dp(dp)
         }
     }
@@ -365,6 +375,13 @@ internal class StripItemView(
         const val ART_DP = 72
         const val ART_BOX_W_DP = 80
         const val TEXT_GAP_DP = 10
+        /** Dikey ekran (Jaecoo) şerit ölçüleri; bkz. [compact]. */
+        const val COMPACT_PAD_DP = 8
+        const val COMPACT_ART_DP = 56
+        const val COMPACT_ART_BOX_W_DP = 60
+        const val COMPACT_TEXT_GAP_DP = 6
+        const val COMPACT_TITLE_MIN_SP = 14
+        const val COMPACT_VALUE_MIN_SP = 14
         private const val SIZE_ICON = 0
         private const val SIZE_APP = 1
         private const val SIZE_ART = 2

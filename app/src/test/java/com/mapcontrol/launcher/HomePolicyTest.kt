@@ -22,31 +22,40 @@ class HomePolicyTest {
 
     @Test fun launcherModeOffNeverActs() {
         for (before in FrontApp.values()) {
-            assertEquals(HomeAction.NONE, HomePolicy.decide(false, before, false, Long.MAX_VALUE))
-            assertEquals(HomeAction.NONE, HomePolicy.decide(false, before, true, Long.MAX_VALUE))
+            assertEquals(HomeAction.NONE, HomePolicy.decide(false, before, Long.MAX_VALUE))
+            assertEquals(HomeAction.NONE, HomePolicy.decide(false, before, Long.MAX_VALUE))
         }
     }
 
-    @Test fun onlyMapControlScreensRedirect() {
-        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OUR_SCREEN, false, Long.MAX_VALUE))
-        assertEquals(HomeAction.STAY_ON_OEM, HomePolicy.decide(true, FrontApp.OUR_LAUNCHER, false, Long.MAX_VALUE))
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.OTHER_APP, false, Long.MAX_VALUE))
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.CAR_HOME, false, Long.MAX_VALUE))
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.UNKNOWN, false, Long.MAX_VALUE))
+    @Test fun mapcontrolScreensAndAppsRedirect() {
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OUR_SCREEN, Long.MAX_VALUE))
+        assertEquals(HomeAction.STAY_ON_OEM, HomePolicy.decide(true, FrontApp.OUR_LAUNCHER, Long.MAX_VALUE))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OTHER_APP, Long.MAX_VALUE))
+        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.CAR_HOME, Long.MAX_VALUE))
+        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.UNKNOWN, Long.MAX_VALUE))
     }
 
     @Test fun driveScreenRedirectsThirdPartyMapButNotUnknown() {
-        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OTHER_APP, true, Long.MAX_VALUE))
-        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OUR_SCREEN, true, Long.MAX_VALUE))
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.UNKNOWN, true, Long.MAX_VALUE))
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.CAR_HOME, true, Long.MAX_VALUE))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OTHER_APP, Long.MAX_VALUE))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, HomePolicy.decide(true, FrontApp.OUR_SCREEN, Long.MAX_VALUE))
+        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.UNKNOWN, Long.MAX_VALUE))
+        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.CAR_HOME, Long.MAX_VALUE))
+    }
+
+    @Test fun oemAppMenuIsNotCarHome() {
+        val oem = "com.desaysv.launcher"
+        val home = "com.desaysv.launcher.activity.LauncherActivity"
+        assertEquals(FrontApp.CAR_HOME, HomePolicy.classify(oem, home, "com.mapcontrol", "L", oem, home))
+        assertEquals(FrontApp.OTHER_APP, HomePolicy.classify(oem, "com.desaysv.appmenu.activity.AppMenuActivity", "com.mapcontrol", "L", oem, home))
+        assertEquals(FrontApp.CAR_HOME, HomePolicy.classify(oem, "android.widget.FrameLayout", "com.mapcontrol", "L", oem, home))
+        assertEquals(FrontApp.CAR_HOME, HomePolicy.classify(oem, "MenuActivity", "com.mapcontrol", "L", oem, null))
     }
 
     @Test fun debounce() {
-        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.OUR_SCREEN, false, HomePolicy.REDIRECT_DEBOUNCE_MS - 1))
+        assertEquals(HomeAction.NONE, HomePolicy.decide(true, FrontApp.OUR_SCREEN, HomePolicy.REDIRECT_DEBOUNCE_MS - 1))
         assertEquals(
             HomeAction.REDIRECT_TO_LAUNCHER,
-            HomePolicy.decide(true, FrontApp.OUR_SCREEN, false, HomePolicy.REDIRECT_DEBOUNCE_MS),
+            HomePolicy.decide(true, FrontApp.OUR_SCREEN, HomePolicy.REDIRECT_DEBOUNCE_MS),
         )
     }
 
@@ -113,16 +122,16 @@ class HomePolicyTest {
         assertEquals(HomeAction.STAY_ON_OEM, t.onWindow(oem, "Main", 20_000, oem, true))
     }
 
-    @Test fun homeFromThirdPartyAppIsLeftToTheCar() {
+    @Test fun homeFromThirdPartyAppReturnsToLauncher() {
         val t = tracker()
         t.onLauncherTop(true)
         t.onLauncherTop(false)
         t.onWindow(maps, "MapsActivity", 10_000, oem, true)
-        assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 20_000, oem, true))
-        // MapControl ayarlarından açılan müzik de üçüncü taraf: dokunulmaz.
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 20_000, oem, true))
+        // MapControl ayarlarından açılan müzik de üçüncü taraf: tuş yine launcher'a döner.
         t.onWindow(self, settings, 30_000, oem, true)
         t.onWindow(music, "MusicActivity", 31_000, oem, true)
-        assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 40_000, oem, true))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 40_000, oem, true))
     }
 
     @Test fun transientWindowsDoNotChangeTheFrontApp() {
@@ -152,14 +161,14 @@ class HomePolicyTest {
         val t = tracker()
         t.onLauncherTop(true)
         t.onLauncherTop(false)
-        t.onWindow(self, miniDash, 10_000, oem, true, driveActive = true)
-        t.onWindow(maps, "MapsActivity", 10_200, oem, true, driveActive = true)
-        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 30_000, oem, true, driveActive = true))
-        // Sürüş ekranı bitti: aynı harita artık sıradan uygulama.
+        t.onWindow(self, miniDash, 10_000, oem, true)
+        t.onWindow(maps, "MapsActivity", 10_200, oem, true)
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 30_000, oem, true))
+        // Sürüş ekranı bittikten sonra da aynı: tuş launcher'a döner.
         t.onLauncherTop(true)
         t.onLauncherTop(false)
         t.onWindow(maps, "MapsActivity", 40_000, oem, true)
-        assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 50_000, oem, true))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 50_000, oem, true))
     }
 
     @Test fun launcherModeOffTrackerNeverActs() {
@@ -176,7 +185,7 @@ class HomePolicyTest {
         t.onLauncherTop(true)
         t.onLauncherTop(false)
         t.onServiceConnected(maps, oem)
-        assertEquals(HomeAction.NONE, t.onWindow(oem, "Main", 10_000, oem, true))
+        assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 10_000, oem, true))
     }
 
     @Test fun serviceConnectedWithUnknownFrontDoesNothing() {

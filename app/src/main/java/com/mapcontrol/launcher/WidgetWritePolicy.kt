@@ -89,10 +89,13 @@ internal object WidgetWritePolicy {
             listOf(sig("hvac10_temp_driver", HV, HvacID.ID_AC_TEMPERATURE_DRIVER), PANEL_ACTIVE), verified = false),
         Entry("ClimateTempPassenger", HV, HvacID.ID_AC_TEMPERATURE_COPILOT, TEMP_VALUES,
             listOf(sig("hvac13_temp_passenger", HV, HvacID.ID_AC_TEMPERATURE_COPILOT), PANEL_ACTIVE), verified = false),
-        // Klima gücü (HVAC 18): 1 aç / 2 kapat. Panel yolunda sıcaklık/fan yazmadan önce otomatik 1 de buradan geçer (dock yolunda gönderilmez).
+        // Klima gücü (HVAC 18): 1 aç / 2 kapat, OEM SystemUI güç düğmesiyle aynı tek yazma (alt çubuk fan dokunuşu,
+        // ClimateWriter.setPower). Araç testi bekliyor: ClimateWriter.CLIMATE_POWER_WRITE_VERIFIED. Panel yolunda sıcaklık/fan
+        // yazmadan önceki otomatik 1 de buradan geçer (o yol CLIMATE_WRITE_VERIFIED ile kapalı; dock yolunda gönderilmez).
         Entry("ClimatePower", HV, HvacID.ID_AC_WORKING, setOf(ClimateMath.POWER_ON, ClimateMath.POWER_OFF),
-            listOf(sig("hvac18_power", HV, HvacID.ID_AC_WORKING)), verified = false),
-        // Klima aç/kapat, MapControl sırası (ClimateMath.powerPlan): açmada 18 ← 1'den ~150 ms sonra A/C 1 ← 1 ve otomatik 4 ← 1;
+            listOf(sig("hvac18_power", HV, HvacID.ID_AC_WORKING)), verified = ClimateWriter.CLIMATE_POWER_WRITE_VERIFIED),
+        // A/C (1) ve otomatik (4): launcher bunları yazmaz (klima gücü yalnız 18, OEM gibi); doğrulanmadı, kapalı.
+        // Eski not: MapControl sırası açmada 18 ← 1'den ~150 ms sonra A/C 1 ← 1 ve otomatik 4 ← 1;
         // kapatmada üçü de 2. 0 yazılmaz (aracın klima paneliyle aynı sıra).
         Entry("ClimateAc", HV, HvacID.ID_AC_STATE, setOf(ClimateMath.AC_ON, ClimateMath.AC_OFF),
             listOf(sig("hvac1_ac_state", HV, HvacID.ID_AC_STATE), sig("hvac18_power", HV, HvacID.ID_AC_WORKING)), verified = false),
@@ -110,6 +113,12 @@ internal object WidgetWritePolicy {
             listOf(sig("hvac13_temp_passenger", HV, HvacID.ID_AC_TEMPERATURE_COPILOT), PANEL_ACTIVE), verified = ClimateWriter.CLIMATE_DOCK_WRITE_VERIFIED),
         Entry("ClimateFanDock", HV, HvacID.ID_AC_SET_BLOW_LEVEL, (1..10).toSet(),
             listOf(sig("hvac12_blow_speed", HV, HvacID.ID_AC_BLOW_SPEED_LEVEL), PANEL_ACTIVE), verified = ClimateWriter.CLIMATE_DOCK_WRITE_VERIFIED),
+        // Hava yönü (HVAC 6) ve devridaim (HVAC 8): Tiggo 8 alt çubuğu. Yazma değerleri OEM ile aynı (yön 0..6, okunan 0..7
+        // değil: ClimateMath.airFlowWriteValue; devridaim 1 iç / 2 dış). Araçta denenmedi: ClimateWriter.AIR_WRITE_VERIFIED.
+        Entry("ClimateAirFlow", HV, HvacID.ID_AC_MODE_ADJUST, (0..6).toSet(),
+            listOf(sig("hvac6_air_flow", HV, HvacID.ID_AC_MODE_ADJUST), PANEL_ACTIVE), verified = ClimateWriter.AIR_WRITE_VERIFIED),
+        Entry("ClimateRecirc", HV, HvacID.ID_AC_CIRCULATION_MODE, setOf(ClimateMath.RECIRC_ON, ClimateMath.RECIRC_OFF),
+            listOf(sig("hvac8_recirc", HV, HvacID.ID_AC_CIRCULATION_MODE), PANEL_ACTIVE), verified = ClimateWriter.AIR_WRITE_VERIFIED),
         // Bagaj: yalnızca CarSetting 92, 1 aç / 2 kapat (OEM ayarlar / hızlı ayarlarla aynı). Araçta doğrulandı: 1 sonrası
         // kapak açıklığı (RO 98) arttı, 2 sonrası azaldı. Yalnızca park halinde.
         Entry("Trunk", CS, CarSettingID.ID_CAR_REAR_DOOR_CONTROL, setOf(TrunkMath.CMD_OPEN, TrunkMath.CMD_CLOSE), TRUNK_READ,

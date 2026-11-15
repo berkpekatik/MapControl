@@ -109,6 +109,44 @@ public class DialogHelper {
         dialog.show();
     }
 
+    /** Başlık + alt başlık + kaydırılabilir metin; [positive] onAccept'i çalıştırır, Geri kapatır. */
+    public static void showConfirm(Context context, String title, String subtitle, String message,
+            int positive, Runnable onAccept) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        LinearLayout mainContainer = createBaseContainer(context);
+        mainContainer.addView(createTitleContainer(context, title, subtitle));
+        LinearLayout contentContainer = createContentContainer(context);
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.addView(createMessage(context, message));
+        contentContainer.addView(scrollView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        mainContainer.addView(contentContainer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        builder.setView(mainContainer);
+        builder.setPositiveButton(positive, (d, w) -> onAccept.run());
+        builder.setNegativeButton(R.string.dialog_back, (d, w) -> d.dismiss());
+        builder.setCancelable(true);
+        AlertDialog dialog = builder.create();
+        styleDialog(dialog);
+        dialog.show();
+    }
+
+    /** Tek düğmeli bilgi penceresi. */
+    public static void showInfo(Context context, String title, String message) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        LinearLayout mainContainer = createBaseContainer(context);
+        mainContainer.addView(createTitleContainer(context, title, null));
+        LinearLayout contentContainer = createContentContainer(context);
+        contentContainer.addView(createMessage(context, message));
+        mainContainer.addView(contentContainer);
+        builder.setView(mainContainer);
+        builder.setPositiveButton(android.R.string.ok, (d, w) -> d.dismiss());
+        builder.setCancelable(true);
+        AlertDialog dialog = builder.create();
+        styleDialog(dialog);
+        dialog.show();
+    }
+
     private static void showResponsibilityDialog(
             Context context,
             String title,
@@ -257,6 +295,9 @@ public class DialogHelper {
         titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setFontStyle(titleView, android.graphics.Typeface.BOLD);
         titleContainer.addView(titleView);
+        if (subtitle == null) {
+            return titleContainer;
+        }
 
         TextView subtitleView = new TextView(context);
         subtitleView.setText(subtitle);

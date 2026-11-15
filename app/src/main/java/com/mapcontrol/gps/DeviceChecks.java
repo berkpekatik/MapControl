@@ -18,7 +18,7 @@ final class DeviceChecks {
         return manager != null && manager.isLocationEnabled();
     }
 
-    /** Bu uygulama Geliştirici seçenekleri'nde "sahte konum uygulaması" olarak seçili mi. */
+    /** Sahte konum izni (android:mock_location appop) verilmiş mi; Installer bunu kurulumda verir. */
     static boolean mockAllowed(Context context) {
         AppOpsManager ops = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         if (ops == null) {

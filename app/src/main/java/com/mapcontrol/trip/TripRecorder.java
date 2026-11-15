@@ -54,11 +54,7 @@ public final class TripRecorder implements TripTracker.Listener {
     private long lastSampledAt = Long.MIN_VALUE;
     private boolean lastSampleOn;
 
-    /** Kontak kapalıyken araç menzil için 0xF000 (61440) gibi geçersiz değer yollar; son geçerli değer burada tutulur. */
-    private static final int MAX_PLAUSIBLE_RANGE_KM = 2000;
-    private static final String RANGE_PREFS = "trip_recorder";
-    private static final String RANGE_KEY = "lastRangeKm";
-    private volatile int lastGoodRangeKm = -1;
+    // Menzil kuralı ve son geçerli değer: com.mapcontrol.vehicle.VehicleRange (launcher ile ortak).
 
     private volatile Location lastFix;
     private boolean locating;
@@ -83,7 +79,6 @@ public final class TripRecorder implements TripTracker.Listener {
 
     private TripRecorder(Context context) {
         this.context = context;
-        this.lastGoodRangeKm = context.getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE).getInt(RANGE_KEY, -1);
         this.store = new TripStore(context);
     }
 
@@ -199,13 +194,7 @@ public final class TripRecorder implements TripTracker.Listener {
      * son geçerli değer döner. Hiç geçerli değer yoksa -1.
      */
     private int stableRangeKm(VehicleMetricsSnapshot s) {
-        if (s.powerMode == 2 && s.rangeKm >= 0 && s.rangeKm <= MAX_PLAUSIBLE_RANGE_KM
-                && s.rangeKm != lastGoodRangeKm) {
-            lastGoodRangeKm = s.rangeKm;
-            context.getSharedPreferences(RANGE_PREFS, Context.MODE_PRIVATE)
-                    .edit().putInt(RANGE_KEY, s.rangeKm).apply();
-        }
-        return lastGoodRangeKm;
+        return com.mapcontrol.vehicle.VehicleRange.stable(context, s);
     }
 
     /**

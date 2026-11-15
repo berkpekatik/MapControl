@@ -145,6 +145,7 @@ public final class CameraHub {
             mainHandler.removeCallbacks(stopRunnable);
             if (!consumers.containsKey(tag)) {
                 consumers.put(tag, new Demand());
+                com.mapcontrol.GlitchTip.breadcrumb("camera", "acquire " + tag + " n=" + consumers.size());
             }
             if (!started && !installHold) {
                 startLocked();
@@ -165,6 +166,7 @@ public final class CameraHub {
             if (consumers.remove(tag) == null) {
                 return;
             }
+            com.mapcontrol.GlitchTip.breadcrumb("camera", "release " + tag + " n=" + consumers.size());
             if (consumers.isEmpty() && started) {
                 mainHandler.removeCallbacks(stopRunnable);
                 mainHandler.postDelayed(stopRunnable, STOP_DELAY_MS);
@@ -365,10 +367,12 @@ public final class CameraHub {
             }
             threads = teardownLocked();
         }
+        com.mapcontrol.GlitchTip.breadcrumb("camera", "streams stop");
         control.execute(() -> doStop(threads));
     }
 
     private void startLocked() {
+        com.mapcontrol.GlitchTip.breadcrumb("camera", "streams start");
         started = true;
         ready = false;
         final int mySession = session.incrementAndGet();

@@ -66,6 +66,7 @@ grant_permission "settings put global overlay_show_system_window 1" "Global over
 
 # pm grant izinleri
 grant_permission "pm grant com.mapcontrol android.permission.READ_LOGS" "READ_LOGS"
+grant_permission "pm grant com.mapcontrol android.permission.DUMP" "DUMP (tanılama: BT durumu)"
 grant_permission "pm grant com.mapcontrol android.permission.QUERY_ALL_PACKAGES" "QUERY_ALL_PACKAGES"
 grant_permission "pm grant com.mapcontrol android.permission.PACKAGE_USAGE_STATS" "PACKAGE_USAGE_STATS"
 grant_permission "pm grant com.mapcontrol android.permission.ACCESS_FINE_LOCATION" "ACCESS_FINE_LOCATION"

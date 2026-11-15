@@ -883,7 +883,8 @@ internal data class SplitLoad(
 /**
  * "Bölünmüş ekran": tek dokunuşla Navigasyon kartıyla aynı sürüş ekranı (Mini gösterge + kartın haritası, [DriveScreen]; 7 Kasım
  * kararı, MapControl'ın eski Mini gösterge bölmesi artık açılmaz). MapControl'da Mini gösterge içermeyen iki başka uygulama seçildiyse
- * o çift MapControl'ın kendi bölünmüş ekran başlatıcısı ve oranıyla açılır ([SplitTileText.route]). Ayarlar şeritte uzun basışta.
+ * o çift MapControl'ın kendi bölünmüş ekran başlatıcısı ve oranıyla açılır ([SplitTileText.route]). Şeritte uzun basış hızlı
+ * ayar sayfasını açar (bölme yönü, iki uygulama); diğer ayarlar oradan MapControl'ın bölünmüş ekran sekmesine gider.
  * Başlatılamazsa MapControl'ın kendi mesajı gösterilir.
  */
 internal class SplitScreenTile(activity: Activity) :
@@ -891,6 +892,126 @@ internal class SplitScreenTile(activity: Activity) :
 
     private var starting = false
     private val icons = HashMap<String, Drawable?>()
+
+    /** Hızlı ayar sayfasında uygulama seçilen yuva (0/1); -1: ana görünüm. */
+    private var pickingSlot = -1
+    private var candidates: List<SplitCandidate>? = null
+    /** Seçici listesi: sayfa her yoklamada yeniden kurulduğunda aynı görünüm geri eklenir, kaydırma yeri korunur. */
+    private var pickerView: View? = null
+
+    private companion object {
+        /** Seçici listesinin yüksekliği: 720 px (160 dpi) ekranda başlık + Geri satırıyla sayfa ekrana sığar. */
+        const val PICKER_HEIGHT_DP = 360
+    }
+
+    override fun stripLongPress(): Boolean {
+        if (!features.available) return super.stripLongPress()
+        pickingSlot = -1
+        pickerView = null
+        openSheet()
+        return true
+    }
+
+    override fun buildSheet(box: LinearLayout, dialog: Dialog) {
+        if (pickingSlot >= 0) buildPicker(box) else buildQuick(box, dialog)
+    }
+
+    /** Ana görünüm: bölme yönü, iki uygulama yuvası, Başlat ve Diğer ayarlar. */
+    private fun buildQuick(box: LinearLayout, dialog: Dialog) {
+        val s = state
+        box.addView(sectionLabel(R.string.launcher_fn_split_axis), sheetFullWidth())
+        val axis = features.readSplitAxis()
+        val axisLabels = intArrayOf(R.string.split_axis_auto, R.string.split_axis_side, R.string.split_axis_stack)
+        box.addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            axisLabels.forEachIndexed { i, res ->
+                addView(row(activity.getString(res), selected = i == axis) {
+                    // Yön kutucuk durumunda değil: yazım hemen (SharedPreferences.apply bekletmez), seçim anında işaretlenir.
+                    features.setSplitAxis(i)
+                    redraw()
+                }, LinearLayout.LayoutParams(0, activity.dp(ROW_MIN_DP), 1f).apply { if (i > 0) marginStart = activity.dp(10) })
+            }
+        }, sheetFullWidth().apply { topMargin = activity.dp(10) })
+        box.addView(sectionLabel(R.string.launcher_fn_split_apps), sheetFullWidth().apply { topMargin = activity.dp(20) })
+        val slots = listOf(s?.pair?.first to s?.firstLabel, s?.pair?.second to s?.secondLabel)
+        box.addView(rows(slots.mapIndexed { i, (entry, label) ->
+            row(activity.getString(R.string.launcher_fn_split_slot, i + 1),
+                trailingText = SplitTileText.display(entry, label) ?: activity.getString(R.string.launcher_fn_split_none), opens = true) {
+                pickingSlot = i
+                pickerView = null
+                redraw()
+            }
+        }, fill = false), sheetFullWidth().apply { topMargin = activity.dp(10) })
+        box.addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            addView(pill(activity.getString(R.string.launcher_fn_split_more)) { dialog.dismiss(); openSettings() })
+            addView(pill(startLabel(), primary = true) { dialog.dismiss(); start() },
+                LinearLayout.LayoutParams(WRAP, WRAP).apply { marginStart = activity.dp(16) })
+        }, sheetFullWidth().apply { topMargin = activity.dp(24) })
+    }
+
+    /** Uygulama seçici: Geri, Boşalt ve kaydırılabilir uygulama listesi (MapControl sekmesindekiyle aynı aday listesi). */
+    private fun buildPicker(box: LinearLayout) {
+        val slot = pickingSlot
+        box.addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(pill(activity.getString(R.string.launcher_fn_split_back)) { pickingSlot = -1; pickerView = null; redraw() })
+            addView(text(activity, LauncherTheme.BODY_SP, LauncherTheme.TEXT, medium = true).apply {
+                text = activity.getString(R.string.launcher_fn_split_slot, slot + 1)
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            addView(pill(activity.getString(R.string.launcher_fn_split_clear)) { choose(slot, null) })
+        }, sheetFullWidth())
+        val list = pickerView ?: buildPickerList(slot).also { pickerView = it }
+        (list.parent as? ViewGroup)?.removeView(list)
+        box.addView(list, LinearLayout.LayoutParams(MATCH, activity.dp(PICKER_HEIGHT_DP)).apply { topMargin = activity.dp(16) })
+    }
+
+    private fun buildPickerList(slot: Int): View {
+        val current = if (slot == 0) state?.pair?.first else state?.pair?.second
+        val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = android.widget.ScrollView(activity).apply { isVerticalScrollBarEnabled = true; addView(column) }
+        val known = candidates
+        if (known == null) {
+            column.addView(text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT_SECONDARY).apply {
+                setText(R.string.launcher_fn_split_loading)
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(MATCH, activity.dp(ROW_MIN_DP)))
+            // Paket listesi arka planda; gelince seçici yeniden kurulur.
+            LauncherIo.serial().execute {
+                val loaded = features.splitCandidates()
+                main.post {
+                    candidates = loaded
+                    if (pickingSlot >= 0) { pickerView = null; redraw() }
+                }
+            }
+            return scroll
+        }
+        if (known.isEmpty()) {
+            column.addView(text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT_SECONDARY).apply {
+                setText(R.string.launcher_fn_split_empty)
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(MATCH, activity.dp(ROW_MIN_DP)))
+            return scroll
+        }
+        known.forEachIndexed { i, c ->
+            column.addView(row(c.label, selected = c.entry == current) { choose(slot, c.entry) },
+                LinearLayout.LayoutParams(MATCH, activity.dp(ROW_MIN_DP)).apply { if (i > 0) topMargin = activity.dp(10) })
+        }
+        return scroll
+    }
+
+    /** Yuvaya yazar, ana görünüme döner ve kutucuk etiketlerini tazeler. */
+    private fun choose(slot: Int, entry: String?) {
+        pickingSlot = -1
+        pickerView = null
+        redraw() // ana görünüme hemen dön; etiket yeniden okumayla tazelenir
+        act { features.setSplitApp(slot, entry) }
+    }
+
+    private fun sectionLabel(res: Int): TextView = text(activity, LauncherTheme.LABEL_SP, LauncherTheme.TEXT_SECONDARY, medium = true).apply { setText(res) }
 
     override fun load(): SplitLoad {
         val p = features.readSplitPair()

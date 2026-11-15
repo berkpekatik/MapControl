@@ -132,6 +132,9 @@ class MiniDashActivity : Activity() {
     private lateinit var tripPanel: MiniTripPanel
     private lateinit var phonePanel: MiniPhonePanel
 
+    /** Sahnenin kurulduğu araç modeli; ayar ya da demo isteği sonradan değişirse ekran yeniden kurulur ([onStart], [onNewIntent]). */
+    private var builtModel = CarModel.TIGGO
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LauncherEdition.init(applicationContext)
@@ -142,6 +145,8 @@ class MiniDashActivity : Activity() {
         LauncherDemo.applyPreview(intent)
         LauncherDemo.applyMoving(intent)
         readDemo(intent)
+        // Ana ekran hiç açılmadan (bölünmüş ekran düğmesinden) açılınca da seçili araç modeli çizilir.
+        builtModel = CarModel.resolve(this)
         nav = navSourceFactory(this, intent)
         media = LauncherMediaController(this)
         window.setBackgroundDrawable(ColorDrawable(Sahne.GROUND))
@@ -165,6 +170,7 @@ class MiniDashActivity : Activity() {
             if (started) nav.start(navListener)
         }
         if (started) bindMedia(currentMedia())
+        if (CarModel.compute(this) != builtModel) recreate()
     }
 
     private fun readDemo(intent: Intent?) {
@@ -174,6 +180,11 @@ class MiniDashActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        // Arka plandayken araç modeli değişti (ayar): eski modelin sahnesi gösterilmez, ekran yeniden kurulur.
+        if (CarModel.compute(this) != builtModel) {
+            recreate()
+            return
+        }
         started = true
         registerReceiver(timeReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_TIME_TICK)
@@ -196,7 +207,6 @@ class MiniDashActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        LauncherEdition.setHomeForeground(true)
         bindMapPill()
     }
 
@@ -232,7 +242,6 @@ class MiniDashActivity : Activity() {
     }
 
     override fun onPause() {
-        LauncherEdition.setHomeForeground(false)
         super.onPause()
     }
 
@@ -299,7 +308,7 @@ class MiniDashActivity : Activity() {
 
     private fun bindTop() {
         val s = snapshot
-        val range = s?.rangeKm?.takeIf { s.connected && VehicleMetricsSnapshot.isValid(it) && it >= 0 }
+        val range = if (s != null && s.connected) com.mapcontrol.vehicle.VehicleRange.stableOrNull(this, s) else null
         val fuel = s?.fuelPercentOrNull()
         val low = trip.lowFuel == true
         val key = Triple(range, fuel, low)

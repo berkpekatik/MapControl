@@ -66,6 +66,45 @@ class OemWidgetsTest {
         assertFalse(TireDecode.isLow(null))
     }
 
+    @Test fun warningMaskDecodesPerWheelInOemBitOrder() {
+        assertEquals(listOf(false, false, false, false), TireDecode.warnWheels(0))
+        assertEquals(listOf(true, false, false, true), TireDecode.warnWheels(0b1001))
+        assertEquals(listOf(false, false, true, false), TireDecode.warnWheels(0b0100))
+        assertNull(TireDecode.warnWheels(0xFF))
+        assertNull(TireDecode.warnWheels(-1))
+        assertNull(TireDecode.warnWheels(null))
+    }
+
+    @Test fun t19cWithoutPressureKeepsMaskOnlyReading() {
+        // T19C 2024 (araçta ölçüldü 2026-11-15): 140 = [0], 95 = 0.
+        val ok = TireDecode.parse(intArrayOf(0), warningRaw = 0)!!
+        assertTrue(ok.values.isEmpty())
+        assertEquals(false, ok.warning)
+        assertNull(TireDecode.low(ok))
+        assertFalse(TireDecode.alertShown(ok.warning, TireDecode.low(ok)))
+
+        val rl = TireDecode.parse(intArrayOf(0), warningRaw = 0b0100)!!
+        assertEquals(TireLow(2, null), TireDecode.low(rl))
+        assertTrue(TireDecode.alertShown(rl.warning, TireDecode.low(rl)))
+        assertEquals(listOf(false, false, true, false), CarDetail.low(rl))
+        assertEquals(listOf<Int?>(null, null, null, null), CarDetail.psi(rl))
+
+        // Maske geçersiz ve basınç yok: önceki gibi okuma yok.
+        assertNull(TireDecode.parse(intArrayOf(0), warningRaw = 0xFF))
+        assertNull(TireDecode.parse(null, warningRaw = null))
+    }
+
+    @Test fun pressureLowWinsOverMaskAndMaskFillsNormalValues() {
+        // T1E24: değerle düşük tekerlek varsa o (psi ile) gösterilir.
+        val t = TireDecode.parse(intArrayOf(154, 120, 153, 153), warningRaw = 0b0010)!!
+        assertEquals(TireLow(1, TireDecode.bar(120)), TireDecode.low(t))
+        // Değerler normal ama araç bir tekerlekte uyarıyor: tekerlek değersiz döner, ayrıntıda o tekerlek işaretli.
+        val m = TireDecode.parse(intArrayOf(154, 152, 153, 153), warningRaw = 0b1000)!!
+        assertEquals(TireLow(3, null), TireDecode.low(m))
+        assertEquals(listOf(false, false, false, true), CarDetail.low(m))
+        assertEquals(listOf<Int?>(31, 30, 30, 30), CarDetail.psi(m))
+    }
+
     @Test fun tireLowFindsFirstLowWheelAndShowsOnlyWhenLow() {
         // 26 psi eşiği: ham 130 = 178,5 kPa = 25,9 psi (düşük), 131 = 179,9 kPa = 26,1 psi (normal).
         assertTrue(TireDecode.isLow(TireDecode.bar(130)))

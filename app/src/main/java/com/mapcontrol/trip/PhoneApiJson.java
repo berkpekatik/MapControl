@@ -36,6 +36,10 @@ public final class PhoneApiJson {
         return base.substring(0, base.length() - 1) + ",\"snapshot\":" + snapshotJson + "}";
     }
 
+    private static boolean validPercent(int p) {
+        return p >= 0 && p <= 100;
+    }
+
     private static void trip(StringBuilder sb, TripRecord t) {
         sb.append("{\"id\":").append(quote(t.id))
                 .append(",\"startedAt\":").append(t.startedAt)
@@ -44,8 +48,15 @@ public final class PhoneApiJson {
                 .append(",\"fuelUsedMl\":").append(t.fuelUsedMl)
                 .append(",\"avgSpeedKmh\":").append(t.avgSpeedKmh)
                 .append(",\"maxSpeedKmh\":").append(t.maxSpeedKmh)
-                .append(",\"movingMinutes\":").append(t.movingMinutes())
-                .append(",\"route\":[");
+                .append(",\"movingMinutes\":").append(t.movingMinutes());
+        // Depo yüzdesi (0–100) okunabildiyse; telefon iki yolculuk arasındaki artıştan yakıt alımını çıkarır.
+        if (validPercent(t.fuelStartPercent)) {
+            sb.append(",\"fuelStartPercent\":").append(t.fuelStartPercent);
+        }
+        if (validPercent(t.fuelEndPercent)) {
+            sb.append(",\"fuelEndPercent\":").append(t.fuelEndPercent);
+        }
+        sb.append(",\"route\":[");
         for (int i = 0; i < t.route.size(); i++) {
             TripRecord.Point p = t.route.get(i);
             if (i > 0) {

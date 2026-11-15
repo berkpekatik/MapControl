@@ -58,6 +58,21 @@ final class HomeRoleDiag {
         }
     }
 
+    /** Son teşhis "onaya basıldı ama HOME değişmedi" mi (kilit işareti öncesi sürümlerin kaydı). */
+    static boolean lastReportUnchanged(Context context) {
+        File file = file(context);
+        if (file == null || !file.isFile()) {
+            return false;
+        }
+        try {
+            return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).contains(UNCHANGED_REASON);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    static final String UNCHANGED_REASON = "onaya basıldı ama HOME değişmedi";
+
     private static File file(Context context) {
         File dir = context.getExternalFilesDir(null);
         return dir == null ? null : new File(dir, FILE_NAME);

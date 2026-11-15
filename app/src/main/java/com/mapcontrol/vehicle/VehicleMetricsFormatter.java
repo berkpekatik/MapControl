@@ -44,8 +44,8 @@ public final class VehicleMetricsFormatter {
     }
 
     public String formatDashboardRange(VehicleMetricsSnapshot snapshot) {
-        int range = snapshot.rangeKm;
-        if (!VehicleMetricsSnapshot.isValid(range) || range <= 0) {
+        int range = VehicleRange.stable(context, snapshot);
+        if (range <= 0) {
             return dash();
         }
         return String.format(Locale.getDefault(), "%,d km", range);
