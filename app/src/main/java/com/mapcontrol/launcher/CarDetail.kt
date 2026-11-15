@@ -63,8 +63,12 @@ internal object CarDetail {
     fun psi(t: TireReading?): List<Int?> =
         if (t == null || !t.perWheel) List(TireReading.WHEELS) { null } else t.values.map { v -> v?.let { TireDecode.psi(it) } }
 
-    fun low(t: TireReading?): List<Boolean> =
-        if (t == null || !t.perWheel) List(TireReading.WHEELS) { false } else t.values.map { TireDecode.isLow(it) }
+    /** Tekerlek başına uyarı: değer eşiğin altında ya da uyarı maskesinde (ReadOnly 95) işaretli. */
+    fun low(t: TireReading?): List<Boolean> {
+        val byValue = if (t == null || !t.perWheel) List(TireReading.WHEELS) { false } else t.values.map { TireDecode.isLow(it) }
+        val mask = t?.warnWheels ?: return byValue
+        return byValue.zip(mask) { a, b -> a || b }
+    }
 
     /**
      * [openings]: kapılar/bagaj/tavan (gövde okunamadıysa null); [extra]: camlar ve kaput (okunmayan parça haritada yok);
@@ -306,7 +310,8 @@ internal class CarDetailSheet(private val activity: Activity) {
             }
 
             fun bind(wheel: String, psi: Int?, low: Boolean) {
-                value.text = psi?.let { context.getString(R.string.launcher_sahne_psi, it) } ?: context.getString(R.string.launcher_unavailable)
+                value.text = psi?.let { context.getString(R.string.launcher_sahne_psi, it) }
+                    ?: context.getString(if (low) R.string.launcher_tire_label_warning else R.string.launcher_unavailable)
                 value.setTextColor(if (low) Sahne.AMBER else if (psi != null) Sahne.NUMERAL else Sahne.INK_3)
                 name.text = wheel
                 contentDescription = "$wheel, ${value.text}"

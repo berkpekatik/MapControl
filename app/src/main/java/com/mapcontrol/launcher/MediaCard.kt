@@ -516,7 +516,10 @@ class MediaCard(
         val artist = oneLine(rawArtist)
         val radioBand = radio?.band
         val textChanged = modeChanged || source != lastSource || title != lastTitle || artist != lastArtist || radioBand != lastRadio
-        updateOpenTarget(MediaSourcePick.appToOpen(newMode != Mode.NO_ACCESS, source, LauncherDemo.enabled))
+        updateOpenTarget(
+            MediaSourcePick.appToOpen(newMode != Mode.NO_ACCESS, source, LauncherDemo.enabled),
+            MediaSourcePick.radioToOpen(source, radio?.band, LauncherDemo.enabled),
+        )
         if (textChanged) {
             val radioChanged = radioBand != lastRadio
             lastSource = source
@@ -693,24 +696,51 @@ class MediaCard(
     /** Paket adını uygulama etiketine çevirir; bulunamazsa paket adı kalır. */
     /** Başlık / kapak dokunuşunun açacağı uygulama ([MediaSourcePick.appToOpen]); yoksa dokunma alanı yok. */
     private var openTarget: String? = null
+    /** Radyo oturumunda açılacak OEM radyo ekranı ([MediaSourcePick.radioToOpen]); [openTarget] ile birlikte dolmaz. */
+    private var openRadio: MediaSourcePick.RadioOpen? = null
 
-    private fun updateOpenTarget(pkg: String?) {
-        if (pkg == openTarget) return
+    private fun updateOpenTarget(pkg: String?, radio: MediaSourcePick.RadioOpen?) {
+        if (pkg == openTarget && radio == openRadio) return
         openTarget = pkg
-        val clickable = pkg != null
+        openRadio = radio
+        val clickable = pkg != null || radio != null
         titleView.isClickable = clickable
         artworkBox.isClickable = clickable
-        artworkBox.contentDescription = pkg?.let { context.getString(R.string.launcher_media_open_app, appLabel(it)) }
+        artworkBox.contentDescription = when {
+            pkg != null -> context.getString(R.string.launcher_media_open_app, appLabel(pkg))
+            radio != null -> context.getString(R.string.launcher_media_open_app, context.getString(R.string.launcher_media_radio))
+            else -> null
+        }
         artworkBox.importantForAccessibility =
             if (clickable) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
-    /** Kartın uygulamasını açar (oturumun "şu an çalıyor" ekranı ya da başlatıcı). */
+    /** Kartın uygulamasını açar (oturumun "şu an çalıyor" ekranı ya da başlatıcı); radyoda OEM radyo çalma ekranı. */
     private fun openCardApp() {
-        val pkg = openTarget ?: return
-        if (!controller.openApp(pkg)) {
+        val radio = openRadio
+        val ok = when {
+            radio != null -> openRadioScreen(radio) || controller.openApp(radio.pkg)
+            else -> controller.openApp(openTarget ?: return)
+        }
+        if (!ok) {
             android.widget.Toast.makeText(context, R.string.launcher_media_open_failed, android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** OEM ses uygulamasını ([MediaSourcePick.RadioOpen]) eklerle başlatır; tek etkinlik singleTask, açıksa onNewIntent alır. */
+    private fun openRadioScreen(radio: MediaSourcePick.RadioOpen): Boolean = try {
+        val launch = context.packageManager.getLaunchIntentForPackage(radio.pkg)
+        if (launch == null) {
+            false
+        } else {
+            launch.putExtra(MediaSourcePick.EXTRA_SOURCE_KEY, radio.sourceKey)
+            launch.putExtra(MediaSourcePick.EXTRA_NAVIGATION_FLAG, radio.navigationFlag)
+            launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(launch)
+            true
+        }
+    } catch (e: Exception) {
+        false
     }
 
     private fun appLabel(pkg: String): String = try {

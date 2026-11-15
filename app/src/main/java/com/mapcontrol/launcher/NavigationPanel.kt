@@ -1,7 +1,6 @@
 package com.mapcontrol.launcher
 
 import android.app.AlertDialog
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -386,7 +385,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
 
     /**
      * Ayarlı konuma rota (Yandex: yandexmaps:// / yandexnavi://, Google: google.navigation:, diğer: geo:); konum yoksa [label]
-     * araması. Rota sürüş ekranının harita yarısında açılır; MapControl yoksa harita tam ekran.
+     * araması. Rota bölmesiz, tam ekran açılır ([DriveScreen.openRoute]); başlatılamazsa harita tam ekran.
      */
     private fun openPlace(place: String, label: String) {
         val pkg = driveMap()
@@ -396,15 +395,7 @@ internal class NavigationPanel(private val context: Context) : SizedWidget {
         }
         val uri = NavPlaces.get(context, place)?.let { (lat, lon) -> NavPlaces.routeUri(pkg, lat, lon) } ?: NavPlaces.searchUri(pkg, label)
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        DriveScreen.open(context, pkg, intent) {
-            try {
-                context.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
-                openMapFull(pkg)
-            } catch (e: SecurityException) {
-                openMapFull(pkg)
-            }
-        }
+        DriveScreen.openRoute(context, pkg, intent) { openMapFull(pkg) }
     }
 
     /** Sistem bildirim erişimi ayarı; kullanıcı kendisi açar. */

@@ -300,3 +300,30 @@ class MediaCardOpenAppTest {
         org.junit.Assert.assertNull(MediaSourcePick.appToOpen(true, null, demo = false))
     }
 }
+
+class MediaCardOpenRadioTest {
+    private fun open(pkg: String?, band: RadioDisplay.Band?, demo: Boolean = false) =
+        MediaSourcePick.radioToOpen(pkg, band, demo)
+
+    @Test fun svAudioAppTiggo7() {
+        val pkg = MediaSourcePick.OEM_AUDIO_PKG
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "radio", 1), open(pkg, RadioDisplay.Band.FM))
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "radio", 1), open(pkg, RadioDisplay.Band.AM))
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "radio", 2), open(pkg, RadioDisplay.Band.DAB))
+    }
+
+    @Test fun oldAudioAppTiggo8() {
+        val pkg = MediaSourcePick.OEM_AUDIO_PKG_OLD
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "radio", 2), open(pkg, RadioDisplay.Band.FM))
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "am", 1), open(pkg, RadioDisplay.Band.AM))
+        assertEquals(MediaSourcePick.RadioOpen(pkg, "radio", 2), open(pkg, RadioDisplay.Band.DAB))
+    }
+
+    @Test fun notRadioOrDemoDoesNot() {
+        org.junit.Assert.assertNull(open(MediaSourcePick.OEM_AUDIO_PKG, null)) // USB müziği
+        org.junit.Assert.assertNull(open("com.spotify.music", RadioDisplay.Band.FM))
+        org.junit.Assert.assertNull(open(MediaSourcePick.BT_PKG, RadioDisplay.Band.FM))
+        org.junit.Assert.assertNull(open(null, RadioDisplay.Band.FM))
+        org.junit.Assert.assertNull(open(MediaSourcePick.OEM_AUDIO_PKG, RadioDisplay.Band.FM, demo = true))
+    }
+}

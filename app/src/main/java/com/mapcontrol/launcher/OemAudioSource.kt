@@ -93,6 +93,28 @@ internal object MediaSourcePick {
     fun appToOpen(hasSource: Boolean, pkg: String?, demo: Boolean): String? =
         if (hasSource && !demo && isThirdParty(pkg)) pkg else null
 
+    /** OEM ses uygulamasının tek etkinliğini (`MainActivity`, singleTask) radyo çalma ekranında açan ekler. */
+    data class RadioOpen(val pkg: String, val sourceKey: String, val navigationFlag: Int)
+
+    const val EXTRA_SOURCE_KEY = "source_key"
+    const val EXTRA_NAVIGATION_FLAG = "NavigationFlag"
+
+    /**
+     * Radyo kartına dokununca açılacak OEM radyo ekranı; radyo değilse / demoda null. Değerler her yazılımın kendi mini
+     * çalarının "çalma ekranına git" davranışından alındı (APK'lar decompile edildi):
+     * - `svaudioapp` (T19C / T1E24, tiggo7): `MainActivity.R()` → FM/AM bayrak 1, DAB 2; "radio" anahtarı radyo parçasına gider.
+     * - `audioapp` (T18/T28, tiggo8): `MainFragment.d()` → AM ("am", 1), FM/DAB ("radio", 2).
+     * onNewIntent iki ek de varsa (anahtar null değil, bayrak -1 değil) sayfayı değiştirir; açık uygulamada da çalışır.
+     */
+    fun radioToOpen(pkg: String?, band: RadioDisplay.Band?, demo: Boolean): RadioOpen? {
+        if (demo || band == null || pkg == null || !isOemAudio(pkg)) return null
+        return if (pkg == OEM_AUDIO_PKG_OLD) {
+            if (band == RadioDisplay.Band.AM) RadioOpen(pkg, "am", 1) else RadioOpen(pkg, "radio", 2)
+        } else {
+            RadioOpen(pkg, "radio", if (band == RadioDisplay.Band.DAB) 2 else 1)
+        }
+    }
+
     /**
      * Seçilecek oturumun sırası; liste boşsa -1. [current] seçili oturumun sırası (yoksa -1). [follow]: kartın izleyeceği OEM
      * kaynağı ([OemAudioSource.followSource]; yoksa null).

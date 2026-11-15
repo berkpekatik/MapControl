@@ -193,6 +193,20 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private boolean previewRecreate;
     /** Olu motor thread'i en fazla bu kadar kez onizleme acikken yeniden baslatilir. */
     private int failRestarts;
+    /**
+     * Ikinci cikis (gosterge sinyal kamerasi, {@link TurnCamera}): tek kamera, onizlemeden bagimsiz.
+     * auxCam -1 ise kapali.
+     */
+    private Surface auxSurface;
+    private int auxW = 1;
+    private int auxH = 1;
+    private int auxCam = -1;
+    /** Ikinci cikista balikgozu duzeltmesi (0 = ham, 1 = tam); 0'dan buyukse kamera tam cozunurlukte kopyalanir. */
+    private float auxDewarp;
+    private boolean auxChanged;
+    /** auxCam'de son cizimden beri yeni kare var. */
+    private boolean auxDirty;
+    private CountDownLatch auxReleased;
 
     private volatile int bigCam = -1;
     private volatile float dewarp = 0f;
@@ -204,6 +218,12 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     private Surface previewEglOwner;
     private int viewW = 1;
     private int viewH = 1;
+    private EGLSurface auxEgl = EGL14.EGL_NO_SURFACE;
+    private Surface auxEglOwner;
+    private int auxViewW = 1;
+    private int auxViewH = 1;
+    private int auxDrawCam = -1;
+    private long auxRetryAtMs;
     /** Onizlemede en son cizilen buyuk kamera (-1 = izgara, -2 = henuz cizilmedi). */
     private int drawnBig = -2;
     /** Kaybolan onizleme yuzeyi icin sonraki yeniden deneme zamani (uptimeMillis). */
@@ -328,6 +348,53 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         await(latch, 1000);
     }
 
+    /**
+     * Ikinci cikis: [cam] kamerasini [surface]'e tam alan cizer (onizleme ve kayittan bagimsiz). Ayni yuzeyle
+     * yalnizca kamera degisebilir. Kapatmak icin {@link #clearAuxOutput}.
+     */
+    public void setAuxOutput(Surface surface, int width, int height, int cam, float dewarp) {
+        if (surface == null || cam < 0 || cam >= CAM_COUNT) {
+            clearAuxOutput();
+            return;
+        }
+        synchronized (lock) {
+            if (surface != auxSurface || width != auxW || height != auxH) auxChanged = true;
+            auxSurface = surface;
+            auxW = Math.max(1, width);
+            auxH = Math.max(1, height);
+            auxCam = cam;
+            auxDewarp = Math.max(0f, Math.min(1f, dewarp));
+            auxDirty = true;
+            ensureThreadLocked();
+            lock.notifyAll();
+        }
+    }
+
+    /** Ikinci cikisi kapatir; EGL yuzeyi birakilana kadar bekler (yuzey sonra guvenle yok edilebilir). */
+    public void clearAuxOutput() {
+        CountDownLatch latch;
+        synchronized (lock) {
+            if (auxSurface == null && auxCam < 0) {
+                return;
+            }
+            auxSurface = null;
+            auxCam = -1;
+            auxChanged = true;
+            if (thread == null) {
+                return;
+            }
+            latch = new CountDownLatch(1);
+            auxReleased = latch;
+            lock.notifyAll();
+        }
+        await(latch, 1000);
+    }
+
+    /** lock altinda: ikinci cikis motoru ayakta tutar mi. */
+    private boolean auxActiveLocked() {
+        return auxSurface != null && auxCam >= 0;
+    }
+
     /** Encoder yuzeylerine cizime baslar; false ise cagiran CPU yoluna gecmeli. */
     public boolean startRecording(RecordConfig config) {
         Request req = new Request(config);
@@ -362,14 +429,21 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         // Buyuk modda yalnizca gosterilen kamera yeniden cizim gerektirir (kayit sirasinda
         // diger kameralar da kare uretir; kayit kendi temposuyla cizilir).
         int big = bigCam;
-        if (big >= 0 && big != cam) {
-            return;
-        }
+        boolean forPreview = big < 0 || big == cam;
         synchronized (lock) {
-            if (frameDirtyMask == 0) {
-                frameDirtySinceNs = System.nanoTime();
+            boolean forAux = cam == auxCam;
+            if (!forPreview && !forAux) {
+                return;
             }
-            frameDirtyMask |= 1 << cam;
+            if (forAux) {
+                auxDirty = true;
+            }
+            if (forPreview) {
+                if (frameDirtyMask == 0) {
+                    frameDirtySinceNs = System.nanoTime();
+                }
+                frameDirtyMask |= 1 << cam;
+            }
             lock.notifyAll();
         }
     }
@@ -439,14 +513,19 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                     previewReleased.countDown();
                     previewReleased = null;
                 }
-                boolean retryAfterFailure = failed && previewEnabled && failRestarts < MAX_FAIL_RESTARTS;
+                if (auxReleased != null) {
+                    auxReleased.countDown();
+                    auxReleased = null;
+                }
+                boolean retryAfterFailure = failed && (previewEnabled || auxActiveLocked())
+                        && failRestarts < MAX_FAIL_RESTARTS;
                 if (retryAfterFailure) {
                     // Motor dusunce onizleme son kareyle donuyordu; sinirli sayida yeniden baslat.
                     failRestarts++;
                     Log.w(TAG, "GL motoru yeniden baslatiliyor (" + failRestarts + "/"
                             + MAX_FAIL_RESTARTS + ")");
                 }
-                if ((!failed && (previewEnabled || startRequest != null)) || retryAfterFailure) {
+                if ((!failed && (previewEnabled || startRequest != null || auxActiveLocked())) || retryAfterFailure) {
                     ensureThreadLocked();
                 } else {
                     if (startRequest != null) {
@@ -481,12 +560,27 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
             boolean layout;
             boolean previewOn;
             boolean framesReady;
+            boolean auxChange;
+            boolean auxDue;
+            Surface auxSurf;
+            int aw;
+            int ah;
+            int acam;
+            float adw;
+            CountDownLatch auxRel;
             synchronized (lock) {
                 while (true) {
                     if (previewSurfaceChanged || startRequest != null || stopRequest != null) break;
-                    if (!previewEnabled && record == null) return;
+                    if (auxChanged) break;
+                    if (!previewEnabled && record == null && !auxActiveLocked()) return;
                     long now = System.nanoTime();
                     long nowMs = SystemClock.uptimeMillis();
+                    boolean auxUp = auxEgl != EGL14.EGL_NO_SURFACE;
+                    // Yalnizca yeni kare (ya da setAuxOutput) uyandirir: kamera degisip karesi henuz yokken
+                    // (drawAux cizmez, auxDrawCam eski kalir) dongu bosa donmesin.
+                    if (auxActiveLocked() && auxUp && auxDirty) break;
+                    boolean auxLost = auxActiveLocked() && !auxUp && auxSurface.isValid();
+                    if (auxLost && nowMs >= auxRetryAtMs) break;
                     boolean recDue = record != null && now >= nextRecordNs;
                     boolean surfaceUp = previewEgl != EGL14.EGL_NO_SURFACE;
                     // Yuzey kaybolduysa (swap/makeCurrent hatasi) kalici donmasin: yeniden dene.
@@ -500,6 +594,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                     if (recDue || prevDue) break;
                     long waitMs = record != null ? Math.max(1, (nextRecordNs - now) / 1_000_000L) : 500;
                     if (lost) waitMs = Math.min(waitMs, Math.max(1, surfaceRetryAtMs - nowMs));
+                    if (auxLost) waitMs = Math.min(waitMs, Math.max(1, auxRetryAtMs - nowMs));
                     if (previewEnabled && surfaceUp && frameDirtyMask != 0) {
                         // Toplama penceresi bitince eksik kamera beklenmeden cizilsin.
                         long leftNs = PREVIEW_COALESCE_NS - (now - frameDirtySinceNs);
@@ -528,7 +623,27 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                 if (framesReady || !previewOn) {
                     frameDirtyMask = 0;
                 }
+                auxChange = auxChanged;
+                auxChanged = false;
+                auxSurf = auxActiveLocked() ? auxSurface : null;
+                aw = auxW;
+                ah = auxH;
+                acam = auxCam;
+                adw = auxDewarp;
+                auxDue = auxSurf != null && (auxDirty || acam != auxDrawCam || auxChange);
+                auxDirty = false;
+                auxRel = auxReleased;
+                auxReleased = null;
             }
+            if (auxChange || (auxSurf != null && auxEgl == EGL14.EGL_NO_SURFACE && auxSurf.isValid()
+                    && SystemClock.uptimeMillis() >= auxRetryAtMs)) {
+                applyAuxSurface(auxSurf, aw, ah);
+                if (auxSurf != null && auxEgl == EGL14.EGL_NO_SURFACE) {
+                    auxRetryAtMs = SystemClock.uptimeMillis() + SURFACE_RETRY_MS;
+                }
+                auxDue = auxSurf != null;
+            }
+            if (auxRel != null) auxRel.countDown();
             surfaceRetry = previewOn && previewEgl == EGL14.EGL_NO_SURFACE && surf != null
                     && surf.isValid() && !surfaceChange
                     && SystemClock.uptimeMillis() >= surfaceRetryAtMs;
@@ -558,7 +673,8 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
             boolean drew = false;
             try {
-                updateDemand(previewOn);
+                // Duzeltme ortayi buyutur: yarim kopya bulaniklasir, tam kopya istenir.
+                updateDemand(previewOn, auxSurf != null ? acam : -1, adw > 0f ? Integer.MAX_VALUE : ah);
                 // Dokular her turda guncellenir (sifir kopyada eski kare boylece iade edilir);
                 // onizleme ise yalnizca toplanan kareler hazir olunca cizilir.
                 updateTextures();
@@ -566,6 +682,9 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                         && (framesReady || layout || surfaceChange || bigCam != drawnBig)) {
                     drew = drawPreview();
                     if (drew) previewDraws++;
+                }
+                if (auxDue && auxEgl != EGL14.EGL_NO_SURFACE) {
+                    drew |= drawAux(acam, adw);
                 }
                 drawErrors = 0;
             } catch (RuntimeException e) {
@@ -602,6 +721,7 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
                 if (zeroCopy) HabNative.zcShutdown();
                 destroyRecordSurfaces();
                 if (previewEgl != EGL14.EGL_NO_SURFACE) egl.destroySurface(previewEgl);
+                if (auxEgl != EGL14.EGL_NO_SURFACE) egl.destroySurface(auxEgl);
                 for (TextSprite s : labelSprites) s.release();
                 infoSprite.release();
                 noSignalSprite.release();
@@ -613,6 +733,9 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         }
         previewEgl = EGL14.EGL_NO_SURFACE;
         previewEglOwner = null;
+        auxEgl = EGL14.EGL_NO_SURFACE;
+        auxEglOwner = null;
+        auxDrawCam = -1;
         drawnBig = -2;
         record = null;
         zeroCopy = false;
@@ -678,6 +801,60 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         viewH = h;
     }
 
+    private void applyAuxSurface(Surface surf, int w, int h) {
+        if (auxEgl != EGL14.EGL_NO_SURFACE && surf != auxEglOwner) {
+            egl.makeCurrentPbuffer();
+            egl.destroySurface(auxEgl);
+            auxEgl = EGL14.EGL_NO_SURFACE;
+            auxEglOwner = null;
+        }
+        if (surf != null && surf.isValid() && auxEgl == EGL14.EGL_NO_SURFACE) {
+            try {
+                auxEgl = egl.createWindowSurface(surf);
+                auxEglOwner = surf;
+            } catch (RuntimeException e) {
+                Log.w(TAG, "ikinci cikis yuzeyi olusturulamadi", e);
+            }
+        }
+        auxViewW = w;
+        auxViewH = h;
+        auxDrawCam = -1;
+    }
+
+    /**
+     * Ikinci cikis: tek kamera tam alan. Kare yoksa (kamera acilmadi, kopya talebi yeni basladi, kamera degisti)
+     * HIC cizilmez: yuzeyde son gercek kare kalir, gri ara kare (titreme) gosterilmez; tuketici her guncellemeyi
+     * gercek goruntu sayar ({@link TurnCameraOverlay}).
+     */
+    private boolean drawAux(int cam, float dw) {
+        if (drawTex[cam] == 0) {
+            return false;
+        }
+        if (!egl.makeCurrent(auxEgl)) {
+            dropAuxSurface();
+            return false;
+        }
+        GLES20.glViewport(0, 0, auxViewW, auxViewH);
+        GLES20.glClearColor(0f, 0f, 0f, 1f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        drawCam(cam, -1f, -1f, 1f, 1f, (float) auxViewW / auxViewH, dw);
+        auxDrawCam = cam;
+        if (!egl.swap(auxEgl)) {
+            dropAuxSurface();
+        }
+        return true;
+    }
+
+    private void dropAuxSurface() {
+        Log.w(TAG, "ikinci cikis yuzeyi kayboldu (egl=0x" + Integer.toHexString(EGL14.eglGetError()) + ")");
+        egl.makeCurrentPbuffer();
+        egl.destroySurface(auxEgl);
+        auxEgl = EGL14.EGL_NO_SURFACE;
+        auxEglOwner = null;
+        auxDrawCam = -1;
+        auxRetryAtMs = SystemClock.uptimeMillis() + 100;
+    }
+
     private boolean beginRecord(RecordConfig cfg) {
         destroyRecordSurfaces();
         record = null;
@@ -723,12 +900,17 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
 
     // ---------- Akis talebi + dokular ----------
 
-    private void updateDemand(boolean previewOn) {
+    /** auxCam: ikinci cikisin kamerasi (-1 yok); auxHeight yarim kareden buyukse tam kopya istenir. */
+    private void updateDemand(boolean previewOn, int auxCam, int auxHeight) {
         int big = bigCam;
         for (int cam = 0; cam < CAM_COUNT; cam++) {
             int previewMode = HabNative.COPY_NONE;
             if (previewOn && (big < 0 || big == cam)) {
                 previewMode = big == cam ? HabNative.COPY_FULL : HabNative.COPY_HALF;
+            }
+            if (cam == auxCam) {
+                int auxMode = auxHeight > hub.getFrameHeight(cam) / 2 ? HabNative.COPY_FULL : HabNative.COPY_HALF;
+                if (previewMode != HabNative.COPY_FULL) previewMode = auxMode;
             }
             int recordMode = HabNative.COPY_NONE;
             if (record != null) {

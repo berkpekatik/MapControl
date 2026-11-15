@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
+import com.mapcontrol.util.LauncherModeManager;
+import com.mapcontrol.launcher.HomeKey;
 
 public class ClusterDisplayManager {
     public interface ClusterCallback {
@@ -57,7 +59,11 @@ public class ClusterDisplayManager {
             }
 
             String appOnDisplay2 = getAppOnDisplay2();
-            if (appOnDisplay2 != null && !appOnDisplay2.isEmpty() && !"com.mapcontrol".equals(appOnDisplay2)) {
+            if (!shouldEvictFromCluster(appOnDisplay2, callback.getTargetPackage())) {
+                if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
+                    callback.log("Display 2'deki uygulama yerinde bırakıldı: " + appOnDisplay2);
+                }
+            } else {
                 callback.log("Display 2'de açık uygulama bulundu: " + appOnDisplay2 + " - Display 0'a taşınıyor ve kapatılıyor");
                 try {
                     if (appOnDisplay2 == null || appOnDisplay2.equals("com.mapcontrol")) {
@@ -75,12 +81,7 @@ public class ClusterDisplayManager {
                 } catch (Exception e) {
                     callback.log("moveAppToDefaultDisplay hatası: " + e.getMessage());
                 }
-                Intent homeIntent = new Intent(Intent.ACTION_MAIN);
-                homeIntent.addCategory(Intent.CATEGORY_HOME);
-                homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(homeIntent);
-            } else if ("com.mapcontrol".equals(appOnDisplay2)) {
-                callback.log("Display 2'de com.mapcontrol bulundu - taşıma işlemi atlandı");
+                goHome();
             }
 
             VDNaviDisplayCluster payloadwakeUp = new VDNaviDisplayCluster();
@@ -220,12 +221,37 @@ public class ClusterDisplayManager {
         }
     }
 
+    /**
+     * Cluster açılırken display 2'deki uygulama ana ekrana taşınıp HOME'a mı gönderilir. Bizimse ya da yoksa hayır. Hedef Google
+     * Haritalar ve cluster'da zaten o varsa da hayır: kapatma onu bilerek cluster'da bırakır ({@link #closeClusterDisplay}) ve açılış
+     * {@code EmbeddedClusterActivity}'yi yeniden öne alır. Taşımak ana ekranda Haritalar'ı açıp HOME ile kullanıcıyı ana ekrandan atıyordu.
+     */
+    static boolean shouldEvictFromCluster(String appOnDisplay2, String targetPackage) {
+        if (appOnDisplay2 == null || appOnDisplay2.isEmpty() || "com.mapcontrol".equals(appOnDisplay2)) {
+            return false;
+        }
+        String target = targetPackage != null ? targetPackage.trim() : "";
+        return !(AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(target) && target.equals(appOnDisplay2));
+    }
+
+    /**
+     * Ana ekrana dönüş: launcher modu açıksa bizim ana ekranımız, değilse sistem HOME'u. Sistem HOME'u araçta OEM launcher'ıdır;
+     * launcher modunda kullanıcıyı oraya atmak bizim ana ekranımızdan çıkarıyordu.
+     */
+    private void goHome() {
+        if (LauncherModeManager.isEnabled(context)) {
+            HomeKey.openLauncher(context);
+            return;
+        }
+        Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+        homeIntent.addCategory(Intent.CATEGORY_HOME);
+        homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(homeIntent);
+    }
+
     private void moveAppToBackground(String packageName) {
         try {
-            Intent homeIntent = new Intent(Intent.ACTION_MAIN);
-            homeIntent.addCategory(Intent.CATEGORY_HOME);
-            homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(homeIntent);
+            goHome();
             callback.log("Uygulama arka plana gönderildi: " + packageName);
         } catch (Exception e) {
             callback.log("moveAppToBackground hatası: " + e.getMessage());

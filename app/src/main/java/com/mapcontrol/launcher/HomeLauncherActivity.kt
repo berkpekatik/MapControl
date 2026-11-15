@@ -183,7 +183,7 @@ class HomeLauncherActivity : Activity() {
         // Yönelim manifestte kilitli değil: dikey ekran (Jaecoo) dikey, diğer araçlar eskisi gibi yatay tutulur.
         requestedOrientation = if (VehicleProfile.active.portrait) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        if (savedInstanceState == null) { consumeAppearanceExtra(intent); consumeEditExtra(intent) }
+        if (savedInstanceState == null) { consumeAppearanceExtra(intent); consumeEditExtra(intent); consumeDataCheckExtra(intent) }
         // Simge yönlendirmesi ayarların tam açılışına ulaşmaz; ekolayzer, kamera ve yolculuk kaydı bu servise bağlı.
         if (savedInstanceState == null) com.mapcontrol.service.BootReceiver.startServiceIfAutoStartEnabled(this)
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
@@ -305,6 +305,7 @@ class HomeLauncherActivity : Activity() {
         }
         consumeAppearanceExtra(intent)
         consumeEditExtra(intent)
+        consumeDataCheckExtra(intent)
         consumeShowCall(intent)
         PhonePrefs.applyShowAssistantExtra(this, intent)
         LauncherDemo.applyDriveMode(intent)
@@ -323,6 +324,16 @@ class HomeLauncherActivity : Activity() {
     }
 
     /** MapControl Ayarlar'daki "Ana ekran görünümü" bağlantısı: [EXTRA_OPEN_APPEARANCE] ile gelince Görünüm panelini açar. */
+    /** MapControl Ayarlar'daki "Veri Kontrolü" düğmesi: [EXTRA_OPEN_DATA_CHECK] ile gelince Veri kontrolü panelini açar. */
+    private fun consumeDataCheckExtra(intent: android.content.Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_DATA_CHECK, false) != true) return
+        intent.removeExtra(EXTRA_OPEN_DATA_CHECK)
+        window.decorView.post {
+            if (isFinishing || isDestroyed) return@post
+            dataCheckExtra = (dataCheckExtra ?: DataCheckSheet(this)).also { it.show() }
+        }
+    }
+
     private fun consumeAppearanceExtra(intent: android.content.Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_APPEARANCE, false) != true) return
         intent.removeExtra(EXTRA_OPEN_APPEARANCE)
@@ -1294,6 +1305,8 @@ class HomeLauncherActivity : Activity() {
         const val EDIT_EXIT_KMH = 5
         /** MapControl Ayarlar'dan gelir (bkz. SettingsTabBuilder): açılışta Görünüm panelini gösterir. */
         const val EXTRA_OPEN_APPEARANCE = "launcher_open_appearance"
+        /** MapControl Ayarlar > Log Kaydı'ndaki "Veri Kontrolü" düğmesi: Veri kontrolü panelini açar (yalnızca okur). */
+        const val EXTRA_OPEN_DATA_CHECK = "launcher_open_data_check"
         const val FADE_OUT_MS = 120L
         const val FADE_IN_MS = 200L
         /** Tema geçişiyle yeniden kurulmada etkin düzeni korur. */

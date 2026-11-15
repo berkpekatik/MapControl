@@ -118,7 +118,8 @@ public class Camera360TabBuilder {
     private final boolean cameraSupported = new File("/dev/hab").exists();
 
     private View rootView;
-    private LinearLayout menuView;
+    /** Ana menü; kısa ekranlarda (ör. 1920x720, alt çubukla ~550 px) kartlar sığmadığı için kaydırılabilir. */
+    private ScrollView menuView;
     private LinearLayout previewView;
     private View recordView;
 
@@ -236,7 +237,11 @@ public class Camera360TabBuilder {
         FrameLayout root = new FrameLayout(context);
         root.setPadding(pad, pad, pad, pad);
 
-        menuView = buildMenuView();
+        menuView = new ScrollView(context);
+        menuView.setFillViewport(true);
+        menuView.setVerticalScrollBarEnabled(false);
+        menuView.addView(buildMenuView(), new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
         root.addView(menuView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
@@ -514,6 +519,11 @@ public class Camera360TabBuilder {
                 iconBadge(R.drawable.ic_mdi_view_grid, accent, withAlpha(accent, 0x2A), 68, 36, true),
                 R.string.camera360_menu_viewer, R.string.camera360_menu_viewer_sub,
                 v -> enterViewer()));
+
+        LinearLayout.LayoutParams turnP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        turnP.setMargins(dp(8), dp(8), dp(8), 0);
+        menu.addView(buildTurnCamCard(), turnP);
 
         menuRecBanner = new TextView(context);
         menuRecBanner.setText(R.string.camera360_rec_banner);
@@ -1018,6 +1028,262 @@ public class Camera360TabBuilder {
             camStateViews[cam] = state;
         }
         return card;
+    }
+
+    /**
+     * Ana menüde, kartların altında: sinyalde göstergede yan kamera anahtarı ({@link com.mapcontrol.dvr.TurnCamera}) ve
+     * altında "Düz görünüm" (balık gözü kısmi düzeltme). Her satırda solda açıklama, sağda Evet / Hayır.
+     */
+    private LinearLayout buildTurnCamCard() {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(22), dp(14), dp(16), dp(14));
+        GradientDrawable bg = roundRect(themeColor(R.color.surfaceCard), 22);
+        bg.setStroke(dp(1), themeColor(R.color.outline));
+        card.setBackground(bg);
+
+        // Düz görünüm ve kart konumu yalnızca ana anahtar açıkken görünür.
+        LinearLayout extras = new LinearLayout(context);
+        extras.setOrientation(LinearLayout.VERTICAL);
+        extras.setVisibility(com.mapcontrol.dvr.TurnCamera.INSTANCE.isEnabled(context) ? View.VISIBLE : View.GONE);
+
+        int amber = 0xFFFFB020;
+        card.addView(turnCamRow(iconBadge(R.drawable.ic_mdi_camera, amber, withAlpha(amber, 0x2A), 52, 28, true),
+                R.string.camera360_turn_cam, R.string.camera360_turn_cam_note,
+                com.mapcontrol.dvr.TurnCamera.INSTANCE.isEnabled(context),
+                enabled -> {
+                    com.mapcontrol.dvr.TurnCamera.INSTANCE.setEnabled(context, enabled);
+                    // Servis henüz başlamadıysa da ayar hemen etkili olsun (başlamışsa bir şey yapmaz).
+                    com.mapcontrol.dvr.TurnCamera.INSTANCE.start(context);
+                    extras.setVisibility(enabled ? View.VISIBLE : View.GONE);
+                    if (!enabled) com.mapcontrol.dvr.TurnCamera.INSTANCE.stopPreview();
+                }));
+        card.addView(extras, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        View divider = new View(context);
+        divider.setBackgroundColor(themeColor(R.color.outline));
+        LinearLayout.LayoutParams divP = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        divP.setMargins(dp(70), dp(12), 0, dp(12));
+        extras.addView(divider, divP);
+
+        // Simge yerine boşluk: metin üstteki satırla hizalı kalsın.
+        View spacer = new View(context);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(dp(52), dp(1)));
+        extras.addView(turnCamRow(spacer, R.string.camera360_turn_cam_flat, R.string.camera360_turn_cam_flat_note,
+                com.mapcontrol.dvr.TurnCamera.INSTANCE.isFlat(context),
+                on -> com.mapcontrol.dvr.TurnCamera.INSTANCE.setFlat(context, on)));
+
+        View divider2 = new View(context);
+        divider2.setBackgroundColor(themeColor(R.color.outline));
+        LinearLayout.LayoutParams div2P = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        div2P.setMargins(dp(70), dp(12), 0, dp(12));
+        extras.addView(divider2, div2P);
+        extras.addView(buildTurnCamLayoutSection());
+        // Yer / boyut değişince açık kartın (ve önizlemenin) yerinde güncellenmesi için ayar dinleyicisi kurulu olsun.
+        com.mapcontrol.dvr.TurnCamera.INSTANCE.start(context);
+        return card;
+    }
+
+    /**
+     * Kartın yeri ve boyutu ({@link com.mapcontrol.dvr.TurnCamLayout}): kenardan uzaklık, dikey konum, boyut. Sol ve sağ
+     * ortak (aynalı). Kaydırırken göstergede iki tarafa önizleme çizilir ve gerçek sinyal kamerası açılmaz
+     * ({@link com.mapcontrol.dvr.TurnCamera#preview}); yansıtma kapalıysa önizleme yerine uyarı görünür.
+     */
+    private LinearLayout buildTurnCamLayoutSection() {
+        LinearLayout box = new LinearLayout(context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(70), 0, dp(8), 0);
+
+        LinearLayout head = new LinearLayout(context);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        box.addView(head, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        TextView title = new TextView(context);
+        title.setText(R.string.camera360_turn_cam_layout);
+        title.setTextSize(18);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
+        title.setTextColor(themeColor(R.color.textPrimary));
+        head.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        TextView reset = new TextView(context);
+        reset.setText(R.string.camera360_turn_cam_reset);
+        reset.setTextSize(14);
+        UiStyles.setFontStyle(reset, Typeface.BOLD);
+        reset.setTextColor(themeColor(R.color.oemAccent));
+        reset.setPadding(dp(14), dp(8), dp(14), dp(8));
+        setPressableBackground(reset, roundRect(themeColor(R.color.surfaceCardInner), 14), 14);
+        head.addView(reset);
+
+        TextView note = new TextView(context);
+        note.setText(R.string.camera360_turn_cam_layout_note);
+        note.setTextSize(13);
+        note.setTextColor(themeColor(R.color.textSecondaryCool));
+        LinearLayout.LayoutParams noteP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        noteP.topMargin = dp(3);
+        box.addView(note, noteP);
+
+        TextView status = new TextView(context);
+        status.setText(R.string.camera360_turn_cam_no_preview);
+        status.setTextSize(13);
+        UiStyles.setFontStyle(status, Typeface.BOLD);
+        status.setTextColor(themeColor(R.color.statusWarning));
+        status.setVisibility(View.GONE);
+        LinearLayout.LayoutParams stP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        stP.topMargin = dp(6);
+        box.addView(status, stP);
+
+        final com.mapcontrol.dvr.TurnCamLayout[] cur = {com.mapcontrol.dvr.TurnCamera.INSTANCE.layout(context)};
+        Runnable preview = () -> {
+            boolean ok = com.mapcontrol.dvr.TurnCamera.INSTANCE.preview(context);
+            status.setVisibility(ok ? View.GONE : View.VISIBLE);
+        };
+        final android.widget.SeekBar[] bars = new android.widget.SeekBar[3];
+        final TextView[] values = new TextView[3];
+        bars[0] = addTurnCamSlider(box, R.string.camera360_turn_cam_edge, values, 0,
+                0, com.mapcontrol.dvr.TurnCamLayout.EDGE_MAX, cur[0].getEdgePct(), v -> v + "%", v -> {
+                    cur[0] = new com.mapcontrol.dvr.TurnCamLayout(v, cur[0].getPosYPct(), cur[0].getSizePct());
+                    com.mapcontrol.dvr.TurnCamera.INSTANCE.setLayout(context, cur[0]);
+                }, preview);
+        bars[1] = addTurnCamSlider(box, R.string.camera360_turn_cam_pos_y, values, 1,
+                0, 100, cur[0].getPosYPct(), this::turnCamPosLabel, v -> {
+                    cur[0] = new com.mapcontrol.dvr.TurnCamLayout(cur[0].getEdgePct(), v, cur[0].getSizePct());
+                    com.mapcontrol.dvr.TurnCamera.INSTANCE.setLayout(context, cur[0]);
+                }, preview);
+        bars[2] = addTurnCamSlider(box, R.string.camera360_turn_cam_size, values, 2,
+                com.mapcontrol.dvr.TurnCamLayout.SIZE_MIN, com.mapcontrol.dvr.TurnCamLayout.SIZE_MAX,
+                cur[0].getSizePct(), v -> v + "%", v -> {
+                    cur[0] = new com.mapcontrol.dvr.TurnCamLayout(cur[0].getEdgePct(), cur[0].getPosYPct(), v);
+                    com.mapcontrol.dvr.TurnCamera.INSTANCE.setLayout(context, cur[0]);
+                }, preview);
+        reset.setOnClickListener(v -> {
+            cur[0] = new com.mapcontrol.dvr.TurnCamLayout();
+            com.mapcontrol.dvr.TurnCamera.INSTANCE.setLayout(context, cur[0]);
+            bars[0].setProgress(cur[0].getEdgePct());
+            bars[1].setProgress(cur[0].getPosYPct());
+            bars[2].setProgress(cur[0].getSizePct() - com.mapcontrol.dvr.TurnCamLayout.SIZE_MIN);
+            preview.run();
+        });
+        return box;
+    }
+
+    /** Dikey konum metni: 0 üst, 50 orta, 100 alt; arası yüzde. */
+    private String turnCamPosLabel(int v) {
+        if (v == 0) return context.getString(R.string.camera360_turn_cam_top);
+        if (v == 50) return context.getString(R.string.camera360_turn_cam_middle);
+        if (v == 100) return context.getString(R.string.camera360_turn_cam_bottom);
+        return v + "%";
+    }
+
+    /** Etiket + değer satırı ve altında kaydırıcı; [min]..[max] tam sayı. Dokununca ve her değişimde önizleme tazelenir. */
+    private android.widget.SeekBar addTurnCamSlider(LinearLayout parent, int labelRes, TextView[] values, int index,
+            int min, int max, int initial, java.util.function.IntFunction<String> format,
+            java.util.function.IntConsumer onChanged, Runnable preview) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rowP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowP.topMargin = dp(10);
+        parent.addView(row, rowP);
+        TextView label = new TextView(context);
+        label.setText(labelRes);
+        label.setTextSize(14);
+        label.setTextColor(themeColor(R.color.textSecondary));
+        row.addView(label, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        TextView value = new TextView(context);
+        value.setTextSize(14);
+        UiStyles.setFontStyle(value, Typeface.BOLD);
+        value.setTextColor(themeColor(R.color.textPrimary));
+        value.setText(format.apply(initial));
+        row.addView(value);
+        values[index] = value;
+
+        android.widget.SeekBar bar = new android.widget.SeekBar(context);
+        bar.setMax(max - min);
+        bar.setProgress(Math.max(0, Math.min(max - min, initial - min)));
+        int accent = themeColor(R.color.oemAccent);
+        int thumbPx = UiStyles.dimenPx(context, R.dimen.equalizer_thumb_size);
+        int trackPx = UiStyles.dimenPx(context, R.dimen.equalizer_track_height);
+        GradientDrawable thumb = new GradientDrawable();
+        thumb.setShape(GradientDrawable.OVAL);
+        thumb.setColor(accent);
+        thumb.setSize(thumbPx, thumbPx);
+        bar.setThumb(thumb);
+        bar.setThumbOffset(thumbPx / 2);
+        bar.setSplitTrack(false);
+        bar.setMinHeight(trackPx);
+        bar.setMaxHeight(trackPx);
+        bar.setProgressTintList(ColorStateList.valueOf(accent));
+        bar.setProgressBackgroundTintList(ColorStateList.valueOf(themeColor(R.color.buttonInactive)));
+        bar.setThumbTintList(ColorStateList.valueOf(accent));
+        bar.setPadding(thumbPx / 2, 0, thumbPx / 2, 0);
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                int v = progress + min;
+                value.setText(format.apply(v));
+                if (fromUser) {
+                    onChanged.accept(v);
+                    preview.run();
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+                preview.run();
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                preview.run();
+            }
+        });
+        parent.addView(bar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                UiStyles.dimenPx(context, R.dimen.equalizer_slider_height)));
+        return bar;
+    }
+
+    private LinearLayout turnCamRow(View lead, int titleRes, int noteRes, boolean initial,
+                                    java.util.function.Consumer<Boolean> onCommit) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(lead);
+
+        LinearLayout texts = new LinearLayout(context);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textsP = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        textsP.setMarginStart(dp(18));
+        textsP.setMarginEnd(dp(16));
+        row.addView(texts, textsP);
+        TextView title = new TextView(context);
+        title.setText(titleRes);
+        title.setTextSize(18);
+        UiStyles.setFontStyle(title, Typeface.BOLD);
+        title.setTextColor(themeColor(R.color.textPrimary));
+        texts.addView(title);
+        TextView note = new TextView(context);
+        note.setText(noteRes);
+        note.setTextSize(13);
+        note.setMaxLines(2);
+        note.setEllipsize(TextUtils.TruncateAt.END);
+        note.setTextColor(themeColor(R.color.textSecondaryCool));
+        LinearLayout.LayoutParams noteP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        noteP.topMargin = dp(3);
+        texts.addView(note, noteP);
+
+        LinearLayout toggle = new LinearLayout(context);
+        toggle.setOrientation(LinearLayout.VERTICAL);
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
+        UiStyles.addBinarySegmentedControl(context, toggle, "",
+                context.getString(R.string.common_yes), context.getString(R.string.common_no),
+                "", "", initial, onCommit).hideHelp();
+        return row;
     }
 
     private LinearLayout buildSettingsCard(boolean wide) {

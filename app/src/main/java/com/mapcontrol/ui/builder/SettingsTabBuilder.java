@@ -282,6 +282,19 @@ public class SettingsTabBuilder {
                     () -> sendDiagnostics(send));
         });
         parentContainer.addView(send, lp);
+
+        // Veri kontrolü paneli (ana ekranda açılır, yalnızca okur): araç testinde sinyalleri ham hâliyle görmek için.
+        final Button dataCheck = new Button(context);
+        dataCheck.setText(R.string.diag_data_check_button);
+        UiStyles.styleOemButton(dataCheck, UiStyles.color(context, R.color.accentHighlight));
+        dataCheck.setOnClickListener(v -> context.startActivity(
+                new android.content.Intent(context, com.mapcontrol.launcher.HomeLauncherActivity.class)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .putExtra(com.mapcontrol.launcher.HomeLauncherActivity.EXTRA_OPEN_DATA_CHECK, true)));
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp2.setMargins(16, 0, 16, 8);
+        parentContainer.addView(dataCheck, lp2);
     }
 
     private void sendDiagnostics(Button send) {

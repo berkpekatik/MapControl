@@ -17,4 +17,5 @@
     <string name="diag_err_too_many">Too many logs sent recently. Please try again in an hour.</string>
     <string name="diag_err_network">Could not reach the server. Check the internet connection and try again.</string>
     <string name="diag_err_failed">The log could not be sent.</string>
+    <string name="diag_data_check_button">Data Check (vehicle signals)</string>
 </resources>

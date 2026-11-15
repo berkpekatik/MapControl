@@ -11,9 +11,10 @@ import android.util.Log
 import android.widget.Toast
 
 /**
- * Sürüş ekranı: Navigasyon kartına (ya da "Haritayı aç", Ev / İş) dokununca ekran ikiye bölünür, bir yarıda Mini gösterge, diğerinde
- * seçili harita (Tiggo 7 sol/sağ, Tiggo 8 üst/alt; bölme MapControl'ın kendi başlatıcısıyla, [MapControlFeatures.startDriveScreen]).
- * Harita seçilmemişse harita yarısında "+ Harita ekle" seçicisi açılır.
+ * Sürüş ekranı: "Bölünmüş ekran" kutusuna (ya da sürüş ekranı zemininin harita yarısına) dokununca ekran ikiye bölünür, bir yarıda
+ * Mini gösterge, diğerinde seçili harita (Tiggo 7 sol/sağ, Tiggo 8 üst/alt; bölme MapControl'ın kendi başlatıcısıyla,
+ * [MapControlFeatures.startDriveScreen]). Harita seçilmemişse harita yarısında "+ Harita ekle" seçicisi açılır. Navigasyon kartı,
+ * "Haritayı aç" ve Ev / İş rotası ekranı bölmez, haritayı tam ekran açar ([openFullScreen], [openRoute]).
  *
  * Tek ekran gibi görünsün diye: yarıların arkasında kalan ana ekranımız, sürüş ekranı açıkken kartlarını gizleyip yalnız Sahne zeminini
  * gösterir ([attachLauncher]; durum çubuğu şeridinde ve yarıların kenarında kartlar görünmez). Ana ekran yeniden öne gelince (Mini
@@ -198,6 +199,38 @@ internal object DriveScreen {
         LauncherEdition.mapcontrol(context).openFullScreen(pkg)
     }
 
+    /**
+     * Navigasyon kartındaki Ev / İş rotası: ekran bölünmez, [route] tam ekran (pencere modu 1) açılır. Harita sürüş ekranından
+     * yarıda serbest pencere kaldıysa önce tam ekrana taşınır, rota sonra gönderilir; yoksa Android açık görevi ana ekranın üstünde
+     * yarım pencere olarak öne getirirdi. Rota başlatılamazsa [fallback] (harita tam ekran).
+     */
+    fun openRoute(context: Context, pkg: String, route: Intent, fallback: () -> Unit) {
+        val start = { startFullScreen(context, route, fallback) }
+        val features = LauncherEdition.mapcontrol(context)
+        if (features.available && DriveMapPrefs.takeLeftover(context, pkg)) {
+            Log.i(TAG, "route: leftover map -> full")
+            features.mapFullScreen(pkg) { start() }
+        } else {
+            start()
+        }
+    }
+
+    private fun startFullScreen(context: Context, intent: Intent, fallback: () -> Unit) {
+        try {
+            context.startActivity(intent, fullScreenOptions())
+        } catch (e: android.content.ActivityNotFoundException) {
+            fallback()
+        } catch (e: SecurityException) {
+            fallback()
+        }
+    }
+
+    /** ActivityOptions.setLaunchWindowingMode (gizli API) ile aynı anahtarlar; 1 = WINDOWING_MODE_FULLSCREEN. */
+    private fun fullScreenOptions(): Bundle = (ActivityOptions.makeBasic().toBundle() ?: Bundle()).apply {
+        putInt("android.activity.windowingMode", WINDOWING_MODE_FULLSCREEN)
+        putInt("android:windowingMode", WINDOWING_MODE_FULLSCREEN)
+    }
+
     /** Ana ekran en üstteki etkin pencere oldu / olmaktan çıktı (`onTopResumedActivityChanged`). */
     fun onLauncherTop(context: Context, top: Boolean) {
         onEvent(if (top) DriveEvent.LAUNCHER_TOP_GAINED else DriveEvent.LAUNCHER_TOP_LOST, context)
@@ -229,11 +262,7 @@ internal object DriveScreen {
         try {
             val intent = Intent(context, HomeLauncherActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            val opts = ActivityOptions.makeBasic().toBundle() ?: Bundle()
-            // ActivityOptions.setLaunchWindowingMode (gizli API) ile aynı anahtarlar; 1 = WINDOWING_MODE_FULLSCREEN.
-            opts.putInt("android.activity.windowingMode", WINDOWING_MODE_FULLSCREEN)
-            opts.putInt("android:windowingMode", WINDOWING_MODE_FULLSCREEN)
-            context.startActivity(intent, opts)
+            context.startActivity(intent, fullScreenOptions())
         } catch (e: RuntimeException) {
             Log.w(TAG, "launcher could not be opened: ${e.javaClass.simpleName}")
         }

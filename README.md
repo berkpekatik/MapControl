@@ -31,7 +31,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 🌡️ **Otomasyon** | Dış sıcaklığa göre klima, koltuk ısıtma/havalandırma, direksiyon ısıtması |
 | ☀️ **Cam tavan** | Açma, perde konumu, hızda veya yağmurda otomatik kapanma |
 | 🧭 **Gösterge ekranı** | Navigasyonu cluster'a taşır; Yandex ve Google Maps yol bilgisi kart olarak görünür |
-| 📷 **Kamera 360** | Çevre kameraları ve kayıtlar |
+| 📷 **Kamera 360** | Çevre kameraları ve kayıtlar; sinyal verilince ilgili yan kamera otomatik açılır |
 | 🪟 **Bölünmüş ekran** | İki uygulama yan yana |
 | 📲 **Aktar** | Aynı ağdaki telefon/bilgisayardan dosya yükleme ve APK kurma (QR ile erişim) |
 | 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |

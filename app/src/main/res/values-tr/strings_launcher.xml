@@ -26,6 +26,8 @@
     <string name="launcher_tires_warning">Lastik basıncı düşük</string>
     <string name="launcher_tires_low_wheel">Lastik basıncı düşük: %1$s %2$d psi</string>
     <string name="launcher_tires_warning_short">Lastik uyarısı</string>
+    <string name="launcher_tire_wheel_warning" formatted="true">Lastik uyarısı: %1$s</string>
+    <string name="launcher_tire_label_warning">Uyarı</string>
     <string name="launcher_app_empty">Uygulama ekle</string>
     <string name="launcher_app_pick_title">Uygulama seç</string>
     <string name="launcher_widget_media">Medya</string>

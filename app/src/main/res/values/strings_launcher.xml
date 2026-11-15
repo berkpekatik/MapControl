@@ -26,6 +26,8 @@
     <string name="launcher_tires_warning">Low tire pressure</string>
     <string name="launcher_tires_low_wheel">Low tire pressure · %1$s %2$d psi</string>
     <string name="launcher_tires_warning_short">Tire alert</string>
+    <string name="launcher_tire_wheel_warning" formatted="true">Tire alert · %1$s</string>
+    <string name="launcher_tire_label_warning">Alert</string>
     <string name="launcher_app_empty">Add app</string>
     <string name="launcher_app_pick_title">Choose an app</string>
     <string name="launcher_widget_media">Media</string>

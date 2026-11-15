@@ -143,6 +143,8 @@ public class MapControlService extends Service {
         }
         SunroofAutomationEngine.getInstance(this).start();
         SunroofGestureOverlayManager.getInstance(this).startIfEnabled();
+        // Kamera 360 > sinyalde göstergede yan kamera (anahtar kapalıysa yalnızca ayarı dinler).
+        com.mapcontrol.dvr.TurnCamera.INSTANCE.start(this);
         if (DmsFaceRecognitionManager.isEnabled(this)
                 && checkSelfPermission(android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -330,6 +332,7 @@ public class MapControlService extends Service {
         ClimateAutomationEngine.getInstance(this).stop();
         SunroofAutomationEngine.getInstance(this).stop();
         SunroofGestureOverlayManager.getInstance(this).stop();
+        com.mapcontrol.dvr.TurnCamera.INSTANCE.stop();
         DmsFaceRecognitionManager.stop(this);
         com.mapcontrol.gps.GpsLinkManager.get(this).stop();
         super.onDestroy();

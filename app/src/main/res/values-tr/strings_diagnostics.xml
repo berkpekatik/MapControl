@@ -17,4 +17,5 @@
     <string name="diag_err_too_many">Kısa sürede çok fazla kayıt gönderildi. Bir saat sonra tekrar deneyin.</string>
     <string name="diag_err_network">Sunucuya ulaşılamadı. İnternet bağlantısını kontrol edip tekrar deneyin.</string>
     <string name="diag_err_failed">Kayıt gönderilemedi.</string>
+    <string name="diag_data_check_button">Veri Kontrolü (araç sinyalleri)</string>
 </resources>
