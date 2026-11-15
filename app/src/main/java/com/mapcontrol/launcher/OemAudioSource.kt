@@ -945,9 +945,15 @@ internal object MediaPrefs {
     private const val PREFS_NAME = "launcher_settings"
     private const val KEY_PHONE_PRIORITY = "media_phone_priority"
 
-    /** "Telefon önceliği": telefondan çalınca OEM kaynağı Bluetooth'a geçer ([PhonePriority]); varsayılan AÇIK. */
+    /**
+     * "Telefon önceliği": telefondan çalınca OEM kaynağı Bluetooth'a geçer ([PhonePriority]); varsayılan KAPALI.
+     * Kapalıyken aracın kendi davranışı geçerlidir: seçili kaynak çalmaya devam eder, BT'ye yalnızca araç içinden (kartın
+     * Oynat'ı / İleri-Geri, seçicide Bluetooth) geçilir. 15 Kasım araç testi: otomatik geçiş kullanıcı seçimiyle çakışıyordu.
+     */
     fun phonePriority(context: Context): Boolean =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(Profiles.key(context, KEY_PHONE_PRIORITY), true)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(Profiles.key(context, KEY_PHONE_PRIORITY), DEFAULT_PHONE_PRIORITY)
+
+    const val DEFAULT_PHONE_PRIORITY = false
 
     fun setPhonePriority(context: Context, on: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()

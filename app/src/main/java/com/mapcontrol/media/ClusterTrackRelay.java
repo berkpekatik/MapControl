@@ -21,6 +21,7 @@ import com.desaysv.ivi.vdb.client.bind.VDServiceDef;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carlan.VDEventCarLan;
 import com.desaysv.ivi.vdb.event.id.carlan.bean.VDMusicID3Info;
+import com.desaysv.ivi.vdb.event.id.carlan.bean.VDMusicPlayStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -71,6 +72,8 @@ public final class ClusterTrackRelay {
 
     private String lastSignature = "";
     private int lastCoverHash;
+    /** Göstergeye son yazılan çalma durumu (yalnız worker ipliği; null: henüz yazılmadı ya da hat koptu). */
+    @Nullable private Boolean lastPlayStatus;
 
     private final Runnable pullRunnable = this::pullOnMain;
 
@@ -248,6 +251,7 @@ public final class ClusterTrackRelay {
                     lastSignature = "";
                     lastCoverHash = 0;
                 }
+                pushPlayStatus(false, true);
             }
             return;
         }
@@ -256,12 +260,40 @@ public final class ClusterTrackRelay {
         String signature = draft.playerId + "\n" + draft.trackTitle + "\n"
                 + draft.performer + "\n" + draft.collection + "\n" + coverHash;
         if (signature.equals(lastSignature)) {
+            pushPlayStatus(draft.playing, false);
             return;
         }
         boolean coverChanged = coverHash != lastCoverHash;
         if (push(draft, cover, coverChanged)) {
             lastSignature = signature;
             lastCoverHash = coverHash;
+            // Yeni parça bilgisinden sonra durum yeniden yazılır (OEM de ID3'ün ardından ayrı durum paketi yollar).
+            pushPlayStatus(draft.playing, true);
+        }
+    }
+
+    /**
+     * Göstergenin oynat/duraklat ikonu: OEM `SVMeterInteraction` (`SVCarLanManager.sendMediaPlayStatusToCarLan`) her çal/durdur
+     * değişiminde `MUSIC_PLAY_STATUS` ile "Play" / "Pause" yollar; ID3 paketi bu bilgiyi taşımaz. Yollanmazsa gösterge sabit
+     * oynat ikonunda kalır. [force]: değişmese de yaz (yeni parça / boşa düşme).
+     */
+    private void pushPlayStatus(boolean playing, boolean force) {
+        if (!force && lastPlayStatus != null && lastPlayStatus == playing) {
+            return;
+        }
+        if (!ensureLane()) {
+            return;
+        }
+        VDMusicPlayStatus packet = new VDMusicPlayStatus();
+        packet.setMusicPlayStatus(playing ? "Play" : "Pause");
+        try {
+            VDBus.getDefault().set(VDMusicPlayStatus.createEvent(VDEventCarLan.MUSIC_PLAY_STATUS, packet));
+            lastPlayStatus = playing;
+            Log.i(TAG, "Gösterge durumu: " + (playing ? "Play" : "Pause"));
+        } catch (RuntimeException e) {
+            laneReady = false;
+            lastPlayStatus = null;
+            Log.w(TAG, "Gösterge durum yazımı başarısız", e);
         }
     }
 
@@ -291,6 +323,7 @@ public final class ClusterTrackRelay {
             return true;
         } catch (RuntimeException e) {
             laneReady = false;
+            lastPlayStatus = null;
             Log.w(TAG, "Gösterge yazımı başarısız", e);
             return false;
         }
@@ -503,6 +536,7 @@ public final class ClusterTrackRelay {
 
     private static final class TrackDraft {
         final boolean idle;
+        final boolean playing;
         final String playerId;
         final String trackTitle;
         final String performer;
@@ -512,6 +546,7 @@ public final class ClusterTrackRelay {
 
         private TrackDraft(
                 boolean idle,
+                boolean playing,
                 String playerId,
                 String trackTitle,
                 String performer,
@@ -519,6 +554,7 @@ public final class ClusterTrackRelay {
                 @Nullable Bitmap cover,
                 @Nullable Uri coverUri) {
             this.idle = idle;
+            this.playing = playing;
             this.playerId = playerId;
             this.trackTitle = trackTitle;
             this.performer = performer;
@@ -528,7 +564,7 @@ public final class ClusterTrackRelay {
         }
 
         static TrackDraft idle() {
-            return new TrackDraft(true, "", "", "", "", null, null);
+            return new TrackDraft(true, false, "", "", "", "", null, null);
         }
 
         static TrackDraft capture(MediaController controller) {
@@ -545,7 +581,9 @@ public final class ClusterTrackRelay {
             Bitmap cover = copyBitmap(firstBitmap(metadata));
             Uri coverUri = cover == null ? firstArtUri(metadata) : null;
             String playerId = controller.getPackageName() == null ? "" : controller.getPackageName();
-            return new TrackDraft(false, playerId, title, performer, collection, cover, coverUri);
+            PlaybackState state = controller.getPlaybackState();
+            boolean playing = state != null && state.getState() == PlaybackState.STATE_PLAYING;
+            return new TrackDraft(false, playing, playerId, title, performer, collection, cover, coverUri);
         }
 
         boolean hasText() {

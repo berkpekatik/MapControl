@@ -189,7 +189,7 @@ class LauncherSettings(private val activity: Activity, private val onEditHome: (
             setText(R.string.pref_call_screen_hint)
         }, fullWidth())
 
-        // Telefon önceliği (varsayılan açık): telefonda Oynat'a basılınca araç kaynağı Bluetooth'a geçer ([PhonePriority]).
+        // Telefon önceliği (varsayılan kapalı): telefonda Oynat'a basılınca araç kaynağı Bluetooth'a geçer ([PhonePriority]).
         addView(gap(activity, 12, vertical = true))
         addView(onOffControl(R.string.launcher_phone_priority, MediaPrefs.phonePriority(activity)) { value ->
             d.dismiss()
