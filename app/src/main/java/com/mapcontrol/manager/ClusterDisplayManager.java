@@ -276,31 +276,33 @@ public class ClusterDisplayManager {
                 }
             }
 
-            Process process = Runtime.getRuntime().exec("dumpsys activity activities | grep -A 5 'displayId=2'");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
+            // sh -c olmadan exec komutu tokenize eder; '|' ve grep dumpsys'e argüman gidip filtre uygulanmaz,
+            // tüm döküm (yüzlerce KB) okunur ve display 2'de olmayan son paket seçilebilirdi. Süreç de kapatılmazdı.
+            Process process = Runtime.getRuntime().exec(new String[]{
+                    "sh", "-c", "dumpsys activity activities | grep -A 5 'displayId=2'"});
             String lastPackage = null;
-            while ((line = reader.readLine()) != null) {
-                if (!line.contains("com.")) {
-                    continue;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    int startIndex = line.indexOf("com.");
+                    if (startIndex == -1) {
+                        continue;
+                    }
+                    int endIndex = line.indexOf("/", startIndex);
+                    if (endIndex == -1) {
+                        endIndex = line.indexOf(" ", startIndex);
+                    }
+                    if (endIndex == -1) {
+                        endIndex = line.length();
+                    }
+                    String packageName = line.substring(startIndex, endIndex).trim();
+                    if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
+                        lastPackage = packageName;
+                    }
                 }
-                int startIndex = line.indexOf("com.");
-                if (startIndex == -1) {
-                    continue;
-                }
-                int endIndex = line.indexOf("/", startIndex);
-                if (endIndex == -1) {
-                    endIndex = line.indexOf(" ", startIndex);
-                }
-                if (endIndex == -1) {
-                    endIndex = line.length();
-                }
-                String packageName = line.substring(startIndex, endIndex).trim();
-                if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
-                    lastPackage = packageName;
-                }
+            } finally {
+                process.destroy();
             }
-            reader.close();
             if (lastPackage != null) {
                 callback.log("Display 2'de uygulama bulundu: " + lastPackage);
             }

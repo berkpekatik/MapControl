@@ -729,7 +729,7 @@
     <string name="climate_auto_master_on">On</string>
     <string name="climate_auto_status_disconnected">Vehicle thermometer is not connected</string>
     <string name="climate_auto_status_no_temp">Outside temperature is not available yet</string>
-    <string name="climate_auto_status_temp">Outside: %1$d°C</string>
+    <string name="climate_auto_status_temp">Outside: %1$.1f°C</string>
     <string name="climate_auto_sensor_label">VEHICLE THERMOMETER · LIVE DATA</string>
     <string name="climate_auto_rules_heading">Automation rules</string>
     <string name="climate_auto_compare_hint">Change the temperature comparison condition</string>

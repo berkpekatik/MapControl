@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
@@ -173,7 +174,17 @@ class DriveMapPickerActivity : Activity() {
             return
         }
         DriveScreen.onMapChosen(pkg)
-        SplitScreenLauncher.launchInto(this, pkg, intent, Rect(windowManager.currentWindowMetrics.bounds)) { result ->
+        // currentWindowMetrics API 30; minSdk 29 olduğu için A10 ünitelerde eski yoldan ölç.
+        val bounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds
+        } else {
+            @Suppress("DEPRECATION")
+            android.util.DisplayMetrics().let { m ->
+                windowManager.defaultDisplay.getRealMetrics(m)
+                Rect(0, 0, m.widthPixels, m.heightPixels)
+            }
+        }
+        SplitScreenLauncher.launchInto(this, pkg, intent, Rect(bounds)) { result ->
             Log.i(TAG, "picked -> $result")
             launching = false
             if (result == SplitScreenLauncher.Result.STARTED) finishAndRemoveTask()
