@@ -16,6 +16,8 @@ import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
@@ -32,6 +34,12 @@ public class ClusterDisplayManager {
     private final Context context;
     private final ClusterCallback callback;
     private final Handler handler;
+    /** dumpsys gibi ağır okumaları ana thread'den çıkarmak için. */
+    private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "cluster-io");
+        t.setDaemon(true);
+        return t;
+    });
     /** Kapatma veya yeni açılış, bekleyen openClusterDisplay postDelayed zincirini iptal eder. */
     private final AtomicInteger openSessionId = new AtomicInteger(0);
 
@@ -58,7 +66,21 @@ public class ClusterDisplayManager {
                 handler.postDelayed(timeoutRunnable, 7000);
             }
 
-            String appOnDisplay2 = getAppOnDisplay2();
+            // dumpsys okuması ağır; io thread'de oku, sonucu ana thread'de işle (UI jank olmasın).
+            io.execute(() -> {
+                String appOnDisplay2 = getAppOnDisplay2();
+                handler.post(() -> continueOpenClusterDisplay(session, appOnDisplay2));
+            });
+        } catch (Exception e) {
+            callback.log("Açma hatası: " + e.getMessage());
+        }
+    }
+
+    private void continueOpenClusterDisplay(int session, String appOnDisplay2) {
+        if (session != openSessionId.get()) {
+            return;
+        }
+        try {
             if (!shouldEvictFromCluster(appOnDisplay2, callback.getTargetPackage())) {
                 if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
                     callback.log("Display 2'deki uygulama yerinde bırakıldı: " + appOnDisplay2);
@@ -159,14 +181,19 @@ public class ClusterDisplayManager {
      * "Ana Ekrana Al" sonrası boş cluster için {@link DisplayHelper#showBootSplashOnDisplay} ile aynı yol.
      */
     public void showBootSplashOnClusterIfNoForegroundApp() {
-        String appOnDisplay2 = getAppOnDisplay2();
-        if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
-            return;
-        }
-        int clusterId = AppLaunchHelper.getClusterDisplayId(context);
-        if (clusterId != 0) {
-            DisplayHelper.showBootSplashOnDisplay(context, clusterId, true);
-        }
+        // dumpsys okuması ağır; io thread'de oku, UI işini ana thread'e geri gönder.
+        io.execute(() -> {
+            String appOnDisplay2 = getAppOnDisplay2();
+            if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
+                return;
+            }
+            handler.post(() -> {
+                int clusterId = AppLaunchHelper.getClusterDisplayId(context);
+                if (clusterId != 0) {
+                    DisplayHelper.showBootSplashOnDisplay(context, clusterId, true);
+                }
+            });
+        });
     }
 
     public void closeClusterDisplay(boolean sendBackground) {
@@ -276,31 +303,33 @@ public class ClusterDisplayManager {
                 }
             }
 
-            Process process = Runtime.getRuntime().exec("dumpsys activity activities | grep -A 5 'displayId=2'");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
+            // sh -c olmadan exec komutu tokenize eder; '|' ve grep dumpsys'e argüman gidip filtre uygulanmaz,
+            // tüm döküm (yüzlerce KB) okunur ve display 2'de olmayan son paket seçilebilirdi. Süreç de kapatılmazdı.
+            Process process = Runtime.getRuntime().exec(new String[]{
+                    "sh", "-c", "dumpsys activity activities | grep -A 5 'displayId=2'"});
             String lastPackage = null;
-            while ((line = reader.readLine()) != null) {
-                if (!line.contains("com.")) {
-                    continue;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    int startIndex = line.indexOf("com.");
+                    if (startIndex == -1) {
+                        continue;
+                    }
+                    int endIndex = line.indexOf("/", startIndex);
+                    if (endIndex == -1) {
+                        endIndex = line.indexOf(" ", startIndex);
+                    }
+                    if (endIndex == -1) {
+                        endIndex = line.length();
+                    }
+                    String packageName = line.substring(startIndex, endIndex).trim();
+                    if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
+                        lastPackage = packageName;
+                    }
                 }
-                int startIndex = line.indexOf("com.");
-                if (startIndex == -1) {
-                    continue;
-                }
-                int endIndex = line.indexOf("/", startIndex);
-                if (endIndex == -1) {
-                    endIndex = line.indexOf(" ", startIndex);
-                }
-                if (endIndex == -1) {
-                    endIndex = line.length();
-                }
-                String packageName = line.substring(startIndex, endIndex).trim();
-                if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
-                    lastPackage = packageName;
-                }
+            } finally {
+                process.destroy();
             }
-            reader.close();
             if (lastPackage != null) {
                 callback.log("Display 2'de uygulama bulundu: " + lastPackage);
             }

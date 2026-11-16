@@ -27,6 +27,8 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -207,6 +209,14 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
     /** auxCam'de son cizimden beri yeni kare var. */
     private boolean auxDirty;
     private CountDownLatch auxReleased;
+    /** clearAuxOutput EGL birakilana kadar bekleyen cagrilari tutar; ana thread beklemez. */
+    private boolean auxReleasePending;
+    private final ArrayList<Runnable> auxReleaseCallbacks = new ArrayList<>();
+    private final ExecutorService releaseWaiter = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "cam-gl-release");
+        t.setDaemon(true);
+        return t;
+    });
 
     private volatile int bigCam = -1;
     private volatile float dewarp = 0f;
@@ -370,24 +380,73 @@ public final class CameraGlEngine implements CameraHub.FrameListener {
         }
     }
 
-    /** Ikinci cikisi kapatir; EGL yuzeyi birakilana kadar bekler (yuzey sonra guvenle yok edilebilir). */
+    /** Ikinci cikisi kapatir. Ana thread beklemez; EGL motor thread'inde birakilir. */
     public void clearAuxOutput() {
-        CountDownLatch latch;
+        clearAuxOutput(null);
+    }
+
+    /**
+     * Ikinci cikisi kapatir. [onReleased] ana thread'de, EGL yuzeyi birakildiktan sonra calisir
+     * (motor yoksa hemen, motor takilirsa en gec 1 sn). Cagiran thread beklemez: yuzey ancak
+     * callback'ten sonra yok edilmelidir.
+     */
+    public void clearAuxOutput(Runnable onReleased) {
+        CountDownLatch latch = null;
+        boolean fireNow = false;
         synchronized (lock) {
+            if (onReleased != null) {
+                auxReleaseCallbacks.add(onReleased);
+            }
+            if (auxReleasePending) {
+                return;
+            }
             if (auxSurface == null && auxCam < 0) {
-                return;
+                fireNow = !auxReleaseCallbacks.isEmpty();
+            } else {
+                auxSurface = null;
+                auxCam = -1;
+                auxChanged = true;
+                if (thread == null) {
+                    fireNow = !auxReleaseCallbacks.isEmpty();
+                } else {
+                    auxReleasePending = true;
+                    latch = new CountDownLatch(1);
+                    auxReleased = latch;
+                    lock.notifyAll();
+                }
             }
-            auxSurface = null;
-            auxCam = -1;
-            auxChanged = true;
-            if (thread == null) {
-                return;
-            }
-            latch = new CountDownLatch(1);
-            auxReleased = latch;
-            lock.notifyAll();
         }
-        await(latch, 1000);
+        if (fireNow) {
+            dispatchAuxReleaseCallbacks();
+        } else if (latch != null) {
+            CountDownLatch wait = latch;
+            releaseWaiter.execute(() -> {
+                await(wait, 1000);
+                synchronized (lock) {
+                    if (auxReleased == wait) {
+                        auxReleased = null;
+                    }
+                    auxReleasePending = false;
+                }
+                dispatchAuxReleaseCallbacks();
+            });
+        }
+    }
+
+    private void dispatchAuxReleaseCallbacks() {
+        List<Runnable> callbacks;
+        synchronized (lock) {
+            if (auxReleaseCallbacks.isEmpty()) {
+                return;
+            }
+            callbacks = new ArrayList<>(auxReleaseCallbacks);
+            auxReleaseCallbacks.clear();
+        }
+        mainHandler.post(() -> {
+            for (Runnable callback : callbacks) {
+                callback.run();
+            }
+        });
     }
 
     /** lock altinda: ikinci cikis motoru ayakta tutar mi. */

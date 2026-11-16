@@ -13,6 +13,12 @@ import java.io.InputStreamReader;
 import java.io.FileOutputStream;
 import java.io.File;
 import java.io.BufferedInputStream;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import com.mapcontrol.trip.AppBackupEnv;
 import com.mapcontrol.trip.AutomationBackup;
 import com.mapcontrol.trip.PhoneAccess;
@@ -57,7 +63,18 @@ public class WebServerManager {
     /** open-maps JSON içindeki url alanı: POST üst sınırına yakın; Yandex sctx gibi çok uzun paylaşım linklerine izin */
     private static final int MAX_OPEN_URL_CHARS = MAX_JSON_POST_BYTES - 200;
     private static final int MAX_KEYBOARD_TEXT_CHARS = 8000;
+    /** İstek başlığı bundan uzunsa bağlantı kapanır (sınırsız bayt okuma yok). */
+    private static final int MAX_HEADER_BYTES = 16 * 1024;
+    /** Başlık bu sürede gelmezse soket kapanır. Gövde (büyük yükleme) ayrıca uzatılır. */
+    private static final int HEADER_TIMEOUT_MS = 5_000;
+    private static final int BODY_TIMEOUT_MS = 15_000;
+    /** Çok büyük dosya yüklemesi; diğer istekler kısa gövde zaman aşımında kalır. */
+    private static final int UPLOAD_TIMEOUT_MS = 1_800_000;
+    private static final int CLIENT_POOL_SIZE = 4;
+    private static final int CLIENT_QUEUE_SIZE = 8;
     private volatile ServerSocket serverSocket;
+    private volatile ThreadPoolExecutor clientPool;
+    private final Set<Socket> clients = ConcurrentHashMap.newKeySet();
     private final NsdAdvertiser nsdAdvertiser;
     private volatile Thread serverThread;
     private AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -126,6 +143,11 @@ public class WebServerManager {
                 throw e;
             }
             serverSocket = socket;
+            ThreadPoolExecutor stale = clientPool;
+            clientPool = newClientPool();
+            if (stale != null) {
+                stale.shutdownNow();
+            }
             // Bu iş parçacığı yalnızca kendi kuşağını kapatır: durdurma geç biterse yeni sunucunun durumunu ezmez.
             final int gen = generation.next();
             isRunning.set(true);
@@ -224,6 +246,15 @@ public class WebServerManager {
             if (listener != null) listener.onLog("[ERROR] Server kapatma hatası: " + e.getMessage());
         }
 
+        for (Socket client : clients) {
+            closeQuietly(client);
+        }
+        ThreadPoolExecutor pool = clientPool;
+        clientPool = null;
+        if (pool != null) {
+            pool.shutdownNow();
+        }
+
         if (serverThread != null) {
             try {
                 serverThread.join(1000);
@@ -233,6 +264,28 @@ public class WebServerManager {
         }
 
         if (wasRunning && listener != null) listener.onLog("HTTP Server durduruldu");
+    }
+
+    private static ThreadPoolExecutor newClientPool() {
+        return new ThreadPoolExecutor(
+                CLIENT_POOL_SIZE,
+                CLIENT_POOL_SIZE,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(CLIENT_QUEUE_SIZE),
+                r -> {
+                    Thread t = new Thread(r, "web-client");
+                    t.setDaemon(true);
+                    return t;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    private static void closeQuietly(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+        }
     }
 
     /**
@@ -274,50 +327,42 @@ public class WebServerManager {
     }
 
     /**
-     * Client isteğini işle
+     * Client isteğini işle. Havuz doluysa bağlantı kapanır; her istek yeni thread açmaz.
      */
     private void handleClient(Socket clientSocket) {
-        new Thread(() -> {
-            try {
-                // Socket timeout ayarla (30 dakika - çok büyük dosyalar için)
-                clientSocket.setSoTimeout(1800000); // 30 dakika
-                // Keep-alive ve buffer ayarları
-                clientSocket.setTcpNoDelay(true);
-                clientSocket.setKeepAlive(true);
-                
-                InputStream input = clientSocket.getInputStream();
-                OutputStream output = clientSocket.getOutputStream();
+        ThreadPoolExecutor pool = clientPool;
+        if (pool == null) {
+            closeQuietly(clientSocket);
+            return;
+        }
+        try {
+            pool.execute(() -> serveClient(clientSocket));
+        } catch (RejectedExecutionException e) {
+            if (listener != null) listener.onLog("[WARN] İstemci reddedildi: havuz dolu");
+            closeQuietly(clientSocket);
+        }
+    }
 
-                // HTTP header'ı oku
-                StringBuilder headerBuilder = new StringBuilder();
-                byte[] buffer = new byte[1];
-                String lineEnding = "\r\n\r\n";
-                String currentEnding = "";
-                
-                // Header'ı oku (boş satıra kadar)
-                while (true) {
-                    int read = input.read(buffer);
-                    if (read == -1) {
-                        clientSocket.close();
-                        return;
-                    }
-                    char c = (char) buffer[0];
-                    headerBuilder.append(c);
-                    currentEnding += c;
-                    if (currentEnding.length() > 4) {
-                        currentEnding = currentEnding.substring(1);
-                    }
-                    if (currentEnding.equals(lineEnding)) {
-                        break;
-                    }
-                }
+    private void serveClient(Socket clientSocket) {
+        clients.add(clientSocket);
+        try {
+            clientSocket.setSoTimeout(HEADER_TIMEOUT_MS);
+            clientSocket.setTcpNoDelay(true);
+            clientSocket.setKeepAlive(true);
 
-                String requestHeader = headerBuilder.toString();
-                String[] requestLines = requestHeader.split("\r\n");
-                if (requestLines.length == 0) {
-                    clientSocket.close();
-                    return;
-                }
+            InputStream input = new BufferedInputStream(clientSocket.getInputStream());
+            OutputStream output = clientSocket.getOutputStream();
+
+            String requestHeader = readRequestHeader(input);
+            if (requestHeader == null) {
+                closeQuietly(clientSocket);
+                return;
+            }
+            String[] requestLines = requestHeader.split("\r\n");
+            if (requestLines.length == 0) {
+                closeQuietly(clientSocket);
+                return;
+            }
 
                 String requestLine = requestLines[0];
                 String[] parsed = parseHttpRequestLine(requestLine);
@@ -328,6 +373,10 @@ public class WebServerManager {
                 String method = parsed[0];
                 String path = parsed[1];
                 String queryString = parsed[2] != null ? parsed[2] : "";
+
+                // Başlık kısa zaman aşımında okundu. Büyük dosya yüklemesi uzun kalabilir; diğer gövdeler kısa.
+                clientSocket.setSoTimeout(
+                        "POST".equals(method) && "/upload".equals(path) ? UPLOAD_TIMEOUT_MS : BODY_TIMEOUT_MS);
 
                 if (listener != null) listener.onLog("HTTP Request: " + method + " " + path);
 
@@ -391,17 +440,38 @@ public class WebServerManager {
                 } else {
                     sendErrorResponse(output, 405, "Method not allowed");
                 }
-                clientSocket.close();
+                closeQuietly(clientSocket);
 
             } catch (IOException e) {
                 if (listener != null) listener.onLog("[ERROR] Client işleme hatası: " + e.getMessage());
-                try {
-                    clientSocket.close();
-                } catch (IOException ex) {
-                    // Ignore
-                }
+                closeQuietly(clientSocket);
+            } finally {
+                clients.remove(clientSocket);
             }
-        }).start();
+    }
+
+    /**
+     * İstek başlığını en fazla {@link #MAX_HEADER_BYTES} bayt okur.
+     * @return başlık (bitişindeki boş satır dahil), akış kapanırsa veya sınır aşılırsa null
+     */
+    private static String readRequestHeader(InputStream input) throws IOException {
+        byte[] data = new byte[MAX_HEADER_BYTES];
+        int n = 0;
+        while (n < MAX_HEADER_BYTES) {
+            int b = input.read();
+            if (b < 0) {
+                return null;
+            }
+            data[n++] = (byte) b;
+            if (n >= 4
+                    && data[n - 4] == '\r'
+                    && data[n - 3] == '\n'
+                    && data[n - 2] == '\r'
+                    && data[n - 1] == '\n') {
+                return new String(data, 0, n, StandardCharsets.ISO_8859_1);
+            }
+        }
+        return null;
     }
 
     /**

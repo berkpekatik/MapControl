@@ -193,6 +193,8 @@ object TurnCamera {
     private var app: Context? = null
     private var overlay: TurnCameraOverlay? = null
     @Volatile private var enabled = false
+    // io'da okunup (gereksiz main.post'u önler) main'de yazılır (yalnızca başarılı gösterimde).
+    @Volatile
     private var posted: TurnSide? = null
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
@@ -323,7 +325,6 @@ object TurnCamera {
                 task = null
                 io.execute {
                     unsubscribe()
-                    setWarm(false)
                     logic.update(false, null, null, null, null, 0L)
                 }
             }
@@ -375,7 +376,6 @@ object TurnCamera {
         // Yakalanmayan hata scheduleWithFixedDelay'i sessizce iptal eder.
         try {
             val armed = enabled && ClusterNavigationState.getLastKnownOpen() && connected()
-            setWarm(armed)
             if (armed) {
                 fun ro(id: Int) = CarSignals.readInt(RO, id)
                 left = ro(ReadOnlyID.ID_DIRECTION_IND_LEFT)
@@ -389,21 +389,8 @@ object TurnCamera {
         }
     }
 
-    /**
-     * Kameraları hazır tut: anahtar ve yansıtma açıkken akışlar kopyasız açık kalır ([CameraHub]: kare çekilip kopyasız
-     * iade edilir, ~sıfır CPU). Yoksa ilk sinyalde dört kamera sıfırdan açılıyor (saniyeler) ve kart çoğu zaman
-     * "Kamera açılıyor…" ile kapanıyordu. Kart açılınca yalnızca o kameranın kopyası istenir.
-     */
-    private var warm = false
-
-    private fun setWarm(on: Boolean) {
-        if (on == warm) return
-        warm = on
-        if (on) CameraHub.get().acquire(WARM_TAG, null) else CameraHub.get().release(WARM_TAG)
-        Log.i(TAG, if (on) "kameralar hazırda tutuluyor" else "kameralar bırakıldı")
-    }
-
-    private const val WARM_TAG = "turn-cam-warm"
+    // Akışlar artık warm tutulmuyor: kart motoru (CameraGlEngine HUB_TAG) ilk sinyalde kendi açıyor.
+    // İlk sinyal soğuk açılışla gelir (saniyeler, "Kamera açılıyor…"); parkta/boştayken kameralar kapalı kalır.
 
     private fun evaluate() {
         // Ayar önizlemesi sürerken gerçek kart açılmaz.
@@ -447,15 +434,22 @@ object TurnCamera {
     }
 
     private fun post(side: TurnSide?) {
-        main.post {
-            if (side == posted) return@post
-            Log.i(TAG, "sinyal kamerası: $posted -> $side")
-            posted = side
+        // io tarafı: durum zaten uygulandıysa ana thread'i hiç uyandırma (poll başına no-op post yok).
+        if (side == posted) return
+        main.post apply@{
+            if (side == posted) return@apply
             val c = app
             if (side == null || c == null) {
+                Log.i(TAG, "sinyal kamerası: $posted -> $side")
+                posted = side
                 overlay?.hide()
             } else {
-                (overlay ?: TurnCameraOverlay(c).also { overlay = it }).show(side)
+                // posted yalnızca gösterim başarılıysa ilerlesin; başarısızsa sonraki poll yeniden dener.
+                val shown = (overlay ?: TurnCameraOverlay(c).also { overlay = it }).show(side)
+                if (shown) {
+                    Log.i(TAG, "sinyal kamerası: $posted -> $side")
+                    posted = side
+                }
             }
         }
     }

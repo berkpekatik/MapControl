@@ -378,7 +378,7 @@ public class MapControlService extends Service {
         }
 
         // Her 2 saniyede bir power mode kontrol et
-        scheduler.scheduleAtFixedRate(() -> {
+        scheduler.scheduleWithFixedDelay(() -> {
             try {
                 if (!CarInfoProxy.getInstance().isServiceConnnected()) {
                     // Bağlantı yoksa yeniden bağlanmayı dene (Thread.sleep yerine bir sonraki iterasyonda kontrol edilir)
@@ -503,11 +503,12 @@ public class MapControlService extends Service {
                         }
                     }
                 }
-            } catch (Exception e) {
-                log("❌ Power mode kontrol hatası: " + e.getMessage());
+            } catch (Throwable t) {
+                // Error dahil her şey yutulmalı; aksi halde periyodik görev kalıcı iptal olur.
+                log("❌ Power mode kontrol hatası: " + t);
             }
         }, 0, 2, TimeUnit.SECONDS);
-        scheduler.scheduleAtFixedRate(this::pollWelcomeScreen, 0, 250, TimeUnit.MILLISECONDS);
+        scheduler.scheduleWithFixedDelay(this::pollWelcomeScreen, 0, 250, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -530,10 +531,10 @@ public class MapControlService extends Service {
                 }
                 return;
             }
-            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
-                    VDEventCarInfo.MODULE_READONLY_INFO,
-                    ReadOnlyID.ID_SYSTEM_POWER_MODE);
-            if (pwrItems == null || pwrItems.length == 0) {
+            // getItemValues yanıt yokken [0] döndürür; bu "güç 0 = kontak kapalı" sanılıp yolda karşılama
+            // ekranını yeniden açıyordu. Ham okuma yanıt yoksa null verir: güç bilinmiyor sayılır, tur atlanır.
+            int[] pwrItems = com.mapcontrol.vehicle.CarInfoRead.readOnly(ReadOnlyID.ID_SYSTEM_POWER_MODE);
+            if (pwrItems == null) {
                 return;
             }
             int mode = pwrItems[0];
@@ -575,8 +576,9 @@ public class MapControlService extends Service {
                 }
                 maybeLaunchHome();
             }
-        } catch (Exception e) {
-            log("❌ Hoşgeldin ekranı kontrol hatası: " + e.getMessage());
+        } catch (Throwable t) {
+            // Error dahil her şey yutulmalı; aksi halde karşılama/launcher görevi kalıcı iptal olur.
+            log("❌ Hoşgeldin ekranı kontrol hatası: " + t);
         }
     }
 

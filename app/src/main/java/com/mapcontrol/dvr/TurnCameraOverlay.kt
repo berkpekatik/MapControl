@@ -57,6 +57,9 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
     /** Taraf değişimi için kısa sönüş sürüyor; bitince bu tarafa geçilir. */
     private var pendingSide: TurnSide? = null
     private var hiding = false
+    /** Kart kapanışı EGL bırakılmasını bekliyor; bu sırada pencere hâlâ durur. */
+    private var closing = false
+    private var closeGen = 0
     /** Kart yerinde ama ilk gerçek kare bekleniyor (görünmez); kare gelince ya da [REVEAL_FALLBACK_MS] sonra girer. */
     private var revealPending = false
     /** Bu kartta kamera görüntüsü en az bir kez geldi (bekleme yazısı kalktı). */
@@ -71,6 +74,16 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
      * Göstergeye pencere eklenemediyse false.
      */
     fun show(next: TurnSide): Boolean {
+        if (closing) {
+            // Kapanış henüz pencereyi kaldırmadı: EGL bırakma isteğini geçersiz kıl, akışı geri bağla.
+            closeGen++
+            closing = false
+            val s = side
+            val surf = surface
+            if (!demo && s != null && surf != null) {
+                engine.setAuxOutput(surf, BUF_W, BUF_H, s.cam, TurnCamera.dewarp(app))
+            }
+        }
         if (root == null && !build()) return false
         val c = card ?: return false
         if (pendingSide != null) {
@@ -396,10 +409,22 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
         main.removeCallbacks(revealFallback)
         revealPending = false
         pendingSide = null
-        if (!demo) {
-            // Önce motor yüzeyi bıraksın, sonra pencere (ve SurfaceTexture) yok edilsin.
-            engine.clearAuxOutput()
+        if (demo) {
+            detachWindow()
+            return
         }
+        if (closing) return
+        // EGL ana thread'de beklenmez. Yüzey ve pencere, motor bıraktıktan sonra kalkar.
+        closing = true
+        val gen = ++closeGen
+        engine.clearAuxOutput {
+            if (gen != closeGen || !closing) return@clearAuxOutput
+            closing = false
+            detachWindow()
+        }
+    }
+
+    private fun detachWindow() {
         surface?.release()
         surface = null
         val r = root
@@ -432,10 +457,19 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
         }
 
         override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-            engine.clearAuxOutput()
-            surface?.release()
+            if (surface == null) return true
+            // Pencere biz kapatmadan yok oldu: EGL bırakılmadan texture framework'e geri verilmez.
+            val owned = surface
             surface = null
-            return true
+            val gen = ++closeGen
+            closing = true
+            engine.clearAuxOutput {
+                owned?.release()
+                // false döndük: texture'ı framework değil biz bırakırız.
+                runCatching { st.release() }
+                if (gen == closeGen && closing) closing = false
+            }
+            return false
         }
 
         /** Motor yalnızca gerçek kamera karesi çizer ([CameraGlEngine] ikinci çıkış); her güncelleme gerçek görüntüdür. */
