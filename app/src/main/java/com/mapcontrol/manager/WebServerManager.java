@@ -378,8 +378,6 @@ public class WebServerManager {
                 clientSocket.setSoTimeout(
                         "POST".equals(method) && "/upload".equals(path) ? UPLOAD_TIMEOUT_MS : BODY_TIMEOUT_MS);
 
-                if (listener != null) listener.onLog("HTTP Request: " + method + " " + path);
-
                 if ("OPTIONS".equals(method)) {
                     sendOptionsResponse(output);
                 } else if ("POST".equals(method) && "/upload".equals(path)) {

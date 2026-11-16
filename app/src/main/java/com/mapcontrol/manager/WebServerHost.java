@@ -66,6 +66,11 @@ public final class WebServerHost {
 
     private static volatile WebServerHost instance;
 
+    /** Oluşturmadan mevcut örneği döndürür (tanılama: yan etkisiz okuma). */
+    public static WebServerHost peek() {
+        return instance;
+    }
+
     public static WebServerHost get(Context context) {
         WebServerHost local = instance;
         if (local == null) {

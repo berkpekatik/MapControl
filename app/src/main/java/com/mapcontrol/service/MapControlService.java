@@ -117,6 +117,7 @@ public class MapControlService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.mapcontrol.util.DiagJournal.event("hizmet", "MapControlService onCreate");
         createNotificationChannel();
         BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
@@ -254,6 +255,9 @@ public class MapControlService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        com.mapcontrol.util.DiagJournal.event("hizmet", "MapControlService onStartCommand intent="
+                + (intent == null ? "null (sistem yeniden baslatti)" : String.valueOf(intent.getExtras() == null ? "" : intent.getExtras().keySet()))
+                + " flags=" + flags + " startId=" + startId);
         // Foreground service için notification oluştur
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -312,6 +316,7 @@ public class MapControlService extends Service {
 
     @Override
     public void onDestroy() {
+        com.mapcontrol.util.DiagJournal.event("hizmet", "MapControlService onDestroy");
         if (gesturePrefListener != null) {
             TargetPackageStore.prefs(this).unregisterOnSharedPreferenceChangeListener(gesturePrefListener);
             gesturePrefListener = null;

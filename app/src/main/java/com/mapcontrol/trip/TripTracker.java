@@ -15,6 +15,11 @@ import java.util.List;
  *   <li>Yakıt sayacı kontakta henüz okunmamış olabilir (veri gelince dolar) ve kapanışta sıfırlanabilir:
  *       başlangıç, yolculuk içindeki ilk geçerli okuma; bitiş, görülen en büyük geçerli okumadır
  *       (birikmiş sayaç geri gitmez).</li>
+ *   <li>Depo yüzdesi ve menzil yalnızca güç açıkken alınan örneklerden okunur; güç düştükten sonra gelen
+ *       değerler anlamsız olabilir. Başlangıç, ilk {@link #FUEL_SETTLE_MS} içindeki en büyük geçerli değerdir
+ *       (gösterge yakıt alımından sonra geç güncellenir, kontak açılır açılmaz eski seviyeyi ya da hiçbir şey
+ *       vermeyebilir); bitiş, güç açıkken görülen son geçerli değerdir. Telefon iki yolculuk arasındaki
+ *       farktan yakıt alımını çıkarır.</li>
  * </ul>
  */
 public final class TripTracker {
@@ -55,6 +60,9 @@ public final class TripTracker {
     /** Rota noktaları en sık bu aralıkla yazılır. */
     static final long ROUTE_INTERVAL_MS = 5_000L;
 
+    /** Kontak açıldıktan sonra depo göstergesinin oturması için beklenen süre; başlangıç bu süredeki en büyük değerdir. */
+    static final long FUEL_SETTLE_MS = 180_000L;
+
     private enum State { IDLE, ACTIVE, ENDING }
 
     /**
@@ -91,6 +99,12 @@ public final class TripTracker {
     /** Yolculuktaki ilk geçerli yakıt sayacı ve görülen en büyük geçerli değer; geçersizse {@link TripReading#INVALID}. */
     private int fuelBaseline = TripReading.INVALID;
     private int fuelMax = TripReading.INVALID;
+
+    /** Depo yüzdesi (0–100) ve menzil (km): başlangıç oturma süresindeki en büyük, bitiş güç açıkken son geçerli. */
+    private int tankStartPercent = TripReading.INVALID;
+    private int tankEndPercent = TripReading.INVALID;
+    private int rangeStart = TripReading.INVALID;
+    private int rangeEnd = TripReading.INVALID;
 
     private long lastSampleAt;
     private long movingMs;
@@ -195,6 +209,10 @@ public final class TripTracker {
         route.clear();
         fuelBaseline = TripReading.INVALID;
         fuelMax = TripReading.INVALID;
+        tankStartPercent = TripReading.INVALID;
+        tankEndPercent = TripReading.INVALID;
+        rangeStart = TripReading.INVALID;
+        rangeEnd = TripReading.INVALID;
         sample(nowMs, reading);
         listener.onDiagnostic("Yolculuk başladı: odometre=" + describe(reading.odoKm) + " km, yakıt sayacı="
                 + describe(reading.sumFuelMl) + (fuelBaseline == TripReading.INVALID ? " (henüz okunmadı)" : ""));
@@ -203,6 +221,7 @@ public final class TripTracker {
     private void sample(long nowMs, TripReading reading) {
         lastReading = reading;
         trackFuel(reading);
+        trackTank(nowMs, reading);
         int speed = reading.speedKmh == TripReading.INVALID ? 0 : Math.max(0, reading.speedKmh);
         long dt = Math.min(Math.max(0, nowMs - lastSampleAt), MAX_SAMPLE_GAP_MS);
         if (speed > 0) {
@@ -224,6 +243,28 @@ public final class TripTracker {
             fuelBaseline = reading.sumFuelMl;
         }
         fuelMax = fuelMax == TripReading.INVALID ? reading.sumFuelMl : Math.max(fuelMax, reading.sumFuelMl);
+    }
+
+    /** Yalnızca güç açıkken çağrılır ({@link #sample}); kapanış okuması buraya hiç girmez. */
+    private void trackTank(long nowMs, TripReading reading) {
+        boolean settling = nowMs - startedAt <= FUEL_SETTLE_MS;
+        int percent = TripReading.percent(reading.fuelPercent);
+        if (percent != TripReading.INVALID) {
+            tankEndPercent = percent;
+            if (settling) {
+                tankStartPercent = Math.max(tankStartPercent, percent);
+            } else if (tankStartPercent == TripReading.INVALID) {
+                tankStartPercent = percent; // oturma süresinde hiç okunamadı: ilk geçerli
+            }
+        }
+        if (TripReading.validRange(reading.rangeKm)) {
+            rangeEnd = reading.rangeKm;
+            if (settling) {
+                rangeStart = Math.max(rangeStart, reading.rangeKm);
+            } else if (rangeStart == TripReading.INVALID) {
+                rangeStart = reading.rangeKm;
+            }
+        }
     }
 
     private static String describe(int value) {
@@ -250,7 +291,8 @@ public final class TripTracker {
         int distance = distanceTo(end);
         int fuelMl = fuelUsedMl();
         listener.onDiagnostic("Yolculuk bitti: " + distance + " km, yakıt sayacı " + describe(fuelBaseline)
-                + " → " + describe(fuelMax) + " (fark " + fuelMl + " birim)");
+                + " → " + describe(fuelMax) + " (fark " + fuelMl + " birim), depo %" + describe(tankStartPercent)
+                + " → %" + describe(tankEndPercent) + ", kapanışta ham depo " + describe(end.fuelPercent));
         TripRecord record = build(end, zeroSince);
         if (record != null) {
             listener.onTripClosed(record);
@@ -300,11 +342,11 @@ public final class TripTracker {
                 startReading.odoKm,
                 endOdo,
                 distance,
-                TripReading.percent(startReading.fuelPercent),
-                TripReading.percent(end.fuelPercent),
+                tankStartPercent,
+                tankEndPercent,
                 fuelMl,
-                startReading.rangeKm,
-                end.rangeKm,
+                rangeStart,
+                rangeEnd,
                 avg,
                 maxSpeed,
                 movingMs,

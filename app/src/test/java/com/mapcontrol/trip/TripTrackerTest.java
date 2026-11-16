@@ -185,9 +185,115 @@ public class TripTrackerTest {
         assertEquals(10, TripReading.percent(100));
         assertEquals(69, TripReading.percent(694));
         assertEquals(100, TripReading.percent(1000));
-        assertEquals(100, TripReading.percent(1500));
+        assertEquals(TripReading.INVALID, TripReading.percent(1001)); // gösterge kırpar, yolculuk çöp sayar
+        assertEquals(TripReading.INVALID, TripReading.percent(1500));
         assertEquals(TripReading.INVALID, TripReading.percent(-5));
         assertEquals(TripReading.INVALID, TripReading.percent(TripReading.INVALID));
+    }
+
+    private static TripReading tank(int odo, int rawPercent, int rangeKm, int speed) {
+        return new TripReading(odo, 100_000, rawPercent, rangeKm, speed, Double.NaN, Double.NaN);
+    }
+
+    private void close(long offAt, TripReading offReading) {
+        tracker.update(0, offAt, offReading);
+        tracker.update(0, offAt + TripTracker.END_DEBOUNCE_MS, offReading);
+    }
+
+    @Test
+    public void tankGarbageAfterPowerDropIsIgnoredAtTheEnd() {
+        tracker.update(2, 0, tank(14_000, 600, 450, 30));
+        tracker.update(2, 2_000, tank(14_010, 580, 430, 60));
+        close(4_000, tank(14_020, 0x7FFF_FFFF, 65_535, 0)); // güç düştü: anlamsız değerler
+
+        TripRecord t = closed.get(0);
+        assertEquals(58, t.fuelEndPercent);
+        assertEquals(430, t.rangeEndKm);
+    }
+
+    @Test
+    public void tankZeroAfterPowerDropDoesNotFakeARefuelLater() {
+        tracker.update(2, 0, tank(14_000, 600, 450, 30));
+        tracker.update(2, 2_000, tank(14_010, 580, 430, 60));
+        close(4_000, tank(14_020, 0, 0, 0));
+
+        assertEquals(58, closed.get(0).fuelEndPercent);
+        assertEquals(430, closed.get(0).rangeEndKm);
+    }
+
+    @Test
+    public void tankStartWaitsForTheGaugeToSettleAfterRefuel() {
+        // Yakıt alındı; gösterge açılışta önce yok, sonra eski seviye, sonra yeni seviye verir.
+        tracker.update(2, 0, tank(14_000, TripReading.INVALID, TripReading.INVALID, 0));
+        tracker.update(2, 2_000, tank(14_000, 150, 100, 0));
+        tracker.update(2, 30_000, tank(14_001, 750, 500, 40));
+        tracker.update(2, 60_000, tank(14_002, 748, 498, 50));
+        close(120_000, tank(14_010, 0x7FFF_FFFF, 0, 0));
+
+        TripRecord t = closed.get(0);
+        assertEquals(75, t.fuelStartPercent);
+        assertEquals(75, t.fuelEndPercent);
+        assertEquals(500, t.rangeStartKm);
+        assertEquals(498, t.rangeEndKm);
+    }
+
+    @Test
+    public void tankRiseAfterTheSettleWindowDoesNotMoveTheStart() {
+        tracker.update(2, 0, tank(14_000, 600, 450, 30));
+        tracker.update(2, TripTracker.FUEL_SETTLE_MS + 1_000, tank(14_005, 900, 700, 30)); // oturma süresi bitti
+        close(TripTracker.FUEL_SETTLE_MS + 3_000, tank(14_010, 900, 700, 0));
+
+        assertEquals(60, closed.get(0).fuelStartPercent);
+        assertEquals(90, closed.get(0).fuelEndPercent);
+    }
+
+    @Test
+    public void tankUnreadableDuringSettleUsesTheFirstValidReadingAfterwards() {
+        tracker.update(2, 0, tank(14_000, TripReading.INVALID, TripReading.INVALID, 30));
+        tracker.update(2, TripTracker.FUEL_SETTLE_MS + 1_000, tank(14_005, 400, 300, 30));
+        tracker.update(2, TripTracker.FUEL_SETTLE_MS + 2_000, tank(14_006, 450, 320, 30));
+        close(TripTracker.FUEL_SETTLE_MS + 3_000, tank(14_010, 450, 320, 0));
+
+        assertEquals(40, closed.get(0).fuelStartPercent);
+        assertEquals(300, closed.get(0).rangeStartKm);
+    }
+
+    @Test
+    public void tankNeverReadStaysInvalid() {
+        tracker.update(2, 0, tank(14_000, TripReading.INVALID, -1, 30));
+        close(2_000, tank(14_010, 500, 400, 0)); // yalnızca kapanışta geldi: güvenilmez
+
+        assertEquals(TripReading.INVALID, closed.get(0).fuelStartPercent);
+        assertEquals(TripReading.INVALID, closed.get(0).fuelEndPercent);
+        assertEquals(TripReading.INVALID, closed.get(0).rangeEndKm);
+    }
+
+    @Test
+    public void refuelBetweenTripsShowsUpAsEndToStartRise() {
+        tracker.update(2, 0, tank(14_000, 200, 150, 30));
+        tracker.update(2, 2_000, tank(14_010, 150, 100, 30));
+        close(4_000, tank(14_010, 0x7FFF_FFFF, 0, 0));
+
+        long base = 10_000_000L; // yakıt alındı, kontak yeniden açıldı
+        tracker.update(2, base, tank(14_011, 150, 100, 0));      // gösterge henüz eski
+        tracker.update(2, base + 20_000, tank(14_011, 760, 510, 20));
+        close(base + 60_000, tank(14_020, 0, 0, 0));
+
+        assertEquals(2, closed.size());
+        assertEquals(15, closed.get(0).fuelEndPercent);
+        assertEquals(76, closed.get(1).fuelStartPercent);
+    }
+
+    @Test
+    public void tankIsTrackedAgainAfterAnAccessoryBlip() {
+        tracker.update(2, 0, tank(14_000, 600, 450, 30));
+        tracker.update(0, 2_000, tank(14_005, 0, 0, 0));           // blip: güç düştü
+        tracker.update(2, 10_000, tank(14_005, 590, 440, 30));     // geri geldi
+        close(20_000, tank(14_010, 0, 0, 0));
+
+        assertEquals(1, closed.size());
+        assertEquals(59, closed.get(0).fuelEndPercent);
+        assertEquals(440, closed.get(0).rangeEndKm);
     }
 
     @Test

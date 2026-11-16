@@ -34,6 +34,7 @@ public final class LinkState {
     }
 
     static void begin() {
+        com.mapcontrol.util.DiagJournal.event("gps", "link basladi");
         status = LinkStatus.WAITING_PHONE;
         clearFix();
         running = true;
@@ -42,6 +43,9 @@ public final class LinkState {
     /** Bağlantı durduktan sonra yok sayılır; geç kalan iş parçacıkları son durumu ezmesin. */
     static void update(LinkStatus newStatus) {
         if (running) {
+            if (status != newStatus) {
+                com.mapcontrol.util.DiagJournal.event("gps", "durum " + status + " -> " + newStatus);
+            }
             status = newStatus;
         }
     }
@@ -54,10 +58,12 @@ public final class LinkState {
     }
 
     static void fail(LinkStatus reason) {
+        com.mapcontrol.util.DiagJournal.event("gps", "basarisiz: " + reason);
         status = reason;
     }
 
     static void end() {
+        com.mapcontrol.util.DiagJournal.event("gps", "link durdu (son durum " + status + ")");
         running = false;
         if (!status.sticky) {
             status = LinkStatus.READY;

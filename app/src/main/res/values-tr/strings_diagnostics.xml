@@ -6,7 +6,7 @@
     <string name="diag_busy">Kayıt hazırlanıyor…</string>
     <string name="diag_consent_title">Log kaydı geliştiriciye gönderilsin mi?</string>
     <string name="diag_consent_subtitle">Yalnızca şimdi, bir kez okunur</string>
-    <string name="diag_consent_message">Şunlar toplanıp hesabınıza gönderilir; yalnızca geliştirici okuyabilir:\n\n• Son sistem çökme, donma ve yeniden başlatma kayıtları (Bluetooth ve kamera servisleri dahil)\n• MapControl\'ın son kapanma nedenleri\n• Bluetooth durumu\n• Son sistem günlüğü\n\nTelefon numaraları, e-posta adresleri, Bluetooth adresleri, cihaz adları ve konum bilgisi gönderilmeden önce maskelenir. Kayıtlar 30 gün sonra silinir. Arka planda hiçbir şey kaydedilmez.</string>
+    <string name="diag_consent_message">Şunlar toplanıp hesabınıza gönderilir; yalnızca geliştirici okuyabilir:\n\n• Son sistem çökme, donma ve yeniden başlatma kayıtları (Bluetooth ve kamera servisleri dahil)\n• MapControl\'ın son kapanma nedenleri\n• Bluetooth durumu\n• Son sistem günlüğü\n• İzinlerin, hizmetlerin ve ekranların o anki durumu\n• MapControl\'ın olay günlüğü (kurulum, izin ve hizmet olayları)\n\nTelefon numaraları, e-posta adresleri, Bluetooth adresleri, cihaz adları ve konum bilgisi gönderilmeden önce maskelenir. Kayıtlar 30 gün sonra silinir. Olay günlüğü yalnızca bu cihazda tutulur (en fazla ~400 KB) ve yalnızca siz gönderdiğinizde paylaşılır.</string>
     <string name="diag_consent_send">Gönder</string>
     <string name="diag_sent">Kayıt gönderildi. Teşekkürler!</string>
     <string name="diag_sent_ref">Kayıt gönderildi (no. %1$s). Teşekkürler!</string>

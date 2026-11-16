@@ -109,7 +109,11 @@ public final class ApkSessionInstaller {
             }
             PendingIntent pending = PendingIntent.getActivity(activity, REQUEST_CODE, callback, flags);
             session.commit(pending.getIntentSender());
+            DiagJournal.event("kurulum", "session commit: " + apkFile.getName() + " " + (apkFile.length() >> 10) + " KB"
+                    + " sessiz(cihaz sahibi)=" + (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    && isDeviceOwner(activity)));
         } catch (Exception e) {
+            DiagJournal.event("kurulum", "session hatasi: " + apkFile.getName() + " " + e);
             try {
                 session.abandon();
             } catch (Exception ignored) {
@@ -140,8 +144,10 @@ public final class ApkSessionInstaller {
 
         int status = extras.getInt(PackageInstaller.EXTRA_STATUS);
         String message = extras.getString(PackageInstaller.EXTRA_STATUS_MESSAGE);
+        DiagJournal.event("kurulum", "session sonucu: " + statusName(status)
+                + " paket=" + extras.getString(PackageInstaller.EXTRA_PACKAGE_NAME) + " mesaj=" + message);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            InstallerConfirmClicker.arm();
+            InstallerConfirmClicker.arm(activity);
             Intent confirm = readConfirmIntent(extras);
             if (confirm != null) {
                 confirm.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -178,6 +184,41 @@ public final class ApkSessionInstaller {
             return extras.getParcelable(Intent.EXTRA_INTENT, Intent.class);
         }
         return extras.getParcelable(Intent.EXTRA_INTENT);
+    }
+
+    private static boolean isDeviceOwner(Activity activity) {
+        try {
+            android.app.admin.DevicePolicyManager dpm =
+                    (android.app.admin.DevicePolicyManager) activity.getSystemService(Activity.DEVICE_POLICY_SERVICE);
+            return dpm != null && dpm.isDeviceOwnerApp(activity.getPackageName());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    static String statusName(int status) {
+        switch (status) {
+            case PackageInstaller.STATUS_PENDING_USER_ACTION:
+                return "ONAY_BEKLIYOR";
+            case PackageInstaller.STATUS_SUCCESS:
+                return "BASARILI";
+            case PackageInstaller.STATUS_FAILURE:
+                return "HATA";
+            case PackageInstaller.STATUS_FAILURE_BLOCKED:
+                return "ENGELLENDI";
+            case PackageInstaller.STATUS_FAILURE_ABORTED:
+                return "IPTAL";
+            case PackageInstaller.STATUS_FAILURE_INVALID:
+                return "GECERSIZ_APK";
+            case PackageInstaller.STATUS_FAILURE_CONFLICT:
+                return "CAKISMA";
+            case PackageInstaller.STATUS_FAILURE_STORAGE:
+                return "DEPOLAMA";
+            case PackageInstaller.STATUS_FAILURE_INCOMPATIBLE:
+                return "UYUMSUZ";
+            default:
+                return String.valueOf(status);
+        }
     }
 
     private static void dispatch(int status, @Nullable String message) {

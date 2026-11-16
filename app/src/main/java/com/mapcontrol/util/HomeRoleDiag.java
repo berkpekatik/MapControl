@@ -31,6 +31,8 @@ final class HomeRoleDiag {
     /** @param service erişilebilirlik hizmeti bağlı değilse null; o zaman pencere yapısı yazılamaz */
     static void report(Context context, AccessibilityService service, String reason) {
         Log.w(TAG, "HOME otomatik onay başarısız: " + reason);
+        DiagJournal.event("ana ekran", "otomatik onay basarisiz: " + reason
+                + " erisilebilirlik=" + (service != null ? "bagli" : "BAGLI DEGIL"));
         StringBuilder out = new StringBuilder();
         out.append("time: ").append(new Date()).append('\n');
         out.append("reason: ").append(reason).append('\n');
@@ -73,9 +75,16 @@ final class HomeRoleDiag {
 
     static final String UNCHANGED_REASON = "onaya basıldı ama HOME değişmedi";
 
-    private static File file(Context context) {
+    static File file(Context context) {
         File dir = context.getExternalFilesDir(null);
         return dir == null ? null : new File(dir, FILE_NAME);
+    }
+
+    /** Görünen pencereler (paket adları) ve sistem yükleyici/izin penceresinin düğüm ağacı; olay günlüğü için. */
+    static String describeWindows(AccessibilityService service) {
+        StringBuilder out = new StringBuilder();
+        appendWindows(service, out);
+        return out.toString();
     }
 
     private static void appendWindows(AccessibilityService service, StringBuilder out) {

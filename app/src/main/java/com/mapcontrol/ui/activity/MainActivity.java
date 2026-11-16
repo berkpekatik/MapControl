@@ -143,7 +143,11 @@ public class MainActivity extends AppCompatActivity {
     };
     private TextView tvLogs;
     private ScrollView scrollView;
+    /** Log sekmesi metni; sınırsız büyüyüp her satırda tamamı yeniden çizilince ana iş parçacığını kasıyordu. */
     private final StringBuilder logBuffer = new StringBuilder();
+    static final int LOG_BUFFER_MAX_CHARS = 64 * 1024;
+    static final int LOG_BUFFER_KEEP_CHARS = 48 * 1024;
+    private volatile boolean logRenderPending;
     private Handler handler;
     private volatile boolean isNavigationOpen = false; // Navigasyon durumu
     private String targetPackage = ""; // Seçilen uygulama paketi
@@ -186,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
     private android.view.View camera360TabContent;
     private SplitScreenTabBuilder splitScreenTabBuilder;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
-    private int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
+    private volatile int currentTab = 0; // 0=Wi-Fi, 1=Web, 2=(boş; Profil kaldırıldı), 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
     private WebServerManager webServerManager; // HTTP Server Manager (sahibi WebServerHost; activity kapanınca kapanmaz)
     private WebServerHost webServerHost;
     private WebServerManager.WebServerListener webServerListener;
@@ -731,7 +735,9 @@ public class MainActivity extends AppCompatActivity {
         logTabBuilder = new LogTabBuilder(this, new LogTabBuilder.LogCallback() {
             @Override
             public void onClearLogs() {
-                logBuffer.setLength(0);
+                synchronized (logBuffer) {
+                    logBuffer.setLength(0);
+                }
                 if (logTabBuilder != null && logTabBuilder.getLogsTextView() != null) {
                     logTabBuilder.getLogsTextView().setText("");
                 }
@@ -1215,6 +1221,7 @@ public class MainActivity extends AppCompatActivity {
             addTabChild(parent, projectionScrollView, matchParent);
         } else if (tabIndex == 4) {
             addTabChild(parent, logTabContent, matchParent);
+            renderLogs(); // sekme kapalıyken gelen satırlar çizilmedi
         } else if (tabIndex == 5) {
             addTabChild(parent, appsTabContent, matchParent);
         } else if (tabIndex == 6) {
@@ -1908,13 +1915,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 4:
                 if (logTabBuilder != null) {
-                    CharSequence logs = tvLogs != null ? tvLogs.getText() : logBuffer.toString();
                     logTabContent = logTabBuilder.build();
                     tvLogs = logTabBuilder.getLogsTextView();
                     scrollView = logTabBuilder.getScrollView();
-                    if (tvLogs != null && logs != null) {
-                        tvLogs.setText(logs);
-                    }
+                    renderLogs();
                 }
                 break;
             case 5:
@@ -2325,6 +2329,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void log(String msg) {
+        // Log sekmesi yalnızca bellekte; tanılama paketine girsin diye kalıcı günlüğe de yazılır.
+        com.mapcontrol.util.DiagJournal.uiLog(msg);
         String timestamp = now();
         String line = "[" + timestamp + "] " + msg + "\n";
         
@@ -2342,17 +2348,45 @@ public class MainActivity extends AppCompatActivity {
             coloredLine = "[" + timestamp + "] DBG " + msg.replace("[DEBUG]", "").trim() + "\n";
         }
         
-        logBuffer.append(coloredLine);
-        handler.post(() -> {
-            // UI henüz kurulmadan (initializeApp başında) gelen loglar buffer'da kalır
-            if (tvLogs == null) {
-                return;
-            }
-            tvLogs.setText(logBuffer.toString());
-            if (scrollView != null) {
-                scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
-            }
-        });
+        synchronized (logBuffer) {
+            logBuffer.append(coloredLine);
+            trimLogBuffer(logBuffer);
+        }
+        // Yalnız Log sekmesi açıkken çizilir; arka arkaya gelen satırlar tek çizimde birleşir.
+        if (currentTab == 4 && !logRenderPending) {
+            logRenderPending = true;
+            handler.post(this::renderLogs);
+        }
+    }
+
+    /** Log sekmesi metni: tüm buffer bir kez verilir (sekme açılınca ve açıkken gelen satırlarda). */
+    private void renderLogs() {
+        logRenderPending = false;
+        // UI henüz kurulmadan (initializeApp başında) gelen loglar buffer'da kalır
+        if (tvLogs == null || currentTab != 4) {
+            return;
+        }
+        String text;
+        synchronized (logBuffer) {
+            text = logBuffer.toString();
+        }
+        tvLogs.setText(text);
+        if (scrollView != null) {
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+        }
+    }
+
+    /**
+     * Buffer'ı {@link #LOG_BUFFER_MAX_CHARS} altında tutar: aşınca en eski satırlar atılıp
+     * {@link #LOG_BUFFER_KEEP_CHARS} kalır (her satırda değil, ara ara kesilir). Satır ortasından kesilmez.
+     */
+    static void trimLogBuffer(StringBuilder buffer) {
+        if (buffer.length() <= LOG_BUFFER_MAX_CHARS) {
+            return;
+        }
+        int cut = buffer.length() - LOG_BUFFER_KEEP_CHARS;
+        int newline = buffer.indexOf("\n", cut);
+        buffer.delete(0, newline < 0 ? cut : newline + 1);
     }
 
 

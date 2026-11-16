@@ -30,13 +30,14 @@ import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * "Log Kaydını Geliştiriciye Gönder" için tek seferlik tanılama paketi (gzip metin). Arka planda sürekli kayıt
- * YOKTUR: yalnızca kullanıcı onaylayınca, sistemin zaten tuttuğu kayıtlar okunur:
+ * "Log Kaydını Geliştiriciye Gönder" için tek seferlik tanılama paketi (gzip metin). Yalnızca kullanıcı onaylayınca
+ * toplanır; arka planda yazılan tek şey cihazda kalan küçük olay günlüğüdür ({@link DiagJournal}):
  * <ol>
+ *   <li>Gönderim anındaki mantıksal durum ({@link DiagnosticsSnapshot}) ve kalıcı olay günlüğü ({@link DiagJournal}).</li>
  *   <li>Sürecin önceki ölümleri ve ANR thread dökümleri (ApplicationExitInfo).</li>
  *   <li>Sistem DropBox'ı: çökme/ANR/watchdog/yeniden başlatma kayıtları (araç resetlense de diskte kalır; BT
  *   servisi gibi sistem uygulamalarının çökmeleri de buradadır).</li>
- *   <li>BT durumu (dumpsys bluetooth_manager; DUMP izni yoksa hata satırı).</li>
+ *   <li>dumpsys accessibility, kendi hizmetlerimizin dumpsys dökümü ve BT durumu (DUMP izni yoksa hata satırı).</li>
  *   <li>logcat'in o anki tamponundan son satırlar (döküp çıkar).</li>
  * </ol>
  * Her satır {@link DiagnosticScrubber} ile maskelenip doğrudan gzip dosyasına yazılır (belleğe toplanmaz). Arka plan
@@ -45,7 +46,11 @@ import java.util.zip.GZIPOutputStream;
 public final class DiagnosticsCollector {
 
     /** Ham metin üst sınırı (gzip ~5-8 kat küçültür; sunucu 5 MB'a kadar alır). */
-    static final long MAX_RAW = 10L * 1024 * 1024;
+    static final long MAX_RAW = 12L * 1024 * 1024;
+    private static final long STATE_BUDGET = 256 * 1024;
+    private static final long JOURNAL_BUDGET = 512 * 1024;
+    private static final long ACCESSIBILITY_BUDGET = 512 * 1024;
+    private static final long SERVICES_BUDGET = 256 * 1024;
     private static final long EXITS_BUDGET = 1024 * 1024;
     private static final long DROPBOX_BUDGET = 2L * 1024 * 1024;
     private static final long BT_BUDGET = 512 * 1024;
@@ -76,8 +81,17 @@ public final class DiagnosticsCollector {
                 new GZIPOutputStream(new FileOutputStream(out), 64 * 1024), StandardCharsets.UTF_8), 64 * 1024)) {
             Sink total = new Sink(w, MAX_RAW, false);
             header(app, total);
+            // Mantıksal durum ve kalıcı günlük önce: logcat bütçeyi doldursa da kesilmesinler.
+            DiagnosticsSnapshot.write(app, total.section(STATE_BUDGET, false));
+            DiagnosticsSnapshot.journal(total.section(JOURNAL_BUDGET, false));
             exits(app, total.section(EXITS_BUDGET, false));
             dropbox(app, total.section(DROPBOX_BUDGET, false));
+            // Hangi erişilebilirlik hizmetleri gerçekten bağlı / çökmüş (Bound/Crashed services).
+            command(total.section(ACCESSIBILITY_BUDGET, false), "dumpsys accessibility",
+                    new String[] {"dumpsys", "accessibility"});
+            // Kendi hizmetlerimiz: başlatılmış mı, kim bağlı, yeniden başlatma sayısı.
+            command(total.section(SERVICES_BUDGET, false), "dumpsys activity services",
+                    new String[] {"dumpsys", "activity", "services", app.getPackageName()});
             command(total.section(BT_BUDGET, true), "dumpsys bluetooth_manager",
                     new String[] {"dumpsys", "bluetooth_manager"});
             command(total.section(LOGCAT_BUDGET, false), "logcat",

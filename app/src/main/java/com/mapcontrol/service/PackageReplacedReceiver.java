@@ -17,6 +17,7 @@ public class PackageReplacedReceiver extends BroadcastReceiver {
         if (intent == null || !Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction())) {
             return;
         }
+        com.mapcontrol.util.DiagJournal.event("surec", "uygulama guncellendi (MY_PACKAGE_REPLACED)");
         LauncherModeManager.restoreIfEnabled(context.getApplicationContext());
         MapControlService.skipClusterSplashOnNextCreate();
         BootReceiver.startServiceIfAutoStartEnabled(context);

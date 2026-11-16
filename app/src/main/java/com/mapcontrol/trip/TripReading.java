@@ -43,9 +43,21 @@ public final class TripReading {
         return value != INVALID && value >= 0;
     }
 
-    /** Depo yüzdesi her zaman onda birdir (694 → %69); tek kural {@link VehicleMetricsSnapshot#fuelPercentRounded}. */
+    /**
+     * Depo yüzdesi her zaman onda birdir (694 → %69); tek kural {@link VehicleMetricsSnapshot#fuelPercentRounded}.
+     * Gösterge 1000'in üstünü %100'e kırpar; yolculukta bu çöp sayılır (kontak kapanırken gelen anlamsız değer
+     * %100 yazılıp yakıt alımını gizlemesin).
+     */
     static int percent(int raw) {
+        if (raw > 1000) {
+            return INVALID;
+        }
         int rounded = VehicleMetricsSnapshot.fuelPercentRounded(raw);
         return rounded < 0 ? INVALID : rounded;
+    }
+
+    /** Menzil: negatif (0xFFFFFFFF dahil) ve 5000 km üstü geçersizdir. */
+    static boolean validRange(int km) {
+        return km != INVALID && km >= 0 && km <= 5_000;
     }
 }

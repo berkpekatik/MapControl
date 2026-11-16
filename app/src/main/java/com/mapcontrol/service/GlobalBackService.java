@@ -88,13 +88,14 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onInterrupt() {
-        // Service interrupted
+        com.mapcontrol.util.DiagJournal.event("erisilebilirlik", "onInterrupt");
     }
     
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        com.mapcontrol.util.DiagJournal.event("erisilebilirlik", "hizmet baglandi");
         // Ana ekran tuşu kuralı öndeki uygulamayı varsaymaz, şu an öndekini okur (HomePolicy).
         com.mapcontrol.launcher.HomeKey.onServiceConnected(this);
         if (YandexClusterNavOverlay.isEnabled(this)) {
@@ -105,6 +106,7 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
+        com.mapcontrol.util.DiagJournal.event("erisilebilirlik", "hizmet kapandi (onDestroy)");
         com.mapcontrol.launcher.HomeKey.onServiceDisconnected(this);
         InstallerConfirmClicker.disarm();
         stopYandexPoll();

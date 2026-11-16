@@ -17,6 +17,13 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public final class LauncherMediaNotificationListener extends NotificationListenerService {
 
     /** Her medya denetleyicisi (ana ekran kartı, spor, Mini gösterge) kendi dinleyicisini ekler; biri durunca ötekiler silinmez. */
+    /** Sistem dinleyiciyi gerçekten bağladı mı (ayarda açık olması yetmez; tanılama). */
+    private static volatile boolean connected;
+
+    public static boolean isConnected() {
+        return connected;
+    }
+
     private static final CopyOnWriteArraySet<Listener> listeners = new CopyOnWriteArraySet<>();
     private static final CopyOnWriteArraySet<Runnable> accessReadyWatchers = new CopyOnWriteArraySet<>();
     private static final CopyOnWriteArraySet<Runnable> accessLostWatchers = new CopyOnWriteArraySet<>();
@@ -46,6 +53,8 @@ public final class LauncherMediaNotificationListener extends NotificationListene
 
     @Override
     public void onListenerConnected() {
+        connected = true;
+        com.mapcontrol.util.DiagJournal.event("bildirim", "dinleyici baglandi");
         GoogleMapsNavNotificationCoordinator.onListenerConnected(this);
         GoogleMapsNavNotificationCoordinator.resyncActiveNotifications(this);
         NavigationSource.onListenerConnected(this);
@@ -75,6 +84,8 @@ public final class LauncherMediaNotificationListener extends NotificationListene
 
     @Override
     public void onListenerDisconnected() {
+        connected = false;
+        com.mapcontrol.util.DiagJournal.event("bildirim", "dinleyici koptu");
         GoogleMapsNavNotificationCoordinator.onListenerDisconnected();
         NavigationSource.onListenerDisconnected();
         BtSessionWatcher.stop();

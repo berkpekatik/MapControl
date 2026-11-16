@@ -87,6 +87,7 @@ object LauncherCrashGuard {
         if (d.tripped) e.putBoolean(KEY_TRIPPED, true).putBoolean(KEY_NOTICE, true)
         e.commit()
         if (d.tripped) {
+            try { com.mapcontrol.util.DiagJournal.eventNow("launcher", "cokme bekcisi tetiklendi: launcher modu kapatiliyor") } catch (_: Throwable) {}
             // Ayrı uyarı: "kaç araçta launcher modu otomatik kapandı" doğrudan sayılsın; asıl çökme ayrıca raporlanır.
             try { com.mapcontrol.GlitchTip.reportWarning("launcher_guard:tripped", tripExtras(error)) } catch (_: Throwable) {}
             try { onTripped?.run() } catch (_: Throwable) {}

@@ -78,6 +78,7 @@ public class VDBusManager {
         public void onVDConnected(VDServiceDef.ServiceType serviceType) {
             if (serviceType == VDServiceDef.ServiceType.SMS) {
                 callback.log("VDBus key listener: SMS service bağlandı, subscribe ediliyor");
+                com.mapcontrol.util.DiagJournal.event("vdbus", "SMS servisi baglandi");
                 subscribeToSmsKeyEvents(true);
             }
         }
@@ -86,6 +87,7 @@ public class VDBusManager {
         public void onVDDisconnected(VDServiceDef.ServiceType serviceType) {
             if (serviceType == VDServiceDef.ServiceType.SMS) {
                 callback.log("VDBus key listener: SMS service koptu, yeniden bağlanacak");
+                com.mapcontrol.util.DiagJournal.event("vdbus", "SMS servisi koptu");
                 synchronized (vdbusKeyLock) {
                     vdbusKeySubscribed = false;
                     vdbusSmsKeyEvent = null;
@@ -120,6 +122,7 @@ public class VDBusManager {
             }
         } catch (Exception e) {
             callback.log("VDBus init hatası: " + e.getMessage());
+            com.mapcontrol.util.DiagJournal.event("vdbus", "init hatasi: " + e);
         }
     }
 

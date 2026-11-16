@@ -22,6 +22,7 @@ public final class MapControlApplication extends Application {
     public void onCreate() {
         super.onCreate();
         GlitchTip.start(this);
+        com.mapcontrol.util.DiagJournal.init(this);
         com.mapcontrol.util.MainLoopShield.install();
         finishRecordingOnCrash();
         com.mapcontrol.util.ProcessExitLog.reportAsync(this);
@@ -63,6 +64,10 @@ public final class MapControlApplication extends Application {
         final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             try {
+                com.mapcontrol.util.DiagJournal.eventNow("cokme", crashSummary(thread, error));
+            } catch (Throwable ignored) {
+            }
+            try {
                 com.mapcontrol.dvr.DvrController.finishRecordingForCrash(CRASH_RECORDING_TIMEOUT_MS);
             } catch (Throwable ignored) {
             }
@@ -72,6 +77,26 @@ public final class MapControlApplication extends Application {
                 throw new RuntimeException(error);
             }
         });
+    }
+
+    /** Günlük için kısa özet: iş parçacığı, hata zinciri ve kendi kodumuzdaki ilk satır. */
+    private static String crashSummary(Thread thread, Throwable error) {
+        StringBuilder b = new StringBuilder("thread=").append(thread == null ? "?" : thread.getName());
+        Throwable t = error;
+        for (int depth = 0; t != null && depth < 4; depth++, t = t.getCause()) {
+            b.append(depth == 0 ? " | " : " | sebep: ").append(t.getClass().getName()).append(": ").append(t.getMessage());
+            StackTraceElement[] st = t.getStackTrace();
+            for (int i = 0; i < st.length && i < 40; i++) {
+                if (st[i].getClassName().startsWith("com.mapcontrol")) {
+                    b.append(" @ ").append(st[i]);
+                    break;
+                }
+            }
+            if (st.length > 0) {
+                b.append(" ilk=").append(st[0]);
+            }
+        }
+        return b.toString();
     }
 
     /**

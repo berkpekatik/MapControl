@@ -101,6 +101,8 @@ public final class InstallerConfirmClicker {
                 AccessibilityService service = GlobalBackService.getInstance();
                 if (service == null && home) {
                     reportHomeFailure(null, "geri sayım bitti, erişilebilirlik hizmeti kopuk");
+                } else if (service == null) {
+                    DiagJournal.event("kurulum", "geri sayim bitti ama erisilebilirlik hizmeti kopuk; basilamadi");
                 }
                 if (service != null) {
                     SCAN_EXEC.execute(() -> {
@@ -109,6 +111,10 @@ public final class InstallerConfirmClicker {
                             cooldownUntil = SystemClock.uptimeMillis() + COOLDOWN_MS;
                         }
                         Log.i(TAG, (home ? "HOME" : "INSTALL") + " click=" + clicked);
+                        if (!home) {
+                            DiagJournal.event("kurulum", clicked ? "INSTALL dugmesine basildi"
+                                    : "INSTALL dugmesine BASILAMADI; pencereler: " + safeDescribe(service));
+                        }
                     });
                 }
                 return;
@@ -130,13 +136,18 @@ public final class InstallerConfirmClicker {
     private InstallerConfirmClicker() {
     }
 
-    public static void arm() {
+    public static void arm(Context context) {
         userDismissed = false;
+        installArmedAt = SystemClock.uptimeMillis();
         AccessibilityService service = GlobalBackService.getInstance();
         if (service == null) {
+            DiagJournal.event("kurulum", "onay penceresi aciliyor; erisilebilirlik hizmeti BAGLI DEGIL"
+                    + " -> otomatik INSTALL yapilamaz (ayarda acik mi: "
+                    + GlobalBackService.isRegisteredInSystemAccessibilitySettings(context) + ")");
             pendingArm = true;
             return;
         }
+        DiagJournal.event("kurulum", "onay penceresi aciliyor; erisilebilirlik bagli, geri sayim baslatiliyor");
         if (stripShowing) {
             return;
         }
@@ -167,6 +178,9 @@ public final class InstallerConfirmClicker {
     }
 
     private static long lastEventLogMs;
+    /** Son kurulum onayı isteği (uptime ms); hemen ardından gelen pencere değişimleri günlüğe yazılır. */
+    private static volatile long installArmedAt;
+    private static final long ARMED_TRACE_MS = 20_000L;
 
     /** Teşhis: olay hangi paketten geliyor? (binder çağrısı yok, ucuz) */
     public static void onWindowEvent(AccessibilityService service, android.view.accessibility.AccessibilityEvent event) {
@@ -179,6 +193,12 @@ public final class InstallerConfirmClicker {
                         + " inFlight=" + SCAN_IN_FLIGHT.get() + " strip=" + stripShowing);
             }
             maybeShowHomeStrip(service, event);
+            if (event.getEventType() == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                    && installArmedAt != 0L && now - installArmedAt < ARMED_TRACE_MS) {
+                // Hangi paket/sınıf açıldı: yükleyici tanınmıyorsa (OEM paketi) burada görünür.
+                DiagJournal.event("kurulum", "pencere: pkg=" + pkg + " sinif=" + event.getClassName()
+                        + " yukleyici sayildi=" + isInstallerPackage(pkg) + " serit=" + stripShowing);
+            }
         }
         if (event != null && event.getEventType() == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             CharSequence pkg = event.getPackageName();
@@ -190,6 +210,7 @@ public final class InstallerConfirmClicker {
                         && !userDismissed && !stripShowing
                         && SystemClock.uptimeMillis() >= cooldownUntil) {
                     Log.i(TAG, "olay ile onay ekranı algılandı: " + cls);
+                    DiagJournal.event("kurulum", "olay ile onay ekrani algilandi: " + pkg + "/" + cls);
                     HANDLER.post(() -> {
                         if (!stripShowing && !userDismissed) {
                             showStrip(service);
@@ -434,11 +455,13 @@ public final class InstallerConfirmClicker {
             windowManager.addView(bar, params);
             stripView = bar;
             stripShowing = true;
+            DiagJournal.event("kurulum", "geri sayim seridi acildi (" + (homeStrip ? "HOME" : "INSTALL") + ")");
             sawInstallerWhileStrip = false; // arka plan taramasi gunceller
             HANDLER.removeCallbacks(TICK);
             HANDLER.postDelayed(TICK, 1000L);
         } catch (Exception e) {
             Log.w(TAG, "Şerit açılamadı", e);
+            DiagJournal.event("kurulum", "geri sayim seridi ACILAMADI: " + e);
             stripShowing = false;
             stripView = null;
             countdownView = null;
@@ -457,6 +480,7 @@ public final class InstallerConfirmClicker {
 
     private static void cancelInstall() {
         AccessibilityService service = GlobalBackService.getInstance();
+        DiagJournal.event("kurulum", "kullanici geri sayimi iptal etti");
         userDismissed = true;
         dismissStrip();
         if (service != null) {
@@ -794,6 +818,14 @@ public final class InstallerConfirmClicker {
             if (node != null) {
                 node.recycle();
             }
+        }
+    }
+
+    private static String safeDescribe(AccessibilityService service) {
+        try {
+            return HomeRoleDiag.describeWindows(service);
+        } catch (Throwable t) {
+            return "okunamadi: " + t;
         }
     }
 

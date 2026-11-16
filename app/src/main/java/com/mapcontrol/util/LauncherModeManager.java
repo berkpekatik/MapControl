@@ -71,6 +71,7 @@ public final class LauncherModeManager {
 
     /** Tercihi kaydeder ve HOME activity-alias'ını buna göre etkinleştirir/devre dışı bırakır. */
     public static void setEnabled(Context context, boolean enabled) {
+        DiagJournal.event("launcher", "launcher modu " + (enabled ? "acildi" : "kapatildi"));
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean(KEY_LAUNCHER_MODE_ENABLED, enabled).apply();
         setHomeAliasEnabled(context, enabled);

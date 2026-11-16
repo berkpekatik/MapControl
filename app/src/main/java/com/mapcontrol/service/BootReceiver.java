@@ -30,6 +30,7 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
         String action = intent.getAction();
+        com.mapcontrol.util.DiagJournal.event("acilis", "yayin: " + action);
         if (!Intent.ACTION_BOOT_COMPLETED.equals(action)
                 && !ACTION_QUICKBOOT_POWERON.equals(action)
                 && !ACTION_HTC_QUICKBOOT_POWERON.equals(action)) {
@@ -42,6 +43,7 @@ public class BootReceiver extends BroadcastReceiver {
         LauncherModeManager.restoreIfEnabled(app);
         SharedPreferences prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         if (!prefs.getBoolean(KEY_BOOT_AUTO_START, true)) {
+            com.mapcontrol.util.DiagJournal.event("acilis", "otomatik baslatma kapali, hizmet baslatilmadi");
             return;
         }
 
@@ -67,7 +69,8 @@ public class BootReceiver extends BroadcastReceiver {
             } else {
                 app.startService(serviceIntent);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            com.mapcontrol.util.DiagJournal.event("acilis", "hizmet baslatilamadi: " + e);
         }
     }
 }

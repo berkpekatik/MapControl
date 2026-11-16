@@ -156,6 +156,11 @@ public final class DvrController {
 
     private static volatile DvrController instance;
 
+    /** Oluşturmadan mevcut örneği döndürür (tanılama: yan etkisiz okuma). */
+    public static DvrController peek() {
+        return instance;
+    }
+
     public static synchronized DvrController get(Context context) {
         if (instance == null) {
             instance = new DvrController(context.getApplicationContext());
@@ -373,6 +378,7 @@ public final class DvrController {
         main.post(() -> {
             if (mode == powerMode) return;
             Log.i(TAG, "powermode " + powerMode + " -> " + mode);
+            com.mapcontrol.util.DiagJournal.event("arac", "guc modu " + powerMode + " -> " + mode);
             powerMode = mode;
             if (mode != 2) {
                 suspended = false;
