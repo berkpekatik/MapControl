@@ -5,6 +5,7 @@ import android.service.notification.StatusBarNotification;
 
 import com.mapcontrol.launcher.NavigationSource;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
+import com.mapcontrol.nav.HudNavigationManager;
 import com.mapcontrol.util.LauncherModeManager;
 
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -58,6 +59,7 @@ public final class LauncherMediaNotificationListener extends NotificationListene
         GoogleMapsNavNotificationCoordinator.onListenerConnected(this);
         GoogleMapsNavNotificationCoordinator.resyncActiveNotifications(this);
         NavigationSource.onListenerConnected(this);
+        HudNavigationManager.get(this).onListenerConnected(this);
         // Telefon önceliği yalnız launcher modu açıkken çalışır; mod kapalıyken Bluetooth oturumu izlenmez.
         if (LauncherModeManager.isEnabled(this)) {
             BtSessionWatcher.start(this);
@@ -74,12 +76,14 @@ public final class LauncherMediaNotificationListener extends NotificationListene
     public void onNotificationPosted(StatusBarNotification sbn) {
         GoogleMapsNavNotificationCoordinator.onNotificationPosted(this, sbn);
         NavigationSource.onNotificationPosted(this, sbn);
+        HudNavigationManager.get(this).onNotificationPosted(this, sbn);
     }
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
         GoogleMapsNavNotificationCoordinator.onNotificationRemoved(this, sbn);
         NavigationSource.onNotificationRemoved(this, sbn);
+        HudNavigationManager.get(this).onNotificationRemoved(this, sbn);
     }
 
     @Override
@@ -88,9 +92,16 @@ public final class LauncherMediaNotificationListener extends NotificationListene
         com.mapcontrol.util.DiagJournal.event("bildirim", "dinleyici koptu");
         GoogleMapsNavNotificationCoordinator.onListenerDisconnected();
         NavigationSource.onListenerDisconnected();
+        HudNavigationManager.get(this).onListenerDisconnected();
         BtSessionWatcher.stop();
         for (Runnable watcher : accessLostWatchers) {
             watcher.run();
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        HudNavigationManager.get(this).onListenerDisconnected();
+        super.onDestroy();
     }
 }

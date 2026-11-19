@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hud_nav_title">Ön cam HUD yönlendirmesi</string>
+    <string name="hud_nav_description">Google Maps veya Yandex yönlendirmesini aracın yerleşik HUD navigasyon alanına aktarır. Konumu ve görünümü aracın HUD yazılımı yönetir.</string>
+    <string name="hud_nav_enable">Yönlendirmeyi HUD’da göster</string>
+    <string name="hud_nav_provider">Navigasyon kaynağı</string>
+    <string name="hud_nav_auto_provider">Otomatik (son güncellenen etkin navigasyon)</string>
+    <string name="hud_nav_off">HUD yönlendirmesi kapalı.</string>
+    <string name="hud_nav_need_notifications">Bildirim erişimi ve dinleyici bağlantısı bekleniyor.</string>
+    <string name="hud_nav_waiting">Hazır. Google Maps veya Yandex yönlendirmesi bekleniyor.</string>
+    <string name="hud_nav_showing">Yönlendirme verileri yerleşik HUD arayüzüne gönderiliyor.</string>
+    <string name="hud_nav_permissions">Bildirim erişimini aç</string>
+    <string name="hud_nav_test">Yerleşik HUD’da 10 saniyelik test</string>
+    <string name="hud_nav_enable_first">Önce HUD yönlendirmesini açın.</string>
+    <string name="hud_nav_yandex_access">Yandex Maps öndeyken mesafe ve yol adı için MapControl erişilebilirlik izni gerekir. Dönüş okları rehberlik bildiriminden alınır.</string>
+    <string name="hud_nav_accessibility">Erişilebilirlik ayarlarını aç</string>
+    <string name="hud_nav_need_vehicle">Araç HUD servisi bağlantısı bekleniyor.</string>
+    <string name="hud_nav_sending">Yönlendirme araç HUD arayüzüne aktarılıyor…</string>
+    <string name="hud_nav_send_error">HUD verileri gönderilemedi. Bağlantı yeniden denenecek.</string>
+</resources>

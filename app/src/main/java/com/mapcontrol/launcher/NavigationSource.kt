@@ -64,6 +64,8 @@ object NavigationSource {
         Handler(t.looper)
     }
     private val listeners = CopyOnWriteArraySet<(NavigationState) -> Unit>()
+    /** RemoteViews önbelleklerine launcher ve HUD aynı seri iş parçacığından erişir. */
+    internal val parsingHandler: Handler get() = worker
 
     /** Bildirimden okunan gerçek durum. */
     @Volatile private var real: NavigationState = NavigationState.NONE
@@ -248,6 +250,10 @@ object NavigationSource {
     } catch (e: Exception) {
         sbn.postTime.hashCode()
     }
+
+    /** HUD kendi bildirim seçimini yapar; launcher'ın harita tercihini değiştirmeden aynı çözümleyiciyi kullanır. */
+    internal fun parseForHud(context: Context, sbn: StatusBarNotification): NavigationState? =
+        if (sbn.packageName in PACKAGES) parse(context, sbn)?.copy(sourcePackage = sbn.packageName) else null
 
     private fun parse(context: Context, sbn: StatusBarNotification): NavigationState? {
         val t0 = if (BuildConfig.DEBUG) SystemClock.elapsedRealtime() else 0L

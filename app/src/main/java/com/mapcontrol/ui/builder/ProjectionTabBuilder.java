@@ -71,6 +71,8 @@ public class ProjectionTabBuilder {
     private final ProjectionCallback callback;
     private final Handler handler;
 
+    private FeatureGridLayout featureGrid;
+    private View hudNavigationCard;
     private ScrollView scrollView;
     private LinearLayout projectionTabContent;
     private TextView targetAppLabel;
@@ -114,6 +116,8 @@ public class ProjectionTabBuilder {
         createClusterControlCard(projectionTabContent);
 
         FeatureGridLayout grid = new FeatureGridLayout(context);
+        featureGrid = grid;
+        hudNavigationCard = null;
         projectionTabContent.addView(grid, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -124,6 +128,7 @@ public class ProjectionTabBuilder {
         createMapSwipeCard(grid);
         createGoogleMapsClusterCard(grid);
         createYandexClusterCard(grid);
+        syncHudNavigationCard();
 
         handler.post(this::refreshProjectionStatusUi);
 
@@ -577,7 +582,20 @@ public class ProjectionTabBuilder {
                 16 * context.getResources().getDisplayMetrics().density));
     }
 
+    private void syncHudNavigationCard() {
+        boolean enabled = com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(context);
+        if (enabled && hudNavigationCard == null && featureGrid != null) {
+            hudNavigationCard = HudNavigationCard.create(context);
+            featureGrid.addCard(hudNavigationCard);
+        }
+        if (hudNavigationCard != null) {
+            hudNavigationCard.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        }
+    }
+
     public void refreshProjectionStatusUi() {
+        syncHudNavigationCard();
+        com.mapcontrol.nav.HudNavigationManager.get(context).refresh();
         if (projectionStatusText == null) {
             return;
         }
