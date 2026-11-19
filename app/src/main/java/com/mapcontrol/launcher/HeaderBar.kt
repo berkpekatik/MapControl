@@ -32,6 +32,7 @@ class HeaderBar(
     private val onPhonePair: (() -> Unit)? = null,
     /** Kırmızı REC hapına dokunma: Kamera 360 sekmesi. */
     private val onRecording: () -> Unit = {},
+    private val showDriveBadge: Boolean = true,
 ) : LauncherWidget, Themeable {
 
     private val time = text(context, LauncherTheme.TIME_SP, medium = true)
@@ -245,7 +246,7 @@ class HeaderBar(
         leftGroup.addView(squareButton(R.drawable.ic_sahne_pen_fill, context.getString(R.string.launcher_edit_title), onEditHome))
         addRecChip()
 
-        driveBadge()?.let { rightGroup.addView(it) }
+        if (showDriveBadge) driveBadge()?.let { rightGroup.addView(it) }
         rightGroup.addView(date)
         rightGroup.addView(gap(context, 20))
         rightGroup.addView(weatherCapsule())

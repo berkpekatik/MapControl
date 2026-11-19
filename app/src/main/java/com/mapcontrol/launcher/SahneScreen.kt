@@ -42,13 +42,15 @@ class SahneScreen(
     private var stored: SahneLayout = parkStore.load()
     private val shown: SahneLayout get() = stored
 
-    private val stage = SahneStage(activity)
+    /** Dikey Jaecoo ekranında araç yukarı bakar ve dört kart altta tek sıraya dizilir. */
+    private val portrait = parkStore.vehicle.portrait
+    private val singleRow = (portrait && com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(activity)) ||
+        LauncherDemo.portraitLayoutPreview(activity)
+    private val stage = SahneStage(activity, verticalLayout = singleRow)
     private val leftPanel = GlassPanel(activity, glow = false)
     private val rightPanel = GlassPanel(activity, glow = false)
     /** Dört panelli biçimde (Tiggo 8) her yanın alt paneli; iki panelli biçimde hiç eklenmez. */
     private val quad = parkStore.quad
-    /** Dikey ekran (Jaecoo): sahne üstte tam genişlik, dört panel altında 2×2 ([SahnePortrait]). */
-    private val portrait = parkStore.vehicle.portrait
     private val leftLowerPanel = GlassPanel(activity, glow = false)
     private val rightLowerPanel = GlassPanel(activity, glow = false)
     private val panels: List<GlassPanel> =
@@ -78,6 +80,7 @@ class SahneScreen(
         panels.forEach { addView(it) }
         // Dört panelde her panel Tiggo 7 panelinin tasarım yüksekliğinde kurulur ve sığacak kadar küçültülür.
         if (quad) panels.forEach { it.naturalHeightDp = NATURAL_PANEL_H_DP }
+        if (singleRow) panels.forEach { it.naturalWidthDp = PANEL_W.toInt() }
         addView(strip)
         panels.indices.forEach { addOverlay(SahneSlotRef(SahneSlotKind.PANEL, it)) }
         (0 until STRIP_SLOTS).forEach { addOverlay(SahneSlotRef(SahneSlotKind.STRIP, it)) }
@@ -721,7 +724,10 @@ class SahneScreen(
     private fun panelHeight(bandH: Int, gapV: Int): Int = if (quad) (bandH - gapV) / 2 else bandH
 
     private fun portraitGeometry(w: Int, h: Int): SahnePortrait.Geometry = SahnePortrait.geometry(
-        w, h, context.dp(STRIP_H_DP), context.dp(GAP_V_DP), context.dp(GAP_V_DP), context.dp(SahnePortrait.STAGE_MIN_DP))
+        w, h, context.dp(STRIP_H_DP), context.dp(GAP_V_DP), context.dp(GAP_V_DP), context.dp(SahnePortrait.STAGE_MIN_DP),
+        stageFraction = if (singleRow) 0.79f else SahnePortrait.STAGE_FRACTION,
+        singleRow = singleRow,
+    )
 
     private fun exactly(px: Int) = MeasureSpec.makeMeasureSpec(maxOf(0, px), MeasureSpec.EXACTLY)
 

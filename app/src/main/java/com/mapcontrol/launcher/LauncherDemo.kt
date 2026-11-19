@@ -20,6 +20,10 @@ internal object LauncherDemo {
 
     const val EXTRA = "launcher_demo"
 
+    fun portraitLayoutPreview(activity: Activity): Boolean = enabled && VehicleProfile.active.portrait &&
+        com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(activity) &&
+        activity.intent.getBooleanExtra("launcher_demo_portrait_layout", false)
+
     @Volatile
     var enabled = false
         private set
@@ -186,6 +190,7 @@ internal object LauncherDemo {
     fun applyDriveMode(intent: Intent?): Int? {
         if (!enabled || intent?.hasExtra(EXTRA_DRIVE_MODE) != true) return null
         driveMode = intent.getIntExtra(EXTRA_DRIVE_MODE, 1).coerceIn(0, 7)
+        onBodyChanged?.run()
         return driveMode
     }
 
@@ -211,6 +216,25 @@ internal object LauncherDemo {
     @Volatile
     var roof: RoofState? = null
         private set
+
+    fun toggleRoofPreview() {
+        if (!enabled) return
+        val current = roof ?: RoofState(shade = 0f)
+        if (current.shadeMs > 0) return
+        main.removeCallbacks(roofSim)
+        val closing = current.glassOpen || (current.shade ?: 0f) > 0f
+        val firstStep = if (closing) current.copy(glass = 0f, tilt = false, shadeMs = 900L)
+            else current.copy(shade = 1f, shadeMs = 900L)
+        roof = firstStep
+        onBodyChanged?.run()
+        main.postDelayed({
+            if (enabled && roof === firstStep) {
+                roof = if (closing) firstStep.copy(shade = 0f, shadeMs = 0L)
+                    else firstStep.copy(glass = 1f, tilt = false, shadeMs = 0L)
+                onBodyChanged?.run()
+            }
+        }, firstStep.shadeMs)
+    }
 
     /** Yandan "kil beyazı" araç çiziminin önizlemesi: `--ez launcher_demo_side true` (varsayılan değil, yalnızca demo). */
     const val EXTRA_SIDE = "launcher_demo_side"

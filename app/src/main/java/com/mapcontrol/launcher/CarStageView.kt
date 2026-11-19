@@ -95,6 +95,23 @@ class CarStageView(context: Context) : ViewGroup(context) {
 
     // --- Panoramik tavan ([setRoof]): perde ve ön cam panel, gerçek konumuyla ---
     private var roof: RoofState? = null
+    internal var showRoofTapHint = false
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+    internal var roofHintFollowsShade = false
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+    private val roofHintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val roofHintArrow = Path()
     private val shadeMotion = RoofFollower()
     private val glassMotion = RoofFollower()
     /**
@@ -353,7 +370,8 @@ class CarStageView(context: Context) : ViewGroup(context) {
         RoofFeed.apply(shadeMotion, glassMotion, prev, state, anim, now)
         roofLayer.visibility = if (state != null) VISIBLE else GONE
         // Tavan var / yok değişince eski buz mavisi tavan camı da değişir (gövde katmanı); yoksa yalnız tavan katmanı.
-        if ((prev == null) != (state == null)) invalidate() else roofLayer.invalidate()
+        if (showRoofTapHint || (prev == null) != (state == null)) invalidate()
+        roofLayer.invalidate()
         removeCallbacks(roofTick)
         if (anim) postOnAnimation(roofTick)
     }
@@ -595,12 +613,53 @@ class CarStageView(context: Context) : ViewGroup(context) {
     /** Çocuklar dokunuş almaz: araç dokunuşu (detay) görünümün kendisinde. */
     override fun onInterceptTouchEvent(ev: android.view.MotionEvent): Boolean = true
 
+    internal fun isRoofAt(x: Float, y: Float): Boolean {
+        val scale = k
+        if (scale <= 0f) return false
+        return x / scale - geo.padLeft in geo.roofX0..geo.roofX1 &&
+            y / scale - geo.padTop in geo.roofY0..geo.roofY1
+    }
+
     /** Sıra: zemin ışıkları ve yansıma → gövde ve açılan parçalar → lambalar, halka ve parlama. */
     override fun dispatchDraw(canvas: Canvas) {
         val t = drawingTime
         for (v in under) if (v.visibility == VISIBLE) drawChild(canvas, v, t)
         drawCar(canvas)
         for (v in over) if (v.visibility == VISIBLE) drawChild(canvas, v, t)
+        if (showRoofTapHint) drawRoofTapHint(canvas)
+    }
+
+    private fun drawRoofTapHint(canvas: Canvas) {
+        val state = roof
+        if (state != null && (state.shadeMs > 0 || state.glassDir != 0)) return
+        val x = ((geo.roofX0 + geo.roofX1) / 2f + geo.padLeft) * k
+        val y = ((geo.roofY0 + geo.roofY1) / 2f + geo.padTop) * k
+        val radius = context.dpF(25f)
+        val closesRoof = state?.glassOpen == true || (roofHintFollowsShade && (state?.shade ?: 0f) > 0f)
+        val direction = if (closesRoof) -1f else 1f
+        val checkpoint = canvas.save()
+        canvas.translate(x, y)
+        canvas.rotate(-rotation)
+
+        roofHintPaint.style = Paint.Style.FILL
+        roofHintPaint.color = 0x8013202C.toInt()
+        canvas.drawCircle(0f, 0f, radius, roofHintPaint)
+
+        roofHintPaint.style = Paint.Style.STROKE
+        roofHintPaint.strokeWidth = context.dpF(1f)
+        roofHintPaint.color = 0x55FFFFFF
+        canvas.drawCircle(0f, 0f, radius, roofHintPaint)
+
+        val halfWidth = context.dpF(9f)
+        val halfHeight = context.dpF(4.5f) * direction
+        roofHintArrow.rewind()
+        roofHintArrow.moveTo(-halfWidth, -halfHeight)
+        roofHintArrow.lineTo(0f, halfHeight)
+        roofHintArrow.lineTo(halfWidth, -halfHeight)
+        roofHintPaint.strokeWidth = context.dpF(2.8f)
+        roofHintPaint.color = 0xFFF5575E.toInt()
+        canvas.drawPath(roofHintArrow, roofHintPaint)
+        canvas.restoreToCount(checkpoint)
     }
 
     /**
