@@ -58,4 +58,7 @@
     <string name="home_screen_vehicle_help_jaecoo">Vertical screen: car on top, four cards in a 2×2 grid below; the home screen stays in portrait and its layouts are separate. Applied the next time the home screen opens.</string>
     <string name="home_screen_sport_mode_help_on">In Sport, a chronograph screen opens (Stage layout only).</string>
     <string name="home_screen_sport_mode_help_off">Sport keeps the original theme.</string>
+    <string name="home_screen_air_buttons">Climate air buttons</string>
+    <string name="home_screen_air_buttons_help_on">Face, foot, windscreen and recirculation buttons appear beside the fan in the launcher\'s own bottom bar.</string>
+    <string name="home_screen_air_buttons_help_off">The bottom bar shows only temperatures and the fan; use the car\'s physical buttons.</string>
 </resources>

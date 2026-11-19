@@ -266,6 +266,7 @@ public final class AppBackup {
         integerScreen("home", "vehicleScreen", FILE_LAUNCHER, "vehicle_profile", 0, 3);
         bool("home", "carVertical", FILE_LAUNCHER, "car_vertical");
         bool("home", "climateWholeDegree", FILE_LAUNCHER, "climate_whole_degree");
+        bool("home", "t7AirButtons", FILE_LAUNCHER, "t7_air_buttons");
         oneOf("home", "mapApp", FILE_NAV, "map_app", "google_maps", "yandex_maps", "yandex_navi");
         add(new Field("home", "sportDials", FILE_SPORT, "dials", Kind.KEY_LIST, 0, 4,
                 new String[]{"z100", "g", "inst", "max", "avg", "time", "range", "clock"}, 100, false));

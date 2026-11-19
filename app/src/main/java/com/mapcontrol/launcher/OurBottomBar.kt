@@ -68,11 +68,16 @@ class OurBottomBar(
 
     // --- Klima ---
     /**
-     * Fanın iki yanında hava yönü (yüz · ayak | cam) ve devridaim düğmeleri: yalnız Tiggo 8. Tiggo 7'de bu tuşlar araçta
-     * fiziksel olarak var; dikey profil (Jaecoo) için istenmedi.
+     * Fanın iki yanında hava yönü (yüz · ayak | cam) ve devridaim düğmeleri: Tiggo 8'de her zaman, Tiggo 7 ve dikey ekranda
+     * (Jaecoo) "Klima hava tuşları" açıksa (varsayılan kapalı).
      */
-    private val showAirButtons = VehicleProfile.active == VehicleProfile.TIGGO8
-    private val climateControl = ClimateControl(context, io, main)
+    private val showAirButtons = VehicleProfile.active.showsAirButtons(HomeScreenPrefs.t7AirButtons(context))
+    /**
+     * Dikey ekran (~1275 dp) dört hava düğmesini tam ölçüde taşımaz: sıcaklıklara yer kalsın diye fan ve düğmeler daralır
+     * ([ClimateBarSize]).
+     */
+    private val barSize = ClimateBarSize.forBar(VehicleProfile.active, showAirButtons)
+    private val climateControl = ClimateControl(context, io, main, size = barSize)
 
     /** Çubuğun düğmeleri ve ayraçları (spor görünümü bunların yüzeyini değiştirir); [view]'dan önce kurulmalı. */
     private val barButtons = ArrayList<BarButton>()
@@ -99,12 +104,12 @@ class OurBottomBar(
         addView(sep(), sepLp())
         addView(climateControl.driverView, LinearLayout.LayoutParams(0, context.dp(80), 1f))
         addView(sep(), sepLp())
-        fun airLp() = LinearLayout.LayoutParams(context.dp(AIR_BUTTON_DP), context.dp(80))
+        fun airLp() = LinearLayout.LayoutParams(context.dp(barSize.airButtonDp), context.dp(80))
         if (showAirButtons) {
             addView(climateControl.airView(AirButton.FACE), airLp())
             addView(climateControl.airView(AirButton.FOOT), airLp())
         }
-        addView(climateControl.fanView, LinearLayout.LayoutParams(context.dp(330), context.dp(80)))
+        addView(climateControl.fanView, LinearLayout.LayoutParams(context.dp(barSize.fanDp), context.dp(80)))
         if (showAirButtons) {
             addView(climateControl.airView(AirButton.WINDOW), airLp())
             addView(climateControl.airView(AirButton.RECIRC), airLp())
@@ -264,7 +269,7 @@ class OurBottomBar(
                 passengerTemp = first(HvacID.ID_AC_TEMPERATURE_COPILOT)?.let(::decodeTemp),
                 fan = first(HvacID.ID_AC_BLOW_SPEED_LEVEL)?.let(::decodeFan),
                 power = ClimateMath.powerOn(first(HvacID.ID_AC_WORKING)),
-                // Hava yönü ve devridaim yalnız Tiggo 8 düğmelerinde gösterilir; diğer profillerde okunmaz.
+                // Hava yönü ve devridaim yalnız hava düğmeleri gösteriliyorsa okunur ([showAirButtons]).
                 airFlow = if (showAirButtons) ClimateMath.airFlowFromRead(first(HvacID.ID_AC_MODE_ADJUST)) else null,
                 recirc = if (showAirButtons) ClimateMath.recircOn(first(HvacID.ID_AC_CIRCULATION_MODE)) else null,
             )
@@ -436,8 +441,6 @@ class OurBottomBar(
     companion object {
         /** Araç simgesi geniş ve alçak bir yan görünüş: diğer simgelerle aynı görsel ağırlıkta kalması için kutusu büyük (genişliğe sıkı görünüm kutusu). */
         private const val CAR_ICON_DP = 40
-        /** Tiggo 8 hava yönü / devridaim düğmesi genişliği (dp); dört tanesi sıcaklık kartlarından ~260 dp alır. */
-        private const val AIR_BUTTON_DP = 64
 
         /** Tiggo 7 çubuk yüksekliği; profile göre gerçek yükseklik için [heightDp]. */
         const val HEIGHT_DP = VehicleProfile.TIGGO7_BAR_DP

@@ -18,4 +18,9 @@
     <string name="diag_err_network">Could not reach the server. Check the internet connection and try again.</string>
     <string name="diag_err_failed">The log could not be sent.</string>
     <string name="diag_data_check_button">Data Check (vehicle signals)</string>
+    <string name="diag_oem_icons_button">Fix home screen icons</string>
+    <string name="diag_oem_icons_confirm">Removes duplicate MapControl icons from the car\'s home screen. The car\'s home screen restarts for a moment; system icons and their positions stay.</string>
+    <string name="diag_oem_icons_run">Fix</string>
+    <string name="diag_oem_icons_done">Car home screen icons fixed.</string>
+    <string name="diag_oem_icons_failed">Could not fix the icons.</string>
 </resources>

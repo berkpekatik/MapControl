@@ -21,6 +21,7 @@ object HomeScreenPrefs {
     private const val KEY_HOME_KEY_MAPCONTROL = "homeKeyMapControl"
     private const val KEY_CAR_VERTICAL = "car_vertical"
     private const val KEY_CAR_MODEL = "car_model"
+    private const val KEY_T7_AIR_BUTTONS = "t7_air_buttons"
 
     /** "Araç ekranı": 0 = Otomatik (ekrandan), 1 = Tiggo 7, 2 = Tiggo 8, 3 = Dikey (Jaecoo). Launcher bir sonraki öne gelişinde yeniden kurulur. */
     @JvmStatic fun vehicleProfileIndex(context: Context): Int =
@@ -49,6 +50,17 @@ object HomeScreenPrefs {
 
     @JvmStatic fun setCarModelIndex(context: Context, index: Int) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_CAR_MODEL, index.coerceIn(0, CarModel.OVERRIDE_MAX)).apply()
+    }
+
+    /**
+     * "Klima hava tuşları" (Tiggo 7 ve dikey ekranda menüde görünür; anahtar adı tarihsel): alt çubukta hava yönü ve devridaim düğmeleri.
+     * Varsayılan kapalı; Tiggo 8'de düğmeler her zaman vardır ([VehicleProfile.showsAirButtons]). İmzaya girer.
+     */
+    @JvmStatic fun t7AirButtons(context: Context): Boolean =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_T7_AIR_BUTTONS, false)
+
+    @JvmStatic fun setT7AirButtons(context: Context, on: Boolean) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_T7_AIR_BUTTONS, on).apply()
     }
 
     @JvmStatic fun climateWholeDegree(context: Context): Boolean =
@@ -119,7 +131,7 @@ object HomeScreenPrefs {
     /** Launcher'ın kurulumda okuduğu tercihlerin özeti; farklıysa açık launcher yeniden kurulmalıdır. */
     @JvmStatic fun signature(context: Context): String {
         val gen = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_LAYOUT_RESET_GEN, 0)
-        return "${themeIndex(context)}|${driveAccent(context)}|${bottomBarIndex(context)}|${autoDriveLayout(context)}|$gen|${VehicleProfile.compute(context).key}|${carVertical(context)}|${CarModel.compute(context).key}"
+        return "${themeIndex(context)}|${driveAccent(context)}|${bottomBarIndex(context)}|${autoDriveLayout(context)}|$gen|${VehicleProfile.compute(context).key}|${carVertical(context)}|${CarModel.compute(context).key}|${t7AirButtons(context)}"
     }
 
     /** Ana ekranı doğrudan düzenleme modunda açar. */
