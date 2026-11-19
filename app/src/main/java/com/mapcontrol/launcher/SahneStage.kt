@@ -12,13 +12,18 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Toast
 import com.mapcontrol.R
+import com.mapcontrol.vehicle.SunroofAutomationEngine
+import com.mapcontrol.vehicle.VehicleMetricsRepository
+import com.mapcontrol.vehicle.VehicleSunroofController
 
 /**
  * Sahne'nin ortası (yuva değil, sabit). Araç sahnenin tam ortasında (§10); menzil sol omzunda, kilit hapı sağ omzunda,
@@ -47,7 +52,9 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
     private val ambient = arrayOf(AmbientView(activity), AmbientView(activity))
     private val roofTapPreview = LauncherDemo.enabled && CarModel.active == CarModel.JAECOO7 &&
         activity.intent.getBooleanExtra("launcher_demo_roof_tap", false)
+    private val roofControl = roofTapPreview || (verticalLayout && com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(activity))
     private var roofTap = false
+    private var roofCommandAfter = 0L
     /** Araç ve açılan parçaları (kapı/bagaj/kaput animasyonu); görünüm gövdenin dışına taşan açık parçaları da kapsar. */
     private val car = CarStageView(activity).apply {
         contentDescription = activity.getString(R.string.launcher_sahne_car)
@@ -58,8 +65,9 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         isClickable = true
         isLongClickable = false
         pressFeedback()
-        showRoofTapHint = roofTapPreview
-        if (roofTapPreview) {
+        showRoofTapHint = roofControl
+        roofHintFollowsShade = roofTapPreview
+        if (roofControl) {
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> roofTap = isRoofAt(event.x, event.y)
@@ -72,9 +80,41 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         setOnClickListener {
             val tappedRoof = roofTap
             roofTap = false
-            if (tappedRoof && !locked) LauncherDemo.toggleRoofPreview() else openDetail()
+            if (tappedRoof && !locked) toggleRoof() else openDetail()
         }
         setFloorReflection(true)
+    }
+
+    private fun toggleRoof() {
+        if (roofTapPreview) {
+            LauncherDemo.toggleRoofPreview()
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        val roof = openings?.roof
+        if (now < roofCommandAfter || (roof != null && (roof.shadeMs > 0 || roof.glassDir != 0))) return
+
+        val metrics = VehicleMetricsRepository.getInstance(activity).snapshot
+        val open = metrics.sunroofOpenOrNull()
+        if (!metrics.connected || open == null) {
+            Toast.makeText(activity, R.string.vehicle_info_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val prefs = activity.getSharedPreferences(SunroofAutomationEngine.PREFS_NAME, Context.MODE_PRIVATE)
+        if (!open && metrics.isRaining && prefs.getBoolean(SunroofAutomationEngine.KEY_RAIN_GUARD, true)) {
+            Toast.makeText(activity, R.string.sunroof_auto_rain_guard_desc, Toast.LENGTH_LONG).show()
+            return
+        }
+        val controlShade = prefs.getBoolean(SunroofAutomationEngine.KEY_CONTROL_SHADE, true)
+        val controller = VehicleSunroofController.getInstance(activity)
+        val sent = if (open) controller.closeSunroof(controlShade) else controller.openSunroof(controlShade)
+        if (!sent) {
+            Toast.makeText(activity, R.string.vehicle_info_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        roofCommandAfter = now + 1500L
+        val action = if (open) R.string.gesture_owner_sunroof_close else R.string.gesture_owner_sunroof_open
+        SunroofAutomationEngine.getInstance(activity).notifyManualOverride(activity.getString(action), true, open)
     }
     /** Açık araç detayı sayfası (yoksa null); yeni veriyle yerinde tazelenir. */
     private var detail: CarDetailSheet? = null
@@ -222,7 +262,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
     var locked = false
         set(value) {
             field = value
-            car.showRoofTapHint = roofTapPreview && !value
+            car.showRoofTapHint = roofControl && !value
         }
 
     /**
