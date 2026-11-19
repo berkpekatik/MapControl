@@ -34,6 +34,7 @@ import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.R;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
+import com.mapcontrol.vehicle.DmsCameraPreference;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
 
@@ -231,10 +232,11 @@ public final class DmsFaceRecognitionManager {
             return;
         }
         try {
+            String preferredId = DmsCameraPreference.read(context);
             String selectedId = null;
             Size selectedSize = null;
             for (String id : manager.getCameraIdList()) {
-                if ("0".equals(id)) {
+                if (preferredId.equals(id)) {
                     CameraCharacteristics characteristics = manager.getCameraCharacteristics(id);
                     android.hardware.camera2.params.StreamConfigurationMap map =
                             characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -324,7 +326,7 @@ public final class DmsFaceRecognitionManager {
                     }
                 }
             }, cameraHandler);
-        } catch (CameraAccessException | SecurityException e) {
+        } catch (CameraAccessException | IllegalArgumentException | SecurityException e) {
             cameraOpening = false;
             nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
             publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));

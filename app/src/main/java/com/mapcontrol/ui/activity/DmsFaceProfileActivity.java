@@ -25,7 +25,6 @@ import android.media.AudioManager;
 import android.media.FaceDetector;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.util.Size;
 import android.view.Gravity;
@@ -52,13 +51,16 @@ import com.mapcontrol.R;
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
+import com.mapcontrol.vehicle.DmsCameraPreference;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public final class DmsFaceProfileActivity extends AppCompatActivity
         implements TextureView.SurfaceTextureListener {
@@ -101,13 +103,19 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private CameraManager cameraManager;
     private CameraDevice cameraDevice;
     private CameraCaptureSession captureSession;
+    private Surface previewSurface;
     private Size previewSize;
-    private HandlerThread cameraThread;
-    private Handler cameraHandler;
-    private boolean dmsCameraAvailable;
+    private Button cameraPicker;
+    private Button saveCameraButton;
+    private String previewCameraId;
+    private String savedCameraId;
+    private final Set<String> availableCameraIds = new HashSet<>();
+    private boolean watchingCameras;
+    private int cameraGeneration;
     private boolean cameraOpening;
     private FaceDetector faceDetector;
     private boolean cameraReady;
+    private boolean previewFrameAvailable;
     private boolean analyzing;
     private boolean profileStoreError;
     private long lastAnalysisAt;
@@ -139,16 +147,18 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             new CameraManager.AvailabilityCallback() {
                 @Override
                 public void onCameraAvailable(@NonNull String cameraId) {
-                    if ("0".equals(cameraId)) {
-                        dmsCameraAvailable = true;
+                    if (!watchingCameras) return;
+                    availableCameraIds.add(cameraId);
+                    if (cameraId.equals(previewCameraId)) {
                         openDmsCamera();
                     }
                 }
 
                 @Override
                 public void onCameraUnavailable(@NonNull String cameraId) {
-                    if ("0".equals(cameraId)) {
-                        dmsCameraAvailable = false;
+                    if (!watchingCameras) return;
+                    availableCameraIds.remove(cameraId);
+                    if (cameraId.equals(previewCameraId)) {
                         if (cameraDevice == null && !cameraOpening) {
                             runOnUiThread(() ->
                                     status.setText(R.string.dms_face_camera_disconnected));
@@ -160,6 +170,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        savedCameraId = DmsCameraPreference.read(this);
+        previewCameraId = savedCameraId;
         // Stop background service first if it is holding the DMS camera
         if (DmsFaceRecognitionManager.isEnabled(this)) {
             DmsFaceRecognitionManager.stop(this);
@@ -193,8 +205,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST);
         } else {
-            startCameraThread();
-            cameraManager.registerAvailabilityCallback(cameraAvailabilityCallback, cameraHandler);
+            startCameraPreview();
         }
     }
 
@@ -263,7 +274,8 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         topBar.addView(clearButton, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        boolean portrait = getResources().getConfiguration().orientation
+        boolean portrait = com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)
+                && getResources().getConfiguration().orientation
                 == Configuration.ORIENTATION_PORTRAIT;
 
         // Camera and enrollment sit side by side in landscape, stacked in portrait.
@@ -288,6 +300,24 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             leftLp.rightMargin = dp(14);
         }
         contentRow.addView(leftCard, leftLp);
+
+        LinearLayout cameraControls = new LinearLayout(this);
+        cameraControls.setVisibility(com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)
+                ? View.VISIBLE : View.GONE);
+        leftCard.addView(cameraControls, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        cameraPicker = new Button(this);
+        cameraPicker.setAllCaps(false);
+        cameraPicker.setOnClickListener(v -> showCameraPicker());
+        cameraControls.addView(cameraPicker, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        saveCameraButton = new Button(this);
+        saveCameraButton.setAllCaps(false);
+        saveCameraButton.setText(R.string.dms_face_camera_use);
+        saveCameraButton.setOnClickListener(v -> savePreviewCamera());
+        cameraControls.addView(saveCameraButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        updateCameraControls();
 
         FrameLayout cameraFrame = new FrameLayout(this);
         cameraFrame.setBackgroundColor(0xFF000000);
@@ -949,7 +979,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             UiStyles.applySolidRoundedBackgroundDp(enrollButton, 0xFFB91C1C, 12f);
         } else {
             enrollButton.setText(R.string.dms_face_enroll);
-            boolean canEnroll = cameraReady && !profileStoreError;
+            boolean canEnroll = previewFrameAvailable && previewCameraId.equals(savedCameraId) && !profileStoreError;
             enrollButton.setEnabled(canEnroll);
             UiStyles.applySolidRoundedBackgroundDp(
                     enrollButton, canEnroll ? 0xFF2563EB : 0xFF475569, 12f);
@@ -1172,21 +1202,102 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 .show();
     }
 
-    private void startCameraThread() {
-        cameraThread = new HandlerThread("DmsFaceCamera");
-        cameraThread.start();
-        cameraHandler = new Handler(cameraThread.getLooper());
+    private void startCameraPreview() {
+        if (cameraManager == null) {
+            showFaceStatus(getString(R.string.dms_face_camera_missing));
+            return;
+        }
+        try {
+            String[] ids = cameraManager.getCameraIdList();
+            if (ids.length == 0) {
+                showFaceStatus(getString(R.string.dms_face_camera_missing));
+            } else if (!Arrays.asList(ids).contains(previewCameraId)) {
+                showFaceStatus(getString(R.string.dms_face_camera_pick_another));
+            }
+            cameraManager.registerAvailabilityCallback(cameraAvailabilityCallback, uiHandler);
+            watchingCameras = true;
+        } catch (CameraAccessException | SecurityException e) {
+            showFaceStatus(getString(R.string.dms_face_camera_error, e.getMessage()));
+        }
+    }
+
+    private void showCameraPicker() {
+        if (!com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)) return;
+        try {
+            String[] ids = cameraManager == null ? new String[0] : cameraManager.getCameraIdList();
+            if (ids.length == 0) {
+                showFaceStatus(getString(R.string.dms_face_camera_missing));
+                return;
+            }
+            String[] labels = new String[ids.length];
+            for (int i = 0; i < ids.length; i++) {
+                labels[i] = getString(R.string.dms_face_camera_id, ids[i]);
+            }
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.dms_face_camera_select)
+                    .setSingleChoiceItems(labels, Arrays.asList(ids).indexOf(previewCameraId), (dialog, which) -> {
+                        dialog.dismiss();
+                        if (previewCameraId.equals(ids[which]) && (cameraReady || cameraOpening)) {
+                            return;
+                        }
+                        closeCamera();
+                        cancelActiveEnrollment();
+                        releaseToneFrame();
+                        recognitionCandidate = null;
+                        recognitionCandidateHits = 0;
+                        reportedRecognitionName = null;
+                        faceCenterKnown = false;
+                        previewCameraId = ids[which];
+                        updateCameraControls();
+                        showFaceStatus(getString(R.string.dms_face_camera_disconnected));
+                        openDmsCamera();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        } catch (CameraAccessException | SecurityException e) {
+            showFaceStatus(getString(R.string.dms_face_camera_error, e.getMessage()));
+        }
+    }
+
+    private void updateCameraControls() {
+        cameraPicker.setText(getString(R.string.dms_face_camera_id, previewCameraId));
+        boolean pending = !previewCameraId.equals(savedCameraId);
+        saveCameraButton.setVisibility(pending ? View.VISIBLE : View.GONE);
+        saveCameraButton.setEnabled(previewFrameAvailable && pending);
+    }
+
+    private void savePreviewCamera() {
+        if (!com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)) return;
+        if (!previewFrameAvailable || previewCameraId.equals(savedCameraId)) {
+            return;
+        }
+        DmsCameraPreference.save(this, previewCameraId);
+        savedCameraId = previewCameraId;
+        updateCameraControls();
+        updateEnrollButtonState();
+        updateProfileStatus();
+        startSavedCameraAnalysis();
+    }
+
+    private void startSavedCameraAnalysis() {
+        if (previewCameraId.equals(savedCameraId) && (!profiles.isEmpty() || enrollmentName != null)) {
+            analyzing = true;
+            uiHandler.removeCallbacks(analysisLoop);
+            uiHandler.post(analysisLoop);
+        }
     }
 
     private void openDmsCamera() {
-        if (cameraManager == null || !preview.isAvailable()
-                || !dmsCameraAvailable || cameraOpening || cameraDevice != null
+        if (!watchingCameras || !preview.isAvailable()
+                || !availableCameraIds.contains(previewCameraId) || cameraOpening || cameraDevice != null
                 || ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+        int generation = cameraGeneration;
+        String cameraId = previewCameraId;
         try {
-            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics("0");
+            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
             android.hardware.camera2.params.StreamConfigurationMap map =
                     characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             Size[] sizes = map == null ? null : map.getOutputSizes(SurfaceTexture.class);
@@ -1194,49 +1305,51 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 runOnUiThread(() -> status.setText(R.string.dms_face_camera_missing));
                 return;
             }
-            // IMPORTANT: Must use sizes[0] (native resolution) on DesaySV DMS camera ("0")
+            // DesaySV DMS önizlemede ilk ilan edilen çözünürlüğü bekliyor.
             previewSize = sizes[0];
             cameraOpening = true;
-            cameraManager.openCamera("0", new CameraDevice.StateCallback() {
+            cameraManager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
+                    if (generation != cameraGeneration || !watchingCameras) {
+                        camera.close();
+                        return;
+                    }
                     cameraOpening = false;
                     cameraDevice = camera;
-                    createPreviewSession();
+                    createPreviewSession(generation);
                 }
 
                 @Override
                 public void onDisconnected(@NonNull CameraDevice camera) {
-                    cameraOpening = false;
-                    camera.close();
-                    cameraDevice = null;
-                    cameraReady = false;
-                    runOnUiThread(() -> {
-                        updateEnrollButtonState();
-                        status.setText(R.string.dms_face_camera_disconnected);
-                    });
+                    if (generation != cameraGeneration) {
+                        camera.close();
+                        return;
+                    }
+                    if (cameraDevice != camera) camera.close();
+                    closeCamera();
+                    status.setText(R.string.dms_face_camera_disconnected);
                 }
 
                 @Override
                 public void onError(@NonNull CameraDevice camera, int error) {
-                    cameraOpening = false;
-                    camera.close();
-                    cameraDevice = null;
-                    cameraReady = false;
-                    runOnUiThread(() -> {
-                        updateEnrollButtonState();
-                        status.setText(getString(R.string.dms_face_camera_error, String.valueOf(error)));
-                    });
+                    if (generation != cameraGeneration) {
+                        camera.close();
+                        return;
+                    }
+                    if (cameraDevice != camera) camera.close();
+                    closeCamera();
+                    status.setText(getString(R.string.dms_face_camera_error, String.valueOf(error)));
                 }
-            }, cameraHandler);
-        } catch (CameraAccessException | SecurityException e) {
+            }, uiHandler);
+        } catch (CameraAccessException | IllegalArgumentException | SecurityException e) {
             cameraOpening = false;
             runOnUiThread(() ->
                     status.setText(getString(R.string.dms_face_camera_error, e.getMessage())));
         }
     }
 
-    private void createPreviewSession() {
+    private void createPreviewSession(int generation) {
         if (cameraDevice == null || !preview.isAvailable()) {
             return;
         }
@@ -1246,26 +1359,24 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 throw new IllegalStateException("DMS kamera önizleme çözünürlüğü bulunamadı");
             }
             texture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
-            Surface surface = new Surface(texture);
+            previewSurface = new Surface(texture);
             CaptureRequest.Builder request =
                     cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            request.addTarget(surface);
-            cameraDevice.createCaptureSession(Arrays.asList(surface),
+            request.addTarget(previewSurface);
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface),
                     new CameraCaptureSession.StateCallback() {
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession session) {
+                            if (generation != cameraGeneration) {
+                                session.close();
+                                return;
+                            }
                             captureSession = session;
                             try {
                                 request.set(CaptureRequest.CONTROL_MODE,
                                         CaptureRequest.CONTROL_MODE_AUTO);
-                                session.setRepeatingRequest(request.build(), null, cameraHandler);
+                                session.setRepeatingRequest(request.build(), null, uiHandler);
                                 cameraReady = true;
-                                runOnUiThread(() -> updateEnrollButtonState());
-                                if (!profiles.isEmpty() || enrollmentName != null) {
-                                    analyzing = true;
-                                    uiHandler.removeCallbacks(analysisLoop);
-                                    uiHandler.post(analysisLoop);
-                                }
                             } catch (CameraAccessException e) {
                                 runOnUiThread(() -> status.setText(getString(
                                         R.string.dms_face_camera_error, e.getMessage())));
@@ -1274,13 +1385,17 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
                         @Override
                         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+                            session.close();
+                            if (generation != cameraGeneration) {
+                                return;
+                            }
                             cameraReady = false;
                             runOnUiThread(() -> {
                                 updateEnrollButtonState();
                                 status.setText(R.string.dms_face_camera_disconnected);
                             });
                         }
-                    }, cameraHandler);
+                    }, uiHandler);
         } catch (CameraAccessException | IllegalStateException e) {
             runOnUiThread(() ->
                     status.setText(getString(R.string.dms_face_camera_error, e.getMessage())));
@@ -1289,9 +1404,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
     @Override
     public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
-        if (cameraThread != null) {
-            openDmsCamera();
-        }
+        openDmsCamera();
     }
 
     @Override
@@ -1306,6 +1419,16 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
     @Override
     public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+        if (cameraReady && !previewFrameAvailable) {
+            previewFrameAvailable = true;
+            updateCameraControls();
+            if (previewCameraId.equals(savedCameraId)) {
+                updateProfileStatus();
+                startSavedCameraAnalysis();
+            } else {
+                status.setText(R.string.dms_face_camera_preview);
+            }
+        }
         publishNeutralToneFrame();
     }
 
@@ -1522,8 +1645,11 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     }
 
     private void closeCamera() {
+        cameraGeneration++;
+        cameraOpening = false;
         analyzing = false;
         cameraReady = false;
+        previewFrameAvailable = false;
         uiHandler.removeCallbacks(analysisLoop);
         if (captureSession != null) {
             captureSession.close();
@@ -1533,6 +1659,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             cameraDevice.close();
             cameraDevice = null;
         }
+        if (previewSurface != null) {
+            previewSurface.release();
+            previewSurface = null;
+        }
+        updateCameraControls();
+        updateEnrollButtonState();
     }
 
     @Override
@@ -1541,8 +1673,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CAMERA_REQUEST && grantResults.length > 0
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startCameraThread();
-            cameraManager.registerAvailabilityCallback(cameraAvailabilityCallback, cameraHandler);
+            startCameraPreview();
         } else if (requestCode == CAMERA_REQUEST) {
             status.setText(R.string.dms_face_camera_permission);
         }
@@ -1572,12 +1703,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         closeCamera();
         clusterPreview.hide();
         releaseToneFrame();
-        if (cameraManager != null && cameraHandler != null) {
+        if (watchingCameras) {
+            watchingCameras = false;
             cameraManager.unregisterAvailabilityCallback(cameraAvailabilityCallback);
-        }
-        if (cameraThread != null) {
-            cameraThread.quitSafely();
-            cameraThread = null;
         }
         if (faceDetector != null) {
             faceDetector = null;
