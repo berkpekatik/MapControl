@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_setup_title">What would you like to use in MapControl?</string>
+    <string name="menu_setup_subtitle">Your picks show up in the menu. Apps, Wi-Fi, Transfer and Settings are always there. This doesn\'t turn any setting off, and you can change it anytime.</string>
+    <string name="menu_setup_select_all">Select all</string>
+    <string name="menu_setup_select_none">Clear selection</string>
+    <string name="menu_setup_continue">Continue</string>
+    <string name="menu_setup_skip">Skip, show everything</string>
+    <string name="menu_setup_cancel">Cancel</string>
+    <string name="menu_setup_back">Back</string>
+    <string name="menu_setup_beta">BETA</string>
+
+    <string name="menu_card_launcher">Custom Car Launcher</string>
+    <string name="menu_card_launcher_desc">Car info, music, climate and apps on one home screen.</string>
+    <string name="menu_card_map">Maps and cluster</string>
+    <string name="menu_card_map_desc">Mirror the map to the driver display, split the screen.</string>
+    <string name="menu_card_sound">Music and sound</string>
+    <string name="menu_card_sound_desc">Equalizer and sound settings.</string>
+    <string name="menu_card_welcome">Welcome</string>
+    <string name="menu_card_welcome_desc">Welcome sound and screen when the car starts.</string>
+    <string name="menu_card_automation">Automation</string>
+    <string name="menu_card_automation_desc">Climate and sunroof adjust on their own.</string>
+    <string name="menu_card_memory">Memory mode</string>
+    <string name="menu_card_memory_desc">Your drive mode is remembered on every start.</string>
+    <string name="menu_card_camera">Camera and safety</string>
+    <string name="menu_card_camera_desc">360° camera recordings and driver face recognition.</string>
+    <string name="menu_card_tech">Technical</string>
+    <string name="menu_card_tech_desc">Raw vehicle data and sensor readings.</string>
+
+    <string name="menu_setup_launcher_title">Turn on the Custom Car Launcher?</string>
+    <string name="menu_setup_launcher_body">If you turn it on, the car\'s Home key opens the MapControl home screen. The car\'s own home screen stays; you can switch back anytime in Settings.</string>
+    <string name="menu_setup_launcher_yes">Yes, I want to use it</string>
+    <string name="menu_setup_launcher_yes_desc">The Home key goes to the MapControl home screen.</string>
+    <string name="menu_setup_launcher_no">Not now</string>
+    <string name="menu_setup_launcher_no_desc">The car\'s home screen stays; you can still set it up from the menu.</string>
+
+    <string name="menu_setup_done_title">Your menu is ready</string>
+    <string name="menu_setup_done_none">Only the basics</string>
+    <string name="menu_setup_done_body">To change it: Settings › Edit menu.</string>
+    <string name="menu_setup_start">Get started</string>
+
+    <string name="settings_menu_setup_title">Edit menu</string>
+    <string name="settings_menu_setup_desc">Choose again which sections appear in the side menu with a short question.</string>
+    <string name="settings_menu_setup_button">Edit menu</string>
+</resources>

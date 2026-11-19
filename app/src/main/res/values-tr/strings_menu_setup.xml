@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_setup_title">MapControl\'da neleri kullanmak istersin?</string>
+    <string name="menu_setup_subtitle">Seçtiklerin menüde görünür. Uygulamalar, Wi-Fi, Aktar ve Ayarlar her zaman açık. Bu seçim hiçbir ayarı kapatmaz; istediğin zaman değiştirebilirsin.</string>
+    <string name="menu_setup_select_all">Hepsini seç</string>
+    <string name="menu_setup_select_none">Seçimi temizle</string>
+    <string name="menu_setup_continue">Devam</string>
+    <string name="menu_setup_skip">Atla, hepsini göster</string>
+    <string name="menu_setup_cancel">Vazgeç</string>
+    <string name="menu_setup_back">Geri</string>
+    <string name="menu_setup_beta">BETA</string>
+
+    <string name="menu_card_launcher">Aracınıza Özel Launcher</string>
+    <string name="menu_card_launcher_desc">Araç bilgisi, müzik, klima ve uygulamalar tek ana ekranda.</string>
+    <string name="menu_card_map">Harita ve gösterge</string>
+    <string name="menu_card_map_desc">Haritayı sürücü ekranına yansıt, ekranı ikiye böl.</string>
+    <string name="menu_card_sound">Müzik ve ses</string>
+    <string name="menu_card_sound_desc">Ekolayzer ve ses ayarları.</string>
+    <string name="menu_card_welcome">Karşılama</string>
+    <string name="menu_card_welcome_desc">Araç açılınca karşılama sesi ve ekranı.</string>
+    <string name="menu_card_automation">Otomasyon</string>
+    <string name="menu_card_automation_desc">Klima ve cam tavan kendiliğinden ayarlansın.</string>
+    <string name="menu_card_memory">Hafıza modu</string>
+    <string name="menu_card_memory_desc">Seçtiğin sürüş modu her açılışta hatırlansın.</string>
+    <string name="menu_card_camera">Kamera ve güvenlik</string>
+    <string name="menu_card_camera_desc">360° kamera kayıtları ve sürücü yüz tanıma.</string>
+    <string name="menu_card_tech">Teknik</string>
+    <string name="menu_card_tech_desc">Araçtan okunan ham veriler ve sensör bilgileri.</string>
+
+    <string name="menu_setup_launcher_title">Aracınıza Özel Launcher açılsın mı?</string>
+    <string name="menu_setup_launcher_body">Açarsan aracın Ana ekran tuşu MapControl\'ın ana sayfasını açar. Aracın kendi ana ekranı silinmez; istediğin zaman Ayarlar\'dan geri dönebilirsin.</string>
+    <string name="menu_setup_launcher_yes">Evet, kullanmak istiyorum</string>
+    <string name="menu_setup_launcher_yes_desc">Ana ekran tuşu MapControl ana sayfasına gider.</string>
+    <string name="menu_setup_launcher_no">Şimdilik hayır</string>
+    <string name="menu_setup_launcher_no_desc">Aracın kendi ana ekranı kalır; menüden yine ayarlayabilirsin.</string>
+
+    <string name="menu_setup_done_title">Menün hazır</string>
+    <string name="menu_setup_done_none">Yalnızca temel menüler</string>
+    <string name="menu_setup_done_body">Değiştirmek istersen: Ayarlar › Menüyü düzenle.</string>
+    <string name="menu_setup_start">Başla</string>
+
+    <string name="settings_menu_setup_title">Menüyü düzenle</string>
+    <string name="settings_menu_setup_desc">Yan menüde hangi bölümlerin görüneceğini kısa bir soruyla yeniden seç.</string>
+    <string name="settings_menu_setup_button">Menüyü düzenle</string>
+</resources>

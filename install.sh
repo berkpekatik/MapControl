@@ -102,7 +102,16 @@ grant_permission "pm grant com.mapcontrol android.car.permission.CAR_SPEED" "CAR
 # AccessibilityService otomatik etkinleştirme
 echo "🔧 AccessibilityService etkinleştiriliyor..."
 # Dikkat: Sınıf com.mapcontrol.service.GlobalBackService — .GlobalBackService (service olmadan) YANLIŞSIR.
-grant_permission "settings put secure enabled_accessibility_services com.mapcontrol/com.mapcontrol.service.GlobalBackService" "AccessibilityService"
+# Listeyi ezme: araçtaki diğer hizmetler (ör. iflytek ses asistanı) korunur, yalnız ekleriz.
+A11Y_SVC="com.mapcontrol/com.mapcontrol.service.GlobalBackService"
+A11Y_CUR=$(adb shell settings get secure enabled_accessibility_services 2>/dev/null | tr -d '\r')
+case ":$A11Y_CUR:" in
+    *":$A11Y_SVC:"*) A11Y_NEW="$A11Y_CUR" ;;
+    ":null:"|"::") A11Y_NEW="$A11Y_SVC" ;;
+    *) A11Y_NEW="$A11Y_CUR:$A11Y_SVC" ;;
+esac
+grant_permission "settings put secure enabled_accessibility_services $A11Y_NEW" "AccessibilityService"
+grant_permission "settings put secure accessibility_enabled 1" "accessibility_enabled"
 grant_permission "cmd accessibility enable-service com.mapcontrol/com.mapcontrol.service.GlobalBackService" "AccessibilityService (cmd)"
 
 # NotificationListener — medya oturumu (BT / YouTube) için zorunlu

@@ -36,9 +36,6 @@ public class FileUploadTabBuilder {
     /** Açıksa web sunucusu uygulama açılınca ve kontak açılınca (güç modu 1/2) kendiliğinden başlar. */
     public static final String KEY_WEB_SERVER_AUTO_START = "webServerAutoStart";
 
-    /** Telefon eşleme sayfasının deneme aşaması bilgisi bir kez gösterildi. */
-    public static final String KEY_PHONE_PAIR_BETA_SHOWN = "phonePairBetaNoticeShown";
-
     private final Context context;
     private final WebServerHost webServerHost;
 
@@ -54,6 +51,7 @@ public class FileUploadTabBuilder {
     private LinearLayout pairPanel;
     private boolean pairPageShown;
     private TextView pairStatusText;
+    private Button pairStartButton;
     private TextView gpsStatusText;
     private TextView gpsHintText;
     private final Runnable gpsRefresh = new Runnable() {
@@ -97,9 +95,9 @@ public class FileUploadTabBuilder {
         LinearLayout segments = new LinearLayout(context);
         segments.setOrientation(LinearLayout.HORIZONTAL);
         btnSegmentWeb = new Button(context);
-        btnSegmentWeb.setText(R.string.web_mgmt_title);
+        btnSegmentWeb.setText(R.string.transfer_seg_browser);
         btnSegmentPair = new Button(context);
-        btnSegmentPair.setText(R.string.phone_pair_tab);
+        btnSegmentPair.setText(R.string.transfer_seg_app);
         for (Button b : new Button[]{btnSegmentWeb, btnSegmentPair}) {
             b.setTextColor(UiStyles.color(context, R.color.textPrimary));
             UiStyles.setTextSize(b, R.dimen.text_size_normal);
@@ -109,10 +107,7 @@ public class FileUploadTabBuilder {
             segments.addView(b, lp);
         }
         btnSegmentWeb.setOnClickListener(v -> showPairPage(false));
-        btnSegmentPair.setOnClickListener(v -> {
-            showPairPage(true);
-            showBetaNoticeOnce();
-        });
+        btnSegmentPair.setOnClickListener(v -> showPairPage(true));
         fileUploadTabContent.addView(segments, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -134,18 +129,19 @@ public class FileUploadTabBuilder {
         leftCol.setPadding(dp(8), dp(8), dp(16), dp(8));
 
         TextView fileUploadTitle = new TextView(context);
-        fileUploadTitle.setText(R.string.web_mgmt_title);
+        fileUploadTitle.setText(R.string.transfer_browser_title);
         UiStyles.setTextSize(fileUploadTitle, R.dimen.text_size_large);
         fileUploadTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setFontStyle(fileUploadTitle, Typeface.BOLD);
         leftCol.addView(fileUploadTitle);
 
         TextView fileUploadDesc = new TextView(context);
-        fileUploadDesc.setText(R.string.web_mgmt_desc);
+        fileUploadDesc.setText(R.string.transfer_browser_desc);
         UiStyles.setTextSize(fileUploadDesc, R.dimen.text_size_small);
         fileUploadDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        fileUploadDesc.setPadding(0, dp(6), 0, dp(16));
+        fileUploadDesc.setPadding(0, dp(6), 0, dp(12));
         leftCol.addView(fileUploadDesc);
+        addSteps(leftCol, R.string.transfer_step_network, R.string.transfer_step_start, R.string.transfer_browser_step_scan);
 
         btnWebServerToggle = new Button(context);
         btnWebServerToggle.setText(R.string.web_server_start);
@@ -209,29 +205,6 @@ public class FileUploadTabBuilder {
 
         row.addView(rightCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.68f));
 
-        // Telefon uygulaması yalnızca test kullanıcılarına açık: sayfada kalıcı bir not.
-        LinearLayout betaBanner = new LinearLayout(context);
-        betaBanner.setOrientation(LinearLayout.VERTICAL);
-        betaBanner.setPadding(16, 12, 16, 12);
-        betaBanner.setBackgroundColor(UiStyles.color(context, R.color.surfaceColor));
-        TextView betaBannerTitle = new TextView(context);
-        betaBannerTitle.setText(R.string.phone_pair_banner_title);
-        UiStyles.setTextSize(betaBannerTitle, R.dimen.text_size_small);
-        UiStyles.setFontStyle(betaBannerTitle, Typeface.BOLD);
-        betaBannerTitle.setTextColor(UiStyles.color(context, R.color.statusWarning));
-        betaBanner.addView(betaBannerTitle);
-        TextView betaBannerText = new TextView(context);
-        betaBannerText.setText(R.string.phone_pair_banner);
-        UiStyles.setTextSize(betaBannerText, R.dimen.text_size_small);
-        betaBannerText.setTextColor(UiStyles.color(context, R.color.textHint));
-        betaBannerText.setPadding(0, 4, 0, 0);
-        betaBanner.addView(betaBannerText);
-        LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        bannerParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
-        pairPanel.addView(betaBanner, bannerParams);
-
         // Web Yönetimi ile aynı yerleşim: solda başlık ve kontroller, ortada ince çizgi, sağda durum ve büyük QR.
         LinearLayout pairRow = new LinearLayout(context);
         pairRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -244,18 +217,26 @@ public class FileUploadTabBuilder {
         pairLeft.setPadding(dp(8), dp(8), dp(16), dp(8));
 
         TextView pairTitle = new TextView(context);
-        pairTitle.setText(R.string.phone_pair_title);
+        pairTitle.setText(R.string.transfer_app_title);
         UiStyles.setTextSize(pairTitle, R.dimen.text_size_large);
         pairTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setFontStyle(pairTitle, Typeface.BOLD);
         pairLeft.addView(pairTitle);
 
         TextView pairDesc = new TextView(context);
-        pairDesc.setText(R.string.phone_pair_desc);
+        pairDesc.setText(R.string.transfer_app_desc);
         UiStyles.setTextSize(pairDesc, R.dimen.text_size_small);
         pairDesc.setTextColor(UiStyles.color(context, R.color.textHint));
-        pairDesc.setPadding(0, dp(6), 0, dp(16));
+        pairDesc.setPadding(0, dp(6), 0, dp(12));
         pairLeft.addView(pairDesc);
+        addSteps(pairLeft, R.string.transfer_step_network, R.string.transfer_step_start, R.string.transfer_app_step_scan);
+
+        TextView pairKeyLabel = new TextView(context);
+        pairKeyLabel.setText(R.string.transfer_app_key_label);
+        UiStyles.setTextSize(pairKeyLabel, R.dimen.text_size_small);
+        pairKeyLabel.setTextColor(UiStyles.color(context, R.color.textHint));
+        pairKeyLabel.setPadding(0, dp(12), 0, dp(4));
+        pairLeft.addView(pairKeyLabel);
 
         TextView pairKey = new TextView(context);
         pairKey.setText(PhoneAccess.token(context));
@@ -267,7 +248,7 @@ public class FileUploadTabBuilder {
         pairLeft.addView(pairKey);
 
         Button btnPairRegenerate = new Button(context);
-        btnPairRegenerate.setText(R.string.phone_pair_regenerate);
+        btnPairRegenerate.setText(R.string.transfer_app_regenerate);
         btnPairRegenerate.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setTextSize(btnPairRegenerate, R.dimen.text_size_normal);
         UiStyles.setFontStyle(btnPairRegenerate, Typeface.BOLD);
@@ -282,8 +263,14 @@ public class FileUploadTabBuilder {
         LinearLayout.LayoutParams regenerateParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        regenerateParams.setMargins(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        regenerateParams.setMargins(0, 0, 0, dp(4));
         pairLeft.addView(btnPairRegenerate, regenerateParams);
+        TextView regenerateNote = new TextView(context);
+        regenerateNote.setText(R.string.transfer_app_regenerate_note);
+        UiStyles.setTextSize(regenerateNote, R.dimen.text_size_small);
+        regenerateNote.setTextColor(UiStyles.color(context, R.color.textHint));
+        regenerateNote.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        pairLeft.addView(regenerateNote);
 
         // GPS Link: telefonun GPS'i aynı eşleşmeyle araca gelir; ayrı QR veya anahtar yok.
         View gpsDivider = new View(context);
@@ -294,7 +281,7 @@ public class FileUploadTabBuilder {
         pairLeft.addView(gpsDivider, gpsDividerParams);
 
         TextView gpsTitle = new TextView(context);
-        gpsTitle.setText(R.string.gps_link_title);
+        gpsTitle.setText(R.string.transfer_app_gps_title);
         UiStyles.setTextSize(gpsTitle, R.dimen.text_size_normal);
         gpsTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setFontStyle(gpsTitle, Typeface.BOLD);
@@ -330,7 +317,7 @@ public class FileUploadTabBuilder {
         pairRight.setPadding(dp(16), dp(8), dp(16), dp(8));
 
         pairStatusText = new TextView(context);
-        pairStatusText.setText(R.string.phone_pair_server_off);
+        pairStatusText.setText(R.string.transfer_app_server_off);
         UiStyles.setTextSize(pairStatusText, R.dimen.text_size_medium);
         pairStatusText.setTextColor(UiStyles.color(context, R.color.textHint));
         pairStatusText.setGravity(Gravity.CENTER);
@@ -338,6 +325,21 @@ public class FileUploadTabBuilder {
         UiStyles.setFontStyle(pairStatusText, Typeface.BOLD);
         pairRight.addView(pairStatusText, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Sunucu kapalıyken kullanıcı diğer sekmeye gitmesin: bağlantı buradan da başlar.
+        pairStartButton = new Button(context);
+        pairStartButton.setText(R.string.transfer_start);
+        pairStartButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.setTextSize(pairStartButton, R.dimen.text_size_normal);
+        UiStyles.setFontStyle(pairStartButton, Typeface.BOLD);
+        UiStyles.styleOemButton(pairStartButton, UiStyles.color(context, R.color.buttonCta));
+        pairStartButton.setPadding(dp(32), dp(16), dp(32), dp(16));
+        pairStartButton.setOnClickListener(v -> webServerHost.toggleServer());
+        LinearLayout.LayoutParams pairStartParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        pairStartParams.gravity = Gravity.CENTER_HORIZONTAL;
+        pairStartParams.topMargin = dp(16);
+        pairRight.addView(pairStartButton, pairStartParams);
 
         pairQrImageView = new ImageView(context);
         pairQrImageView.setVisibility(View.GONE);
@@ -377,15 +379,6 @@ public class FileUploadTabBuilder {
     }
 
     /** Telefon eşleme sayfasına ilk geçişte bir kez: uygulamanın deneme aşamasında olduğunu söyler. */
-    private void showBetaNoticeOnce() {
-        android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
-        if (prefs.getBoolean(KEY_PHONE_PAIR_BETA_SHOWN, false)) {
-            return;
-        }
-        prefs.edit().putBoolean(KEY_PHONE_PAIR_BETA_SHOWN, true).apply();
-        com.mapcontrol.util.DialogHelper.showPhonePairingBeta(context);
-    }
-
     private void showPairPage(boolean pair) {
         pairPageShown = pair;
         handler.removeCallbacks(gpsRefresh);
@@ -403,6 +396,40 @@ public class FileUploadTabBuilder {
 
     public LinearLayout getFileUploadTabContent() {
         return fileUploadTabContent;
+    }
+
+    /** Numaralı kısa adımlar (1, 2, 3…): yuvarlak numara + tek satırlık açıklama. */
+    private void addSteps(LinearLayout parent, int... steps) {
+        int accent = UiStyles.color(context, R.color.accentHighlight);
+        for (int i = 0; i < steps.length; i++) {
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(4), 0, dp(4));
+
+            TextView number = new TextView(context);
+            number.setText(String.valueOf(i + 1));
+            number.setGravity(Gravity.CENTER);
+            number.setTextColor(Color.WHITE);
+            UiStyles.setTextSize(number, R.dimen.text_size_small);
+            UiStyles.setFontStyle(number, Typeface.BOLD);
+            android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+            circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circle.setColor(accent);
+            number.setBackground(circle);
+            row.addView(number, new LinearLayout.LayoutParams(dp(26), dp(26)));
+
+            TextView label = new TextView(context);
+            label.setText(steps[i]);
+            UiStyles.setTextSize(label, R.dimen.text_size_small);
+            label.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            labelParams.setMarginStart(dp(12));
+            row.addView(label, labelParams);
+            parent.addView(row);
+        }
+        View spacer = new View(context);
+        parent.addView(spacer, new LinearLayout.LayoutParams(1, dp(12)));
     }
 
     private int dp(float value) {
@@ -440,13 +467,17 @@ public class FileUploadTabBuilder {
         showPairQrOff();
     }
 
-    /** QR yok: görsel gizlenir, durum satırı sunucunun önce başlatılması gerektiğini söyler. */
+    /** QR yok: görsel gizlenir; sunucu kapalıysa başlatma düğmesi, açık ama ağ yoksa ağ uyarısı görünür. */
     private void showPairQrOff() {
+        boolean serverOn = serverUrl != null;
         if (pairQrImageView != null) {
             pairQrImageView.setVisibility(View.GONE);
         }
         if (pairStatusText != null) {
-            pairStatusText.setText(R.string.phone_pair_server_off);
+            pairStatusText.setText(serverOn ? R.string.transfer_app_no_network : R.string.transfer_app_server_off);
+        }
+        if (pairStartButton != null) {
+            pairStartButton.setVisibility(serverOn ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -463,7 +494,10 @@ public class FileUploadTabBuilder {
             showPairQrOff();
             return;
         }
-        pairStatusText.setText(R.string.phone_pair_scan);
+        pairStatusText.setText(R.string.transfer_app_scan);
+        if (pairStartButton != null) {
+            pairStartButton.setVisibility(View.GONE);
+        }
         String uri = PairingUri.build(host, Integer.parseInt(hostPort[1]),
                 PhoneAccess.token(context), TripRecorder.get(context).vinOrEmpty(),
                 Wire.PORT, PhoneAccess.carId(context));

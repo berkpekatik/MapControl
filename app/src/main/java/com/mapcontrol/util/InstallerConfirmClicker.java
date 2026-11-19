@@ -145,6 +145,8 @@ public final class InstallerConfirmClicker {
                     + " -> otomatik INSTALL yapilamaz (ayarda acik mi: "
                     + GlobalBackService.isRegisteredInSystemAccessibilitySettings(context) + ")");
             pendingArm = true;
+            // Ses asistanı listeyi ezmiş olabilir: kendimizi geri ekle; bağlanınca onServiceConnected şeridi açar.
+            AccessibilityKeeper.ensure(context, "kurulum onayi");
             return;
         }
         DiagJournal.event("kurulum", "onay penceresi aciliyor; erisilebilirlik bagli, geri sayim baslatiliyor");
@@ -167,6 +169,17 @@ public final class InstallerConfirmClicker {
         if (context != null) {
             SCAN_EXEC.execute(() -> HomeRoleDiag.report(context, service, reason));
         }
+    }
+
+    /** Hizmet kurulum isteğinden sonra bağlandıysa (listeye geri eklendi), açık onay penceresi için geri sayımı başlatır. */
+    public static void onServiceConnected(AccessibilityService service) {
+        if (!pendingArm || userDismissed
+                || SystemClock.uptimeMillis() - installArmedAt > ARMED_TRACE_MS) {
+            return;
+        }
+        pendingArm = false;
+        DiagJournal.event("kurulum", "erisilebilirlik sonradan baglandi; geri sayim baslatiliyor");
+        HANDLER.post(() -> showStrip(service));
     }
 
     public static void disarm() {

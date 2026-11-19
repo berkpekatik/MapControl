@@ -42,6 +42,8 @@ public class SettingsTabBuilder {
         default void onHeaderPositionChanged(boolean isBottom) {}
         /** "Ana ekran ayarları" bağlantısı: MapControl'ın Ana ekran sekmesini açar. */
         default void onOpenHomeScreenTab() {}
+        /** "Menüyü düzenle": kurulum anketini yeniden açar. */
+        default void onMenuSetupRequested() {}
     }
 
     private final Context context;
@@ -90,6 +92,7 @@ public class SettingsTabBuilder {
         FeatureGridLayout grid = new FeatureGridLayout(context);
         settingsTabContent.addView(grid);
         createLauncherModeSection(grid);
+        createMenuSetupSection(grid);
         createFloatingBackButtonSection(grid);
         createDarkModeSection(grid);
         createBootServiceSection(grid);
@@ -133,6 +136,30 @@ public class SettingsTabBuilder {
             parent.addView(card, lp);
         }
         return card;
+    }
+
+    /** Kurulum anketini yeniden çalıştırır: yan menüde görünecek bölümler. */
+    private void createMenuSetupSection(FeatureGridLayout grid) {
+        LinearLayout card = createSettingsCard(grid);
+        TextView title = new TextView(context);
+        title.setText(R.string.settings_menu_setup_title);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        card.addView(title);
+        TextView desc = new TextView(context);
+        desc.setText(R.string.settings_menu_setup_desc);
+        UiStyles.setTextSize(desc, R.dimen.text_size_small);
+        desc.setTextColor(UiStyles.color(context, R.color.textHint));
+        desc.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0, UiStyles.dimenPx(context, R.dimen.spacing_medium));
+        card.addView(desc);
+        Button open = new Button(context);
+        open.setText(R.string.settings_menu_setup_button);
+        UiStyles.styleOemButton(open, UiStyles.color(context, R.color.buttonPrimary));
+        open.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        open.setOnClickListener(v -> callback.onMenuSetupRequested());
+        card.addView(open, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
     }
 
     private void createLanguageSection(android.view.ViewGroup parentContainer) {

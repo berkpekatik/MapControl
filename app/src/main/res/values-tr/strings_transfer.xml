@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Aktar sekmesi: telefonu araca bağlamanın iki yolu (tarayıcı / MapControl telefon uygulaması). -->
+    <string name="transfer_seg_browser">Tarayıcıdan bağlan</string>
+    <string name="transfer_seg_app">Telefon uygulaması</string>
+    <string name="transfer_start">▶ Bağlantıyı başlat</string>
+
+    <string name="transfer_step_network">Telefonu araçla aynı Wi-Fi ağına ya da aracın erişim noktasına bağla.</string>
+    <string name="transfer_step_start">Bu ekrandan bağlantıyı başlat.</string>
+
+    <string name="transfer_browser_title">Telefonun tarayıcısıyla bağlan</string>
+    <string name="transfer_browser_desc">Uygulama yüklemen gerekmez. Telefonundan araca dosya ve uygulama gönderebilir, haritayı ve klavyeyi uzaktan kullanabilirsin.</string>
+    <string name="transfer_browser_step_scan">Sağdaki QR\'ı telefonun kamerasıyla okut; açılan sayfa araçtır.</string>
+
+    <string name="transfer_app_title">MapControl telefon uygulaması</string>
+    <string name="transfer_app_desc">Yolculuklarını ve aracın durumunu telefonunda gör, telefonunun konumunu (GPS) araca gönder. Telefonu bir kez eşleştirmen yeterli.</string>
+    <string name="transfer_app_step_scan">MapControl uygulamasını aç ve sağdaki QR\'ı okut.</string>
+    <string name="transfer_app_key_label">QR okutamıyorsan bu kodu uygulamaya yaz:</string>
+    <string name="transfer_app_regenerate">Yeni kod oluştur</string>
+    <string name="transfer_app_regenerate_note">Eski kodla eşleşen telefonların yeniden eşleşmesi gerekir.</string>
+    <string name="transfer_app_gps_title">Telefon konumu (GPS)</string>
+    <string name="transfer_app_server_off">QR\'ı göstermek için önce bağlantıyı başlat</string>
+    <string name="transfer_app_no_network">Araç bir Wi-Fi ağına ya da erişim noktasına bağlı değil. Bağlayınca QR burada görünür.</string>
+    <string name="transfer_app_scan">MapControl uygulamasıyla bu QR\'ı okut</string>
+</resources>

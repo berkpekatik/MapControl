@@ -20,6 +20,9 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.ui.menu.MenuCard;
+import com.mapcontrol.ui.menu.MenuProfile;
+import com.mapcontrol.ui.menu.MenuTabs;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.StatusWidgetsView;
 import com.mapcontrol.util.DialogHelper;
@@ -76,6 +79,7 @@ public class SideRailBuilder {
     private View btnHome;
     private AppCompatImageView btnHomeIcon;
     private TextView btnHomeLabel;
+    private View btnDockDrive;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -173,6 +177,7 @@ public class SideRailBuilder {
 
         updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
+        applyMenuProfile();
         return sideRail;
     }
 
@@ -250,6 +255,7 @@ public class SideRailBuilder {
         buildGoldenDock();
         updateMenuSelection(menuWifi, menuFileUpload, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
+        applyMenuProfile();
         return sideRail;
     }
 
@@ -358,6 +364,37 @@ public class SideRailBuilder {
         return contentWide;
     }
 
+    /**
+     * Kurulum anketine göre ({@link MenuProfile}) menü satırlarını gösterir/gizler. Yalnız görünürlük değişir,
+     * hiçbir özelliğin ayarına dokunulmaz. Anketten sonra yeniden çağrılır.
+     */
+    public void applyMenuProfile() {
+        java.util.Set<MenuCard> cards = MenuProfile.cards(context);
+        showRow(menuWifi, MenuTabs.WIFI, cards);
+        showRow(menuApps, MenuTabs.APPS, cards);
+        showRow(menuFileUpload, MenuTabs.FILE, cards);
+        showRow(menuDriveMode, MenuTabs.DRIVE_MODE, cards);
+        showRow(menuWelcomeSound, MenuTabs.WELCOME_SOUND, cards);
+        showRow(menuEqualizer, MenuTabs.EQUALIZER, cards);
+        showRow(menuClimateAutomation, MenuTabs.CLIMATE_AUTOMATION, cards);
+        showRow(menuSunroofAutomation, MenuTabs.SUNROOF_AUTOMATION, cards);
+        showRow(menuFaceRecognition, MenuTabs.FACE_RECOGNITION, cards);
+        showRow(menuCamera360, MenuTabs.CAMERA_360, cards);
+        showRow(menuSplitScreen, MenuTabs.SPLIT_SCREEN, cards);
+        showRow(menuProjection, MenuTabs.PROJECTION, cards);
+        showRow(menuVehicleInfo, MenuTabs.VEHICLE_INFO, cards);
+        showRow(menuSettings, MenuTabs.SETTINGS, cards);
+        showRow(menuHomeScreen, MenuTabs.HOME_SCREEN, cards);
+        // Alt dokdaki "Hafıza" kısayolu da Hafıza modu kartına bağlı.
+        showRow(btnDockDrive, MenuTabs.DRIVE_MODE, cards);
+    }
+
+    private static void showRow(View row, int tab, java.util.Set<MenuCard> cards) {
+        if (row != null) {
+            row.setVisibility(MenuProfile.isVisible(tab, cards) ? View.VISIBLE : View.GONE);
+        }
+    }
+
     private void applyRailVisibility() {
         if (sideRail != null) {
             sideRail.setVisibility(isRailHidden() ? View.GONE : View.VISIBLE);
@@ -434,7 +471,7 @@ public class SideRailBuilder {
         View btnBack = createDockActionItem(R.drawable.ic_vehicle_back, t(R.string.dock_back), v -> {
             if (callback != null) callback.onBackPressedRequested();
         });
-        View btnDrive = createDockActionItem(R.drawable.ic_mdi_car, t(R.string.dock_drive_memory), v -> {
+        btnDockDrive = createDockActionItem(R.drawable.ic_mdi_car, t(R.string.dock_drive_memory), v -> {
             if (callback != null) {
                 callback.onTabSelected(TAB_DRIVE_MODE, t(R.string.side_rail_drive_mode));
             }
@@ -449,12 +486,12 @@ public class SideRailBuilder {
 
         goldenDockItems.add(btnHome);
         goldenDockItems.add(btnBack);
-        goldenDockItems.add(btnDrive);
+        goldenDockItems.add(btnDockDrive);
         goldenDockItems.add(btnSettings);
 
         row.addView(btnHome, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
         row.addView(btnBack, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-        row.addView(btnDrive, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(btnDockDrive, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
         row.addView(btnSettings, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
         goldenDockLayout.addView(row, new LinearLayout.LayoutParams(

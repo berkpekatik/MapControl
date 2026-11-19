@@ -27,6 +27,7 @@ public final class MapControlApplication extends Application {
         finishRecordingOnCrash();
         com.mapcontrol.util.ProcessExitLog.reportAsync(this);
         guardLauncherCrashLoop();
+        com.mapcontrol.util.AccessibilityKeeper.watch(this);
         AppLocaleManager.applyStoredLocale(this);
         com.mapcontrol.launcher.HomeScreenPrefs.applyClimateScale(this);
         ClusterTrackRelay.install(this);

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_seg_browser">Connect via browser</string>
+    <string name="transfer_seg_app">Phone app</string>
+    <string name="transfer_start">▶ Start connection</string>
+
+    <string name="transfer_step_network">Connect your phone to the same Wi-Fi as the car, or to the car\'s hotspot.</string>
+    <string name="transfer_step_start">Start the connection from this screen.</string>
+
+    <string name="transfer_browser_title">Connect with your phone\'s browser</string>
+    <string name="transfer_browser_desc">No app needed. Send files and apps from your phone to the car, and use the map and keyboard remotely.</string>
+    <string name="transfer_browser_step_scan">Scan the QR on the right with your phone camera; the page that opens is the car.</string>
+
+    <string name="transfer_app_title">MapControl phone app</string>
+    <string name="transfer_app_desc">See your trips and the car\'s status on your phone, and send your phone\'s location (GPS) to the car. You only need to pair once.</string>
+    <string name="transfer_app_step_scan">Open the MapControl app and scan the QR on the right.</string>
+    <string name="transfer_app_key_label">Can\'t scan? Type this code in the app:</string>
+    <string name="transfer_app_regenerate">Create new code</string>
+    <string name="transfer_app_regenerate_note">Phones paired with the old code will need to pair again.</string>
+    <string name="transfer_app_gps_title">Phone location (GPS)</string>
+    <string name="transfer_app_server_off">Start the connection to show the QR</string>
+    <string name="transfer_app_no_network">The car isn\'t on a Wi-Fi network or hotspot. The QR shows up here once it is.</string>
+    <string name="transfer_app_scan">Scan this QR with the MapControl app</string>
+</resources>

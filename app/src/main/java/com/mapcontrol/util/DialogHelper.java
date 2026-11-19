@@ -89,26 +89,6 @@ public class DialogHelper {
         dialog.show();
     }
 
-    /** Telefon eşleme sayfası ilk açıldığında bir kez gösterilen deneme aşaması bilgisi. */
-    public static void showPhonePairingBeta(Context context) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LinearLayout mainContainer = createBaseContainer(context);
-        mainContainer.addView(createTitleContainer(context,
-                context.getString(R.string.phone_pair_beta_title),
-                context.getString(R.string.phone_pair_beta_subtitle)));
-
-        LinearLayout contentContainer = createContentContainer(context);
-        contentContainer.addView(createMessage(context, context.getString(R.string.phone_pair_beta_message)));
-        mainContainer.addView(contentContainer);
-
-        builder.setView(mainContainer);
-        builder.setPositiveButton(R.string.phone_pair_beta_ok, (d, w) -> d.dismiss());
-        builder.setCancelable(true);
-        AlertDialog dialog = builder.create();
-        styleDialog(dialog);
-        dialog.show();
-    }
-
     /** Başlık + alt başlık + kaydırılabilir metin; [positive] onAccept'i çalıştırır, Geri kapatır. */
     public static void showConfirm(Context context, String title, String subtitle, String message,
             int positive, Runnable onAccept) {

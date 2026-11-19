@@ -37,6 +37,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |
 | 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
 | 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
+| 🧩 **Menü kurulumu** | İlk açılışta hangi özelliklerin menüde görüneceğini seçtiren kurulum sihirbazı *(beta)* |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
 | 🐞 **Log Kaydını Geliştiriciye Gönder** | Donma, Bluetooth kopması ya da ekran resetlenmesinde, onaydan sonra sistem kayıtlarını maskeleyip eşleşmiş hesaba gönderir |
 

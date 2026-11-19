@@ -207,9 +207,9 @@
 
     <string name="web_mgmt_title">Web Yönetimi</string>
     <string name="web_mgmt_desc">Web sunucusunu başlatarak aynı ağdaki cihazlardan dosya yükleyebilir, harita ve klavye denetimi kullanabilirsiniz.</string>
-    <string name="web_server_start">▶ Web Server Başlat</string>
-    <string name="web_server_stop">■ Web Server Durdur</string>
-    <string name="web_server_stopped">Sunucu durduruldu</string>
+    <string name="web_server_start">▶ Bağlantıyı başlat</string>
+    <string name="web_server_stop">■ Bağlantıyı durdur</string>
+    <string name="web_server_stopped">Bağlantı kapalı</string>
     <string name="web_text_sent">Metin gönderildi</string>
 
     <string name="assist_title">Açılışta kapatılacak özellikler</string>
@@ -953,12 +953,6 @@
     <string name="web_server_auto_start">Uygulama açılınca ve kontak açılınca otomatik başlat</string>
     <string name="web_server_auto_start_help_on">Sunucu uygulama ve kontak açılınca kendiliğinden başlar.</string>
     <string name="web_server_auto_start_help_off">Sunucuyu kendiniz başlatırsınız.</string>
-    <string name="phone_pair_beta_title">Test aşamasında</string>
-    <string name="phone_pair_beta_subtitle">Telefon uygulaması</string>
-    <string name="phone_pair_beta_message">MapControl telefon uygulaması şu anda test (beta) aşamasındadır ve yalnızca davet edilen test kullanıcıları (tester) katılabilir.\n\nUygulamaya erişiminiz yoksa bu sayfadaki anahtar ve QR ile telefonunuzu eşleyemezsiniz. Test sürümünde bazı özellikler eksik olabilir veya beklenmedik davranabilir.\n\nEn yakın zamanda App Store ve Google Play üzerinden herkese açık olarak yayınlayacağız.</string>
-    <string name="phone_pair_banner_title">TEST AŞAMASI</string>
-    <string name="phone_pair_banner">Telefon uygulaması şu an yalnızca test kullanıcılarına (tester) açıktır. Erişiminiz yoksa aşağıdaki anahtarla eşleme yapamazsınız; uygulama mağazalarda yayınlandığında herkes katılabilecek.</string>
-    <string name="phone_pair_beta_ok">Tamam</string>
     <string name="phone_pair_tab">Telefon eşleme</string>
     <string name="phone_pair_title">Telefon eşleşme anahtarı</string>
     <string name="phone_pair_desc">QR’ı MapControl telefon uygulamasıyla okut veya bu anahtarı gir. Yolculuk ve araç verisi yalnızca bu anahtarı gösteren telefona verilir; GPS Link de aynı eşleşmeyi kullanır.</string>

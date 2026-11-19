@@ -98,6 +98,7 @@ public class GlobalBackService extends AccessibilityService {
         com.mapcontrol.util.DiagJournal.event("erisilebilirlik", "hizmet baglandi");
         // Ana ekran tuşu kuralı öndeki uygulamayı varsaymaz, şu an öndekini okur (HomePolicy).
         com.mapcontrol.launcher.HomeKey.onServiceConnected(this);
+        InstallerConfirmClicker.onServiceConnected(this);
         if (YandexClusterNavOverlay.isEnabled(this)) {
             ensureYandexPoll();
             requestScrape();

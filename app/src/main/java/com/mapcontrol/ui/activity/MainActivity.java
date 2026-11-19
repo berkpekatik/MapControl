@@ -102,6 +102,9 @@ import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.ImmersiveFullscreenHelper;
 import com.mapcontrol.util.LauncherModeManager;
+import com.mapcontrol.ui.menu.MenuCard;
+import com.mapcontrol.ui.menu.MenuProfile;
+import com.mapcontrol.ui.menu.MenuSetupWizard;
 import com.mapcontrol.launcher.HomeLauncherActivity;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
@@ -333,9 +336,69 @@ public class MainActivity extends AppCompatActivity {
         launchSplashRoot = OnboardingHelper.createView(this, () -> {
             getSharedPreferences("MapControlPrefs", MODE_PRIVATE).edit()
                     .putBoolean(OnboardingHelper.PREF_KEY_COMPLETED, true).apply();
-            initializeApp();
+            showFirstRunMenuSetup();
         });
         setContentView(launchSplashRoot);
+    }
+
+    /**
+     * Yalnız ilk kurulumda (karşılamanın hemen ardından): "Neleri kullanmak istersin?" anketi. Güncellemeyle
+     * gelen kullanıcı karşılamayı zaten geçtiği için buraya gelmez; menüsü olduğu gibi (hepsi açık) kalır.
+     */
+    private void showFirstRunMenuSetup() {
+        launchSplashRoot = MenuSetupWizard.create(this, null, LauncherModeManager.isEnabled(this), true,
+                new MenuSetupWizard.Listener() {
+                    @Override
+                    public void onFinished(java.util.Set<MenuCard> cards, Boolean launcher) {
+                        MenuProfile.save(MainActivity.this, cards);
+                        initializeApp();
+                        log("Menü kurulumu: " + (cards == null ? "hepsi" : cards) + ", launcher=" + launcher);
+                        if (Boolean.TRUE.equals(launcher)) {
+                            handler.postDelayed(() -> {
+                                if (!isFinishing() && !isDestroyed() && !LauncherModeManager.isEnabled(MainActivity.this)) {
+                                    enterLauncherMode();
+                                }
+                            }, 400L);
+                        }
+                    }
+
+                    @Override
+                    public void onSkipped() {
+                        MenuProfile.save(MainActivity.this, null);
+                        initializeApp();
+                    }
+                });
+        setContentView(launchSplashRoot);
+    }
+
+    /** Ayarlar > "Menüyü düzenle": anket tam ekran açılır, mevcut seçim işaretli gelir. */
+    private void showMenuSetupDialog() {
+        android.app.Dialog dialog = new android.app.Dialog(this, android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        boolean launcherOn = LauncherModeManager.isEnabled(this);
+        dialog.setContentView(MenuSetupWizard.create(this, MenuProfile.cards(this), launcherOn, false,
+                new MenuSetupWizard.Listener() {
+                    @Override
+                    public void onFinished(java.util.Set<MenuCard> cards, Boolean launcher) {
+                        dialog.dismiss();
+                        MenuProfile.save(MainActivity.this, cards);
+                        log("Menü düzenlendi: " + (cards == null ? "hepsi" : cards) + ", launcher=" + launcher);
+                        if (sideRailBuilder != null) {
+                            sideRailBuilder.applyMenuProfile();
+                        }
+                        // Launcher sorusu yalnız kart seçiliyse sorulur; açık cevap verildiyse ona uyulur.
+                        if (Boolean.TRUE.equals(launcher) && !LauncherModeManager.isEnabled(MainActivity.this)) {
+                            enterLauncherMode();
+                        } else if (Boolean.FALSE.equals(launcher) && LauncherModeManager.isEnabled(MainActivity.this)) {
+                            exitLauncherMode();
+                        }
+                    }
+
+                    @Override
+                    public void onSkipped() {
+                        dialog.dismiss();
+                    }
+                }));
+        dialog.show();
     }
 
     /**
@@ -903,6 +966,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onOpenHomeScreenTab() {
                         switchTab(TAB_HOME_SCREEN);
+                    }
+
+                    @Override
+                    public void onMenuSetupRequested() {
+                        showMenuSetupDialog();
                     }
 
                     @Override

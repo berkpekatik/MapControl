@@ -194,9 +194,9 @@
     <string name="apps_cd_delete_file">Delete file</string>
     <string name="web_mgmt_title">Web management</string>
     <string name="web_mgmt_desc">Start the web server to upload files from devices on the same network and use map and keyboard control.</string>
-    <string name="web_server_start">▶ Start Web Server</string>
-    <string name="web_server_stop">■ Stop Web Server</string>
-    <string name="web_server_stopped">Server stopped</string>
+    <string name="web_server_start">▶ Start connection</string>
+    <string name="web_server_stop">■ Stop connection</string>
+    <string name="web_server_stopped">Connection off</string>
     <string name="web_text_sent">Text sent</string>
     <string name="assist_title">Features to disable at startup</string>
     <string name="assist_subtitle">Selected features are disabled when the vehicle starts.</string>
@@ -934,12 +934,6 @@
     <string name="web_server_auto_start">Start automatically when the app opens or the ignition turns on</string>
     <string name="web_server_auto_start_help_on">The server starts by itself when the app opens or the ignition turns on.</string>
     <string name="web_server_auto_start_help_off">You start the server yourself.</string>
-    <string name="phone_pair_beta_title">Testing phase</string>
-    <string name="phone_pair_beta_subtitle">Phone app</string>
-    <string name="phone_pair_beta_message">The MapControl phone app is currently in testing (beta) and only invited testers can join.\n\nIf you do not have access to the app, you cannot pair your phone with the key and QR on this page. Some features may be missing or behave unexpectedly in the test version.\n\nWe will release it to everyone on the App Store and Google Play very soon.</string>
-    <string name="phone_pair_banner_title">TESTING PHASE</string>
-    <string name="phone_pair_banner">The phone app is currently open to testers only. If you do not have access you cannot pair with the key below; everyone will be able to join once it is published on the app stores.</string>
-    <string name="phone_pair_beta_ok">OK</string>
     <string name="phone_pair_tab">Phone pairing</string>
     <string name="phone_pair_title">Phone pairing key</string>
     <string name="phone_pair_desc">Scan the QR with the MapControl phone app or enter this key. Trips and vehicle data are only sent to a phone that presents it; GPS Link uses the same pairing.</string>
