@@ -105,6 +105,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
     private Size previewSize;
+    private LinearLayout cameraControls;
     private Button cameraPicker;
     private Button saveCameraButton;
     private String previewCameraId;
@@ -301,7 +302,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         }
         contentRow.addView(leftCard, leftLp);
 
-        LinearLayout cameraControls = new LinearLayout(this);
+        cameraControls = new LinearLayout(this);
         cameraControls.setVisibility(com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)
                 ? View.VISIBLE : View.GONE);
         leftCard.addView(cameraControls, new LinearLayout.LayoutParams(
@@ -1682,6 +1683,15 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        boolean j7 = com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this);
+        cameraControls.setVisibility(j7 ? View.VISIBLE : View.GONE);
+        if (!j7 && !"0".equals(previewCameraId)) {
+            closeCamera();
+            savedCameraId = "0";
+            previewCameraId = "0";
+            updateCameraControls();
+            startCameraPreview();
+        }
         clusterPreview.show(this);
     }
 

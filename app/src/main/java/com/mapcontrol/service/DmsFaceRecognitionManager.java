@@ -288,7 +288,8 @@ public final class DmsFaceRecognitionManager {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
                     cameraOpening = false;
-                    if (!isScanAllowedNow() || !recognitionStarted) {
+                    if (!isScanAllowedNow() || !recognitionStarted
+                            || !camera.getId().equals(DmsCameraPreference.read(context))) {
                         camera.close();
                         closeImageReader();
                         return;
@@ -546,6 +547,10 @@ public final class DmsFaceRecognitionManager {
         public void run() {
             if (cameraHandler == null || !recognitionStarted) {
                 return;
+            }
+            if (cameraDevice != null
+                    && !cameraDevice.getId().equals(DmsCameraPreference.read(context))) {
+                closeDmsCamera();
             }
             CarInfoProxy proxy = CarInfoProxy.getInstance();
             if (!proxy.isServiceConnnected()) {
