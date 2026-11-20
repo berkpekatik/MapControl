@@ -55,6 +55,18 @@ class NativeHudProtocolTest {
         assertTrue(frame.hasRemaining)
     }
 
+    @Test fun milesAndFeetUseOemUnitCodes() {
+        val frame = NativeHudProtocol.encode(state(NavDistance("300", "ft", 91)).copy(
+            remainingDistance = NavDistance("1,2", "mi", 1931)), includeRawMetric = false)!!
+        assertEquals(listOf(50, 6, 3, 0, -24, 3, 0, 3), packet(frame, 50))
+        assertEquals(listOf(53, 5, 12, 0, 0, 0, 2), packet(frame, 53))
+    }
+
+    @Test fun feetFractionIsTruncatedInTenthsOfAYard() {
+        val frame = NativeHudProtocol.encode(state(NavDistance("1", "ft", 0)))!!
+        assertEquals(listOf(50, 6, 3, 0, 3, 0, 0, 3), packet(frame, 50))
+    }
+
     @Test fun nameLimitKeepsUtf8CharactersWhole() {
         val input = "a".repeat(44) + "😀" + "x"
         val frame = NativeHudProtocol.encode(state().copy(street = input))!!
@@ -114,7 +126,7 @@ class NativeHudProtocolTest {
     @Test fun invalidOrNegativeDistanceDoesNotCorruptOtherFields() {
         for (distance in listOf(
             NavDistance("-1", "m", -1), NavDistance("NaN", "m", 0),
-            NavDistance("-1", "m", 1), NavDistance("1", "mi", 1609),
+            NavDistance("-1", "m", 1), NavDistance("1", "unknown", 1609),
         )) {
             val frame = NativeHudProtocol.encode(state(distance))!!
             assertFalse(frame.hasTurn)

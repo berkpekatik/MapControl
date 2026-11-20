@@ -153,6 +153,15 @@ class NativeHudSessionTest {
         assertFalse(owned)
     }
 
+    @Test fun restartingOwnedSessionDoesNotCommitTheSameOwnershipAgain() {
+        val ownership = mutableListOf<Boolean>()
+        val session = NativeHudSession(persistOwnership = { ownership.add(it); true }) { true }
+        assertTrue(session.apply(frame))
+        session.connectionLost()
+        assertTrue(session.apply(frame))
+        assertEquals(listOf(true), ownership)
+    }
+
     @Test fun failedOwnershipWritePreventsStartingAnUnrecoverableSession() {
         val sent = mutableListOf<List<Int>>()
         val session = NativeHudSession(persistOwnership = { false }) { sent.add(it.toList()); true }

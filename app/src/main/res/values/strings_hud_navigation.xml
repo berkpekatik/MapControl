@@ -17,4 +17,7 @@
     <string name="hud_nav_need_vehicle">Waiting for the vehicle HUD service connection.</string>
     <string name="hud_nav_sending">Sending guidance to the vehicle HUD interface…</string>
     <string name="hud_nav_send_error">Unable to send HUD data. The connection will be retried.</string>
+    <string name="hud_nav_check_support">Waiting for vehicle HUD equipment information.</string>
+    <string name="hud_nav_not_supported">This vehicle does not have a windshield HUD.</string>
+    <string name="hud_nav_need_power">Waiting for vehicle power and HUD availability.</string>
 </resources>

@@ -6,171 +6,187 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
-import android.service.notification.NotificationListenerService
-import android.service.notification.StatusBarNotification
 import android.util.Log
-import com.desaysv.ivi.extra.project.carinfo.HUDID
-import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
 import com.desaysv.ivi.extra.project.carinfo.proxy.IServiceConnectListener
-import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.mapcontrol.R
 import com.mapcontrol.launcher.NavParse
-import com.mapcontrol.launcher.NavNotificationReader
-import com.mapcontrol.launcher.NavParseGate
 import com.mapcontrol.launcher.NavigationSource
 import com.mapcontrol.launcher.NavigationState
+import com.mapcontrol.launcher.latestNavigation
 import com.mapcontrol.service.GlobalBackService
-import com.mapcontrol.vehicle.JaecooJ7Features
-import com.mapcontrol.trip.AppBackup
-import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArraySet
 
-/** Google/Yandex rehberliğini üreticinin MODULE_HUD / IHU_INTERCONNECT arayüzüne aktarır. */
-class HudNavigationManager private constructor(context: Context) {
+/** Ortak navigasyon kaynağından üreticinin yerleşik HUD arayüzüne aktarım. */
+class HudNavigationManager internal constructor(context: Context, private val vehicle: HudVehicle) {
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-    private val profilePrefs = app.getSharedPreferences(AppBackup.FILE_LAUNCHER, Context.MODE_PRIVATE)
-    private var j7Selected = JaecooJ7Features.isEnabled(app)
     private val main = Handler(Looper.getMainLooper())
     private val worker: Handler get() = NavigationSource.parsingHandler
     private val watchers = CopyOnWriteArraySet<Runnable>()
-    private val routes = HudRouteStore()
-    private val gate = NavParseGate()
-    private var service = WeakReference<NotificationListenerService>(null)
-    private val proxy = CarInfoProxy.getInstance()
     private val session = NativeHudSession(
         initiallyOwned = prefs.getBoolean(OWNED, false),
         persistOwnership = { owned -> prefs.edit().putBoolean(OWNED, owned).commit() },
         send = ::sendPacket,
     )
     @Volatile private var running = false
-    @Volatile private var revision = 0
-    @Volatile private var sendRevision = 0
-    private var sendingToken = 0
-    private var state = NavigationState.NONE
+    @Volatile private var support: Boolean? = null
+    @Volatile private var generation = 0
+    private var sendingGeneration = 0
+    private var requested = false
+    private var connectionListening = false
+    private var sourceListening = false
+    private var checking = false
+    private var connected = false
+    private var power: Int? = null
+    private var routes: Map<String, NavigationState> = emptyMap()
     private var yandexForeground = NavigationState.NONE
     private var previewUntil = 0L
     private var lastStatus = R.string.hud_nav_off
-    private var connectionListening = false
     private var connectAttemptAt: Long? = null
+    @Volatile private var desired: NativeHudFrame? = null
+    @Volatile private var version = 0
+    private var desiredStatus = R.string.hud_nav_off
+    private var initialized = false
+    private var sending = false
+    private val poll = Runnable { checkVehicle() }
+    private val retry = Runnable { render(force = true) }
     private val endPreview = Runnable { previewUntil = 0L; render() }
-    private val retry = Runnable { render() }
-    private val repeatClear = Runnable { repeatNativeClear() }
-    private val connectionListener = IServiceConnectListener {
-        worker.post {
-            session.connectionLost()
-            main.post { render() }
+    private val repeatClear = Runnable { dispatchRepeatClear() }
+    private val sourceListener: (Map<String, NavigationState>) -> Unit = {
+        routes = it
+        render()
+    }
+    private val connectionListener = IServiceConnectListener { value ->
+        main.post {
+            if (value == 0) {
+                generation++
+                worker.post { session.connectionLost() }
+            }
+            if (requested) checkVehicle() else render(force = true)
         }
     }
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == null || key == ENABLED || key == PROVIDER) main.post { reconfigure() }
     }
 
-    private val profileListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        main.post {
-            val selected = JaecooJ7Features.isEnabled(app)
-            if (selected != j7Selected) {
-                j7Selected = selected
-                reconfigure()
-            }
-        }
-    }
-
-    fun isEnabled(): Boolean = JaecooJ7Features.isEnabled(app) && prefs.getBoolean(ENABLED, false)
+    fun isSupported(): Boolean = support == true
+    fun isEnabled(): Boolean = isSupported() && prefs.getBoolean(ENABLED, false)
     fun provider(): String = prefs.getString(PROVIDER, "auto") ?: "auto"
     fun status(): String = app.getString(lastStatus)
     fun needsYandexScraping(): Boolean = running && isEnabled() && provider() != "google"
 
     fun setEnabled(value: Boolean) {
-        start()
         prefs.edit().putBoolean(ENABLED, value).apply()
+        start()
     }
-
     fun setProvider(value: String) {
         require(value in listOf("auto", "google", "yandex"))
         prefs.edit().putString(PROVIDER, value).apply()
     }
-
-    fun addWatcher(watcher: Runnable) {
-        watchers.add(watcher)
-        watcher.run()
-    }
-
+    fun addWatcher(watcher: Runnable) { watchers.add(watcher); watcher.run() }
     fun removeWatcher(watcher: Runnable) { watchers.remove(watcher) }
 
+    /** HUD yoksa kaynak, tercih ve araç bağlantı dinleyicileri kaydedilmez. */
     fun start() {
-        if (running) return
-        running = true
-        j7Selected = JaecooJ7Features.isEnabled(app)
-        profilePrefs.registerOnSharedPreferenceChangeListener(profileListener)
-        if (!connectionListening) {
-            proxy.regServiceConnectListener(connectionListener)
-            connectionListening = true
-        }
-        prefs.registerOnSharedPreferenceChangeListener(prefListener)
-        reconfigure()
+        requested = true
+        checkVehicle()
     }
+    fun refresh() = start()
 
     fun stop() {
-        running = false
-        profilePrefs.unregisterOnSharedPreferenceChangeListener(profileListener)
-        revision++
-        prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
-        main.removeCallbacks(endPreview)
-        previewUntil = 0L
-        state = NavigationState.NONE
-        yandexForeground = NavigationState.NONE
-        render()
+        requested = false
+        generation++
+        deactivate()
+        main.removeCallbacks(poll)
+        render(force = true)
+    }
+
+    private fun activate() {
+        if (running) return
+        running = true
+        prefs.registerOnSharedPreferenceChangeListener(prefListener)
+        if (!connectionListening) {
+            vehicle.listen(connectionListener)
+            connectionListening = true
+        }
+        syncSource()
         GlobalBackService.refreshHudNavigation()
+    }
+
+    private fun deactivate() {
+        if (running) {
+            running = false
+            prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
+        }
+        syncSource()
+        previewUntil = 0L
+        yandexForeground = NavigationState.NONE
+        routes = emptyMap()
+        main.removeCallbacks(endPreview)
+        GlobalBackService.refreshHudNavigation()
+    }
+
+    /** Config okuması UI iş parçacığına taşınmaz; bilinmeyen destek daha sonra tekrar okunur. */
+    private fun checkVehicle() {
+        if (!requested || checking) return
+        checking = true
+        main.removeCallbacks(poll)
+        worker.post {
+            val nextSupport = vehicle.hudSupport()
+            val nextConnected = vehicle.connected()
+            val nextPower = if (nextConnected) vehicle.powerMode() else null
+            main.post result@{
+                checking = false
+                if (!requested) return@result
+                val changed = nextSupport != support || nextConnected != connected || nextPower != power
+                if (changed) {
+                    generation++
+                    if (nextSupport != true || !nextConnected || nextPower?.let { it > 0 } != true) {
+                        worker.post { session.connectionLost() }
+                    }
+                }
+                support = nextSupport
+                connected = nextConnected
+                power = nextPower
+                if (support == true) activate() else {
+                    deactivate()
+                    main.removeCallbacks(retry)
+                    main.removeCallbacks(repeatClear)
+                    releaseConnectionListener()
+                }
+                render(force = changed)
+                notifyWatchers()
+                // Destek olmadığı bilinen araçta HUD yöneticisi çalışmaz/yoklama yapmaz.
+                if (support != false) main.postDelayed(poll, if (support == true) 2_000L else 5_000L)
+            }
+        }
+    }
+
+    private fun syncSource() {
+        val listen = running && isEnabled()
+        if (listen == sourceListening) return
+        sourceListening = listen
+        if (listen) NavigationSource.addPackageListener(sourceListener) else {
+            NavigationSource.removePackageListener(sourceListener)
+            routes = emptyMap()
+        }
     }
 
     private fun reconfigure() {
-        if (!running) return
-        revision++
-        state = NavigationState.NONE
-        yandexForeground = NavigationState.NONE
+        generation++
+        syncSource()
         previewUntil = 0L
+        yandexForeground = NavigationState.NONE
         main.removeCallbacks(endPreview)
-        if (isEnabled()) {
-            val token = revision
-            val currentService = service.get()
-            worker.post {
-                if (token != revision) return@post
-                routes.clear()
-                gate.clear()
-                if (currentService != null) resync(currentService, token)
-            }
-        }
-        render()
+        render(force = true)
         GlobalBackService.refreshHudNavigation()
         notifyWatchers()
     }
 
-    fun refresh() {
-        if (!running) start() else render()
-        notifyWatchers()
-    }
-
-    fun onListenerConnected(value: NotificationListenerService) {
-        service = WeakReference(value)
-        if (running) reconfigure()
-    }
-
-    fun onListenerDisconnected() {
-        service.clear()
-        revision++
-        state = NavigationState.NONE
-        yandexForeground = NavigationState.NONE
-        previewUntil = 0L
-        main.removeCallbacks(endPreview)
-        render()
-    }
-
-    /** Yandex öndeyken bildirim sadeleşebilir; erişilebilirlikten yalnız doğrulanmış mesafe/yol alanları alınır. */
     fun onYandexSnapshot(snapshot: YandexNavSnapshot) {
-        val token = revision
+        val token = generation
         main.post {
-            if (token != revision || !needsYandexScraping()) return@post
+            if (token != generation || !needsYandexScraping()) return@post
             yandexForeground = if (snapshot.guidanceActive) NavigationState(
                 active = true,
                 distance = NavParse.parseDistanceOnly(snapshot.formatManeuverLine()),
@@ -179,62 +195,11 @@ class HudNavigationManager private constructor(context: Context) {
                 remainingDistance = NavParse.findDistance(snapshot.etaDistance),
                 remainingMinutes = NavParse.parseMinutes(snapshot.etaTime),
                 sourcePackage = NavigationSource.YANDEX_MAPS,
-                updatedAtMs = System.currentTimeMillis(),
             ) else NavigationState.NONE
             render()
         }
     }
 
-    fun onNotificationPosted(value: NotificationListenerService, notification: StatusBarNotification?) {
-        if (!running || !isEnabled() || notification == null || notification.packageName !in NavigationSource.PACKAGES) return
-        val token = revision
-        val source = provider()
-        worker.post {
-            if (token != revision) return@post
-            val signature = try { NavNotificationReader.contentSignature(notification) } catch (_: Exception) { notification.postTime.hashCode() }
-            if (!gate.shouldParse(notification.key, notification.postTime) { signature }) return@post
-            gate.remember(notification.key, notification.postTime, signature)
-            val parsed = NavigationSource.parseForHud(value, notification)?.copy(updatedAtMs = notification.postTime)
-            routes.update(notification.key, parsed)
-            publish(routes.current(source), token)
-        }
-    }
-
-    fun onNotificationRemoved(value: NotificationListenerService, notification: StatusBarNotification?) {
-        if (!running || !isEnabled() || notification == null || notification.packageName !in NavigationSource.PACKAGES) return
-        val token = revision
-        worker.post {
-            if (token != revision) return@post
-            gate.forget(notification.key)
-            routes.remove(notification.key)
-            // Aynı anahtarlı kaldır/yeniden yayımla aralığında kart titreşmesin.
-            worker.postDelayed({
-                if (token == revision) resync(value, token)
-            }, 800L)
-        }
-    }
-
-    private fun resync(value: NotificationListenerService, token: Int) {
-        if (token != revision) return
-        val active = try { value.activeNotifications } catch (_: Exception) { null }
-        routes.clear()
-        gate.clear()
-        active?.filterNotNull()?.filter { it.packageName in NavigationSource.PACKAGES }?.forEach {
-            val parsed = NavigationSource.parseForHud(value, it)?.copy(updatedAtMs = it.postTime)
-            routes.update(it.key, parsed)
-        }
-        publish(routes.current(provider()), token)
-    }
-
-    private fun publish(next: NavigationState, token: Int) {
-        main.post {
-            if (token != revision || !running || !isEnabled()) return@post
-            state = next
-            render()
-        }
-    }
-
-    /** Üreticinin HUD arayüzüne 10 saniyelik örnek rota yollar; canlı kaynak verisini değiştirmez. */
     fun showTest() {
         if (!running || !isEnabled()) return
         previewUntil = SystemClock.elapsedRealtime() + 10_000L
@@ -243,106 +208,114 @@ class HudNavigationManager private constructor(context: Context) {
         render()
     }
 
-    private fun render() {
-        if (!running || !isEnabled()) {
-            transmit(null, R.string.hud_nav_off)
-            return
-        }
+    private fun render(force: Boolean = false) {
         val preview = SystemClock.elapsedRealtime() < previewUntil
-        if (!preview && service.get() == null && !yandexForeground.active) {
-            transmit(null, R.string.hud_nav_need_notifications)
+        val source = provider()
+        val accepted = when (source) {
+            "google" -> setOf(NavigationSource.GOOGLE_MAPS)
+            "yandex" -> setOf(NavigationSource.YANDEX_MAPS, NavigationSource.YANDEX_NAVI)
+            else -> NavigationSource.PACKAGES
+        }
+        val route = if (preview) NavigationState.DEMO else hudRoute(latestNavigation(routes, accepted), yandexForeground, source)
+        val enabled = running && isEnabled()
+        val frame = if (enabled && (preview || NavigationSource.isListenerBound || yandexForeground.active)) NativeHudProtocol.encode(route,
+            includeRawMetric = Settings.System.getInt(app.contentResolver, "com.desaysv.setting.unit", 0) == 0) else null
+        val status = when {
+            !requested -> R.string.hud_nav_off
+            support == null -> R.string.hud_nav_check_support
+            support == false -> R.string.hud_nav_not_supported
+            !enabled -> R.string.hud_nav_off
+            !preview && !NavigationSource.isListenerBound && !yandexForeground.active -> R.string.hud_nav_need_notifications
+            frame == null -> R.string.hud_nav_waiting
+            else -> R.string.hud_nav_showing
+        }
+        if (!force && initialized && desired == frame) {
+            if (frame == null) updateStatus(status)
             return
         }
-        val route = if (preview) NavigationState.DEMO else hudRoute(state, yandexForeground, provider())
-        val metric = Settings.System.getInt(app.contentResolver, "com.desaysv.setting.unit", 0) == 0
-        val frame = NativeHudProtocol.encode(route, includeRawMetric = metric)
-        transmit(frame, if (frame == null) R.string.hud_nav_waiting else R.string.hud_nav_showing)
+        initialized = true
+        desired = frame
+        desiredStatus = status
+        version++
+        main.removeCallbacks(retry)
+        if (frame != null) main.removeCallbacks(repeatClear)
+        if (!sending) dispatch()
     }
 
-    /** Binder ve bütün oturum yazmaları ayrıştırmayla aynı seri arka plan kuyruğunda çalışır. */
-    private fun transmit(frame: NativeHudFrame?, status: Int) {
-        val token = ++sendRevision
-        if (frame != null) main.removeCallbacks(repeatClear)
-        updateStatus(if (frame == null) status else R.string.hud_nav_sending)
+    /** İçerik değişimi çerçeveyi yarıda kesmez; sıradaki iş en güncel hedefi alır. */
+    private fun dispatch() {
+        sending = true
+        val token = generation
+        val revision = version
+        val frame = desired
+        if (frame != null) updateStatus(R.string.hud_nav_sending)
         worker.post {
-            if (token != sendRevision) return@post
-            sendingToken = token
-            val connected = proxy.isServiceConnnected
-            val success = if (connected) {
-                session.apply(frame)
-            } else {
+            sendingGeneration = token
+            val canSend = support == true && vehicle.hudSupport() == true && vehicle.connected() &&
+                vehicle.powerMode()?.let { it > 0 } == true
+            val success = if (token != generation) false else if (canSend) session.apply(frame) else {
                 session.connectionLost()
-                if (frame != null || session.hasWork) connect()
+                if (support == true && (frame != null || session.hasWork) && !vehicle.connected()) connect()
                 frame == null && !session.hasWork
             }
             val repeat = session.needsRepeatClear
+            val work = session.hasWork
             main.post result@{
-                if (token != sendRevision) return@result
-                if (frame != null) {
-                    updateStatus(when {
-                        success -> R.string.hud_nav_showing
-                        !connected -> R.string.hud_nav_need_vehicle
-                        else -> R.string.hud_nav_send_error
-                    })
+                sending = false
+                if (token != generation || revision != version) {
+                    dispatch()
+                    return@result
                 }
-                if (!success) scheduleRetry() else main.removeCallbacks(retry)
-                if (repeat && !main.hasCallbacks(repeatClear)) main.postDelayed(repeatClear, 1500L)
-                if (!running && success && !repeat) releaseConnectionListener()
+                updateStatus(when {
+                    frame == null -> desiredStatus
+                    success -> R.string.hud_nav_showing
+                    !vehicle.connected() -> R.string.hud_nav_need_vehicle
+                    !canSend -> R.string.hud_nav_need_power
+                    else -> R.string.hud_nav_send_error
+                })
+                if (!success && support == true) main.postDelayed(retry, 3_000L)
+                if (repeat && support == true) main.postDelayed(repeatClear, 1_500L)
+                if (!running && !work) releaseConnectionListener()
             }
         }
     }
+
+    private fun sendPacket(packet: IntArray): Boolean =
+        sendingGeneration == generation && support == true && vehicle.hudSupport() == true &&
+            vehicle.connected() && vehicle.powerMode()?.let { it > 0 } == true && vehicle.send(packet)
 
     private fun connect() {
         val now = SystemClock.elapsedRealtime()
         if (connectAttemptAt?.let { now - it < 5_000L } == true) return
         connectAttemptAt = now
-        try {
-            proxy.init(app)
-        } catch (e: RuntimeException) {
+        try { vehicle.connect(app) } catch (e: RuntimeException) {
             Log.w("HudNavigation", "Araç HUD servisine bağlanılamadı", e)
         }
     }
 
-    private fun sendPacket(packet: IntArray): Boolean {
-        if (sendingToken != sendRevision || !proxy.isServiceConnnected) return false
-        return try {
-            proxy.sendItemValues(VDEventCarInfo.MODULE_HUD, HUDID.ID_HUD_IHU_INTERCONNECT, packet)
-            true
-        } catch (e: RuntimeException) {
-            Log.w("HudNavigation", "Yerleşik HUD paketi gönderilemedi", e)
-            false
-        }
-    }
-
-    private fun repeatNativeClear() {
-        val token = sendRevision
+    private fun dispatchRepeatClear() {
+        val token = generation
         worker.post {
-            if (token != sendRevision) return@post
-            sendingToken = token
-            val success = session.repeatClear()
+            sendingGeneration = token
+            val success = token == generation && session.repeatClear()
             main.post result@{
-                if (token != sendRevision) return@result
-                if (!success) scheduleRetry() else if (!running) releaseConnectionListener()
+                if (token != generation) return@result
+                if (!success && support == true) main.postDelayed(retry, 3_000L)
+                else if (success && !running) releaseConnectionListener()
             }
         }
     }
 
-    private fun scheduleRetry() {
-        if (!main.hasCallbacks(retry)) main.postDelayed(retry, 3_000L)
-    }
-
     private fun releaseConnectionListener() {
         if (!connectionListening) return
-        proxy.unRegServiceConnectListener(connectionListener)
+        vehicle.unlisten(connectionListener)
         connectionListening = false
     }
-
     private fun updateStatus(value: Int) {
         if (lastStatus == value) return
         lastStatus = value
         notifyWatchers()
     }
-
     private fun notifyWatchers() { watchers.forEach { it.run() } }
 
     companion object {
@@ -350,10 +323,7 @@ class HudNavigationManager private constructor(context: Context) {
         private const val PROVIDER = "hudNavProvider"
         private const val OWNED = "nativeHudOwned"
         private var instance: HudNavigationManager? = null
-
-        @JvmStatic
-        @Synchronized
-        fun get(context: Context): HudNavigationManager =
-            instance ?: HudNavigationManager(context).also { instance = it }
+        @JvmStatic @Synchronized fun get(context: Context): HudNavigationManager =
+            instance ?: HudNavigationManager(context, NativeHudVehicle()).also { instance = it }
     }
 }

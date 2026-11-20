@@ -9,6 +9,7 @@ internal class NativeHudSession(
     private val persistOwnership: (Boolean) -> Boolean = { true },
     private val send: (IntArray) -> Boolean,
 ) {
+    private var owned = initiallyOwned
     private var active = false
     private var dirty = initiallyOwned
     private var last: NativeHudFrame? = null
@@ -48,7 +49,8 @@ internal class NativeHudSession(
         }
         if (!active) {
             // Süreç gönderim sırasında sonlansa da bir sonraki açılışta temizlenebilsin.
-            if (!persistOwnership(true)) return false
+            if (!owned && !persistOwnership(true)) return false
+            owned = true
             if (!send(NativeHudProtocol.start())) {
                 dirty = true
                 return false
@@ -70,7 +72,8 @@ internal class NativeHudSession(
     /** Üretici bitiş komutunu 1500 ms sonra tekrarlar; yeni rota gelince tekrar iptal olur. */
     fun repeatClear(): Boolean {
         if (!needsRepeatClear || active) return true
-        val cleared = send(NativeHudProtocol.stop()) && persistOwnership(false)
+        val cleared = send(NativeHudProtocol.stop()) && (!owned || persistOwnership(false))
+        if (cleared) owned = false
         needsRepeatClear = !cleared
         return cleared
     }

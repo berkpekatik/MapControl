@@ -52,11 +52,16 @@ internal object NativeHudProtocol {
         val unit = when (value.unit) {
             "m" -> 0
             "km" -> 1
+            "mi" -> 2
+            "yd", "ft" -> 3
             else -> return null
         }
         val number = value.value.replace(',', '.').toBigDecimalOrNull() ?: return null
         if (number.signum() < 0) return null
-        val scaled = number.multiply(BigDecimal.TEN)
+        // OEM feet kodu içermez; feet -> yarda (3 feet = 1 yarda).
+        if (number > BigDecimal.valueOf(maximum).multiply(BigDecimal.valueOf(3))) return null
+        val scaled = if (value.unit == "ft") number.multiply(BigDecimal.TEN).divide(BigDecimal.valueOf(3), 0, RoundingMode.DOWN)
+            else number.multiply(BigDecimal.TEN)
         if (scaled > BigDecimal.valueOf(maximum)) return null
         val tenths = if (scaled < BigDecimal.ONE) BigDecimal.ZERO else scaled.setScale(0, RoundingMode.DOWN)
         return Distance(value.meters.toLong(), tenths.toLong(), unit)

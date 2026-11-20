@@ -17,4 +17,7 @@
     <string name="hud_nav_need_vehicle">Araç HUD servisi bağlantısı bekleniyor.</string>
     <string name="hud_nav_sending">Yönlendirme araç HUD arayüzüne aktarılıyor…</string>
     <string name="hud_nav_send_error">HUD verileri gönderilemedi. Bağlantı yeniden denenecek.</string>
+    <string name="hud_nav_check_support">Araç HUD donanım bilgisi bekleniyor.</string>
+    <string name="hud_nav_not_supported">Bu araçta ön cam HUD donanımı bulunmuyor.</string>
+    <string name="hud_nav_need_power">Araç gücü ve HUD kullanılabilirliği bekleniyor.</string>
 </resources>

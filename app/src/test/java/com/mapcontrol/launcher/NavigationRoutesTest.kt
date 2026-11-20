@@ -1,64 +1,80 @@
-package com.mapcontrol.nav
+package com.mapcontrol.launcher
 
 import com.mapcontrol.launcher.NavManeuver
+import com.mapcontrol.nav.hudRoute
 import com.mapcontrol.launcher.NavigationSource
 import com.mapcontrol.launcher.NavigationState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
-class HudRouteStoreTest {
+class NavigationRoutesTest {
+    private fun current(store: NavigationRoutes, provider: String): NavigationState = latestNavigation(store.byPackage(), when (provider) {
+        "google" -> setOf(NavigationSource.GOOGLE_MAPS)
+        "yandex" -> setOf(NavigationSource.YANDEX_MAPS, NavigationSource.YANDEX_NAVI)
+        else -> setOf(NavigationSource.GOOGLE_MAPS, NavigationSource.YANDEX_MAPS, NavigationSource.YANDEX_NAVI)
+    })
+
     private val google = NavigationState(true, NavManeuver.RIGHT,
         sourcePackage = NavigationSource.GOOGLE_MAPS, updatedAtMs = 100)
     private val yandex = NavigationState(true, NavManeuver.LEFT,
         sourcePackage = NavigationSource.YANDEX_MAPS, updatedAtMs = 200)
 
     @Test fun independentProvidersUseTheLatestGuidance() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         store.update("google-route", google)
         store.update("yandex-route", yandex)
-        assertEquals(yandex, store.current("auto"))
-        assertEquals(google, store.current("google"))
-        assertEquals(yandex, store.current("yandex"))
+        assertEquals(yandex, current(store, "auto"))
+        assertEquals(google, current(store, "google"))
+        assertEquals(yandex, current(store, "yandex"))
     }
 
     @Test fun unrelatedNotificationRemovalKeepsGuidance() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         store.update("route", google)
         store.update("traffic", null)
-        store.remove("traffic")
-        assertEquals(google, store.current("auto"))
+        store.retainKeys(setOf("route"))
+        assertEquals(google, current(store, "auto"))
     }
 
     @Test fun EndedRouteFallsBackToOtherActiveProvider() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         store.update("google-route", google)
         store.update("yandex-route", yandex)
         store.update("yandex-route", NavigationState.NONE)
-        assertEquals(google, store.current("auto"))
-        assertFalse(store.current("yandex").active)
+        assertEquals(google, current(store, "auto"))
+        assertFalse(current(store, "yandex").active)
     }
 
     @Test fun ProviderSwitchDoesNotReuseWrongApplicationRoute() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         store.update("route", google)
-        assertFalse(store.current("yandex").active)
-        assertEquals(google, store.current("google"))
+        assertFalse(current(store, "yandex").active)
+        assertEquals(google, current(store, "google"))
     }
 
     @Test fun NavigatorIsAcceptedAsYandex() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         val navigator = yandex.copy(sourcePackage = NavigationSource.YANDEX_NAVI)
         store.update("navigator", navigator)
-        assertEquals(navigator, store.current("yandex"))
+        assertEquals(navigator, current(store, "yandex"))
+    }
+
+    @Test fun samePackageKeepsItsOtherActiveNotificationWhenOneIsRemoved() {
+        val store = NavigationRoutes()
+        store.update("older", google)
+        store.update("newer", google.copy(updatedAtMs = 300, street = "New"))
+        assertEquals("New", current(store, "google").street)
+        store.retainKeys(setOf("older"))
+        assertEquals(google, current(store, "google"))
     }
 
     @Test fun DisconnectClearsAllGuidance() {
-        val store = HudRouteStore()
+        val store = NavigationRoutes()
         store.update("google", google)
         store.update("yandex", yandex)
         store.clear()
-        assertFalse(store.current("auto").active)
+        assertFalse(current(store, "auto").active)
     }
 
     @Test fun YandexForegroundCannotReplaceGoogleWithUnknownManeuver() {

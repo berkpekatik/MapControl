@@ -129,6 +129,16 @@ public class ProjectionTabBuilder {
         createGoogleMapsClusterCard(grid);
         createYandexClusterCard(grid);
         syncHudNavigationCard();
+        // Donanım okuması arka planda tamamlanınca kart açık sekmede de görünür/gizlenir.
+        final com.mapcontrol.nav.HudNavigationManager hud = com.mapcontrol.nav.HudNavigationManager.get(context);
+        final Runnable hudChanged = this::syncHudNavigationCard;
+        scrollView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View v) {
+                hud.addWatcher(hudChanged);
+                hud.refresh();
+            }
+            @Override public void onViewDetachedFromWindow(View v) { hud.removeWatcher(hudChanged); }
+        });
 
         handler.post(this::refreshProjectionStatusUi);
 
@@ -583,7 +593,7 @@ public class ProjectionTabBuilder {
     }
 
     private void syncHudNavigationCard() {
-        boolean enabled = com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(context);
+        boolean enabled = com.mapcontrol.nav.HudNavigationManager.get(context).isSupported();
         if (enabled && hudNavigationCard == null && featureGrid != null) {
             hudNavigationCard = HudNavigationCard.create(context);
             featureGrid.addCard(hudNavigationCard);
