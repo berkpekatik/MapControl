@@ -841,11 +841,6 @@
     <string name="dms_face_no_profiles">Henüz kayıtlı kişi yok. Sağdaki alandan isim ve koltuk hafızası seçip yüzünüzü taratın.</string>
     <string name="dms_face_no_profiles_no_memory">Henüz kayıtlı kişi yok. Sağdaki alandan isim girip yüzünüzü taratın.</string>
     <string name="dms_face_clear_confirm">Kayıtlı tüm yüz profilleri silinsin mi?</string>
-    <string name="dms_face_camera_id">Kamera ID %1$s</string>
-    <string name="dms_face_camera_select">Kamera seç</string>
-    <string name="dms_face_camera_use">Bu kamerayı kullan</string>
-    <string name="dms_face_camera_pick_another">Kayıtlı kamera bulunamadı. Listeden bir kamera seçin.</string>
-    <string name="dms_face_camera_preview">Önizleme hazır</string>
     <string name="dms_face_camera_missing">Kamera bulunamadı.</string>
     <string name="dms_face_camera_disconnected">Kamera bağlantısı bekleniyor…</string>
     <string name="dms_face_camera_error">Kamera hatası: %1$s</string>

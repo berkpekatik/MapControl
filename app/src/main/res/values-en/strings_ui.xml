@@ -814,11 +814,6 @@
     <string name="dms_face_no_profiles">No profiles saved yet. Enter a name and select seat memory on the right to scan.</string>
     <string name="dms_face_no_profiles_no_memory">No profiles saved yet. Enter a name on the right and scan your face.</string>
     <string name="dms_face_clear_confirm">Delete all saved face profiles?</string>
-    <string name="dms_face_camera_id">Camera ID %1$s</string>
-    <string name="dms_face_camera_select">Choose camera</string>
-    <string name="dms_face_camera_use">Use this camera</string>
-    <string name="dms_face_camera_pick_another">The saved camera is unavailable. Choose a camera.</string>
-    <string name="dms_face_camera_preview">Preview ready</string>
     <string name="dms_face_camera_missing">Camera not found.</string>
     <string name="dms_face_camera_disconnected">Waiting for camera…</string>
     <string name="dms_face_camera_error">Camera error: %1$s</string>

@@ -194,7 +194,7 @@ class HomeLauncherActivity : Activity() {
             this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles,
             onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair,
             onRecording = { LauncherEdition.mapcontrol(this).openTab(this, MapControlTab.CAMERA_360) },
-            showDriveBadge = !(VehicleProfile.active.portrait && com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(this)),
+            showDriveBadge = !VehicleProfile.active.portrait,
         )
         // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir. "Orijinal"de (OEM çubuğu
         // algılanmasa da) ve "Gizli"de launcher çubuğu yok.

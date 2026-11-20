@@ -5,6 +5,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SahnePortraitTest {
+    @Test fun singleRowFitsFourPanelsBelowTheCar() {
+        val layout = SahnePortrait.geometry(1225, 1430, 92, 16, 16, 320, stageFraction = 0.79f, singleRow = true)
+        assertEquals(4, layout.columns)
+        for (i in 0..3) {
+            assertEquals(layout.stageH + 16, layout.panelTop(i))
+            assertTrue(layout.panelLeft(i, 1225) >= 0)
+            assertTrue(layout.panelLeft(i, 1225) + layout.panelW <= 1225)
+            if (i > 0) assertTrue(layout.panelLeft(i, 1225) >= layout.panelLeft(i - 1, 1225) + layout.panelW + 16)
+        }
+        assertTrue(layout.panelTop(3) + layout.panelH <= 1430 - 92 - 16)
+    }
+
 
     // 1440×1920 @320 dpi, LauncherScale sonrası ~1273×1700 dp; başlık, alt çubuk ve boşluklar düşünce orta alan ~1225×1430 dp
     // (1 dp = 1 px alınır).

@@ -34,7 +34,6 @@ import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.R;
 import com.mapcontrol.vehicle.CarSeatMemoryManager;
-import com.mapcontrol.vehicle.DmsCameraPreference;
 import com.mapcontrol.vehicle.DmsFaceMatcher;
 import com.mapcontrol.vehicle.FaceProfileStore;
 
@@ -232,11 +231,10 @@ public final class DmsFaceRecognitionManager {
             return;
         }
         try {
-            String preferredId = DmsCameraPreference.read(context);
             String selectedId = null;
             Size selectedSize = null;
             for (String id : manager.getCameraIdList()) {
-                if (preferredId.equals(id)) {
+                if ("0".equals(id)) {
                     CameraCharacteristics characteristics = manager.getCameraCharacteristics(id);
                     android.hardware.camera2.params.StreamConfigurationMap map =
                             characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -288,8 +286,7 @@ public final class DmsFaceRecognitionManager {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
                     cameraOpening = false;
-                    if (!isScanAllowedNow() || !recognitionStarted
-                            || !camera.getId().equals(DmsCameraPreference.read(context))) {
+                    if (!isScanAllowedNow() || !recognitionStarted) {
                         camera.close();
                         closeImageReader();
                         return;
@@ -327,7 +324,7 @@ public final class DmsFaceRecognitionManager {
                     }
                 }
             }, cameraHandler);
-        } catch (CameraAccessException | IllegalArgumentException | SecurityException e) {
+        } catch (CameraAccessException | SecurityException e) {
             cameraOpening = false;
             nextCameraRetryAtMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
             publishStatus(context.getString(R.string.dms_recognition_error, e.getMessage()));
@@ -547,10 +544,6 @@ public final class DmsFaceRecognitionManager {
         public void run() {
             if (cameraHandler == null || !recognitionStarted) {
                 return;
-            }
-            if (cameraDevice != null
-                    && !cameraDevice.getId().equals(DmsCameraPreference.read(context))) {
-                closeDmsCamera();
             }
             CarInfoProxy proxy = CarInfoProxy.getInstance();
             if (!proxy.isServiceConnnected()) {

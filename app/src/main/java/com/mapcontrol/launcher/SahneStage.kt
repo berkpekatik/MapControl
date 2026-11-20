@@ -12,18 +12,12 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Toast
 import com.mapcontrol.R
-import com.mapcontrol.vehicle.SunroofAutomationEngine
-import com.mapcontrol.vehicle.VehicleMetricsRepository
-import com.mapcontrol.vehicle.VehicleSunroofController
 
 /**
  * Sahne'nin ortası (yuva değil, sabit). Araç sahnenin tam ortasında (§10); menzil sol omzunda, kilit hapı sağ omzunda,
@@ -42,7 +36,7 @@ import com.mapcontrol.vehicle.VehicleSunroofController
  * Veri bugünkü widget'lardan gelir: ekrana konmayan bir [VehicleHeroCard] ([VehicleHeroCard.Summary]) ve [LockTile];
  * yolculuk verisi (bakım, hava, ışıklar, hareket) ortak [TripSource] okuyucusundan. Tasarım ölçüleri 960 genişliğe oranlanır.
  */
-class SahneStage(private val activity: Activity, private val verticalLayout: Boolean = false) : ViewGroup(activity), LauncherWidget {
+class SahneStage(private val activity: Activity, private val portraitLayout: Boolean = false) : ViewGroup(activity), LauncherWidget {
 
     private val vehicle = VehicleHeroCard(activity).apply { applySpan(Span(4, 4)) }
     private val lock = LockTile(activity)
@@ -50,11 +44,6 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
 
     private val floor = FloorView(activity)
     private val ambient = arrayOf(AmbientView(activity), AmbientView(activity))
-    private val roofTapPreview = LauncherDemo.enabled && CarModel.active == CarModel.JAECOO7 &&
-        activity.intent.getBooleanExtra("launcher_demo_roof_tap", false)
-    private val roofControl = roofTapPreview || (verticalLayout && com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(activity))
-    private var roofTap = false
-    private var roofCommandAfter = 0L
     /** Araç ve açılan parçaları (kapı/bagaj/kaput animasyonu); görünüm gövdenin dışına taşan açık parçaları da kapsar. */
     private val car = CarStageView(activity).apply {
         contentDescription = activity.getString(R.string.launcher_sahne_car)
@@ -65,64 +54,17 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         isClickable = true
         isLongClickable = false
         pressFeedback()
-        showRoofTapHint = roofControl
-        roofHintFollowsShade = roofTapPreview
-        if (roofControl) {
-            setOnTouchListener { _, event ->
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> roofTap = isRoofAt(event.x, event.y)
-                    MotionEvent.ACTION_UP -> roofTap = roofTap && isRoofAt(event.x, event.y)
-                    MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_DOWN -> roofTap = false
-                }
-                false
-            }
-        }
-        setOnClickListener {
-            val tappedRoof = roofTap
-            roofTap = false
-            if (tappedRoof && !locked) toggleRoof() else openDetail()
-        }
+        setOnClickListener { openDetail() }
         setFloorReflection(true)
     }
 
-    private fun toggleRoof() {
-        if (roofTapPreview) {
-            LauncherDemo.toggleRoofPreview()
-            return
-        }
-        val now = SystemClock.elapsedRealtime()
-        val roof = openings?.roof
-        if (now < roofCommandAfter || (roof != null && (roof.shadeMs > 0 || roof.glassDir != 0))) return
-
-        val metrics = VehicleMetricsRepository.getInstance(activity).snapshot
-        val open = metrics.sunroofOpenOrNull()
-        if (!metrics.connected || open == null) {
-            Toast.makeText(activity, R.string.vehicle_info_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val prefs = activity.getSharedPreferences(SunroofAutomationEngine.PREFS_NAME, Context.MODE_PRIVATE)
-        if (!open && metrics.isRaining && prefs.getBoolean(SunroofAutomationEngine.KEY_RAIN_GUARD, true)) {
-            Toast.makeText(activity, R.string.sunroof_auto_rain_guard_desc, Toast.LENGTH_LONG).show()
-            return
-        }
-        val controlShade = prefs.getBoolean(SunroofAutomationEngine.KEY_CONTROL_SHADE, true)
-        val controller = VehicleSunroofController.getInstance(activity)
-        val sent = if (open) controller.closeSunroof(controlShade) else controller.openSunroof(controlShade)
-        if (!sent) {
-            Toast.makeText(activity, R.string.vehicle_info_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        }
-        roofCommandAfter = now + 1500L
-        val action = if (open) R.string.gesture_owner_sunroof_close else R.string.gesture_owner_sunroof_open
-        SunroofAutomationEngine.getInstance(activity).notifyManualOverride(activity.getString(action), true, open)
-    }
     /** Açık araç detayı sayfası (yoksa null); yeni veriyle yerinde tazelenir. */
     private var detail: CarDetailSheet? = null
     /** İlk özet animasyonsuz uygulanır (ekran açıldığında kapı zaten açıksa açık çizilir). */
     private var carSeeded = false
     private var carW = 0
     /** Araç dikey mi (burun yukarı; Ana ekran ayarı). Değişince etkinlik yeniden kurulur ([HomeScreenPrefs.signature]). */
-    private val vertical = verticalLayout || HomeScreenPrefs.carVertical(activity)
+    private val vertical = HomeScreenPrefs.carVertical(activity)
     /** Aracın gövde kutusu (sahne pikseli; açılan parçalar hariç); ölçü değişmedikçe yeniden hesaplanmaz. */
     private var carBox = StageFit.Box(0f, 0f, 0f, 0f)
     /**
@@ -260,10 +202,6 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
 
     /** Düzenleme modunda sahne dokunulmaz (yalnızca yuvalar düzenlenir). */
     var locked = false
-        set(value) {
-            field = value
-            car.showRoofTapHint = roofControl && !value
-        }
 
     /**
      * false: menzil omzu (ve veri beklerken yerindeki iskelet) gizlenir; araç yalnızca kilit hapını ve şerit payını gözetir.
@@ -376,7 +314,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         addView(car)
         addView(rangeBlock)
         addView(lockChip)
-        if (verticalLayout) addView(driveModeChip)
+        if (portraitLayout) addView(driveModeChip)
         addView(strip)
         addView(skeleton)
         addView(waitNote)
@@ -390,7 +328,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         lockChip.minimumWidth = lockChip.paddingLeft + lockChip.paddingRight + activity.dp(24 + 10) + listOf(
             R.string.launcher_locked, R.string.launcher_unlocked, R.string.launcher_lock_waiting,
         ).maxOf { lockText.paint.measureText(activity.getString(it)).toInt() + 1 }
-        if (verticalLayout) {
+        if (portraitLayout) {
             val modeLabelWidth = DriveMode.values().maxOf { driveModeValue.paint.measureText(activity.getString(it.label)) }
             val titleWidth = driveModeTitle.paint.measureText(driveModeTitle.text.toString())
             val driveWidth = driveModeChip.paddingLeft + driveModeChip.paddingRight + activity.dp(24 + 10) +
@@ -451,7 +389,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean = locked
 
     private fun bindVehicle(s: VehicleHeroCard.Summary?) {
-        if (verticalLayout) {
+        if (portraitLayout) {
             val mode = s?.driveMode
             driveModeValue.setText(mode?.label ?: R.string.launcher_unavailable)
             val tint = mode?.let { DriveAccent.accentFor(it.value, LauncherTheme.night) }
@@ -526,7 +464,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         )
         val wasShown = stripShown()
         strip.bind(list) { stripText(activity, it) }
-        if (verticalLayout && wasShown != stripShown()) requestLayout()
+        if (portraitLayout && wasShown != stripShown()) requestLayout()
         syncCenter(animate = carSeeded)
         strip.setDriving(if (LauncherDemo.enabled) LauncherDemo.moving == true else trip.moving == true)
     }
@@ -655,7 +593,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         val looseH = MeasureSpec.makeMeasureSpec(h, MeasureSpec.AT_MOST)
         rangeBlock.measure(loose, looseH)
         lockChip.measure(MeasureSpec.makeMeasureSpec(w / 2, MeasureSpec.AT_MOST), exactly(context.dp(LauncherTheme.TOUCH_MIN_DP)))
-        if (verticalLayout) driveModeChip.measure(exactly(lockChip.measuredWidth), exactly(lockChip.measuredHeight))
+        if (portraitLayout) driveModeChip.measure(exactly(lockChip.measuredWidth), exactly(lockChip.measuredHeight))
         fitCar(w, h)
         carW = carBox.width.toInt()
         car.measure(exactly(car.widthFor(carW)), exactly(car.heightFor(carW)))
@@ -695,7 +633,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         val rangeRight = if (showRange) side + maxOf(rangeBlock.measuredWidth, reserve) else side
         val cTop = chipTop(w)
         val chipLeft = w - side - lockChip.measuredWidth
-        val bottom = if (verticalLayout && !stripShown()) h else stripTop(h)
+        val bottom = if (portraitLayout && !stripShown()) h else stripTop(h)
         val maxBottom = bottom - context.dp(CAR_STRIP_GAP_DP)
         val key = listOf(w, h, if (showRange) 1 else 0, rTop, rangeRight, rangeBlock.measuredHeight, chipLeft, cTop + lockChip.measuredHeight, maxBottom)
         if (key == fitKey) return
@@ -709,7 +647,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
             // Bagaj aşağı (şeride doğru) açılır, yana kayma yok.
             val upright = StageFit.centered(
                 centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
-                maxW = (if (verticalLayout) 900f else CAR_W_MAX) * k * CAR_ASPECT,
+                maxW = (if (portraitLayout) 900f else CAR_W_MAX) * k * CAR_ASPECT,
                 minW = CAR_W_MIN * k * CAR_ASPECT * VERTICAL_MIN_SCALE,
                 aspect = 1f / CAR_ASPECT, gap = context.dpF(FIT_GAP_DP), above = obstacles,
             )
@@ -867,7 +805,7 @@ class SahneStage(private val activity: Activity, private val verticalLayout: Boo
         rangeBlock.layout(side, rTop, side + rangeBlock.measuredWidth, rTop + rangeBlock.measuredHeight)
         val cTop = chipTop(w)
         lockChip.layout(w - side - lockChip.measuredWidth, cTop, w - side, cTop + lockChip.measuredHeight)
-        if (verticalLayout) {
+        if (portraitLayout) {
             val chipRight = w - side
             val chipTop = lockChip.bottom + context.dp(12)
             driveModeChip.layout(chipRight - driveModeChip.measuredWidth, chipTop, chipRight, chipTop + driveModeChip.measuredHeight)

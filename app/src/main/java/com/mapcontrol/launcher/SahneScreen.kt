@@ -44,9 +44,8 @@ class SahneScreen(
 
     /** Dikey Jaecoo ekranında araç yukarı bakar ve dört kart altta tek sıraya dizilir. */
     private val portrait = parkStore.vehicle.portrait
-    private val singleRow = (portrait && com.mapcontrol.vehicle.JaecooJ7Features.isEnabled(activity)) ||
-        LauncherDemo.portraitLayoutPreview(activity)
-    private val stage = SahneStage(activity, verticalLayout = singleRow)
+    private val singleRow = portrait
+    private val stage = SahneStage(activity, portraitLayout = singleRow)
     private val leftPanel = GlassPanel(activity, glow = false)
     private val rightPanel = GlassPanel(activity, glow = false)
     /** Dört panelli biçimde (Tiggo 8) her yanın alt paneli; iki panelli biçimde hiç eklenmez. */
