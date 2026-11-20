@@ -25,9 +25,11 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatImageView;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.util.ApkSessionInstaller;
+import com.mapcontrol.util.AppPermissionManager;
 import com.mapcontrol.util.SilentDexInstaller;
 
 import org.json.JSONArray;
@@ -538,6 +540,20 @@ public class AppsTabBuilder {
                     }
                 });
                 rightContainer.addView(actionButton);
+
+                Button permButton = new Button(context);
+                permButton.setText(R.string.apps_action_permissions);
+                UiStyles.setTextSize(permButton, R.dimen.text_size_small);
+                UiStyles.setFontStyle(permButton, android.graphics.Typeface.BOLD);
+                permButton.setTextColor(UiStyles.color(context, R.color.textPrimary));
+                permButton.setBackgroundColor(UiStyles.color(context, R.color.transparent));
+                permButton.setPadding(18, 12, 18, 12);
+                permButton.setOnClickListener(v -> showPermissionsDialog(finalPackageName, finalDisplayName));
+                LinearLayout.LayoutParams permParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                permParams.setMargins(UiStyles.dimenPx(context, R.dimen.spacing_small), 0, 0, 0);
+                rightContainer.addView(permButton, permParams);
 
                 Button removeButton = new Button(context);
                 removeButton.setText(R.string.apps_action_remove);
@@ -2142,6 +2158,136 @@ public class AppsTabBuilder {
                 callback.log("Uygulama silme işlemi hatası: " + e.getMessage());
             }
         }).start();
+    }
+
+    /**
+     * Seçili uygulama için araç içinden verilebilen izinleri (tehlikeli runtime izinleri,
+     * erişilebilirlik, bildirim erişimi) anahtarlarla listeler. Shell gerektirenler "USB gerekir"
+     * başlığı altında bilgi olarak gösterilir.
+     */
+    private void showPermissionsDialog(String packageName, String displayName) {
+        final AppPermissionManager manager = new AppPermissionManager(context);
+        final List<AppPermissionManager.Entry> entries = manager.read(packageName);
+
+        int pad = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(pad, pad, pad, pad);
+
+        if (!manager.isDeviceOwner()) {
+            root.addView(hintText(R.string.apps_perm_no_owner, R.color.statusErrorBright));
+        }
+        if (!manager.canWriteSecureSettings()) {
+            root.addView(hintText(R.string.apps_perm_no_secure, R.color.statusErrorBright));
+        }
+
+        boolean addedControllableHeader = false;
+        boolean addedAdbHeader = false;
+        boolean anyRow = false;
+
+        for (AppPermissionManager.Entry entry : entries) {
+            if (entry.controllable()) {
+                if (!addedControllableHeader) {
+                    root.addView(sectionHeader(R.string.apps_perm_runtime_header));
+                    addedControllableHeader = true;
+                }
+                root.addView(buildPermissionRow(manager, packageName, entry));
+                anyRow = true;
+            }
+        }
+
+        for (AppPermissionManager.Entry entry : entries) {
+            if (!entry.controllable()) {
+                if (!addedAdbHeader) {
+                    root.addView(sectionHeader(R.string.apps_perm_adb_header));
+                    root.addView(hintText(R.string.apps_perm_adb_note, R.color.textSecondaryCool));
+                    addedAdbHeader = true;
+                }
+                TextView adbRow = new TextView(context);
+                adbRow.setText(entry.label);
+                adbRow.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+                adbRow.setAlpha(0.6f);
+                UiStyles.setTextSize(adbRow, R.dimen.text_size_small);
+                adbRow.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0, 0);
+                root.addView(adbRow);
+                anyRow = true;
+            }
+        }
+
+        if (!anyRow) {
+            root.addView(hintText(R.string.apps_perm_empty, R.color.textSecondaryCool));
+        }
+
+        ScrollView scroll = new ScrollView(context);
+        scroll.addView(root);
+
+        new AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.apps_perm_dialog_title, displayName))
+                .setView(scroll)
+                .setPositiveButton(R.string.apps_perm_close, null)
+                .show();
+    }
+
+    private LinearLayout buildPermissionRow(AppPermissionManager manager, String packageName,
+                                            AppPermissionManager.Entry entry) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0,
+                UiStyles.dimenPx(context, R.dimen.spacing_small));
+
+        TextView label = new TextView(context);
+        String suffix = "";
+        if (entry.kind == AppPermissionManager.Kind.ACCESSIBILITY) {
+            suffix = " " + context.getString(R.string.apps_perm_accessibility_suffix);
+        } else if (entry.kind == AppPermissionManager.Kind.NOTIFICATION_LISTENER) {
+            suffix = " " + context.getString(R.string.apps_perm_notification_suffix);
+        }
+        label.setText(entry.label + suffix);
+        label.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.setTextSize(label, R.dimen.text_size_small);
+        row.addView(label, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        SwitchCompat toggle = new SwitchCompat(context);
+        toggle.setChecked(entry.granted);
+        toggle.setOnClickListener(v -> {
+            boolean want = toggle.isChecked();
+            boolean ok = manager.apply(packageName, entry, want);
+            if (ok) {
+                entry.granted = want;
+                callback.log((want ? "İzin verildi: " : "İzin geri alındı: ")
+                        + packageName + " / " + entry.id);
+            } else {
+                toggle.setChecked(entry.granted);
+                Toast.makeText(context,
+                        context.getString(R.string.apps_perm_apply_failed, entry.label),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+        row.addView(toggle);
+        return row;
+    }
+
+    private TextView sectionHeader(int stringRes) {
+        TextView header = new TextView(context);
+        header.setText(stringRes);
+        header.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        UiStyles.setTextSize(header, R.dimen.text_size_medium);
+        UiStyles.setFontStyle(header, android.graphics.Typeface.BOLD);
+        header.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_medium), 0,
+                UiStyles.dimenPx(context, R.dimen.spacing_small));
+        return header;
+    }
+
+    private TextView hintText(int stringRes, int colorRes) {
+        TextView hint = new TextView(context);
+        hint.setText(stringRes);
+        hint.setTextColor(UiStyles.color(context, colorRes));
+        UiStyles.setTextSize(hint, R.dimen.text_size_small);
+        hint.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_small), 0,
+                UiStyles.dimenPx(context, R.dimen.spacing_small));
+        return hint;
     }
 
     private void deletePackagesSequentially(ArrayList<String> packages, int index, boolean deleteRelatedFiles, boolean deleteSelf) {
