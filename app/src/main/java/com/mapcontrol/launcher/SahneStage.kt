@@ -36,7 +36,7 @@ import com.mapcontrol.R
  * Veri bugünkü widget'lardan gelir: ekrana konmayan bir [VehicleHeroCard] ([VehicleHeroCard.Summary]) ve [LockTile];
  * yolculuk verisi (bakım, hava, ışıklar, hareket) ortak [TripSource] okuyucusundan. Tasarım ölçüleri 960 genişliğe oranlanır.
  */
-class SahneStage(private val activity: Activity) : ViewGroup(activity), LauncherWidget {
+class SahneStage(private val activity: Activity, private val portraitLayout: Boolean = false) : ViewGroup(activity), LauncherWidget {
 
     private val vehicle = VehicleHeroCard(activity).apply { applySpan(Span(4, 4)) }
     private val lock = LockTile(activity)
@@ -53,10 +53,11 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         // Dokununca araç detayı. Uzun basma yok; düzenleme modunda sahne dokunuşu zaten keser ([locked]).
         isClickable = true
         isLongClickable = false
-        setOnClickListener { openDetail() }
         pressFeedback()
+        setOnClickListener { openDetail() }
         setFloorReflection(true)
     }
+
     /** Açık araç detayı sayfası (yoksa null); yeni veriyle yerinde tazelenir. */
     private var detail: CarDetailSheet? = null
     /** İlk özet animasyonsuz uygulanır (ekran açıldığında kapı zaten açıksa açık çizilir). */
@@ -137,6 +138,29 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     }
     /** Son bilinen kilit durumu (kilitlenince dörtlüler bir kez yanar); henüz okunmadıysa null. */
     private var lastLocked: Boolean? = null
+
+    private val driveModeIcon = sahneIcon(R.drawable.ic_mdi_speedometer, Sahne.INK_3)
+    private val driveModeTitle = sahneText(activity, 12f, Sahne.INK_3, 500, dayBump = false).apply {
+        includeFontPadding = false
+        setSingleLine(true)
+        setText(R.string.launcher_widget_drive_mode)
+    }
+    private val driveModeValue = sahneText(activity, 18f, Sahne.INK, 600, dayBump = false).apply {
+        includeFontPadding = false
+        setSingleLine(true)
+    }
+    private val driveModeChip = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        background = GlassDrawable(context, Sahne.PILL_RADIUS_DP, shadow = 0.6f)
+        setPadding(context.dp(16), 0, context.dp(18), 0)
+        addView(driveModeIcon, LinearLayout.LayoutParams(context.dp(24), context.dp(24)))
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(driveModeTitle, LinearLayout.LayoutParams(WRAP, WRAP))
+            addView(driveModeValue, LinearLayout.LayoutParams(WRAP, WRAP))
+        }, LinearLayout.LayoutParams(WRAP, WRAP).apply { marginStart = context.dp(10) })
+    }
 
     // --- Uyarı şeridi (aracın altında; yalnızca arabada görünmeyenler) ---
     private val strip = StageStrip(activity) { onStripTap(it) }
@@ -290,6 +314,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         addView(car)
         addView(rangeBlock)
         addView(lockChip)
+        if (portraitLayout) addView(driveModeChip)
         addView(strip)
         addView(skeleton)
         addView(waitNote)
@@ -303,6 +328,13 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         lockChip.minimumWidth = lockChip.paddingLeft + lockChip.paddingRight + activity.dp(24 + 10) + listOf(
             R.string.launcher_locked, R.string.launcher_unlocked, R.string.launcher_lock_waiting,
         ).maxOf { lockText.paint.measureText(activity.getString(it)).toInt() + 1 }
+        if (portraitLayout) {
+            val modeLabelWidth = DriveMode.values().maxOf { driveModeValue.paint.measureText(activity.getString(it.label)) }
+            val titleWidth = driveModeTitle.paint.measureText(driveModeTitle.text.toString())
+            val driveWidth = driveModeChip.paddingLeft + driveModeChip.paddingRight + activity.dp(24 + 10) +
+                kotlin.math.ceil(maxOf(modeLabelWidth, titleWidth)).toInt()
+            lockChip.minimumWidth = maxOf(lockChip.minimumWidth, driveWidth)
+        }
     }
 
     override val view: View get() = this
@@ -357,6 +389,19 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
     override fun onTouchEvent(event: android.view.MotionEvent): Boolean = locked
 
     private fun bindVehicle(s: VehicleHeroCard.Summary?) {
+        if (portraitLayout) {
+            val mode = s?.driveMode
+            driveModeValue.setText(mode?.label ?: R.string.launcher_unavailable)
+            val tint = mode?.let { DriveAccent.accentFor(it.value, LauncherTheme.night) }
+            driveModeValue.setTextColor(tint ?: Sahne.INK)
+            driveModeIcon.imageTintList = ColorStateList.valueOf(tint ?: Sahne.ICE)
+            driveModeIcon.setImageResource(when (mode) {
+                null, DriveMode.NORMAL -> R.drawable.ic_mdi_speedometer
+                DriveMode.MUD -> R.drawable.ic_drive_mode_mud
+                DriveMode.SAND -> R.drawable.ic_drive_mode_sand
+                else -> DriveAccent.icon(mode.value)
+            })
+        }
         val range = s?.rangeKm
         rangeNumber.setTextSmooth(range?.toString() ?: activity.getString(R.string.launcher_unavailable), animate = false)
         rangeNumber.setTextColor(if (range != null) Sahne.NUMERAL else Sahne.INK_3)
@@ -417,7 +462,9 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             serviceKm = trip.serviceKm, serviceDays = trip.serviceDays, pm25In = trip.pm25In,
             batteryV = trip.batteryV, batteryHighHeld = trip.batteryHighHeld, fuelCapOpen = s.fuelCapOpen,
         )
+        val wasShown = stripShown()
         strip.bind(list) { stripText(activity, it) }
+        if (portraitLayout && wasShown != stripShown()) requestLayout()
         syncCenter(animate = carSeeded)
         strip.setDriving(if (LauncherDemo.enabled) LauncherDemo.moving == true else trip.moving == true)
     }
@@ -546,6 +593,7 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         val looseH = MeasureSpec.makeMeasureSpec(h, MeasureSpec.AT_MOST)
         rangeBlock.measure(loose, looseH)
         lockChip.measure(MeasureSpec.makeMeasureSpec(w / 2, MeasureSpec.AT_MOST), exactly(context.dp(LauncherTheme.TOUCH_MIN_DP)))
+        if (portraitLayout) driveModeChip.measure(exactly(lockChip.measuredWidth), exactly(lockChip.measuredHeight))
         fitCar(w, h)
         carW = carBox.width.toInt()
         car.measure(exactly(car.widthFor(carW)), exactly(car.heightFor(carW)))
@@ -585,7 +633,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         val rangeRight = if (showRange) side + maxOf(rangeBlock.measuredWidth, reserve) else side
         val cTop = chipTop(w)
         val chipLeft = w - side - lockChip.measuredWidth
-        val maxBottom = stripTop(h) - context.dp(CAR_STRIP_GAP_DP)
+        val bottom = if (portraitLayout && !stripShown()) h else stripTop(h)
+        val maxBottom = bottom - context.dp(CAR_STRIP_GAP_DP)
         val key = listOf(w, h, if (showRange) 1 else 0, rTop, rangeRight, rangeBlock.measuredHeight, chipLeft, cTop + lockChip.measuredHeight, maxBottom)
         if (key == fitKey) return
         fitKey = key
@@ -598,7 +647,8 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
             // Bagaj aşağı (şeride doğru) açılır, yana kayma yok.
             val upright = StageFit.centered(
                 centerX = w / 2f, minTop = context.dpF(6f), maxBottom = maxBottom.toFloat(),
-                maxW = CAR_W_MAX * k * CAR_ASPECT, minW = CAR_W_MIN * k * CAR_ASPECT * VERTICAL_MIN_SCALE,
+                maxW = (if (portraitLayout) 900f else CAR_W_MAX) * k * CAR_ASPECT,
+                minW = CAR_W_MIN * k * CAR_ASPECT * VERTICAL_MIN_SCALE,
                 aspect = 1f / CAR_ASPECT, gap = context.dpF(FIT_GAP_DP), above = obstacles,
             )
             // Dikeyde gövde boyu çerçeveyi (sahne yüksekliği) aşmaz: gerçek boy oranı uygulanmaz, yalnız gövde boyu eşitlenir.
@@ -755,6 +805,11 @@ class SahneStage(private val activity: Activity) : ViewGroup(activity), Launcher
         rangeBlock.layout(side, rTop, side + rangeBlock.measuredWidth, rTop + rangeBlock.measuredHeight)
         val cTop = chipTop(w)
         lockChip.layout(w - side - lockChip.measuredWidth, cTop, w - side, cTop + lockChip.measuredHeight)
+        if (portraitLayout) {
+            val chipRight = w - side
+            val chipTop = lockChip.bottom + context.dp(12)
+            driveModeChip.layout(chipRight - driveModeChip.measuredWidth, chipTop, chipRight, chipTop + driveModeChip.measuredHeight)
+        }
         // Şerit aracın altında, sahnenin ortasında.
         val sTop = stripTop(h)
         val sLeft = (w - strip.measuredWidth) / 2

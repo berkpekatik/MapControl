@@ -165,8 +165,9 @@ class HomeLauncherActivity : Activity() {
         LauncherTheme.applyFrom(systemConfig, ThemeMode.read(this))
         // Sürüş modu vurgusu: seçenek kapalıysa varsayılan vurgu; demo isteği ilk kurulumda hemen uygulanır.
         refreshDrivePrefs()
+        val demoDriveMode = LauncherDemo.applyDriveMode(intent)
         if (!driveAccentOn) LauncherTheme.driveMode = DriveAccent.NORMAL
-        else LauncherDemo.applyDriveMode(intent)?.let { LauncherTheme.driveMode = it }
+        else demoDriveMode?.let { LauncherTheme.driveMode = it }
         driveModePolicy.reset(LauncherTheme.driveMode)
         // Spor ambiyansı: seçenek açıksa ya da geri yazma bekliyorsa sürüş modunu izler (açılışta bekleyen renk geri yazılır).
         SportAmbient.sync(this)
@@ -189,7 +190,12 @@ class HomeLauncherActivity : Activity() {
         window.decorView.setBackgroundColor(LauncherTheme.GROUND)
         hideSystemBars()
 
-        header = HeaderBar(this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles, onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair, onRecording = { LauncherEdition.mapcontrol(this).openTab(this, MapControlTab.CAMERA_360) })
+        header = HeaderBar(
+            this, onSettings = ::openSettings, onEditHome = ::enterEditMode, onProfile = ::openProfiles,
+            onWifi = ::toggleWifiPanel, onBluetooth = ::toggleBluetoothPanel, onPhonePair = ::openPhonePair,
+            onRecording = { LauncherEdition.mapcontrol(this).openTab(this, MapControlTab.CAMERA_360) },
+            showDriveBadge = !VehicleProfile.active.portrait,
+        )
         // "Alt çubuk: Bizimki" seçiliyse OEM çubuğu gizlenir ve yerine OurBottomBar gelir. "Orijinal"de (OEM çubuğu
         // algılanmasa da) ve "Gizli"de launcher çubuğu yok.
         ourBar = if (BottomBarMode.drawsOurBar(LauncherBottomBar.mode(this), oemBar)) OurBottomBar(this, onPhoneTap = ::onPhoneButton) else null

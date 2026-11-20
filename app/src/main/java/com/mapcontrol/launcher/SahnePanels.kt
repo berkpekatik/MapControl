@@ -76,6 +76,12 @@ internal class GlassPanel(context: Context, glow: Boolean) : FrameLayout(context
             field = value
             requestLayout()
         }
+    var naturalWidthDp: Int = 0
+        set(value) {
+            if (field == value) return
+            field = value
+            requestLayout()
+        }
 
     /** Şu anki içerik ölçeği (1 = küçültme yok). */
     private var contentScale = 1f
@@ -130,7 +136,10 @@ internal class GlassPanel(context: Context, glow: Boolean) : FrameLayout(context
         val c = content ?: return
         val innerW = measuredWidth - paddingLeft - paddingRight
         val innerH = measuredHeight - paddingTop - paddingBottom
-        contentScale = PanelFit.scale(innerH, if (naturalHeightDp > 0) context.dp(naturalHeightDp) else 0)
+        contentScale = minOf(
+            PanelFit.scale(innerH, context.dp(naturalHeightDp)),
+            PanelFit.scale(innerW, context.dp(naturalWidthDp)),
+        )
         if (contentScale >= 1f) return
         c.measure(MeasureSpec.makeMeasureSpec(Math.round(innerW / contentScale), MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(Math.round(innerH / contentScale), MeasureSpec.EXACTLY))

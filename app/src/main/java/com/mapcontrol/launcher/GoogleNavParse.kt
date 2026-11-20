@@ -20,11 +20,15 @@ import com.mapcontrol.nav.GoogleMapsNavSnapshot
 object GoogleNavParse {
 
     /** Bildirim extras metinlerinden durum; rota yoksa null. */
-    fun parse(title: String?, text: String?, subText: String?, nowMs: Long = 0L): NavigationState? =
-        fromSnapshot(
-            GoogleMapsNavNotificationParser.parseFields(clean(title), clean(text), clean(subText), false),
-            nowMs,
+    fun parse(title: String?, text: String?, subText: String?, nowMs: Long = 0L): NavigationState? {
+        val state = fromSnapshot(
+            GoogleMapsNavNotificationParser.parseFields(clean(title), clean(text), clean(subText), false), nowMs,
+        ) ?: return null
+        return state.copy(
+            distance = NavParse.parseDistanceOnly(title?.substringBefore(" - ")) ?: state.distance,
+            remainingDistance = NavParse.findDistance(subText) ?: state.remainingDistance,
         )
+    }
 
     fun fromSnapshot(snap: GoogleMapsNavSnapshot, nowMs: Long = 0L): NavigationState? {
         if (!snap.active) return null
