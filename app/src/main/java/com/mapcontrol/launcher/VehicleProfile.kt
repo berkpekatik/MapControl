@@ -30,6 +30,18 @@ enum class VehicleProfile(val key: String, val barStyle: BarStyle) {
     /** Dikey ekran: etkinlik dikey yönelimde, Sahne üstte araç + 2×2 panel. */
     val portrait: Boolean get() = this == PORTRAIT
 
+    /**
+     * Alt çubukta hava yönü (yüz · ayak | cam) ve devridaim düğmeleri: Tiggo 8'de her zaman; Tiggo 7 ve dikey ekranda
+     * (Jaecoo) yalnız kullanıcı açtıysa ([optIn], "Klima hava tuşları", varsayılan kapalı).
+     */
+    fun showsAirButtons(optIn: Boolean): Boolean = when (this) {
+        TIGGO8 -> true
+        TIGGO7, PORTRAIT -> optIn
+    }
+
+    /** "Klima hava tuşları" anahtarı bu ekranda menüde görünür mü (Tiggo 8'de düğmeler hep var). */
+    val airButtonsOptional: Boolean get() = this != TIGGO8
+
     /** Alt çubuk yüksekliği (dp). [screenHeightDp] uygulamanın gördüğü ekran yüksekliğidir (dp). */
     fun barHeightDp(screenHeightDp: Float): Int = when (this) {
         TIGGO7 -> TIGGO7_BAR_DP

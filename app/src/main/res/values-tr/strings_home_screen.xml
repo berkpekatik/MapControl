@@ -58,4 +58,7 @@
     <string name="home_screen_vehicle_help_jaecoo">Dikey ekran: araç üstte, altında 2×2 dört kart; ana ekran dikey kalır ve düzenleri ayrıdır. Ana ekran bir sonraki açılışında uygulanır.</string>
     <string name="home_screen_sport_mode_help_on">Spor\'da kronograf ekranı açılır (yalnız Sahne düzeni).</string>
     <string name="home_screen_sport_mode_help_off">Spor\'da da orijinal tema kalır.</string>
+    <string name="home_screen_air_buttons">Klima hava tuşları</string>
+    <string name="home_screen_air_buttons_help_on">Launcher\'ın kendi alt çubuğunda fanın yanında yüz, ayak, cam ve devridaim tuşları görünür.</string>
+    <string name="home_screen_air_buttons_help_off">Alt çubukta yalnız sıcaklık ve fan görünür; aracın fiziksel tuşları kullanılır.</string>
 </resources>

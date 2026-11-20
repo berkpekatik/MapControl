@@ -40,6 +40,8 @@ internal class ClimateControl(
     private val context: Context,
     private val io: Executor,
     private val main: Handler,
+    /** Hücre ölçüleri; dikey ekranda hava düğmeleri açıkken çubuk daralır ([ClimateBarSize.COMPACT], [OurBottomBar]). */
+    private val size: ClimateBarSize = ClimateBarSize.FULL,
 ) {
     private var readout = ClimateReadout()
     private var pendingDriver: Double? = null
@@ -267,7 +269,7 @@ internal class ClimateControl(
     // --- Sıcaklık hücresi ---
 
     private inner class TempCell(private val side: ClimateSide, private val labelRes: Int) {
-        private val label = text(context, SAHNE_TEMP_SP, medium = true).apply {
+        private val label = text(context, size.tempSp, medium = true).apply {
             gravity = Gravity.CENTER
             SahneFonts.apply(this, 400, -0.02f, dayBump = false)
             theme.bind { setTextColor(Sahne.NUMERAL) }
@@ -288,7 +290,7 @@ internal class ClimateControl(
             }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             // Dokunma bölgelerinin ipucu: sol yarı −0,5, sağ yarı +0,5.
             val chev = context.dp(SAHNE_CHEVRON_DP)
-            val edge = context.dp(SAHNE_CHEVRON_EDGE_DP)
+            val edge = context.dp(size.chevronEdgeDp)
             addView(icon(context, R.drawable.ic_sahne_chev_left, SAHNE_CHEVRON_DP).apply {
                 theme.bind { setTint(Sahne.CONTROL_ICON) }
             }, FrameLayout.LayoutParams(chev, chev, Gravity.START or Gravity.CENTER_VERTICAL).apply { marginStart = edge })
@@ -479,7 +481,7 @@ internal class ClimateControl(
                     addView(number, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
                 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
                 addView(gap(context, 10, vertical = true))
-                addView(track, LinearLayout.LayoutParams(context.dp(SAHNE_TRACK_W_DP), context.dp(SAHNE_TRACK_H_DP)))
+                addView(track, LinearLayout.LayoutParams(context.dp(size.fanTrackDp), context.dp(SAHNE_TRACK_H_DP)))
             }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         }
 
@@ -697,16 +699,16 @@ internal class ClimateControl(
     companion object {
         private const val DASH = "—"
         /** Sahne ölçüleri (taslak): sıcaklık 46, fan 40, fan izi 220 × 8, ok ikonları 30 ve kenardan 21. */
-        private const val SAHNE_TEMP_SP = 46f
+        const val SAHNE_TEMP_SP = 46f
         private const val SAHNE_FAN_SP = 40f
         private const val SAHNE_FAN_ICON_DP = 30
         private const val AIR_ICON_DP = 34
-        private const val SAHNE_TRACK_W_DP = 220
+        const val SAHNE_TRACK_W_DP = 220
         private const val SAHNE_TRACK_H_DP = 8
         /** Spor: fan kademesi küçük yay göstergesi (aynı genişlik, biraz daha yüksek kutu). */
         private const val SPORT_TRACK_H_DP = 16
         private const val SAHNE_CHEVRON_DP = 30
-        private const val SAHNE_CHEVRON_EDGE_DP = 21
+        const val SAHNE_CHEVRON_EDGE_DP = 21
         private const val BUBBLE_SP = 56f
         /** Derece işareti: küçük, üst simge. */
         private const val DEGREE_SCALE = 0.52f

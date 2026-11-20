@@ -322,6 +322,30 @@ public class SettingsTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp2.setMargins(16, 0, 16, 8);
         parentContainer.addView(dataCheck, lp2);
+
+        // Jaecoo: aracın launcher'ı MapControl ikonlarını masaüstüne kopyalıyor; verisini silmek fazlaları kaldırır.
+        if (com.mapcontrol.util.OemLauncherRepair.isAvailable(context)) {
+            final Button repair = new Button(context);
+            repair.setText(R.string.diag_oem_icons_button);
+            UiStyles.styleOemButton(repair, UiStyles.color(context, R.color.buttonSecondaryMuted));
+            repair.setOnClickListener(v -> com.mapcontrol.util.DialogHelper.showConfirm(context,
+                    context.getString(R.string.diag_oem_icons_button),
+                    null,
+                    context.getString(R.string.diag_oem_icons_confirm),
+                    R.string.diag_oem_icons_run,
+                    () -> {
+                        repair.setEnabled(false);
+                        com.mapcontrol.util.OemLauncherRepair.clear(context, ok -> {
+                            repair.setEnabled(true);
+                            Toast.makeText(context, ok ? R.string.diag_oem_icons_done : R.string.diag_oem_icons_failed,
+                                    Toast.LENGTH_LONG).show();
+                        });
+                    }));
+            LinearLayout.LayoutParams lp3 = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp3.setMargins(16, 0, 16, 8);
+            parentContainer.addView(repair, lp3);
+        }
     }
 
     private void sendDiagnostics(Button send) {

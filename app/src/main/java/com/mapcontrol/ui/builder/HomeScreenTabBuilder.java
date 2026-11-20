@@ -100,6 +100,7 @@ public class HomeScreenTabBuilder {
         createCarColorSection(appearanceGrid);
         createRadioCommandSection(appearanceGrid);
         createHomeKeySection(appearanceGrid);
+        createT7AirButtonsSection(appearanceGrid);
 
         addSectionTitle(R.string.home_screen_layout_title);
         FeatureGridLayout layoutGrid = new FeatureGridLayout(context);
@@ -295,6 +296,26 @@ public class HomeScreenTabBuilder {
                 });
     }
 
+    /**
+     * Klima hava tuşları: alt çubukta fanın iki yanında hava yönü ve devridaim düğmeleri. Tiggo 7 ve dikey ekranda
+     * (Jaecoo) gösterilir (Tiggo 8'de düğmeler hep var); varsayılan kapalı, launcher bir sonraki açılışta yeniden kurulur.
+     */
+    private void createT7AirButtonsSection(FeatureGridLayout grid) {
+        if (!com.mapcontrol.launcher.VehicleProfile.Companion.compute(context).getAirButtonsOptional()) {
+            return;
+        }
+        UiStyles.addBinarySegmentedControl(context, createCard(grid),
+                context.getString(R.string.home_screen_air_buttons),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.home_screen_air_buttons_help_on),
+                context.getString(R.string.home_screen_air_buttons_help_off),
+                HomeScreenPrefs.t7AirButtons(context),
+                on -> {
+                    HomeScreenPrefs.setT7AirButtons(context, on);
+                    callback.log("Klima hava tuşları: " + on);
+                });
+    }
+
     /** Radyo komut tipi: araca göre otomatik; AM/FM geçmiyorsa elle Tip 1 / Tip 2. */
     private void createRadioCommandSection(FeatureGridLayout grid) {
         UiStyles.addTernarySegmentedControl(context, createCard(grid),
@@ -351,6 +372,8 @@ public class HomeScreenTabBuilder {
                 index -> {
                     HomeScreenPrefs.setVehicleProfileIndex(context, index);
                     callback.log("Ana ekran araç ekranı: " + index);
+                    // "Klima hava tuşları" Tiggo 8 ekranında görünmez: seçime göre menüyü yeniden kur.
+                    if (scrollView != null) scrollView.post(this::rebuild);
                 });
     }
 

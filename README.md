@@ -26,6 +26,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | | |
 |---|---|
 | 🏠 **Launcher** | Tam ekran ana sayfa: saat, hava durumu, araç ölçümleri, müzik, kısayollar |
+| ❄️ **Alt bar klima tuşları** | Tiggo 7 ve Jaecoo dikey ekran alt barına isteğe bağlı klima/hava akışı tuşları |
 | 🚗 **Sürüş hafızası** | Eco, Normal, Sport, Snow, Mud, Offroad, Sand ve sürücü yardımları araç açılınca otomatik uygulanır |
 | 🙂 **Yüz tanıma** | DMS kamerasıyla sürücüyü tanır, kayıtlı koltuk hafızasını uygular |
 | 🌡️ **Otomasyon** | Dış sıcaklığa göre klima, koltuk ısıtma/havalandırma, direksiyon ısıtması |
@@ -39,6 +40,7 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
 | 🧩 **Menü kurulumu** | İlk açılışta hangi özelliklerin menüde görüneceğini seçtiren kurulum sihirbazı *(beta)* |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
+| 🛠️ **Ana ekran ikon onarımı** | Jaecoo launcher'ında çoğalan MapControl ikonlarını tek tuşla temizler |
 | 🐞 **Log Kaydını Geliştiriciye Gönder** | Donma, Bluetooth kopması ya da ekran resetlenmesinde, onaydan sonra sistem kayıtlarını maskeleyip eşleşmiş hesaba gönderir |
 
 ---
