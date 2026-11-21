@@ -33,21 +33,18 @@ public final class SunroofGestureStore {
         return KEY_PREFIX + action.name();
     }
 
-    /**
-     * Varsayılan hareketler üç parmak kaydırmadır. İki parmak sola/sağa harita kaydırmaya ayrılı
-     * olduğundan cam tavan varsayılanı onunla çakışmaz.
-     */
+    /** Daha önce sabit olan iki parmak hareketleri varsayılan kalır. */
     public static int defaultCode(GestureAction action) {
         switch (action) {
             case SWIPE_LEFT:
-                return SplitScreenGesture.code(3, SplitScreenGesture.LEFT);
+                return SplitScreenGesture.code(2, SplitScreenGesture.LEFT);
             case SWIPE_RIGHT:
-                return SplitScreenGesture.code(3, SplitScreenGesture.RIGHT);
+                return SplitScreenGesture.code(2, SplitScreenGesture.RIGHT);
             case SWIPE_UP:
-                return SplitScreenGesture.code(3, SplitScreenGesture.UP);
+                return SplitScreenGesture.code(2, SplitScreenGesture.UP);
             case SWIPE_DOWN:
             default:
-                return SplitScreenGesture.code(3, SplitScreenGesture.DOWN);
+                return SplitScreenGesture.code(2, SplitScreenGesture.DOWN);
         }
     }
 

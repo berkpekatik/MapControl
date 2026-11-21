@@ -216,6 +216,45 @@ public final class OemEolConfigReader {
         return readPersistConfig(ReserveKeys.CAR_CONFIG_5);
     }
 
+    /**
+     * OEM {@code SVVrControl} içindeki {@code HvacController.L()} mantığıyla iklim hedef sıcaklığının
+     * 0.5°C adımlı (15.5..30.5°C -> 0..30) mı yoksa varsayılan 1°C adımlı (15.0..31.0°C -> 0..16) mı
+     * kodlandığını döner. Konfigürasyon okunamazsa Tiggo 8 varsayılanı olan {@code false} döner.
+     */
+    public static boolean isHalfDegreeClimateScale() {
+        int[] combo = readPersistConfigShort(ReserveKeys.COMBO_CONFIG);
+        int[] cfg5 = readConfig5Bytes();
+        int[] cfg3 = readPersistConfig(ReserveKeys.CAR_CONFIG_3);
+        int model = (combo != null && combo.length >= 2) ? combo[1] : 0;
+        boolean international = cfg5 != null && cfg5.length >= 8 && (cfg5[6] & 255) != 0;
+        if (!international) {
+            return false;
+        }
+        // T13J_INT (15), T1G_INT (19) veya T1EFL_INT (3) yüz/iklim stili config(62)==1
+        if (model == 15 || model == 19) {
+            return true;
+        }
+        if (model == 3 && cfg3 != null && cfg3.length >= 8) {
+            return ((cfg3[4] >> 5) & 1) == 1;
+        }
+        return false;
+    }
+
+    private static int[] readPersistConfigShort(String key) {
+        try {
+            VDBus vdbus = VDBus.getDefault();
+            if (vdbus.isServiceConnected(VDServiceDef.ServiceType.VEHICLE_DEVICE)) {
+                int[] fromVdbus = readHexConfig(vdbus, key);
+                if (fromVdbus != null && fromVdbus.length >= 2) {
+                    return fromVdbus;
+                }
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "kısa config VDBus okunamadı: " + key, e);
+        }
+        return hexStringToBytes(readSystemProperty(key));
+    }
+
     /** {@code null} when the config block is missing. */
     public static Boolean configBit(int[] config, int byteIndex, int bit) {
         if (config == null || byteIndex < 0 || config.length <= byteIndex || bit < 0 || bit > 7) {
