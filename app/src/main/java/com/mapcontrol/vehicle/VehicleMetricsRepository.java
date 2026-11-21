@@ -75,6 +75,8 @@ public final class VehicleMetricsRepository {
             ReadOnlyID.ID_LFFT_BEHIND_DOOR_STATE,
             ReadOnlyID.ID_RIGHT_BEHIND_DOOR_STATE,
             ReadOnlyID.ID_TRUNK_STATE,
+            ReadOnlyID.ID_HOOD_STATE,
+            ReadOnlyID.ID_TIRE_PRESSURE_WARNING,
             // Araç Far & Işık Sensörü (RLS)
             ReadOnlyID.ID_LIGHT_DETECTED_IHU,
             ReadOnlyID.ID_PARKING_LAMP_STATE,

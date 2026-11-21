@@ -26,6 +26,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
     private final Context appContext;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean awaitingSunshadeToOpenGlass = false;
+    private volatile boolean awaitingSunshadeToTiltGlass = false;
 
     private VehicleSunroofController(Context context) {
         this.appContext = context.getApplicationContext();
@@ -53,7 +54,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
             return;
         }
 
-        // Perde açıldıktan sonra camın açılmasını bekleyen işlem varsa:
+        // Perde açıldıktan sonra camın açılmasını veya Tilt'e kalkmasını bekleyen işlem varsa:
         if (awaitingSunshadeToOpenGlass) {
             if (snapshot.isSunshadeOpen()) {
                 Log.i(TAG, "VDBus ONAY: Tavan perdesi tamamen arkaya çekildi! Cam motoru anında devreye sokuluyor...");
@@ -64,11 +65,22 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
                 unregisterMetricsListener();
             }
         }
+        if (awaitingSunshadeToTiltGlass) {
+            if (snapshot.isSunshadeOpen()) {
+                Log.i(TAG, "VDBus ONAY: Tavan perdesi açıldı! Cam tavan Tilt moduna alınıyor...");
+                sendSunroofTiltDirect();
+                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 800);
+                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 1800);
+                awaitingSunshadeToTiltGlass = false;
+                unregisterMetricsListener();
+            }
+        }
 
         // Cam tavan açıldıysa veya harekete geçtiyse açma darbelerini sonlandır
         if (Boolean.TRUE.equals(snapshot.sunroofOpenOrNull())) {
             handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
             awaitingSunshadeToOpenGlass = false;
+            awaitingSunshadeToTiltGlass = false;
             unregisterMetricsListener();
         }
     }
@@ -115,6 +127,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
         }
         try {
             // Varsa bekleyen kapatma darbelerini iptal et
+            awaitingSunshadeToTiltGlass = false;
             handler.removeCallbacksAndMessages(SUNSHADE_TOKEN);
             handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
 
@@ -165,6 +178,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
         handler.postAtTime(this::sendSunroofOpenDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 12500);
         handler.postAtTime(() -> {
             awaitingSunshadeToOpenGlass = false;
+            awaitingSunshadeToTiltGlass = false;
             unregisterMetricsListener();
         }, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 13500);
     }
@@ -211,6 +225,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
         }
         try {
             awaitingSunshadeToOpenGlass = false;
+            awaitingSunshadeToTiltGlass = false;
             unregisterMetricsListener();
             // Varsa bekleyen açma darbelerini iptal et
             handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
@@ -286,6 +301,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
      */
     public boolean stopSunroof() {
         awaitingSunshadeToOpenGlass = false;
+        awaitingSunshadeToTiltGlass = false;
         handler.removeCallbacksAndMessages(SUNSHADE_TOKEN);
         handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
         ensureReady();
@@ -307,8 +323,12 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
 
     /**
      * Cam tavanı havalandırma (Tilt / Havalanma) moduna alır.
+     * Perde kapalıysa önce perdeyi açıp ardından çok aşamalı Tilt darbeleri gönderir;
+     * perde açıksa ilk açılışta darbe kaçmaması için takip darbeleri uygular.
      */
     public boolean tiltSunroof() {
+        awaitingSunshadeToOpenGlass = false;
+        awaitingSunshadeToTiltGlass = false;
         handler.removeCallbacksAndMessages(SUNSHADE_TOKEN);
         handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
         ensureReady();
@@ -316,19 +336,66 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
             return false;
         }
         try {
-            CarInfoProxy.getInstance().sendItemValue(
-                    VDEventCarInfo.MODULE_CAR_SETTING,
-                    CarSettingID.ID_CAR_SPF_POSI,
-                    12); // 12 = Tilt
-            CarInfoProxy.getInstance().sendItemValue(
-                    VDEventCarInfo.MODULE_VR,
-                    VrID.ID_VR_SRF,
-                    4); // 4 = Tilt
-            Log.d(TAG, "Sent command: Tilt Sunroof");
+            VehicleMetricsSnapshot snapshot = VehicleMetricsRepository.getInstance(appContext).getSnapshot();
+            boolean isShadeOpen = snapshot != null && snapshot.isSunshadeOpen();
+
+            if (!isShadeOpen) {
+                awaitingSunshadeToTiltGlass = true;
+                registerMetricsListener();
+                openSunshadeOnly();
+                sendSunroofTiltDirect();
+                scheduleMultiStageSunroofTilt();
+            } else {
+                unregisterMetricsListener();
+                sendSunroofTiltDirect();
+                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 800);
+                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 1800);
+            }
+            Log.d(TAG, "Sent command: Tilt Sunroof (isShadeOpen=" + isShadeOpen + ")");
             return true;
         } catch (Throwable t) {
             Log.e(TAG, "Error executing tiltSunroof", t);
             return false;
+        }
+    }
+
+    private void scheduleMultiStageSunroofTilt() {
+        handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 1500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 3500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 5500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 7000);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 8200);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 9500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 11000);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 12500);
+        handler.postAtTime(() -> {
+            awaitingSunshadeToTiltGlass = false;
+            unregisterMetricsListener();
+        }, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 13500);
+    }
+
+    public void sendSunroofTiltDirect() {
+        try {
+            ensureReady();
+            if (CarInfoProxy.getInstance().isServiceConnnected()) {
+                // OEM Chery VR (VrVehicleMgr): MODULE_VR + ID_VR_SRF_POSI (123) = 12 (Tilt)
+                CarInfoProxy.getInstance().sendItemValue(
+                        VDEventCarInfo.MODULE_VR,
+                        VrID.ID_VR_SRF_POSI,
+                        12); // 12 = Tilt
+                CarInfoProxy.getInstance().sendItemValue(
+                        VDEventCarInfo.MODULE_CAR_SETTING,
+                        CarSettingID.ID_CAR_SPF_POSI,
+                        12); // 12 = Tilt
+                CarInfoProxy.getInstance().sendItemValue(
+                        VDEventCarInfo.MODULE_VR,
+                        VrID.ID_VR_SRF,
+                        4); // 4 = Tilt
+                Log.d(TAG, "Direct sunroof tilt pulse sent");
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Failed to send direct sunroof tilt pulse: " + t.getMessage());
         }
     }
 

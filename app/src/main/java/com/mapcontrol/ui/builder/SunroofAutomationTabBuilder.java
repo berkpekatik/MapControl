@@ -181,14 +181,14 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         heading.setPadding(dp(14, density), 0, 0, 0);
 
         TextView title = new TextView(context);
-        title.setText("Akıllı Cam Tavan Otomasyonu");
+        title.setText(R.string.sunroof_tab_title);
         UiStyles.setTextSize(title, R.dimen.text_size_large);
         title.setTextColor(UiStyles.color(context, R.color.textPrimary));
         UiStyles.setFontStyle(title, Typeface.BOLD);
         heading.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Güneş yakıyorsa tavanı kapatır; bulutlu havada veya gün batımında açar.");
+        subtitle.setText(R.string.sunroof_tab_subtitle);
         UiStyles.setTextSize(subtitle, R.dimen.text_size_small);
         subtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         heading.addView(subtitle);
@@ -214,7 +214,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         conditionBox.setBackground(condBg);
 
         TextView tvCondLabel = new TextView(context);
-        tvCondLabel.setText("ANLIK HAVA VE IŞIK DURUMU");
+        tvCondLabel.setText(R.string.sunroof_cond_header);
         UiStyles.setTextSize(tvCondLabel, R.dimen.text_size_tiny);
         UiStyles.setFontStyle(tvCondLabel, Typeface.BOLD);
         tvCondLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
@@ -241,18 +241,18 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             tvConditionTitle.setText(initStatus.conditionTitle);
             String src = initStatus.luxSource != null && !initStatus.luxSource.isEmpty() ? " (" + initStatus.luxSource + ")" : "";
             if (initStatus.averageLux > 0 && Math.abs(initStatus.currentLux - initStatus.averageLux) > 2500f) {
-                tvLiveLux.setText(String.format(Locale.getDefault(), "Ölçülen Işık: %,d lx (Ort: %,d lx)%s",
+                tvLiveLux.setText(context.getString(R.string.sunroof_lux_avg_fmt,
                         (int) initStatus.currentLux, (int) initStatus.averageLux, src));
             } else {
-                tvLiveLux.setText(String.format(Locale.getDefault(), "Ölçülen Işık: %,d lx%s", (int) initStatus.currentLux, src));
+                tvLiveLux.setText(context.getString(R.string.sunroof_lux_fmt, (int) initStatus.currentLux, src));
             }
         } else {
-            tvConditionTitle.setText("Sensör Okunuyor...");
-            tvLiveLux.setText("Ölçülen Işık: -- lx");
+            tvConditionTitle.setText(R.string.sunroof_cond_reading);
+            tvLiveLux.setText(R.string.sunroof_lux_unknown);
         }
 
         tvConditionAdvice = new TextView(context);
-        tvConditionAdvice.setText("Işık rahatsız etmiyor, ferah sürüş için cam tavan açık tutuluyor.");
+        tvConditionAdvice.setText(R.string.sunroof_advice_default);
         UiStyles.setTextSize(tvConditionAdvice, R.dimen.text_size_tiny);
         tvConditionAdvice.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         conditionBox.addView(tvConditionAdvice);
@@ -264,16 +264,16 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         badgesRow.setBaselineAligned(false);
         badgesRow.setPadding(0, dp(10, density), 0, 0);
 
-        tvSunroofState = createCompactBadge(badgesRow, "Cam Tavan", "Bağlantı bekleniyor", density, false);
-        tvRainState = createCompactBadge(badgesRow, "Yağmur", "Kuru ☀️", density, false);
-        tvSpeed = createCompactBadge(badgesRow, "Araç Hızı", "0 km/s", density, true);
+        tvSunroofState = createCompactBadge(badgesRow, context.getString(R.string.sunroof_badge_roof), context.getString(R.string.sunroof_badge_waiting_conn), density, false);
+        tvRainState = createCompactBadge(badgesRow, context.getString(R.string.sunroof_badge_rain), context.getString(R.string.sunroof_badge_dry), density, false);
+        tvSpeed = createCompactBadge(badgesRow, context.getString(R.string.sunroof_badge_speed), context.getString(R.string.sunroof_badge_speed_zero), density, true);
         conditionBox.addView(badgesRow);
 
         card.addView(conditionBox);
 
         // Alt Bilgi Notu (Son Otomasyon Hareketi)
         tvStatusMessage = new TextView(context);
-        tvStatusMessage.setText("Son işlem: Bekleniyor");
+        tvStatusMessage.setText(R.string.sunroof_status_waiting);
         UiStyles.setTextSize(tvStatusMessage, R.dimen.text_size_tiny);
         tvStatusMessage.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tvStatusMessage.setPadding(dp(4, density), dp(6, density), 0, 0);
@@ -332,14 +332,14 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         LinearLayout masterTextCol = new LinearLayout(context);
         masterTextCol.setOrientation(LinearLayout.VERTICAL);
         TextView masterTitle = new TextView(context);
-        masterTitle.setText("Otomatik Cam Tavan");
+        masterTitle.setText(R.string.sunroof_master_title);
         UiStyles.setTextSize(masterTitle, R.dimen.text_size_normal);
         UiStyles.setFontStyle(masterTitle, Typeface.BOLD);
         masterTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         masterTextCol.addView(masterTitle);
 
         TextView masterDesc = new TextView(context);
-        masterDesc.setText("Güneşe, buluta ve gün batımına göre tavanı yönetir");
+        masterDesc.setText(R.string.sunroof_master_desc);
         UiStyles.setTextSize(masterDesc, R.dimen.text_size_small);
         masterDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         masterTextCol.addView(masterDesc);
@@ -356,34 +356,34 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         card.addView(masterRow);
 
         // 1.5. Otomasyon Kapsamı (Yalnızca Perde / Tavan + Perde)
-        TextView scopeTitle = createSectionTitle("Ne Yönetilsin? (Otomasyon Kapsamı)", density);
+        TextView scopeTitle = createSectionTitle(context.getString(R.string.sunroof_scope_title), density);
         scopeTitle.setPadding(0, dp(14, density), 0, dp(6, density));
         card.addView(scopeTitle);
         card.addView(buildScopeSelector(density));
 
         // 2. Çalışma Mantığı Seçimi (Seçilebilir Modern Kartlar)
-        TextView modeTitle = createSectionTitle("Nasıl Çalışsın?", density);
+        TextView modeTitle = createSectionTitle(context.getString(R.string.sunroof_mode_title), density);
         card.addView(modeTitle);
 
         int currentMode = prefs.getInt(SunroofAutomationEngine.KEY_MODE, SunroofAutomationEngine.MODE_SMART_COMFORT);
 
         cardModeSmart = createModeSelectableCard(
-                "🌟 Akıllı Güneş Koruması (Önerilen)",
-                "Yakıcı dik güneşte kapatır; bulutlu havada, gölgede, akşam ve gece açık tutar.",
+                context.getString(R.string.sunroof_mode_smart_title),
+                context.getString(R.string.sunroof_mode_smart_desc),
                 SunroofAutomationEngine.MODE_SMART_COMFORT,
                 currentMode == SunroofAutomationEngine.MODE_SMART_COMFORT,
                 density);
 
         cardModeShadeOnly = createModeSelectableCard(
-                "☁️ Sadece Gölgede Aç",
-                "Güneş ışığından çok rahatsız olanlar için; en ufak güneşte kapatır, gölgede açık tutar.",
+                context.getString(R.string.sunroof_mode_shade_title),
+                context.getString(R.string.sunroof_mode_shade_desc),
                 SunroofAutomationEngine.MODE_SHADE_ONLY,
                 currentMode == SunroofAutomationEngine.MODE_SHADE_ONLY,
                 density);
 
         cardModeOpenAir = createModeSelectableCard(
-                "🌤️ Açık Hava Keyfi",
-                "Tavanın sürekli açık kalmasını sevenler için; sadece aşırı yakıcı güneşte kapatır.",
+                context.getString(R.string.sunroof_mode_open_title),
+                context.getString(R.string.sunroof_mode_open_desc),
                 SunroofAutomationEngine.MODE_OPEN_AIR,
                 currentMode == SunroofAutomationEngine.MODE_OPEN_AIR,
                 density);
@@ -392,8 +392,8 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         card.addView(cardModeShadeOnly);
         card.addView(cardModeOpenAir);
         cardModeAlwaysOpen = createModeSelectableCard(
-                "\u267E\uFE0F Her Sürüşte Daima Aç (Işıktan Bağımsız)",
-                "Işık seviyesine bakılmaksızın; araç her çalıştığında otomatik açar ve açık tutar.",
+                context.getString(R.string.sunroof_mode_always_title),
+                context.getString(R.string.sunroof_mode_always_desc),
                 SunroofAutomationEngine.MODE_ALWAYS_OPEN,
                 currentMode == SunroofAutomationEngine.MODE_ALWAYS_OPEN,
                 density);
@@ -402,7 +402,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         // 3. Güneş Hassasiyeti Butonları
         sensSectionContainer = new LinearLayout(context);
         sensSectionContainer.setOrientation(LinearLayout.VERTICAL);
-        TextView sensTitle = createSectionTitle("Güneş Hassasiyeti", density);
+        TextView sensTitle = createSectionTitle(context.getString(R.string.sunroof_sens_title), density);
         sensTitle.setPadding(0, dp(14, density), 0, dp(6, density));
         sensSectionContainer.addView(sensTitle);
 
@@ -411,9 +411,9 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         LinearLayout sensRow = new LinearLayout(context);
         sensRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        btnSensSensitive = createSensitivityButton("🌿 Hassas\n(Erken Kapat)", SunroofAutomationEngine.SENSITIVITY_SENSITIVE, currentSens, density);
-        btnSensBalanced = createSensitivityButton("⚖️ Dengeli\n(Tavsiye Edilen)", SunroofAutomationEngine.SENSITIVITY_BALANCED, currentSens, density);
-        btnSensBroad = createSensitivityButton("🕶️ Geniş\n(Geç Kapat)", SunroofAutomationEngine.SENSITIVITY_BROAD, currentSens, density);
+        btnSensSensitive = createSensitivityButton(context.getString(R.string.sunroof_sens_sensitive), SunroofAutomationEngine.SENSITIVITY_SENSITIVE, currentSens, density);
+        btnSensBalanced = createSensitivityButton(context.getString(R.string.sunroof_sens_balanced), SunroofAutomationEngine.SENSITIVITY_BALANCED, currentSens, density);
+        btnSensBroad = createSensitivityButton(context.getString(R.string.sunroof_sens_broad), SunroofAutomationEngine.SENSITIVITY_BROAD, currentSens, density);
 
         sensRow.addView(btnSensSensitive, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         sensRow.addView(btnSensBalanced, createMarginLayoutParams(dp(6, density), 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -432,11 +432,11 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     private View buildQuickControlsCard(float density) {
         LinearLayout card = createPanelCard(density);
 
-        TextView title = createSectionTitle("Hızlı Kaydırma Kumandası", density);
+        TextView title = createSectionTitle(context.getString(R.string.sunroof_gesture_title), density);
         card.addView(title);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText("Her işlem için bir kaydırma hareketi seçin. Seçtiğiniz hareketi MapControl ekranında yaptığınızda tavan ve perde çalışır. Kutuya dokunarak işlemi deneyebilirsiniz.");
+        subtitle.setText(R.string.sunroof_gesture_subtitle);
         UiStyles.setTextSize(subtitle, R.dimen.text_size_tiny);
         subtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         subtitle.setPadding(0, 0, 0, dp(6, density));
@@ -448,7 +448,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         populateGestureGrid(density);
 
         TextView tvInfo = new TextView(context);
-        tvInfo.setText("⚠️ Bir kaydırma yalnızca tek özelliğe atanabilir. Bölünmüş ekran veya harita kaydırmada kullanılan bir hareketi seçerseniz uyarı alırsınız.");
+        tvInfo.setText(R.string.sunroof_gesture_info);
         UiStyles.setTextSize(tvInfo, R.dimen.text_size_tiny);
         tvInfo.setTextColor(0xFF38BDF8);
         tvInfo.setPadding(dp(2, density), dp(6, density), 0, 0);
@@ -457,7 +457,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         return card;
     }
 
-    private void populateGestureGrid(float density) {
+private void populateGestureGrid(float density) {
         if (gestureGrid == null) {
             return;
         }
@@ -475,16 +475,16 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         int pad = dp(4, density);
         row.setPadding(pad, pad, pad, pad);
 
-        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SUNROOF_AND_SHADE);
+        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SHADE_ONLY);
 
         btnScopeShadeOnly = new TextView(context);
-        btnScopeShadeOnly.setText("\uD83E\uDE9F Yaln\u0131zca Perde");
+        btnScopeShadeOnly.setText(R.string.sunroof_scope_shade_only);
         UiStyles.setTextSize(btnScopeShadeOnly, R.dimen.text_size_small);
         btnScopeShadeOnly.setGravity(Gravity.CENTER);
         btnScopeShadeOnly.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
 
         btnScopeSunroofAndShade = new TextView(context);
-        btnScopeSunroofAndShade.setText("\u2728 Tavan + Perde");
+        btnScopeSunroofAndShade.setText(R.string.sunroof_scope_roof_and_shade);
         UiStyles.setTextSize(btnScopeSunroofAndShade, R.dimen.text_size_small);
         btnScopeSunroofAndShade.setGravity(Gravity.CENTER);
         btnScopeSunroofAndShade.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
@@ -625,7 +625,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
     private String gestureLabel(int code) {
         if (!SplitScreenGesture.isValid(code)) {
-            return "Hareket kapalı";
+            return context.getString(R.string.sunroof_gesture_off);
         }
         return context.getString(R.string.split_gesture_name,
                 SplitScreenGesture.fingersOf(code),
@@ -663,17 +663,17 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         }
     }
 
-    private static String actionTitle(GestureAction action) {
+    private String actionTitle(GestureAction action) {
         switch (action) {
             case SWIPE_LEFT:
-                return "Tavanı Kapat";
+                return context.getString(R.string.sunroof_gesture_action_close_roof);
             case SWIPE_RIGHT:
-                return "Tavanı Aç";
+                return context.getString(R.string.sunroof_gesture_action_open_roof);
             case SWIPE_UP:
-                return "Perdeyi Kapat";
+                return context.getString(R.string.sunroof_gesture_action_close_shade);
             case SWIPE_DOWN:
             default:
-                return "Perdeyi Aç";
+                return context.getString(R.string.sunroof_gesture_action_open_shade);
         }
     }
 
@@ -746,30 +746,38 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     private View buildSafetyCard(float density) {
         LinearLayout card = createPanelCard(density);
 
-        TextView title = createSectionTitle("Emniyet ve Entegrasyon", density);
+        TextView title = createSectionTitle(context.getString(R.string.sunroof_safety_title), density);
         card.addView(title);
 
         switchRainGuard = createSwitchRow(
                 card,
-                "Yağmur Emniyeti",
-                "Yağmur algılandığında tavanı otomatik kapatır; gerektiğinde manuel açılabilir.",
+                context.getString(R.string.sunroof_safety_rain_title),
+                context.getString(R.string.sunroof_safety_rain_desc),
                 SunroofAutomationEngine.KEY_RAIN_GUARD,
                 true,
                 density);
 
         switchSpeedGuard = createSwitchRow(
                 card,
-                "Yüksek Hız Koruması",
-                "100 km/s üzerinde rüzgar uğultusu ve mekanik hasarı önlemek için tavanı kapatır.",
+                context.getString(R.string.sunroof_safety_speed_title),
+                context.getString(R.string.sunroof_safety_speed_desc),
                 SunroofAutomationEngine.KEY_SPEED_GUARD,
                 true,
                 density);
 
         switchCloseAtNight = createSwitchRow(
                 card,
-                "Gece / Karanlıkta Kapat",
-                "Hava karardığında tavanı kapatır. Kapalıyken (varsayılan) gece de açık kalır; sadece güneşte kapanır.",
+                context.getString(R.string.sunroof_safety_night_title),
+                context.getString(R.string.sunroof_safety_night_desc),
                 SunroofAutomationEngine.KEY_CLOSE_AT_NIGHT,
+                false,
+                density);
+
+        createSwitchRow(
+                card,
+                context.getString(R.string.sunroof_safety_tilt_title),
+                context.getString(R.string.sunroof_safety_tilt_desc),
+                SunroofAutomationEngine.KEY_TILT_ONLY,
                 false,
                 density);
 
@@ -858,14 +866,14 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             }
             if (tvLiveLux != null) {
                 if (status.currentLux < 0) {
-                    tvLiveLux.setText("Ölçülen Işık: Bekleniyor...");
+                    tvLiveLux.setText(R.string.sunroof_lux_waiting);
                 } else {
                     String src = status.luxSource != null && !status.luxSource.isEmpty() ? " (" + status.luxSource + ")" : "";
                     if (status.averageLux > 0 && Math.abs(status.currentLux - status.averageLux) > 2500f) {
-                        tvLiveLux.setText(String.format(Locale.getDefault(), "Ölçülen Işık: %,d lx (Ort: %,d lx)%s",
+                        tvLiveLux.setText(context.getString(R.string.sunroof_lux_avg_fmt,
                                 (int) status.currentLux, (int) status.averageLux, src));
                     } else {
-                        tvLiveLux.setText(String.format(Locale.getDefault(), "Ölçülen Işık: %,d lx%s", (int) status.currentLux, src));
+                        tvLiveLux.setText(context.getString(R.string.sunroof_lux_fmt, (int) status.currentLux, src));
                     }
                 }
             }
@@ -876,13 +884,13 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             // Tavan Durumu
             if (tvSunroofState != null) {
                 if (status.sunroofOpen == null) {
-                    tvSunroofState.setText(status.connected ? "Hareketli / Bilinmiyor" : "Bağlı Değil");
+                    tvSunroofState.setText(context.getString(status.connected ? R.string.sunroof_badge_moving : R.string.sunroof_badge_disconnected));
                     tvSunroofState.setTextColor(0xFFFBBF24); // Sarı
                 } else if (status.sunroofOpen) {
-                    tvSunroofState.setText("Açık 🪟");
+                    tvSunroofState.setText(R.string.sunroof_badge_open);
                     tvSunroofState.setTextColor(0xFF22C55E); // Yeşil
                 } else {
-                    tvSunroofState.setText("Kapalı 🔒");
+                    tvSunroofState.setText(R.string.sunroof_badge_closed);
                     tvSunroofState.setTextColor(0xFF38BDF8); // Cyan
                 }
             }
@@ -890,17 +898,17 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
             // Yağmur
             if (tvRainState != null) {
                 if (status.isRaining) {
-                    tvRainState.setText("🌧️ Yağmur Algılandı!");
+                    tvRainState.setText(R.string.sunroof_badge_rain_detected);
                     tvRainState.setTextColor(0xFFEF4444); // Kırmızı
                 } else {
-                    tvRainState.setText("Kuru ☀️");
+                    tvRainState.setText(R.string.sunroof_badge_dry);
                     tvRainState.setTextColor(0xFF22C55E); // Yeşil
                 }
             }
 
             // Hız
             if (tvSpeed != null) {
-                tvSpeed.setText(status.vehicleSpeed + " km/s");
+                tvSpeed.setText(context.getString(R.string.sunroof_badge_speed_fmt, status.vehicleSpeed));
             }
 
             // Alt Bildirim
@@ -911,7 +919,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
                 }
                 msg.append(status.lastAction);
                 if (status.cooldownRemainingSec > 0) {
-                    msg.append(" (Bekleme: ").append(status.cooldownRemainingSec).append(" sn)");
+                    msg.append(context.getString(R.string.sunroof_status_cooldown, status.cooldownRemainingSec));
                 }
                 tvStatusMessage.setText(msg.toString());
             }
