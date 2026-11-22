@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="side_rail_file_browser">Files</string>
+    <string name="file_browser_root_downloads">Downloads</string>
+    <string name="file_browser_root_usb">USB</string>
+    <string name="file_browser_root_internal">Internal Storage</string>
+    <string name="file_browser_free_mode">Free Browsing</string>
+    <string name="file_browser_free_mode_title">Free Browsing</string>
+    <string name="file_browser_free_mode_disclaimer">Free browsing also opens internal storage folders outside Downloads and USB.\n\nThese folders can contain files used by the car screen, maps, camera recordings and other apps. Deleting the wrong file can make an app or the screen stop working properly, and deleted files cannot be recovered.\n\nPrivate app data and system partitions stay closed in this mode too.\n\nYou are responsible for every deletion and change you make in this mode. Do not touch files you are unsure about.</string>
+    <string name="file_browser_free_mode_banner">Free browsing is on. Do not delete files you are unsure about.</string>
+    <string name="file_browser_free_mode_exit">Turn off</string>
+    <string name="file_browser_back">Up</string>
+    <string name="file_browser_refresh">Refresh</string>
+    <string name="file_browser_send_from_phone">Send from Phone</string>
+    <string name="file_browser_free_space">%1$s free</string>
+    <string name="file_browser_loading">Loading…</string>
+    <string name="file_browser_empty">This folder is empty</string>
+    <string name="file_browser_empty_downloads_hint">Tap \"Send from Phone\" to send files from your phone.</string>
+    <string name="file_browser_unreadable">This folder could not be read</string>
+    <string name="file_browser_show_more">Show more (%1$d left)</string>
+    <string name="file_browser_folder_meta">%1$d items</string>
+    <string name="file_browser_install">Install</string>
+    <string name="file_browser_delete">Delete</string>
+    <string name="file_browser_copy_to_downloads">Copy to Downloads</string>
+    <string name="file_browser_delete_title">Delete?</string>
+    <string name="file_browser_delete_file_msg">This file will be permanently deleted. This cannot be undone.</string>
+    <string name="file_browser_delete_folder_msg">This folder and everything in it will be permanently deleted. This cannot be undone.</string>
+    <string name="file_browser_deleted">Deleted</string>
+    <string name="file_browser_delete_failed">Could not delete</string>
+    <string name="file_browser_install_title">Install this app?</string>
+    <string name="file_browser_install_msg">This APK will be installed on the car. Only install apps from sources you trust.</string>
+    <string name="file_browser_copying">Copying…</string>
+    <string name="file_browser_copied">Copied to Downloads</string>
+    <string name="file_browser_copy_failed">Could not copy</string>
+    <string name="file_browser_open_failed">No app can open this file</string>
+    <string name="file_browser_close">Close</string>
+    <string name="file_browser_kind_folder">Folder</string>
+    <string name="file_browser_kind_apk">App (APK)</string>
+    <string name="file_browser_kind_image">Image</string>
+    <string name="file_browser_kind_video">Video</string>
+    <string name="file_browser_kind_audio">Audio</string>
+    <string name="file_browser_kind_archive">Archive</string>
+    <string name="file_browser_kind_document">Document</string>
+    <string name="file_browser_kind_other">File</string>
+</resources>

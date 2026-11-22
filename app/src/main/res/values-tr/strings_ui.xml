@@ -769,6 +769,7 @@
     <string name="log_dms_face_profiles">Yüz Tanıma Profilleri</string>
     <string name="dms_face_title">Yüz Tanıma ve Profil Yönetimi</string>
     <string name="dms_recognition_title">Yüz Tanıma</string>
+    <string name="dms_seat_memory_type_warning">Dikkat! Tiggo 7 Promax Araçlarda koltuk sıfırlama hafızası tam çalışmayabilir! Koltuk sıkıştırma yapabilir, kullanımda dikkat ediniz!</string>
     <string name="dms_recognition_description">Kontak açıldığında DMS kamerası ile sürücüyü tespit eder ve kayıtlı koltuk hafızasını (1–3) otomatik uygular. En fazla 3 kişi tanımlanabilir.</string>
     <string name="dms_recognition_description_no_memory">Kontak açıldığında DMS kamerası ile sürücüyü tespit eder. Bu araçta koltuk hafızası yok. En fazla 3 kişi tanımlanabilir.</string>
     <string name="dms_recognition_enable">Otomatik yüz tanıma ve koltuk hafızası</string>

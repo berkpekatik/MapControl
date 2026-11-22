@@ -20,6 +20,8 @@ object MenuTabs {
     const val SPLIT_SCREEN = 15
     const val SUNROOF_AUTOMATION = 16
     const val HOME_SCREEN = 17
+    const val WALLPAPER = 18
+    const val FILE_BROWSER = 19
 }
 
 /**
@@ -28,12 +30,17 @@ object MenuTabs {
  */
 enum class MenuCard(val tabs: Set<Int>, val beta: Boolean = false) {
     LAUNCHER(setOf(MenuTabs.HOME_SCREEN)),
+    /** Yalnız duvar kağıdını destekleyen ekranlarda sorulur (bkz. WallpaperThemeCatalog.isSupportedScreen). */
+    WALLPAPER(setOf(MenuTabs.WALLPAPER)),
     MAP(setOf(MenuTabs.PROJECTION, MenuTabs.SPLIT_SCREEN)),
     SOUND(setOf(MenuTabs.EQUALIZER)),
     WELCOME(setOf(MenuTabs.WELCOME_SOUND)),
     AUTOMATION(setOf(MenuTabs.CLIMATE_AUTOMATION, MenuTabs.SUNROOF_AUTOMATION)),
     MEMORY(setOf(MenuTabs.DRIVE_MODE)),
-    CAMERA(setOf(MenuTabs.CAMERA_360, MenuTabs.FACE_RECOGNITION), beta = true),
+    FILES(setOf(MenuTabs.FILE_BROWSER)),
+    /** Eskiden yüz tanımayla tek karttı; ad korunur ki kayıtlı seçim 360° kamerada kalsın. */
+    CAMERA(setOf(MenuTabs.CAMERA_360), beta = true),
+    FACE(setOf(MenuTabs.FACE_RECOGNITION), beta = true),
     TECH(setOf(MenuTabs.VEHICLE_INFO)),
 }
 
@@ -44,6 +51,12 @@ enum class MenuCard(val tabs: Set<Int>, val beta: Boolean = false) {
 object MenuProfile {
 
     const val KEY_CARDS = "menuCards"
+
+    /** Kayıt anında var olan kart adları: sonradan eklenen kartlar eski seçimde "seçilmedi" sayılmasın. */
+    const val KEY_CARDS_KNOWN = "menuCardsKnown"
+
+    /** [KEY_CARDS_KNOWN] öncesi kayıtların bildiği kartlar. */
+    private val LEGACY_KNOWN = setOf("LAUNCHER", "MAP", "SOUND", "WELCOME", "AUTOMATION", "MEMORY", "CAMERA", "TECH")
 
     /** Ankete bakılmaksızın her zaman görünen menüler. */
     @JvmField
@@ -65,20 +78,41 @@ object MenuProfile {
     @JvmStatic
     fun encode(cards: Set<MenuCard>): Set<String> = cards.mapTo(LinkedHashSet()) { it.name }
 
-    /** Bilinmeyen adlar (eski/yeni sürüm) yok sayılır. */
+    /**
+     * Bilinmeyen adlar (eski/yeni sürüm) yok sayılır. Kayıt anında olmayan kartlar ([known] dışında) seçili sayılır;
+     * yalnız [MenuCard.FACE] eskiden CAMERA kartının parçası olduğundan onun seçimini devralır.
+     * [known] null: [KEY_CARDS_KNOWN] öncesi kayıt.
+     */
     @JvmStatic
-    fun decode(raw: Set<String>?): Set<MenuCard>? =
-        raw?.mapNotNullTo(LinkedHashSet()) { name -> MenuCard.values().firstOrNull { it.name == name } }
+    @JvmOverloads
+    fun decode(raw: Set<String>?, known: Set<String>? = null): Set<MenuCard>? {
+        if (raw == null) return null
+        val seen = known ?: LEGACY_KNOWN
+        return MenuCard.values().filterTo(LinkedHashSet()) { card ->
+            when {
+                card.name in seen -> card.name in raw
+                card == MenuCard.FACE -> MenuCard.CAMERA.name in raw
+                else -> true
+            }
+        }
+    }
 
     @JvmStatic
-    fun cards(context: Context): Set<MenuCard>? =
-        decode(prefs(context).getStringSet(KEY_CARDS, null))
+    fun cards(context: Context): Set<MenuCard>? {
+        val p = prefs(context)
+        return decode(p.getStringSet(KEY_CARDS, null), p.getStringSet(KEY_CARDS_KNOWN, null))
+    }
 
     @JvmStatic
     fun save(context: Context, cards: Set<MenuCard>?) {
         val normalized = normalize(cards)
         val edit = prefs(context).edit()
-        if (normalized == null) edit.remove(KEY_CARDS) else edit.putStringSet(KEY_CARDS, encode(normalized))
+        if (normalized == null) {
+            edit.remove(KEY_CARDS).remove(KEY_CARDS_KNOWN)
+        } else {
+            edit.putStringSet(KEY_CARDS, encode(normalized))
+                .putStringSet(KEY_CARDS_KNOWN, encode(MenuCard.values().toSet()))
+        }
         edit.apply()
     }
 

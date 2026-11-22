@@ -22,8 +22,14 @@
     <string name="menu_card_automation_desc">Klima ve cam tavan kendiliğinden ayarlansın.</string>
     <string name="menu_card_memory">Hafıza modu</string>
     <string name="menu_card_memory_desc">Seçtiğin sürüş modu her açılışta hatırlansın.</string>
-    <string name="menu_card_camera">Kamera ve güvenlik</string>
-    <string name="menu_card_camera_desc">360° kamera kayıtları ve sürücü yüz tanıma.</string>
+    <string name="menu_card_wallpaper">Arka plan</string>
+    <string name="menu_card_wallpaper_desc">Ana ekran duvar kağıdını seç ve değiştir.</string>
+    <string name="menu_card_files">Dosyalar</string>
+    <string name="menu_card_files_desc">USB ve dahili depolamadaki dosyalara göz at.</string>
+    <string name="menu_card_camera">360° kamera</string>
+    <string name="menu_card_camera_desc">360° kamera görüntüleri ve kayıtları.</string>
+    <string name="menu_card_face">Yüz tanıma</string>
+    <string name="menu_card_face_desc">Sürücüyü DMS kamerasıyla tanı, ona göre ayarla.</string>
     <string name="menu_card_tech">Teknik</string>
     <string name="menu_card_tech_desc">Araçtan okunan ham veriler ve sensör bilgileri.</string>
 

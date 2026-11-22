@@ -109,8 +109,30 @@ public final class DmsFaceRecognitionTabBuilder {
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = dp(6);
-        subLp.bottomMargin = dp(28);
+        subLp.bottomMargin = dp(16);
         centerCard.addView(subtitle, subLp);
+
+        LinearLayout warningCard = new LinearLayout(activity);
+        warningCard.setOrientation(LinearLayout.VERTICAL);
+        warningCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        android.graphics.drawable.GradientDrawable warnBg = new android.graphics.drawable.GradientDrawable();
+        warnBg.setColor(0xFF7F1D1D);
+        warnBg.setCornerRadius(dp(12));
+        warnBg.setStroke(dp(1), 0xFFEF4444);
+        warningCard.setBackground(warnBg);
+
+        TextView warning = new TextView(activity);
+        warning.setText(R.string.dms_seat_memory_type_warning);
+        UiStyles.setTextSize(warning, R.dimen.text_size_small);
+        UiStyles.setFontStyle(warning, Typeface.BOLD);
+        warning.setTextColor(0xFFFFE4E6);
+        warning.setGravity(Gravity.CENTER);
+        warningCard.addView(warning);
+
+        LinearLayout.LayoutParams warnLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        warnLp.bottomMargin = dp(20);
+        centerCard.addView(warningCard, warnLp);
 
         // Selection Cards Row
         LinearLayout optionsRow = new LinearLayout(activity);

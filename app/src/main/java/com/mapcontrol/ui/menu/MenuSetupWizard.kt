@@ -20,6 +20,7 @@ import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import com.mapcontrol.R
 import com.mapcontrol.ui.theme.UiStyles
+import com.mapcontrol.wallpaper.WallpaperThemeCatalog
 
 /**
  * Kurulum anketi: "Neleri kullanmak istersin?" → (launcher seçildiyse) launcher sorusu → özet.
@@ -41,7 +42,11 @@ class MenuSetupWizard private constructor(
         fun onSkipped()
     }
 
-    private val selected: MutableSet<MenuCard> = LinkedHashSet(initial ?: MenuCard.values().toList())
+    /** Bu ekranda sorulan kartlar. Duvar kağıdı desteklenmeyen ekranda (Tiggo 7, 1920×720) kart hiç gösterilmez. */
+    private val available: List<MenuCard> = MenuCard.values().filter {
+        it != MenuCard.WALLPAPER || WallpaperThemeCatalog.isSupportedScreen(context)
+    }
+    private val selected: MutableSet<MenuCard> = (initial ?: MenuCard.values().toSet()).filterTo(LinkedHashSet()) { it in available }
     private var launcherAnswer: Boolean = launcherOn
     private val root = FrameLayout(context)
     private val stage = FrameLayout(context)
@@ -70,7 +75,7 @@ class MenuSetupWizard private constructor(
 
         val toggle = pillText(context.getString(R.string.menu_setup_select_all), filled = false)
         toggle.setOnClickListener {
-            if (selected.size == MenuCard.values().size) selected.clear() else selected.addAll(MenuCard.values())
+            if (allSelected()) selected.clear() else selected.addAll(available)
             refreshCards()
         }
         allToggle = toggle
@@ -78,7 +83,7 @@ class MenuSetupWizard private constructor(
 
         val columns = if (portrait) 2 else 4
         val grid = GridLayout(context).apply { columnCount = columns }
-        MenuCard.values().forEachIndexed { i, card ->
+        available.forEachIndexed { i, card ->
             val view = cardView(card)
             cardViews[card] = view
             val params = GridLayout.LayoutParams(
@@ -152,7 +157,9 @@ class MenuSetupWizard private constructor(
         val start = pillText(context.getString(R.string.menu_setup_start), filled = true)
         start.setOnClickListener {
             val launcher = if (MenuCard.LAUNCHER in selected) launcherAnswer else null
-            listener.onFinished(MenuProfile.normalize(LinkedHashSet(selected)), launcher)
+            // Sorulmayan kartlar seçili sayılır: menüleri zaten ekran desteğine göre gizlenir.
+            val result = LinkedHashSet(selected).apply { addAll(MenuCard.values().filter { it !in available }) }
+            listener.onFinished(MenuProfile.normalize(result), launcher)
         }
         column.addView(buttonRow(start, context.getString(R.string.menu_setup_back)) {
             showStep(if (MenuCard.LAUNCHER in selected) launcherStep() else chooseStep(), forward = false)
@@ -256,9 +263,11 @@ class MenuSetupWizard private constructor(
     private fun refreshCards() {
         cardViews.forEach { (card, view) -> styleCard(view, card in selected) }
         allToggle?.text = context.getString(
-            if (selected.size == MenuCard.values().size) R.string.menu_setup_select_none else R.string.menu_setup_select_all,
+            if (allSelected()) R.string.menu_setup_select_none else R.string.menu_setup_select_all,
         )
     }
+
+    private fun allSelected() = selected.containsAll(available)
 
     // ---- Küçük yardımcılar ----
 
@@ -352,6 +361,9 @@ class MenuSetupWizard private constructor(
         @JvmStatic
         fun titleRes(card: MenuCard): Int = when (card) {
             MenuCard.LAUNCHER -> R.string.menu_card_launcher
+            MenuCard.WALLPAPER -> R.string.menu_card_wallpaper
+            MenuCard.FILES -> R.string.menu_card_files
+            MenuCard.FACE -> R.string.menu_card_face
             MenuCard.MAP -> R.string.menu_card_map
             MenuCard.SOUND -> R.string.menu_card_sound
             MenuCard.WELCOME -> R.string.menu_card_welcome
@@ -363,6 +375,9 @@ class MenuSetupWizard private constructor(
 
         private fun descRes(card: MenuCard): Int = when (card) {
             MenuCard.LAUNCHER -> R.string.menu_card_launcher_desc
+            MenuCard.WALLPAPER -> R.string.menu_card_wallpaper_desc
+            MenuCard.FILES -> R.string.menu_card_files_desc
+            MenuCard.FACE -> R.string.menu_card_face_desc
             MenuCard.MAP -> R.string.menu_card_map_desc
             MenuCard.SOUND -> R.string.menu_card_sound_desc
             MenuCard.WELCOME -> R.string.menu_card_welcome_desc
@@ -374,6 +389,9 @@ class MenuSetupWizard private constructor(
 
         private fun iconRes(card: MenuCard): Int = when (card) {
             MenuCard.LAUNCHER -> R.drawable.ic_mdi_view_grid
+            MenuCard.WALLPAPER -> R.drawable.ic_mdi_wallpaper
+            MenuCard.FILES -> R.drawable.ic_mdi_folder
+            MenuCard.FACE -> R.drawable.ic_mdi_account
             MenuCard.MAP -> R.drawable.ic_mdi_map
             MenuCard.SOUND -> R.drawable.ic_mdi_equalizer
             MenuCard.WELCOME -> R.drawable.ic_mdi_volume_high

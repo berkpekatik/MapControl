@@ -35,9 +35,10 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 📷 **Kamera 360** | Çevre kameraları ve kayıtlar; sinyal verilince ilgili yan kamera otomatik açılır |
 | 🪟 **Bölünmüş ekran** | İki uygulama yan yana |
 | 📲 **Aktar** | Aynı ağdaki telefon/bilgisayardan dosya yükleme ve APK kurma (QR ile erişim) |
+| 🗂️ **Dosyalar** | USB ve dahili depolamada gezinme; APK yükleme, silme, İndirilenler'e kopyalama |
 | 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |
 | 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
-| 🔙 **Yüzen geri tuşu** | Başka uygulama öndeyken sürüklenebilir geri tuşu |
+| 🔙 **Yüzen menü** | Başka uygulama öndeyken sürüklenebilir geri tuşu; göstergeye yansıtma ve açık uygulamaları kapatma |
 | 🧩 **Menü kurulumu** | İlk açılışta hangi özelliklerin menüde görüneceğini seçtiren kurulum sihirbazı *(beta)* |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
 | 🛠️ **Ana ekran ikon onarımı** | Jaecoo launcher'ında çoğalan MapControl ikonlarını tek tuşla temizler |

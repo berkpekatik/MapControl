@@ -64,6 +64,16 @@ public class DialogHelper {
                 onDecline);
     }
 
+    /** Dosya gezgininde serbest gezinmeyi açmadan önce her seferinde gösterilen sorumluluk reddi. */
+    public static void showFileBrowserFreeModeDisclaimer(Context context, Runnable onAccept) {
+        showResponsibilityDialog(
+                context,
+                context.getString(R.string.file_browser_free_mode_title),
+                context.getString(R.string.file_browser_free_mode_disclaimer),
+                onAccept,
+                () -> {});
+    }
+
     /**
      * Seçilen kaydırma hareketi başka bir özellikte kullanıldığında uyarır.
      *

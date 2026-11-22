@@ -742,6 +742,7 @@
     <string name="log_dms_face_profiles">Face Recognition Profiles</string>
     <string name="dms_face_title">Face Recognition &amp; Profiles</string>
     <string name="dms_recognition_title">Face Recognition</string>
+    <string name="dms_seat_memory_type_warning">Caution! On Tiggo 7 Promax vehicles, seat reset memory may not work fully. The seat may pinch; please use it with care.</string>
     <string name="dms_recognition_description">When ignition is on, detects the driver via the DMS camera, applies the assigned seat memory (1–3), and announces the detected user by voice. Up to 3 people can be enrolled.</string>
     <string name="dms_recognition_description_no_memory">When ignition is on, detects the driver via the DMS camera and announces the detected user by voice. This vehicle has no seat memory. Up to 3 people can be enrolled.</string>
     <string name="dms_recognition_enable">Automatic face recognition &amp; seat memory</string>

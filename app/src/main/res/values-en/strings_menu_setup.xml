@@ -22,8 +22,14 @@
     <string name="menu_card_automation_desc">Climate and sunroof adjust on their own.</string>
     <string name="menu_card_memory">Memory mode</string>
     <string name="menu_card_memory_desc">Your drive mode is remembered on every start.</string>
-    <string name="menu_card_camera">Camera and safety</string>
-    <string name="menu_card_camera_desc">360° camera recordings and driver face recognition.</string>
+    <string name="menu_card_wallpaper">Wallpaper</string>
+    <string name="menu_card_wallpaper_desc">Pick and change the home screen wallpaper.</string>
+    <string name="menu_card_files">Files</string>
+    <string name="menu_card_files_desc">Browse files on USB and internal storage.</string>
+    <string name="menu_card_camera">360° camera</string>
+    <string name="menu_card_camera_desc">360° camera views and recordings.</string>
+    <string name="menu_card_face">Face recognition</string>
+    <string name="menu_card_face_desc">Recognize the driver with the DMS camera and adjust for them.</string>
     <string name="menu_card_tech">Technical</string>
     <string name="menu_card_tech_desc">Raw vehicle data and sensor readings.</string>
 

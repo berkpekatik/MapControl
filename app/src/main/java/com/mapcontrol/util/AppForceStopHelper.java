@@ -1,94 +1,86 @@
 package com.mapcontrol.util;
 
+import android.app.ActivityManager;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.util.Locale;
-
 /**
- * Araç / yüksek ayrıcalıklı cihazlarda shell benzeri ortamda {@code am force-stop} ile zorunlu durdurma.
- * Normal mağaza uygulamalarında çoğunlukla başarısız olur; o zaman kullanıcıya açıklanır.
+ * Arka plandaki uygulamayı kapatır ({@link ActivityManager#killBackgroundProcesses}, normal izin).
+ *
+ * <p>Gerçek "zorla durdur" ({@code FORCE_STOP_PACKAGES}) yalnızca sistem imzalı uygulamalara ve adb'ye açık;
+ * Device Owner da yapamaz. Eskiden kullanılan askıya al/geri aç süreci düşürmüyordu (T19C/Android 11'de
+ * doğrulandı: PID aynı kaldı). Ekranda görünen ya da ön plan servisi olan süreçlere Android dokundurmaz;
+ * onlar için {@link Result#STILL_RUNNING} döner, kullanıcı Uygulama bilgisi → Durmaya zorla'yı kullanır.
+ * Kendisi, Ayarlar, Play Services ve SystemUI dokunulmaz.
  */
 public final class AppForceStopHelper {
 
-    private static final int DRAIN_MAX = 8192;
+    private static final String TAG = "AppForceStop";
+
+    private static final String PKG_GMS = "com.google.android.gms";
+    private static final String PKG_SETTINGS = "com.android.settings";
+    private static final String PKG_SYSTEMUI = "com.android.systemui";
+
+    /** Kapatma sonrası süreç listesinin oturması için bekleme. */
+    private static final long VERIFY_DELAY_MS = 300L;
+
+    public enum Result {
+        /** Süreç kalmadı (ya da doğrulanamadı ama çağrı başarılı). */
+        CLOSED,
+        /** Ekranda ya da ön plan servisiyle çalışıyor; Android arka plan kapatmasına izin vermedi. */
+        STILL_RUNNING,
+        FAILED
+    }
 
     private AppForceStopHelper() {
     }
 
     public static boolean mayForceStop(@NonNull Context context, @NonNull String packageName) {
-        if (packageName.isEmpty()) {
+        if (packageName.isEmpty() || packageName.equals(context.getPackageName())) {
             return false;
         }
-        if (packageName.equals(context.getPackageName())) {
+        if (isBlocked(packageName)) {
             return false;
         }
-        return !isSystemOrPlatformPackage(context, packageName);
-    }
-
-    private static boolean isSystemOrPlatformPackage(Context context, String packageName) {
         try {
-            ApplicationInfo info = context.getPackageManager().getApplicationInfo(packageName, 0);
-            if ((info.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                    || (info.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) {
-                return true;
-            }
-            String sd = info.sourceDir;
-            if (sd != null) {
-                String s = sd.toLowerCase(Locale.US);
-                if (s.contains("/system/priv-app/") || s.contains("/system/app/")) {
-                    return true;
-                }
-            }
-        } catch (PackageManager.NameNotFoundException ignored) {
+            context.getPackageManager().getApplicationInfo(packageName, 0);
             return true;
-        }
-        return false;
-    }
-
-    /**
-     * @return true yalnızca süreç çıkış kodu 0 ise; stream’ler tüketilir.
-     */
-    public static boolean amForceStop(@NonNull String packageName) {
-        if (packageName == null || packageName.isEmpty()) {
-            return false;
-        }
-        try {
-            Process p = new ProcessBuilder("am", "force-stop", packageName).start();
-            drainStream(p.getInputStream());
-            drainStream(p.getErrorStream());
-            int code = p.waitFor();
-            return code == 0;
-        } catch (Exception e) {
+        } catch (PackageManager.NameNotFoundException e) {
             return false;
         }
     }
 
-    private static void drainStream(InputStream is) {
-        if (is == null) {
-            return;
+    /** Ana iş parçacığında çağırmayın (doğrulama dumpsys okur). */
+    @NonNull
+    public static Result stopPackage(@NonNull Context context, @NonNull String packageName) {
+        if (!mayForceStop(context, packageName)) {
+            return Result.FAILED;
+        }
+        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am == null) {
+            return Result.FAILED;
         }
         try {
-            ByteArrayOutputStream buf = new ByteArrayOutputStream(256);
-            byte[] b = new byte[512];
-            int n;
-            int total = 0;
-            while ((n = is.read(b)) > 0 && total < DRAIN_MAX) {
-                int take = Math.min(n, DRAIN_MAX - total);
-                buf.write(b, 0, take);
-                total += take;
-            }
-            is.close();
+            am.killBackgroundProcesses(packageName);
         } catch (Exception e) {
-            try {
-                is.close();
-            } catch (Exception ignored) {
-            }
+            Log.w(TAG, "kill failed for " + packageName, e);
+            return Result.FAILED;
         }
+        try {
+            Thread.sleep(VERIFY_DELAY_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        Boolean running = RunningAppsHelper.isRunning(packageName);
+        return Boolean.TRUE.equals(running) ? Result.STILL_RUNNING : Result.CLOSED;
+    }
+
+    private static boolean isBlocked(String packageName) {
+        return PKG_GMS.equals(packageName)
+                || PKG_SETTINGS.equals(packageName)
+                || PKG_SYSTEMUI.equals(packageName);
     }
 }

@@ -19,7 +19,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
+import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,6 +50,8 @@ public final class TargetAppPickerOverlay {
     private final List<ProjectionTargetApps.Row> filteredRows = new ArrayList<>();
     private RowAdapter adapter;
     private EditText searchInput;
+    /** Şu an seçili hedef paket (kutucukta vurgulanır). */
+    private String currentTarget;
 
     private TargetAppPickerOverlay(Context appContext,
             FloatingProjectionControlsManager.LogCallback logCallback) {
@@ -97,105 +99,80 @@ public final class TargetAppPickerOverlay {
         filteredRows.addAll(allRows);
 
         float density = appContext.getResources().getDisplayMetrics().density;
-        int screenW = appContext.getResources().getDisplayMetrics().widthPixels;
-        int screenH = appContext.getResources().getDisplayMetrics().heightPixels;
-        int cardMaxW = Math.min(screenW - (int) (32 * density), (int) (420 * density));
-        int cardMaxH = (int) (screenH * 0.78f);
+        currentTarget = TargetPackageStore.read(appContext);
+        Context c = themedContext;
 
-        FrameLayout scrim = new FrameLayout(themedContext);
-        scrim.setBackgroundColor(UiStyles.color(themedContext, R.color.modal_overlay_scrim));
+        FrameLayout scrim = new FrameLayout(c);
+        scrim.setBackgroundColor(UiStyles.color(c, R.color.modal_overlay_scrim));
         scrim.setOnClickListener(v -> detach());
 
-        LinearLayout card = new LinearLayout(themedContext);
+        LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setClickable(true);
-        UiStyles.applySolidRoundedBackgroundDp(card,
-                UiStyles.color(themedContext, R.color.surfaceCard), 18f);
+        UiStyles.applySolidRoundedBackgroundDp(card, UiStyles.color(c, R.color.surfaceCard), 24f);
         card.setElevation(12 * density);
-        int cardPad = (int) (18 * density);
+        int cardPad = CarPickerUi.cardPadding(c);
         card.setPadding(cardPad, cardPad, cardPad, cardPad);
 
-        LinearLayout titleRow = new LinearLayout(themedContext);
+        // Başlık satırı: başlık | arama | Temizle | ✕
+        LinearLayout titleRow = new LinearLayout(c);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.addView(CarPickerUi.title(c, c.getString(R.string.target_picker_title)),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = new TextView(themedContext);
-        title.setText(R.string.target_picker_title);
-        title.setTextSize(20);
-        UiStyles.setFontStyle(title, Typeface.BOLD);
-        title.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
-        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleRow.addView(title, titleLp);
+        searchInput = new EditText(c);
+        searchInput.setHint(R.string.target_picker_search_hint);
+        searchInput.setSingleLine(true);
+        searchInput.setTextSize(22);
+        searchInput.setTextColor(UiStyles.color(c, R.color.textPrimary));
+        searchInput.setHintTextColor(UiStyles.color(c, R.color.textHint));
+        UiStyles.applySolidRoundedBackgroundDp(searchInput, UiStyles.color(c, R.color.surfaceCardInner), 16f);
+        int sp = (int) (16 * density);
+        searchInput.setPadding(sp, (int) (12 * density), sp, (int) (12 * density));
+        LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
+                (int) (380 * density), ViewGroup.LayoutParams.WRAP_CONTENT);
+        searchLp.setMargins((int) (16 * density), 0, (int) (12 * density), 0);
+        titleRow.addView(searchInput, searchLp);
 
-        TextView btnClose = new TextView(themedContext);
-        btnClose.setText(R.string.common_close);
-        btnClose.setTextSize(22);
-        btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
-        btnClose.setPadding((int) (8 * density), 0, 0, 0);
-        btnClose.setOnClickListener(v -> detach());
-        titleRow.addView(btnClose, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        TextView btnClear = new TextView(c);
+        btnClear.setText(R.string.common_clear);
+        btnClear.setTextSize(22);
+        UiStyles.setFontStyle(btnClear, Typeface.BOLD);
+        btnClear.setTextColor(UiStyles.color(c, R.color.textLoading));
+        btnClear.setGravity(Gravity.CENTER);
+        int fp = (int) (20 * density);
+        btnClear.setPadding(fp, (int) (14 * density), fp, (int) (14 * density));
+        btnClear.setBackground(CarPickerUi.ripple(c, UiStyles.color(c, R.color.surfaceCardInner), false, 0f));
+        btnClear.setOnClickListener(v -> applySelection(""));
+        LinearLayout.LayoutParams clearLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clearLp.setMargins(0, 0, (int) (12 * density), 0);
+        titleRow.addView(btnClear, clearLp);
+
+        ImageView btnClose = CarPickerUi.closeButton(c, v -> detach());
+        titleRow.addView(btnClose, btnClose.getLayoutParams());
         card.addView(titleRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView subtitle = new TextView(themedContext);
-        subtitle.setText(R.string.target_picker_subtitle);
-        subtitle.setTextSize(13);
-        subtitle.setTextColor(UiStyles.color(themedContext, R.color.textHint));
+        TextView subtitle = CarPickerUi.subtitle(c, c.getString(R.string.target_picker_subtitle));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        subLp.topMargin = (int) (4 * density);
+        subLp.topMargin = (int) (6 * density);
         card.addView(subtitle, subLp);
 
-        searchInput = new EditText(themedContext);
-        searchInput.setHint(R.string.target_picker_search_hint);
-        searchInput.setSingleLine(true);
-        searchInput.setTextSize(30);
-        searchInput.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
-        searchInput.setHintTextColor(UiStyles.color(themedContext, R.color.textHint));
-        UiStyles.applySolidRoundedBackgroundDp(searchInput,
-                UiStyles.color(themedContext, R.color.surfaceCardInner), 12f);
-        int sp = (int) (12 * density);
-        searchInput.setPadding(sp, sp, sp, sp);
-        LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        searchLp.topMargin = (int) (14 * density);
-        card.addView(searchInput, searchLp);
-
-        ListView listView = new ListView(themedContext);
-        listView.setDivider(new android.graphics.drawable.ColorDrawable(
-                UiStyles.color(themedContext, R.color.dividerWhite12)));
-        listView.setDividerHeight(Math.max(1, (int) (density)));
-        listView.setClipToPadding(false);
+        GridView grid = CarPickerUi.grid(c);
         adapter = new RowAdapter();
-        listView.setAdapter(adapter);
-        listView.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
-            ProjectionTargetApps.Row row = filteredRows.get(position);
-            applySelection(row.packageName);
+        grid.setAdapter(adapter);
+        grid.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+            if (position >= 0 && position < filteredRows.size()) {
+                applySelection(filteredRows.get(position).packageName);
+            }
         });
-        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        listLp.topMargin = (int) (12 * density);
-        listLp.weight = 1;
-        listLp.height = 0;
-        card.addView(listView, listLp);
-
-        LinearLayout footer = new LinearLayout(themedContext);
-        footer.setOrientation(LinearLayout.HORIZONTAL);
-        footer.setGravity(Gravity.END);
-        TextView btnClear = new TextView(themedContext);
-        btnClear.setText(R.string.common_clear);
-        btnClear.setTextSize(30);
-        UiStyles.setFontStyle(btnClear, Typeface.BOLD);
-        btnClear.setTextColor(UiStyles.color(themedContext, R.color.textLoading));
-        int fp = (int) (12 * density);
-        btnClear.setPadding(fp, fp, fp, fp);
-        btnClear.setOnClickListener(v -> applySelection(""));
-        footer.addView(btnClear);
-        LinearLayout.LayoutParams footLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        footLp.topMargin = (int) (10 * density);
-        card.addView(footer, footLp);
+        gridLp.topMargin = (int) (16 * density);
+        card.addView(grid, gridLp);
 
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override
@@ -212,7 +189,8 @@ public final class TargetAppPickerOverlay {
             }
         });
 
-        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(cardMaxW, cardMaxH);
+        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(
+                CarPickerUi.cardWidth(c), CarPickerUi.cardHeight(c));
         cardLp.gravity = Gravity.CENTER;
         scrim.addView(card, cardLp);
 
@@ -310,49 +288,15 @@ public final class TargetAppPickerOverlay {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout row;
-            ImageView icon;
-            TextView t1;
-            TextView t2;
-            if (convertView instanceof LinearLayout && ((LinearLayout) convertView).getChildCount() >= 2) {
-                row = (LinearLayout) convertView;
-                icon = (ImageView) row.getChildAt(0);
-                LinearLayout texts = (LinearLayout) row.getChildAt(1);
-                t1 = (TextView) texts.getChildAt(0);
-                t2 = (TextView) texts.getChildAt(1);
-            } else {
-                float d = themedContext.getResources().getDisplayMetrics().density;
-                int p = (int) (12 * d);
-                row = new LinearLayout(themedContext);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(p, (int) (10 * d), p, (int) (10 * d));
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                icon = new ImageView(themedContext);
-                int iconPx = (int) (40 * d);
-                LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconPx, iconPx);
-                iconLp.setMargins(0, 0, (int) (12 * d), 0);
-                row.addView(icon, iconLp);
-                LinearLayout texts = new LinearLayout(themedContext);
-                texts.setOrientation(LinearLayout.VERTICAL);
-                t1 = new TextView(themedContext);
-                t1.setTextSize(16);
-                t1.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
-                t2 = new TextView(themedContext);
-                t2.setTextSize(12);
-                t2.setTextColor(UiStyles.color(themedContext, R.color.textHint));
-                texts.addView(t1);
-                texts.addView(t2);
-                row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
             ProjectionTargetApps.Row r = filteredRows.get(position);
-            t1.setText(r.label);
-            t2.setText(r.packageName);
+            android.graphics.drawable.Drawable icon = null;
             try {
-                icon.setImageDrawable(appContext.getPackageManager().getApplicationIcon(r.packageName));
-            } catch (Exception e) {
-                icon.setImageResource(android.R.drawable.sym_def_app_icon);
+                icon = appContext.getPackageManager().getApplicationIcon(r.packageName);
+            } catch (Exception ignored) {
             }
-            return row;
+            boolean selected = r.packageName.equals(currentTarget);
+            return CarPickerUi.tile(themedContext, convertView, icon, r.label,
+                    selected ? themedContext.getString(R.string.target_picker_current) : null, selected);
         }
     }
 }

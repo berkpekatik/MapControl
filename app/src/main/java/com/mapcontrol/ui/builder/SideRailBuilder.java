@@ -52,6 +52,7 @@ public class SideRailBuilder {
     private static final int TAB_SUNROOF_AUTOMATION = 16;
     private static final int TAB_HOME_SCREEN = 17;
     public static final int TAB_WALLPAPER_THEMES = 18;
+    public static final int TAB_FILE_BROWSER = 19;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -60,6 +61,7 @@ public class SideRailBuilder {
     private LinearLayout menuApps;
     private LinearLayout menuWifi;
     private LinearLayout menuFileUpload;
+    private LinearLayout menuFileBrowser;
     private LinearLayout menuSettings;
     private LinearLayout menuProjection;
     private LinearLayout menuDriveMode;
@@ -123,6 +125,7 @@ public class SideRailBuilder {
         menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createRailMenuItemView(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
+        menuFileBrowser = createRailMenuItemView(R.drawable.ic_mdi_folder, t(R.string.side_rail_file_browser));
         menuDriveMode = createRailMenuItemView(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createRailMenuItemView(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
@@ -148,6 +151,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
+        menuContainer.addView(menuFileBrowser);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -206,6 +210,7 @@ public class SideRailBuilder {
         menuWifi = createPortraitRailItem(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createPortraitRailItem(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
         menuFileUpload = createPortraitRailItem(R.drawable.ic_mdi_web, t(R.string.side_rail_web));
+        menuFileBrowser = createPortraitRailItem(R.drawable.ic_mdi_folder, t(R.string.side_rail_file_browser));
         menuDriveMode = createPortraitRailItem(R.drawable.ic_mdi_car, t(R.string.side_rail_drive_mode));
         menuWelcomeSound = createPortraitRailItem(R.drawable.ic_mdi_volume_high,
                 t(R.string.side_rail_welcome_sound));
@@ -231,6 +236,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
         menuContainer.addView(menuFileUpload);
+        menuContainer.addView(menuFileBrowser);
         menuContainer.addView(menuDriveMode);
         menuContainer.addView(menuWelcomeSound);
         menuContainer.addView(menuEqualizer);
@@ -362,6 +368,10 @@ public class SideRailBuilder {
             callback.onTabSelected(TAB_WALLPAPER_THEMES, t(R.string.side_rail_wallpaper_themes));
             updateMenuSelection(menuWallpaperThemes);
         });
+        menuFileBrowser.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_FILE_BROWSER, t(R.string.side_rail_file_browser));
+            updateMenuSelection(menuFileBrowser);
+        });
     }
 
     /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
@@ -383,6 +393,7 @@ public class SideRailBuilder {
         showRow(menuWifi, MenuTabs.WIFI, cards);
         showRow(menuApps, MenuTabs.APPS, cards);
         showRow(menuFileUpload, MenuTabs.FILE, cards);
+        showRow(menuFileBrowser, MenuTabs.FILE_BROWSER, cards);
         showRow(menuDriveMode, MenuTabs.DRIVE_MODE, cards);
         showRow(menuWelcomeSound, MenuTabs.WELCOME_SOUND, cards);
         showRow(menuEqualizer, MenuTabs.EQUALIZER, cards);
@@ -395,10 +406,10 @@ public class SideRailBuilder {
         showRow(menuVehicleInfo, MenuTabs.VEHICLE_INFO, cards);
         showRow(menuSettings, MenuTabs.SETTINGS, cards);
         showRow(menuHomeScreen, MenuTabs.HOME_SCREEN, cards);
-        // Tiggo 7 (1920×720) ana ekranı özel duvar kağıdını desteklemez: menü o çözünürlükte hiç görünmez.
-        if (menuWallpaperThemes != null) {
-            menuWallpaperThemes.setVisibility(
-                    com.mapcontrol.wallpaper.WallpaperThemeCatalog.isSupportedScreen(context) ? View.VISIBLE : View.GONE);
+        // Tiggo 7 (1920×720) ana ekranı özel duvar kağıdını desteklemez: menü o çözünürlükte, seçimden bağımsız gizli.
+        showRow(menuWallpaperThemes, MenuTabs.WALLPAPER, cards);
+        if (menuWallpaperThemes != null && !com.mapcontrol.wallpaper.WallpaperThemeCatalog.isSupportedScreen(context)) {
+            menuWallpaperThemes.setVisibility(View.GONE);
         }
         // Alt dokdaki "Hafıza" kısayolu da Hafıza modu kartına bağlı.
         showRow(btnDockDrive, MenuTabs.DRIVE_MODE, cards);
@@ -690,6 +701,9 @@ public class SideRailBuilder {
             case TAB_WALLPAPER_THEMES:
                 updateMenuSelection(menuWallpaperThemes);
                 break;
+            case TAB_FILE_BROWSER:
+                updateMenuSelection(menuFileBrowser);
+                break;
             default:
                 break;
         }
@@ -832,7 +846,7 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen, menuHomeScreen, menuWallpaperThemes
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen, menuHomeScreen, menuWallpaperThemes, menuFileBrowser
         };
     }
 

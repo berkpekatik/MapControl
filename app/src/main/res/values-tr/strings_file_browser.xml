@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="side_rail_file_browser">Dosyalar</string>
+    <string name="file_browser_root_downloads">İndirilenler</string>
+    <string name="file_browser_root_usb">USB</string>
+    <string name="file_browser_root_internal">Dahili Depolama</string>
+    <string name="file_browser_free_mode">Serbest Gezinme</string>
+    <string name="file_browser_free_mode_title">Serbest Gezinme</string>
+    <string name="file_browser_free_mode_disclaimer">Serbest gezinme, İndirilenler ve USB dışındaki dahili depolama klasörlerini de açar.\n\nBu klasörlerde araç ekranının, haritaların, kamera kayıtlarının ve diğer uygulamaların kullandığı dosyalar bulunabilir. Yanlış bir dosyayı silmek bir uygulamanın ya da ekranın düzgün çalışmamasına yol açabilir ve silinen dosyalar geri getirilemez.\n\nUygulamaların özel verileri ve sistem bölümleri bu modda da kapalı kalır.\n\nBu modda yaptığın tüm silme ve değişikliklerin sorumluluğu sana aittir. Emin olmadığın bir dosyaya dokunma.</string>
+    <string name="file_browser_free_mode_banner">Serbest gezinme açık. Emin olmadığın dosyaları silme.</string>
+    <string name="file_browser_free_mode_exit">Kapat</string>
+    <string name="file_browser_back">Üst klasör</string>
+    <string name="file_browser_refresh">Yenile</string>
+    <string name="file_browser_send_from_phone">Telefondan Gönder</string>
+    <string name="file_browser_free_space">%1$s boş</string>
+    <string name="file_browser_loading">Yükleniyor…</string>
+    <string name="file_browser_empty">Bu klasör boş</string>
+    <string name="file_browser_empty_downloads_hint">Telefonundan dosya göndermek için \"Telefondan Gönder\"e dokun.</string>
+    <string name="file_browser_unreadable">Bu klasör okunamadı</string>
+    <string name="file_browser_show_more">Daha fazla göster (%1$d kaldı)</string>
+    <string name="file_browser_folder_meta">%1$d öğe</string>
+    <string name="file_browser_install">Yükle</string>
+    <string name="file_browser_delete">Sil</string>
+    <string name="file_browser_copy_to_downloads">İndirilenler\'e kopyala</string>
+    <string name="file_browser_delete_title">Silinsin mi?</string>
+    <string name="file_browser_delete_file_msg">Bu dosya kalıcı olarak silinecek. Bu işlem geri alınamaz.</string>
+    <string name="file_browser_delete_folder_msg">Bu klasör ve içindeki her şey kalıcı olarak silinecek. Bu işlem geri alınamaz.</string>
+    <string name="file_browser_deleted">Silindi</string>
+    <string name="file_browser_delete_failed">Silinemedi</string>
+    <string name="file_browser_install_title">Uygulama yüklensin mi?</string>
+    <string name="file_browser_install_msg">Bu APK araca yüklenecek. Yalnızca güvendiğin kaynaklardan gelen uygulamaları yükle.</string>
+    <string name="file_browser_copying">Kopyalanıyor…</string>
+    <string name="file_browser_copied">İndirilenler\'e kopyalandı</string>
+    <string name="file_browser_copy_failed">Kopyalanamadı</string>
+    <string name="file_browser_open_failed">Bu dosyayı açacak bir uygulama yok</string>
+    <string name="file_browser_close">Kapat</string>
+    <string name="file_browser_kind_folder">Klasör</string>
+    <string name="file_browser_kind_apk">Uygulama (APK)</string>
+    <string name="file_browser_kind_image">Resim</string>
+    <string name="file_browser_kind_video">Video</string>
+    <string name="file_browser_kind_audio">Ses</string>
+    <string name="file_browser_kind_archive">Arşiv</string>
+    <string name="file_browser_kind_document">Belge</string>
+    <string name="file_browser_kind_other">Dosya</string>
+</resources>

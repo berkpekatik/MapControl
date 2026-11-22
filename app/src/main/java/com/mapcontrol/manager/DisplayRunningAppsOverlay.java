@@ -21,7 +21,7 @@ import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
+import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,13 +32,17 @@ import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.util.ActivityDisplayTasksHelper;
 import com.mapcontrol.util.AppForceStopHelper;
+import com.mapcontrol.util.RunningAppsHelper;
 import com.mapcontrol.util.UsageAccessHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Belirli ekran için uygulama adaylarını listeler. Kısa tık: zorla durdur; uzun bas: uygulama bilgisi.
+ * Açık (süreci çalışan) kullanıcı uygulamaları, tüm ekranlar tek listede. Kısa tık: kapat; uzun bas:
+ * uygulama bilgisi. Liste {@link RunningAppsHelper} ile dumpsys'ten gelir; DUMP izni yoksa son 1 saatin
+ * kullanım geçmişine düşer. Eskiden 1. ve 2. ekran ayrı listelerdi ama araçta ekran kimliği okunamadığı için
+ * ikisi aynı içeriği gösteriyordu.
  */
 public final class DisplayRunningAppsOverlay {
 
@@ -59,10 +63,13 @@ public final class DisplayRunningAppsOverlay {
     private static final class Row {
         final String packageName;
         final String label;
+        /** null: durum bilinmiyor (kullanım geçmişi yedeği). */
+        final RunningAppsHelper.State state;
 
-        Row(String packageName, String label) {
+        Row(String packageName, String label, RunningAppsHelper.State state) {
             this.packageName = packageName;
             this.label = label;
+            this.state = state;
         }
     }
 
@@ -74,20 +81,27 @@ public final class DisplayRunningAppsOverlay {
     }
 
     private void log(String msg) {
-        if (logCallback != null) {
-            logCallback.log(msg);
+        if (logCallback == null) {
+            return;
         }
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new Handler(Looper.getMainLooper()).post(() -> logCallback.log(msg));
+            return;
+        }
+        logCallback.log(msg);
     }
 
-    /**
-     * @param whichDisplay 0 = ana ekran; aksi halde {@link AppLaunchHelper#getClusterDisplayId(Context)} ile
-     *                     aynı ikinci ekran fikrini somut id için kullan (ör. cluster).
-     */
+    /** Eski çağrılar (ekran başına liste) için; artık tek liste gösterilir. */
     public static void show(Context anyContext, int whichDisplay, String title, LogCallback logCallback) {
+        show(anyContext, logCallback);
+    }
+
+    /** Ana iş parçacığından çağırın; liste arka planda toplanıp hazır olunca gösterilir. */
+    public static void show(Context anyContext, LogCallback logCallback) {
         dismissIfShowing();
         DisplayRunningAppsOverlay o = new DisplayRunningAppsOverlay(anyContext, logCallback);
         sInstance = o;
-        o.attach(whichDisplay, title);
+        o.load();
     }
 
     public static void dismissIfShowing() {
@@ -97,130 +111,130 @@ public final class DisplayRunningAppsOverlay {
         }
     }
 
-    private void attach(int whichDisplay, String title) {
+    private void load() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(appContext)) {
             Toast.makeText(appContext, R.string.target_picker_overlay_required, Toast.LENGTH_SHORT).show();
             sInstance = null;
             return;
         }
-        int displayId = whichDisplay;
-        if (displayId < 0) {
-            displayId = android.view.Display.DEFAULT_DISPLAY;
+        final Handler main = new Handler(Looper.getMainLooper());
+        new Thread(() -> {
+            List<Row> loaded = collectRows();
+            main.post(() -> {
+                if (sInstance != this) {
+                    return;
+                }
+                if (loaded == null) {
+                    // Ne dumpsys ne kullanım erişimi: kullanıcıyı izne yönlendir.
+                    try {
+                        Toast.makeText(appContext, R.string.floating_qa_usage_access_required, Toast.LENGTH_LONG)
+                                .show();
+                        UsageAccessHelper.openUsageAccessSettings(appContext);
+                    } catch (Exception ignored) {
+                    }
+                    sInstance = null;
+                    return;
+                }
+                if (loaded.isEmpty()) {
+                    Toast.makeText(appContext, R.string.floating_apps_none_running, Toast.LENGTH_LONG).show();
+                    sInstance = null;
+                    return;
+                }
+                rows.clear();
+                rows.addAll(loaded);
+                attach();
+            });
+        }, "RunningAppsLoad").start();
+    }
+
+    /** Arka planda çalışır. null = hiçbir kaynak okunamadı. */
+    private List<Row> collectRows() {
+        PackageManager pm = appContext.getPackageManager();
+        List<Row> out = new ArrayList<>();
+        List<RunningAppsHelper.RunningApp> running = RunningAppsHelper.listRunningUserApps(appContext);
+        if (running != null) {
+            for (RunningAppsHelper.RunningApp ra : running) {
+                out.add(new Row(ra.packageName, labelOf(pm, ra.packageName), ra.state));
+            }
+            log("[INFO] Açık uygulamalar (dumpsys): " + out.size());
+            return out;
         }
         if (!UsageAccessHelper.hasPackageUsageAccess(appContext)) {
-            try {
-                Toast.makeText(
-                        appContext, R.string.floating_qa_usage_access_required, Toast.LENGTH_LONG)
-                        .show();
-                UsageAccessHelper.openUsageAccessSettings(appContext);
-            } catch (Exception ignored) {
+            return null;
+        }
+        for (String pkg : ActivityDisplayTasksHelper.listRecentPackages(appContext)) {
+            if (pkg != null && !pkg.isEmpty()) {
+                out.add(new Row(pkg, labelOf(pm, pkg), null));
             }
-            sInstance = null;
-            return;
         }
-        List<String> pkgs = ActivityDisplayTasksHelper.listPackagesOnDisplay(appContext, displayId);
-        if (pkgs == null) {
-            pkgs = new ArrayList<>();
-        }
-        rows.clear();
-        PackageManager pm = appContext.getPackageManager();
-        for (String pkg : pkgs) {
-            if (pkg == null || pkg.isEmpty()) {
-                continue;
-            }
-            String label = pkg;
-            try {
-                ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
-                label = String.valueOf(pm.getApplicationLabel(ai));
-            } catch (PackageManager.NameNotFoundException ignored) {
-            }
-            rows.add(new Row(pkg, label));
-        }
-        if (rows.isEmpty()) {
-            Toast.makeText(appContext, R.string.floating_qa_no_recent_apps, Toast.LENGTH_LONG).show();
-            sInstance = null;
-            return;
-        }
+        log("[INFO] Açık uygulamalar (kullanım geçmişi yedeği): " + out.size());
+        return out;
+    }
 
+    private static String labelOf(PackageManager pm, String pkg) {
+        try {
+            ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+            return String.valueOf(pm.getApplicationLabel(ai));
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return pkg;
+        }
+    }
+
+    private void attach() {
+        String title = appContext.getString(R.string.floating_qa_open_apps);
         float density = appContext.getResources().getDisplayMetrics().density;
-        int screenW = appContext.getResources().getDisplayMetrics().widthPixels;
-        int screenH = appContext.getResources().getDisplayMetrics().heightPixels;
-        int cardMaxW = Math.min(screenW - (int) (32 * density), (int) (420 * density));
-        int cardMaxH = (int) (screenH * 0.78f);
+        Context c = themedContext;
 
-        FrameLayout scrim = new FrameLayout(themedContext);
-        scrim.setBackgroundColor(UiStyles.color(themedContext, R.color.modal_overlay_scrim));
+        FrameLayout scrim = new FrameLayout(c);
+        scrim.setBackgroundColor(UiStyles.color(c, R.color.modal_overlay_scrim));
         scrim.setOnClickListener(v -> detach());
 
-        LinearLayout card = new LinearLayout(themedContext);
+        LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setClickable(true);
-        UiStyles.applySolidRoundedBackgroundDp(card,
-                UiStyles.color(themedContext, R.color.surfaceCard), 18f);
+        UiStyles.applySolidRoundedBackgroundDp(card, UiStyles.color(c, R.color.surfaceCard), 24f);
         card.setElevation(12 * density);
-        int cardPad = (int) (18 * density);
+        int cardPad = CarPickerUi.cardPadding(c);
         card.setPadding(cardPad, cardPad, cardPad, cardPad);
 
-        LinearLayout titleRow = new LinearLayout(themedContext);
+        LinearLayout titleRow = new LinearLayout(c);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView titleView = new TextView(themedContext);
-        titleView.setText(title != null ? title : appContext.getString(R.string.floating_qa_open_apps));
-        titleView.setTextSize(20);
-        UiStyles.setFontStyle(titleView, Typeface.BOLD);
-        titleView.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
-        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        titleRow.addView(titleView, titleLp);
-
-        TextView btnClose = new TextView(themedContext);
-        btnClose.setText(R.string.common_close);
-        btnClose.setTextSize(22);
-        btnClose.setTextColor(UiStyles.color(themedContext, R.color.textHint));
-        btnClose.setPadding((int) (8 * density), 0, 0, 0);
-        btnClose.setOnClickListener(v -> detach());
-        titleRow.addView(btnClose, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        titleRow.addView(CarPickerUi.title(c, title),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView btnClose = CarPickerUi.closeButton(c, v -> detach());
+        titleRow.addView(btnClose, btnClose.getLayoutParams());
         card.addView(titleRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView subtitle = new TextView(themedContext);
-        subtitle.setText(R.string.floating_qa_tap_for_app_info);
-        subtitle.setTextSize(13);
-        subtitle.setTextColor(UiStyles.color(themedContext, R.color.textHint));
+        TextView subtitle = CarPickerUi.subtitle(c, c.getString(R.string.floating_qa_tap_for_app_info));
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        subLp.topMargin = (int) (4 * density);
+        subLp.topMargin = (int) (6 * density);
         card.addView(subtitle, subLp);
 
-        ListView listView = new ListView(themedContext);
-        listView.setDivider(new android.graphics.drawable.ColorDrawable(
-                UiStyles.color(themedContext, R.color.dividerWhite12)));
-        listView.setDividerHeight(Math.max(1, (int) (density)));
-        listView.setClipToPadding(false);
+        GridView grid = CarPickerUi.grid(c);
         adapter = new RowAdapter();
-        listView.setAdapter(adapter);
-        listView.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
-            if (position < 0 || position >= rows.size()) {
-                return;
+        grid.setAdapter(adapter);
+        grid.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+            if (position >= 0 && position < rows.size()) {
+                tryForceStopAt(position, rows.get(position));
             }
-            tryForceStopAt(position, rows.get(position));
         });
-        listView.setOnItemLongClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+        grid.setOnItemLongClickListener((AdapterView<?> parent, View view, int position, long id) -> {
             if (position < 0 || position >= rows.size()) {
                 return false;
             }
             openAppDetails(rows.get(position).packageName);
             return true;
         });
-        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        listLp.topMargin = (int) (12 * density);
-        listLp.weight = 1;
-        listLp.height = 0;
-        card.addView(listView, listLp);
+        gridLp.topMargin = (int) (16 * density);
+        card.addView(grid, gridLp);
 
-        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(cardMaxW, cardMaxH);
+        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(
+                CarPickerUi.cardWidth(c), CarPickerUi.cardHeight(c));
         cardLp.gravity = Gravity.CENTER;
         scrim.addView(card, cardLp);
 
@@ -239,7 +253,7 @@ public final class DisplayRunningAppsOverlay {
 
         try {
             windowManager.addView(rootView, rootParams);
-            log("[INFO] Açık uygulamalar overlay: displayId=" + displayId + " (" + rows.size() + " adet)");
+            log("[INFO] Açık uygulamalar overlay (" + rows.size() + " adet)");
         } catch (Exception e) {
             log("[ERROR] Açık uygulamalar overlay: " + e.getMessage());
             Toast.makeText(appContext, e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -254,44 +268,55 @@ public final class DisplayRunningAppsOverlay {
             return;
         }
         final String pkg = row.packageName;
+        final String label = row.label;
         final DisplayRunningAppsOverlay self = this;
         new Thread(() -> {
-            boolean ok = AppForceStopHelper.amForceStop(pkg);
+            AppForceStopHelper.Result result = AppForceStopHelper.stopPackage(appContext, pkg);
             new Handler(Looper.getMainLooper()).post(() -> {
                 if (sInstance != self) {
                     return;
                 }
-                if (ok) {
-                    if (position >= 0 && position < rows.size()
-                            && pkg.equals(rows.get(position).packageName)) {
-                        rows.remove(position);
-                    } else {
-                        for (int i = 0; i < rows.size(); i++) {
-                            if (pkg.equals(rows.get(i).packageName)) {
-                                rows.remove(i);
-                                break;
-                            }
+                switch (result) {
+                    case CLOSED:
+                        removeRow(position, pkg);
+                        Toast.makeText(appContext,
+                                appContext.getString(R.string.floating_qa_force_stop_ok, label),
+                                Toast.LENGTH_SHORT).show();
+                        log("[INFO] Kapatıldı: " + pkg);
+                        if (rows.isEmpty()) {
+                            detach();
                         }
-                    }
-                    if (adapter != null) {
-                        adapter.notifyDataSetChanged();
-                    }
-                    String msg = appContext.getString(R.string.floating_qa_force_stop_ok, pkg);
-                    Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show();
-                    log("[INFO] force-stop: " + pkg);
-                    if (rows.isEmpty()) {
-                        detach();
-                    }
-                } else {
-                    Toast.makeText(
-                                    appContext,
-                                    R.string.floating_qa_force_stop_fail,
-                                    Toast.LENGTH_LONG)
-                            .show();
-                    log("[WARN] force-stop başarısız: " + pkg);
+                        break;
+                    case STILL_RUNNING:
+                        Toast.makeText(appContext,
+                                appContext.getString(R.string.floating_apps_kill_busy, label),
+                                Toast.LENGTH_LONG).show();
+                        log("[WARN] Kapatılamadı (ekranda/ön plan servisi): " + pkg);
+                        break;
+                    default:
+                        Toast.makeText(appContext, R.string.floating_qa_force_stop_fail, Toast.LENGTH_LONG)
+                                .show();
+                        log("[WARN] Kapatma başarısız: " + pkg);
+                        break;
                 }
             });
-        }).start();
+        }, "RunningAppsKill").start();
+    }
+
+    private void removeRow(int position, String pkg) {
+        if (position >= 0 && position < rows.size() && pkg.equals(rows.get(position).packageName)) {
+            rows.remove(position);
+        } else {
+            for (int i = 0; i < rows.size(); i++) {
+                if (pkg.equals(rows.get(i).packageName)) {
+                    rows.remove(i);
+                    break;
+                }
+            }
+        }
+        if (adapter != null) {
+            adapter.notifyDataSetChanged();
+        }
     }
 
     private void openAppDetails(String packageName) {
@@ -322,6 +347,17 @@ public final class DisplayRunningAppsOverlay {
         }
     }
 
+    private String stateText(RunningAppsHelper.State state) {
+        switch (state) {
+            case SCREEN:
+                return appContext.getString(R.string.floating_apps_state_screen);
+            case SERVICE:
+                return appContext.getString(R.string.floating_apps_state_service);
+            default:
+                return appContext.getString(R.string.floating_apps_state_cached);
+        }
+    }
+
     private class RowAdapter extends BaseAdapter {
         @Override
         public int getCount() {
@@ -340,49 +376,14 @@ public final class DisplayRunningAppsOverlay {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout row;
-            ImageView icon;
-            TextView t1;
-            TextView t2;
-            if (convertView instanceof LinearLayout && ((LinearLayout) convertView).getChildCount() >= 2) {
-                row = (LinearLayout) convertView;
-                icon = (ImageView) row.getChildAt(0);
-                LinearLayout texts = (LinearLayout) row.getChildAt(1);
-                t1 = (TextView) texts.getChildAt(0);
-                t2 = (TextView) texts.getChildAt(1);
-            } else {
-                float d = themedContext.getResources().getDisplayMetrics().density;
-                int p = (int) (12 * d);
-                row = new LinearLayout(themedContext);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(p, (int) (10 * d), p, (int) (10 * d));
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                icon = new ImageView(themedContext);
-                int iconPx = (int) (40 * d);
-                LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconPx, iconPx);
-                iconLp.setMargins(0, 0, (int) (12 * d), 0);
-                row.addView(icon, iconLp);
-                LinearLayout texts = new LinearLayout(themedContext);
-                texts.setOrientation(LinearLayout.VERTICAL);
-                t1 = new TextView(themedContext);
-                t1.setTextSize(16);
-                t1.setTextColor(UiStyles.color(themedContext, R.color.textPrimary));
-                t2 = new TextView(themedContext);
-                t2.setTextSize(12);
-                t2.setTextColor(UiStyles.color(themedContext, R.color.textHint));
-                texts.addView(t1);
-                texts.addView(t2);
-                row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
             Row r = rows.get(position);
-            t1.setText(r.label);
-            t2.setText(r.packageName);
+            android.graphics.drawable.Drawable icon = null;
             try {
-                icon.setImageDrawable(appContext.getPackageManager().getApplicationIcon(r.packageName));
-            } catch (Exception e) {
-                icon.setImageResource(android.R.drawable.sym_def_app_icon);
+                icon = appContext.getPackageManager().getApplicationIcon(r.packageName);
+            } catch (Exception ignored) {
             }
-            return row;
+            return CarPickerUi.tile(themedContext, convertView, icon, r.label,
+                    r.state == null ? null : stateText(r.state), false);
         }
     }
 }

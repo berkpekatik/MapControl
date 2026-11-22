@@ -101,6 +101,32 @@ public final class FloatingOverlayBarSpec {
         }
     }
 
+    /**
+     * Yuvarlak yüzen düğme (geri tuşu ve halka menü öğeleri): daire dolgu + dairesel ripple + gölge.
+     */
+    public static void applyHubCircleBackground(Context ctx, View v, int fillArgb) {
+        float d = ctx.getResources().getDisplayMetrics().density;
+        GradientDrawable content = new GradientDrawable();
+        content.setShape(GradientDrawable.OVAL);
+        content.setColor(fillArgb);
+        content.setStroke(Math.max(1, dpToPx(1f, d)),
+                ColorUtils.setAlphaComponent(UiStyles.color(ctx, R.color.textPrimary), 0x22));
+
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.OVAL);
+        mask.setColor(Color.WHITE);
+
+        int rippleAlpha = ColorUtils.setAlphaComponent(UiStyles.color(ctx, R.color.textPrimary), 0x55);
+        v.setBackground(new RippleDrawable(ColorStateList.valueOf(rippleAlpha), content, mask));
+        v.setStateListAnimator(null);
+        v.setElevation(HUB_CIRCLE_ELEVATION_DP * d);
+        v.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+        v.setClipToOutline(true);
+    }
+
+    /** Yuvarlak düğme gölgesi; pencere kenarında kırpılmasın diye kök bu kadar boşluk bırakır. */
+    public static final float HUB_CIRCLE_ELEVATION_DP = 4f;
+
     public static void applyLikeFloatingBackButton(Button b, int surfaceCardArgb) {
         Context ctx = b.getContext();
         float d = ctx.getResources().getDisplayMetrics().density;

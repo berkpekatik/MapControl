@@ -84,6 +84,7 @@ import com.mapcontrol.ui.builder.ClimateAutomationTabBuilder;
 import com.mapcontrol.ui.builder.SunroofAutomationTabBuilder;
 import com.mapcontrol.ui.builder.DmsFaceRecognitionTabBuilder;
 import com.mapcontrol.ui.builder.EqualizerTabBuilder;
+import com.mapcontrol.ui.builder.FileBrowserTabBuilder;
 import com.mapcontrol.ui.builder.FileUploadTabBuilder;
 import com.mapcontrol.ui.builder.LogTabBuilder;
 import com.mapcontrol.ui.builder.ProjectionTabBuilder;
@@ -131,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
     public static final int TAB_SPLIT_SCREEN = 15;
     public static final int TAB_SUNROOF_AUTOMATION = 16;
     public static final int TAB_WALLPAPER_THEMES = SideRailBuilder.TAB_WALLPAPER_THEMES;
+    public static final int TAB_FILE_BROWSER = SideRailBuilder.TAB_FILE_BROWSER;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
     private ScrollView sunroofAutomationScrollView;
@@ -139,6 +141,7 @@ public class MainActivity extends AppCompatActivity {
     private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
     private SunroofAutomationTabBuilder sunroofAutomationTabBuilder;
     private WallpaperThemesTabBuilder wallpaperThemesTabBuilder;
+    private FileBrowserTabBuilder fileBrowserTabBuilder;
     private boolean faceRecognitionStatusBroadcastRegistered;
     private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -225,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
-    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_WALLPAPER_THEMES + 1];
+    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_FILE_BROWSER + 1];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
     /** Son yerleşimin genişliği; {@link #mountShell} içerik genişliğini piksel olarak sabitler. */
@@ -429,6 +432,25 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Uygulama Yönetimi için yasal uyarı ve onay ekranını gösterir
      */
+    /**
+     * Dosyalar sekmesinden APK: Uygulamalar sekmesiyle aynı kurulum akışı. Uygulama yönetimi
+     * sorumluluk reddi daha önce kabul edilmediyse önce o gösterilir.
+     */
+    private void installApkFromFileBrowser(java.io.File apk) {
+        if (appsTabBuilder == null) {
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+        if (prefs.getBoolean("appManagementDisclaimerAccepted", false)) {
+            appsTabBuilder.installApkFile(apk);
+            return;
+        }
+        DialogHelper.showAppManagementDisclaimer(this, () -> {
+            prefs.edit().putBoolean("appManagementDisclaimerAccepted", true).apply();
+            appsTabBuilder.installApkFile(apk);
+        }, () -> {});
+    }
+
     private void showAppManagementDisclaimer() {
         DialogHelper.showAppManagementDisclaimer(this, () -> {
             SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
@@ -913,6 +935,23 @@ public class MainActivity extends AppCompatActivity {
                 wallpaperImagePicker,
                 msg -> MainActivity.this.log(msg));
 
+        fileBrowserTabBuilder = new FileBrowserTabBuilder(this, new FileBrowserTabBuilder.Callback() {
+            @Override
+            public void log(String message) {
+                MainActivity.this.log(message);
+            }
+
+            @Override
+            public void installApk(java.io.File apk) {
+                installApkFromFileBrowser(apk);
+            }
+
+            @Override
+            public void openPhoneUpload() {
+                crossfadeContent(() -> switchTab(1));
+            }
+        });
+
         dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         faceRecognitionScrollView = new ScrollView(this);
@@ -1343,6 +1382,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_WALLPAPER_THEMES) {
             rebuildWallpaperThemesTab();
             addTabChild(parent, wallpaperThemesScrollView, matchParent);
+        } else if (tabIndex == TAB_FILE_BROWSER && fileBrowserTabBuilder != null) {
+            addTabChild(parent, fileBrowserTabBuilder.getView(), matchParent);
+            fileBrowserTabBuilder.onTabVisible();
         }
     }
 
@@ -1376,6 +1418,7 @@ public class MainActivity extends AppCompatActivity {
             case TAB_SUNROOF_AUTOMATION: return R.string.side_rail_sunroof_automation;
             case TAB_HOME_SCREEN: return R.string.side_rail_home_screen;
             case TAB_WALLPAPER_THEMES: return R.string.side_rail_wallpaper_themes;
+            case TAB_FILE_BROWSER: return R.string.side_rail_file_browser;
             default: return R.string.topbar_vehicle_home;
         }
     }
@@ -1968,6 +2011,11 @@ public class MainActivity extends AppCompatActivity {
     /** Belirtilen sekmeyi yeni tema renkleriyle izole ve anında yeniden kurar (lazy theme loading). */
     private void rebuildTabForUiMode(int tabIndex) {
         switch (tabIndex) {
+            case TAB_FILE_BROWSER:
+                if (fileBrowserTabBuilder != null) {
+                    fileBrowserTabBuilder.build();
+                }
+                break;
             case 0:
                 if (wifiTabBuilder != null) {
                     wifiTabContent = wifiTabBuilder.build();

@@ -28,12 +28,25 @@ public final class ActivityDisplayTasksHelper {
     private ActivityDisplayTasksHelper() {
     }
 
+    /** Ekran ayrımı yapmadan son 1 saatte öne gelen kullanıcı uygulamaları (dumpsys yoksa yedek). */
+    @NonNull
+    public static List<String> listRecentPackages(@NonNull Context anyContext) {
+        return listPackages(anyContext, ANY_DISPLAY);
+    }
+
     @NonNull
     public static List<String> listPackagesOnDisplay(
             @NonNull Context anyContext, int targetDisplay) {
         if (targetDisplay < 0) {
             return Collections.emptyList();
         }
+        return listPackages(anyContext, targetDisplay);
+    }
+
+    private static final int ANY_DISPLAY = Integer.MIN_VALUE;
+
+    @NonNull
+    private static List<String> listPackages(@NonNull Context anyContext, int targetDisplay) {
         if (!UsageAccessHelper.hasPackageUsageAccess(anyContext)) {
             return Collections.emptyList();
         }
@@ -62,14 +75,14 @@ public final class ActivityDisplayTasksHelper {
                 continue;
             }
             String pkg = e.getPackageName();
-            if (pkg == null || pkg.isEmpty() || "com.mapcontrol".equals(pkg)) {
+            if (pkg == null || pkg.isEmpty() || app.getPackageName().equals(pkg)) {
                 continue;
             }
-            if (shouldSkipInstalledPackage(app, pkg)) {
+            if (isSystemOrUnknownPackage(app, pkg)) {
                 continue;
             }
             int d = getDisplayIdFromEvent(e);
-            if (!eventMatchesTargetDisplay(d, targetDisplay)) {
+            if (targetDisplay != ANY_DISPLAY && !eventMatchesTargetDisplay(d, targetDisplay)) {
                 continue;
             }
             long t = e.getTimeStamp();
@@ -123,7 +136,8 @@ public final class ActivityDisplayTasksHelper {
         return -1;
     }
 
-    private static boolean shouldSkipInstalledPackage(Context c, String pkg) {
+    /** Sistem/priv-app ya da kurulu olmayan paket: kullanıcı listelerinde gösterilmez. */
+    public static boolean isSystemOrUnknownPackage(Context c, String pkg) {
         try {
             ApplicationInfo info = c.getPackageManager().getApplicationInfo(pkg, 0);
             if ((info.flags & ApplicationInfo.FLAG_SYSTEM) != 0
