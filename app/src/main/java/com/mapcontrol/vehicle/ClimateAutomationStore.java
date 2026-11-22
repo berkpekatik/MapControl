@@ -28,6 +28,7 @@ public final class ClimateAutomationStore {
 
     public static final int TEMP_MIN = -20;
     public static final int TEMP_MAX = 40;
+    public static final double HYSTERESIS_C = 1.0;
     public static final int DELAY_MAX_MINUTES = 30;
     public static final int LEVEL_MIN = 1;
     public static final int LEVEL_MAX = 3;
@@ -36,6 +37,7 @@ public final class ClimateAutomationStore {
 
     public static final class Rule {
         public boolean enabled;
+        public int startDelayMinutes;
         public int delayMinutes;
         public int compare;
         public int tempC;
@@ -146,6 +148,8 @@ public final class ClimateAutomationStore {
         Rule defaults = defaultsFor(id);
         Rule rule = new Rule();
         rule.enabled = !isHidden(id) && prefs.getBoolean(key(id, "on"), defaults.enabled);
+        rule.startDelayMinutes = clamp(prefs.getInt(key(id, "start_delay"), defaults.startDelayMinutes),
+                0, DELAY_MAX_MINUTES);
         rule.delayMinutes = clamp(prefs.getInt(key(id, "delay"), defaults.delayMinutes),
                 0, DELAY_MAX_MINUTES);
         rule.compare = clamp(prefs.getInt(key(id, "cmp"), defaults.compare), CMP_LT, CMP_GTE);
@@ -157,6 +161,7 @@ public final class ClimateAutomationStore {
     public static void putRule(SharedPreferences prefs, String id, Rule rule) {
         prefs.edit()
                 .putBoolean(key(id, "on"), rule.enabled)
+                .putInt(key(id, "start_delay"), clamp(rule.startDelayMinutes, 0, DELAY_MAX_MINUTES))
                 .putInt(key(id, "delay"), clamp(rule.delayMinutes, 0, DELAY_MAX_MINUTES))
                 .putInt(key(id, "cmp"), clamp(rule.compare, CMP_LT, CMP_GTE))
                 .putInt(key(id, "temp"), clamp(rule.tempC, TEMP_MIN, TEMP_MAX))
@@ -179,10 +184,34 @@ public final class ClimateAutomationStore {
         }
     }
 
+    /**
+     * Kural zaten aktifken sınır sıcaklıkta sürekli aç-kapa (chattering) yapmaması için
+     * ±1.0°C histerezis (tolerans payı) uygular.
+     */
+    public static boolean matchesTemperatureWithHysteresis(
+            double outsideC, int compare, int thresholdC, boolean currentlyActive) {
+        if (!currentlyActive) {
+            return matchesTemperature(outsideC, compare, thresholdC);
+        }
+        switch (compare) {
+            case CMP_LT:
+                return outsideC < (thresholdC + HYSTERESIS_C);
+            case CMP_LTE:
+                return outsideC <= (thresholdC + HYSTERESIS_C);
+            case CMP_GT:
+                return outsideC > (thresholdC - HYSTERESIS_C);
+            case CMP_GTE:
+                return outsideC >= (thresholdC - HYSTERESIS_C);
+            default:
+                return false;
+        }
+    }
+
     public static Rule defaultsFor(String id) {
         Rule rule = new Rule();
         rule.enabled = false;
         rule.level = 2;
+        rule.startDelayMinutes = 0;
         rule.delayMinutes = 0;
         rule.compare = CMP_LT;
         rule.tempC = 0;

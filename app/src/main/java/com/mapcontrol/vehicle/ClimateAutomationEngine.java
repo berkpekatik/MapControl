@@ -17,8 +17,9 @@ import com.desaysv.ivi.vdb.IVDBusNotify;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -37,20 +38,47 @@ public final class ClimateAutomationEngine {
         void onClimateStatus(Status status);
     }
 
+    public enum RuleRunState {
+        DISABLED,
+        WAITING_VEHICLE,
+        WAITING_ENGINE,
+        ACTIVATING,
+        WAITING_TEMP,
+        WAITING_START_DELAY,
+        ACTIVE,
+        COMPLETED_TIMEOUT,
+        MANUAL_OVERRIDE
+    }
+
+    public static final class RuleStatus {
+        public final RuleRunState state;
+        public final int remainingMinutes;
+
+        public RuleStatus(RuleRunState state, int remainingMinutes) {
+            this.state = state;
+            this.remainingMinutes = remainingMinutes;
+        }
+    }
+
     public static final class Status {
         public final boolean connected;
         public final boolean masterEnabled;
         public final boolean powerOn;
         public final Double outsideTempC;
         public final String lastAction;
+        public final Map<String, RuleStatus> ruleStatuses;
 
         Status(boolean connected, boolean masterEnabled, boolean powerOn,
-               Double outsideTempC, String lastAction) {
+               Double outsideTempC, String lastAction,
+               Map<String, RuleStatus> ruleStatuses) {
             this.connected = connected;
             this.masterEnabled = masterEnabled;
             this.powerOn = powerOn;
             this.outsideTempC = outsideTempC;
             this.lastAction = lastAction;
+            this.ruleStatuses = ruleStatuses != null
+                    ? Collections.unmodifiableMap(new HashMap<>(ruleStatuses))
+                    : Collections.emptyMap();
         }
     }
 
@@ -87,6 +115,11 @@ public final class ClimateAutomationEngine {
             CarSettingID.ID_CAR_STEER_WHEEL_HEAT,
             CarSettingID.ID_CAR_REAR_WINDOW_HEAT
     };
+    private static final int[] READONLY_IDS = {
+            ReadOnlyID.ID_SYSTEM_POWER_MODE,
+            ReadOnlyID.ID_CAR_POWER_MODE,
+            ReadOnlyID.ID_ENGINE_STATE
+    };
 
     private static volatile ClimateAutomationEngine instance;
 
@@ -99,12 +132,16 @@ public final class ClimateAutomationEngine {
     private final Set<String> appliedWhileReady = new HashSet<>();
     private final Set<String> manualOverridesThisDrive = new HashSet<>();
     private final Set<String> pendingDeactivation = new HashSet<>();
+    /** Araç geri bildirimiyle gerçekten aktif olduğu görülen kurallar (bu sürüş). */
+    private final Set<String> confirmedActive = new HashSet<>();
     private final Set<String> awaitingActivationFeedback = new HashSet<>();
     private final Set<String> feedbackReadErrorsReported = new HashSet<>();
     private final Map<String, Integer> sendAttemptsThisPhase = new HashMap<>();
     private final Map<String, Long> lastSentElapsedMs = new HashMap<>();
     private final Map<String, String> lastRuleEvaluationStates = new HashMap<>();
     private final Map<String, String> lastCommandErrors = new HashMap<>();
+    private final Map<String, Long> ruleActivatedAtMs = new HashMap<>();
+    private final Map<String, Long> ruleEnabledAtMs = new HashMap<>();
     private final ScheduledExecutorService io = Executors.newSingleThreadScheduledExecutor();
 
     private volatile boolean started;
@@ -114,10 +151,20 @@ public final class ClimateAutomationEngine {
     private volatile int lastRawOutsideTempF = Integer.MIN_VALUE;
     private volatile int lastPowerMode = -1;
     private volatile long ignitionOnAtMs;
+    private volatile long driveReadySinceMs;
     private volatile boolean awaitingRestartAfterPowerDown;
+    private volatile boolean engineStartedThisDrive;
+    /**
+     * Bu bağlantıda ID_CAR_POWER_MODE (13) / ID_ENGINE_STATE (74) en az bir kez sıfırdan farklı geldi mi?
+     * CarInfoProxy yanıt alamadığında [0] döndürdüğü için "hiç gelmedi" ile "0" ayırt edilemez;
+     * ikisi de hiç gelmediyse (ör. T19C) motor çalışıyor kontrolü PowerMode>=2'ye düşer.
+     */
+    private volatile boolean carPowerSignalSeen;
+    private volatile boolean engineStateSignalSeen;
     private volatile String lastAction = "";
     private String lastEvaluationGate = "";
     private String lastPollError = "";
+    private String lastLoggedSignals = "";
     private long lastSuccessfulPollElapsedMs;
     private ScheduledFuture<?> pollFuture;
 
@@ -166,6 +213,31 @@ public final class ClimateAutomationEngine {
             int raw = values[0];
             try {
                 io.execute(() -> onComfortSignalNotify(MODULE_SETTING, itemId, raw));
+            } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            }
+        }
+    };
+
+    private final IVDBusNotify.Stub readonlyNotify = new IVDBusNotify.Stub() {
+        @Override
+        public void onVDBusNotify(VDEvent event) {
+            if (event == null || event.getPayload() == null || event.getId() != MODULE_READONLY) {
+                return;
+            }
+            int itemId = event.getPayload().getInt(Constants.CMD_ID, -1);
+            int[] values = event.getPayload().getIntArray(Constants.VALUE);
+            if (values == null || values.length == 0) {
+                return;
+            }
+            try {
+                io.execute(() -> {
+                    if (itemId == ReadOnlyID.ID_SYSTEM_POWER_MODE
+                            || itemId == ReadOnlyID.ID_CAR_POWER_MODE
+                            || itemId == ReadOnlyID.ID_ENGINE_STATE) {
+                        refreshPowerModeFromBus();
+                    }
+                    notifyListeners();
+                });
             } catch (java.util.concurrent.RejectedExecutionException ignored) {
             }
         }
@@ -235,11 +307,17 @@ public final class ClimateAutomationEngine {
                     if (lastPowerMode != -1) {
                         lastPowerMode = -1;
                         ignitionOnAtMs = 0;
+                        driveReadySinceMs = 0;
                         awaitingRestartAfterPowerDown = false;
+                        engineStartedThisDrive = false;
+                        carPowerSignalSeen = false;
+                        engineStateSignalSeen = false;
+                        callbacksRegistered = false;
                         firedThisDrive.clear();
                         appliedThisDrive.clear();
                         appliedWhileReady.clear();
                         sendAttemptsThisPhase.clear();
+                        ruleActivatedAtMs.clear();
                         lastSuccessfulPollElapsedMs = 0;
                         log("Araç veri bağlantısı kesildi; sonraki bağlantıda otomasyon yeniden başlatılacak");
                     }
@@ -271,11 +349,14 @@ public final class ClimateAutomationEngine {
     private void rearmAfterPollingGap() {
         lastPowerMode = -1;
         ignitionOnAtMs = 0;
+        driveReadySinceMs = 0;
         awaitingRestartAfterPowerDown = false;
+        engineStartedThisDrive = false;
         firedThisDrive.clear();
         appliedThisDrive.clear();
         appliedWhileReady.clear();
         sendAttemptsThisPhase.clear();
+        ruleActivatedAtMs.clear();
         lastSuccessfulPollElapsedMs = SystemClock.elapsedRealtime();
         log("Konfor otomasyonu: 30 saniyeden uzun izleme kesintisi; "
                 + "araç durumu ve otomasyon kuralları yeniden değerlendiriliyor");
@@ -283,9 +364,16 @@ public final class ClimateAutomationEngine {
 
     public void notifyRulesChanged() {
         io.execute(() -> {
+            long nowMs = System.currentTimeMillis();
+            for (String id : ClimateAutomationStore.ALL_IDS) {
+                if (!appliedThisDrive.contains(id)) {
+                    ruleEnabledAtMs.putIfAbsent(id, nowMs);
+                }
+            }
             firedThisDrive.clear();
             sendAttemptsThisPhase.clear();
             manualOverridesThisDrive.clear();
+            ruleActivatedAtMs.clear();
             refreshFromBus();
             evaluate("rules");
             notifyListeners();
@@ -296,22 +384,37 @@ public final class ClimateAutomationEngine {
         io.execute(() -> {
             manualOverridesThisDrive.remove(id);
             sendAttemptsThisPhase.remove(id);
+            if (!appliedThisDrive.contains(id)) {
+                ruleActivatedAtMs.remove(id);
+                ruleEnabledAtMs.put(id, System.currentTimeMillis());
+            }
             refreshFromBus();
             ClimateAutomationStore.Rule rule = ClimateAutomationStore.getRule(prefs, id);
             Double temp = outsideTempC;
+            boolean tempMatches = temp != null
+                    && ClimateAutomationStore.matchesTemperature(temp, rule.compare, rule.tempC);
+            long nowMs = System.currentTimeMillis();
+            boolean startDelayPending = remainingStartDelayMinutes(
+                    rule, effectiveStartDelayBase(id, driveReadySinceMs), nowMs) > 0;
+            boolean timedOut = isRuleTimedOut(id, rule, nowMs);
             boolean eligible = rule.enabled
                     && ClimateAutomationStore.isMasterEnabled(prefs)
                     && isConnected()
-                    && lastPowerMode >= 1
-                    && temp != null
-                    && ClimateAutomationStore.matchesTemperature(temp, rule.compare, rule.tempC);
+                    && isDrivePowerReady(lastPowerMode, awaitingRestartAfterPowerDown, engineStartedThisDrive)
+                    && tempMatches
+                    && !startDelayPending
+                    && !timedOut;
             if (!eligible) {
                 if (appliedThisDrive.contains(id)) {
                     deactivateRule(id);
                 }
+                if (!rule.enabled || !tempMatches || startDelayPending) {
+                    ruleActivatedAtMs.remove(id);
+                }
                 firedThisDrive.remove(id);
             } else if (appliedThisDrive.contains(id)) {
                 if (applyRule(id, rule)) {
+                    ruleActivatedAtMs.putIfAbsent(id, System.currentTimeMillis());
                     firedThisDrive.add(id);
                     if (lastPowerMode == 1) {
                         appliedWhileReady.add(id);
@@ -328,6 +431,7 @@ public final class ClimateAutomationEngine {
 
     public void disableRule(String id) {
         io.execute(() -> {
+            ruleActivatedAtMs.remove(id);
             deactivateRule(id);
             refreshFromBus();
             evaluate("rule-disabled:" + id);
@@ -343,6 +447,7 @@ public final class ClimateAutomationEngine {
             firedThisDrive.clear();
             sendAttemptsThisPhase.clear();
             manualOverridesThisDrive.clear();
+            ruleActivatedAtMs.clear();
             notifyListeners();
         });
     }
@@ -351,9 +456,90 @@ public final class ClimateAutomationEngine {
         return new Status(
                 isConnected(),
                 ClimateAutomationStore.isMasterEnabled(prefs),
-                lastPowerMode >= 1,
+                isDrivePowerReady(lastPowerMode, awaitingRestartAfterPowerDown, engineStartedThisDrive),
                 outsideTempC,
-                lastAction);
+                lastAction,
+                buildRuleStatusesSnapshot(System.currentTimeMillis()));
+    }
+
+    private Map<String, RuleStatus> buildRuleStatusesSnapshot(long nowMs) {
+        Map<String, RuleStatus> map = new HashMap<>();
+        boolean master = ClimateAutomationStore.isMasterEnabled(prefs);
+        boolean connected = isConnected();
+        boolean hasIgnitionPower = lastPowerMode >= 1 && !awaitingRestartAfterPowerDown;
+        boolean powerReady = isDrivePowerReady(lastPowerMode, awaitingRestartAfterPowerDown, engineStartedThisDrive);
+        Double temp = outsideTempC;
+
+        for (String id : ClimateAutomationStore.ALL_IDS) {
+            ClimateAutomationStore.Rule rule = ClimateAutomationStore.getRule(prefs, id);
+            if (!master || !rule.enabled) {
+                map.put(id, new RuleStatus(RuleRunState.DISABLED, 0));
+                continue;
+            }
+            if (confirmedActive.contains(id)) {
+                int remMin = 0;
+                if (rule.delayMinutes > 0) {
+                    Long actAt = ruleActivatedAtMs.get(id);
+                    if (actAt != null && actAt > 0) {
+                        long remMs = Math.max(0L, (rule.delayMinutes * 60_000L) - Math.max(0L, nowMs - actAt));
+                        remMin = Math.max(1, (int) Math.ceil(remMs / 60_000.0));
+                    } else {
+                        remMin = rule.delayMinutes;
+                    }
+                }
+                map.put(id, new RuleStatus(RuleRunState.ACTIVE, remMin));
+                continue;
+            }
+            if (manualOverridesThisDrive.contains(id)) {
+                map.put(id, new RuleStatus(RuleRunState.MANUAL_OVERRIDE, 0));
+                continue;
+            }
+            if (isRuleTimedOut(id, rule, nowMs)) {
+                map.put(id, new RuleStatus(RuleRunState.COMPLETED_TIMEOUT, 0));
+                continue;
+            }
+            if (!connected || !hasIgnitionPower) {
+                map.put(id, new RuleStatus(RuleRunState.WAITING_VEHICLE, 0));
+                continue;
+            }
+            if (!powerReady) {
+                if (appliedThisDrive.contains(id)) {
+                    map.put(id, new RuleStatus(RuleRunState.ACTIVATING, 0));
+                } else {
+                    map.put(id, new RuleStatus(RuleRunState.WAITING_ENGINE, 0));
+                }
+                continue;
+            }
+            if (temp == null || !ClimateAutomationStore.matchesTemperature(temp, rule.compare, rule.tempC)) {
+                map.put(id, new RuleStatus(RuleRunState.WAITING_TEMP, 0));
+                continue;
+            }
+            int startRem = remainingStartDelayMinutes(
+                    rule, effectiveStartDelayBase(id, driveReadySinceMs), nowMs);
+            if (startRem > 0) {
+                map.put(id, new RuleStatus(RuleRunState.WAITING_START_DELAY, startRem));
+                continue;
+            }
+            map.put(id, new RuleStatus(RuleRunState.ACTIVATING, 0));
+        }
+        return map;
+    }
+
+    private long effectiveStartDelayBase(String id, long driveReadyMs) {
+        Long enabledAt = ruleEnabledAtMs.get(id);
+        return enabledAt != null ? Math.max(driveReadyMs, enabledAt) : driveReadyMs;
+    }
+
+    static int remainingStartDelayMinutes(ClimateAutomationStore.Rule rule, long driveReadySinceMs, long nowMs) {
+        if (rule == null || rule.startDelayMinutes <= 0 || driveReadySinceMs <= 0L) {
+            return 0;
+        }
+        long targetMs = driveReadySinceMs + (rule.startDelayMinutes * 60_000L);
+        if (nowMs >= targetMs) {
+            return 0;
+        }
+        long remMs = targetMs - nowMs;
+        return Math.max(1, (int) Math.ceil(remMs / 60_000.0));
     }
 
     public static Double decodeOutsideCelsius(int raw) {
@@ -363,6 +549,85 @@ public final class ClimateAutomationEngine {
         double temperatureC = (raw - 110) / 2.0;
         if (temperatureC >= -40 && temperatureC <= 80) {
             return temperatureC;
+        }
+        return null;
+    }
+
+    static boolean isDrivePowerReady(
+            int powerMode,
+            boolean awaitingRestartAfterPowerDown,
+            boolean engineStartedThisDrive) {
+        return powerMode >= 1 && !awaitingRestartAfterPowerDown && engineStartedThisDrive;
+    }
+
+    static int resolveEffectivePowerMode(int systemPowerMode, int carPowerMode) {
+        boolean sysValid = systemPowerMode >= 0 && systemPowerMode <= 10;
+        boolean carValid = carPowerMode >= 0 && carPowerMode <= 10;
+        if (sysValid && carValid) {
+            return Math.max(systemPowerMode, carPowerMode);
+        }
+        if (sysValid) {
+            return systemPowerMode;
+        }
+        if (carValid) {
+            return carPowerMode;
+        }
+        return -1;
+    }
+
+    /**
+     * Bir özelliğin kullanıcı tarafından manuel kapatıldığının kabul edilebilmesi için
+     * öncelikle araç geri bildirimiyle gerçekten açıldığının teyit edilmiş olması gerekir.
+     * Açılmadan önce gelen kapalı sinyalleri zamanlama/uyanma gecikmesi sayılır.
+     */
+    static boolean shouldDetectManualOverride(boolean confirmedActiveForRule, boolean isOffSignal) {
+        return confirmedActiveForRule && isOffSignal;
+    }
+
+    static boolean isCarPowerModeRunning(int carPowerMode) {
+        return carPowerMode == 4;
+    }
+
+    static boolean shouldRearmOnCarPowerRunning(int powerMode, boolean engineStartedThisDrive, int carPowerMode) {
+        return shouldRearmOnEngineRunning(powerMode, engineStartedThisDrive, isCarPowerModeRunning(carPowerMode));
+    }
+
+    static boolean shouldRearmOnEngineRunning(int powerMode, boolean engineStartedThisDrive, boolean engineRunning) {
+        return powerMode >= 1 && !engineStartedThisDrive && engineRunning;
+    }
+
+    static boolean isEngineStateRunning(int engineState) {
+        return engineState == 1;
+    }
+
+    /**
+     * Motor çalışıyor mu? Önce ID_CAR_POWER_MODE (13) == 4, sonra ID_ENGINE_STATE (74) == 1 bakılır.
+     * T19C (Tiggo 7) firmware'inde 13 tanımlı değil; yalnızca T26/T1EJ 4x4 akışında okunuyor.
+     * İki sinyal de bu bağlantıda hiç sıfırdan farklı gelmediyse PowerMode>=2 (eski davranış) kabul edilir,
+     * böylece sinyalleri olmayan araçlarda konfor otomasyonu sessizce devre dışı kalmaz.
+     */
+    static boolean isEngineRunning(int carPowerMode, int engineState,
+            boolean carPowerSignalSeen, boolean engineStateSignalSeen, int powerMode) {
+        if (isCarPowerModeRunning(carPowerMode) || isEngineStateRunning(engineState)) {
+            return true;
+        }
+        if (!carPowerSignalSeen && !engineStateSignalSeen) {
+            return powerMode >= 2;
+        }
+        return false;
+    }
+
+    static Boolean evaluateSeatFeedback(int rawValue, int uiLevel, boolean alreadyAppliedThisDrive) {
+        if (rawValue == 0 || rawValue == 1) {
+            return Boolean.FALSE;
+        }
+        int wire = Math.max(ClimateAutomationStore.LEVEL_MIN,
+                Math.min(ClimateAutomationStore.LEVEL_MAX, uiLevel)) + 1;
+        if (rawValue == wire || (uiLevel >= 2 && rawValue == uiLevel)) {
+            return Boolean.TRUE;
+        }
+        if (alreadyAppliedThisDrive && rawValue >= 2) {
+            return Boolean.TRUE;
         }
         return null;
     }
@@ -384,21 +649,29 @@ public final class ClimateAutomationEngine {
             return;
         }
         boolean isOffNotification;
+        boolean isOnNotification;
         if (ClimateAutomationStore.usesHeatLevel(ruleId)) {
             // Koltuk ısıtma / soğutma: 0 veya 1 = kapalı
             isOffNotification = (raw == 0 || raw == 1);
+            isOnNotification = (raw > 1);
+        } else if (ClimateAutomationStore.STEER_HEAT.equals(ruleId)) {
+            // Direksiyon ısıtma: 1 = açık, 0 (veya 2) = kapalı
+            isOffNotification = (raw == 0 || raw == 2);
+            isOnNotification = (raw == 1);
         } else {
             isOffNotification = (raw == 0);
+            isOnNotification = (raw > 0);
         }
-        if (isOffNotification) {
+        if (shouldDetectManualOverride(confirmedActive.contains(ruleId), isOffNotification)) {
             firedThisDrive.add(ruleId);
             awaitingActivationFeedback.remove(ruleId);
             if (manualOverridesThisDrive.add(ruleId)) {
                 log("Manuel müdahale algılandı (" + ruleId
                         + "); otomasyon bu sürüşte yeniden açmayacak");
             }
-        } else if (raw > 0) {
+        } else if (isOnNotification) {
             // Araç özelliği aktif ettiğini bildirdi; artık tekrar göndermeye gerek yok
+            confirmedActive.add(ruleId);
             firedThisDrive.add(ruleId);
             awaitingActivationFeedback.remove(ruleId);
         }
@@ -454,9 +727,53 @@ public final class ClimateAutomationEngine {
         if (fahrenheitItems != null && fahrenheitItems.length > 0) {
             logOutsideFahrenheit(fahrenheitItems[0], "poll");
         }
-        int[] pwr = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_SYSTEM_POWER_MODE);
-        if (pwr != null && pwr.length > 0) {
-            applyPowerMode(pwr[0]);
+        refreshPowerModeFromBus(proxy);
+    }
+
+    private void refreshPowerModeFromBus() {
+        if (!isConnected()) {
+            return;
+        }
+        refreshPowerModeFromBus(CarInfoProxy.getInstance());
+    }
+
+    private void refreshPowerModeFromBus(CarInfoProxy proxy) {
+        int[] sysPwr = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_SYSTEM_POWER_MODE);
+        int[] carPwr = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_CAR_POWER_MODE);
+        int[] engState = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_ENGINE_STATE);
+        int sysVal = (sysPwr != null && sysPwr.length > 0) ? sysPwr[0] : -1;
+        int carVal = (carPwr != null && carPwr.length > 0) ? carPwr[0] : -1;
+        int engVal = (engState != null && engState.length > 0) ? engState[0] : -1;
+        if (carVal > 0) {
+            carPowerSignalSeen = true;
+        }
+        if (engVal > 0) {
+            engineStateSignalSeen = true;
+        }
+        String sigKey = sysVal + "|" + carVal + "|" + engVal;
+        if (!sigKey.equals(lastLoggedSignals)) {
+            lastLoggedSignals = sigKey;
+            log("Araç sinyalleri: sysPower=" + sysVal + ", carPower=" + carVal + ", engineState=" + engVal);
+        }
+
+        int effectivePwr = resolveEffectivePowerMode(sysVal, carVal);
+        if (effectivePwr >= 0) {
+            if (effectivePwr != lastPowerMode) {
+                log("Güç sinyali okundu (sysPower=" + sysVal + ", carPower=" + carVal
+                        + " -> etkin=" + effectivePwr + ")");
+            }
+            applyPowerMode(effectivePwr);
+        }
+        if (isCarPowerModeRunning(carVal) && lastPowerMode < 1) {
+            applyPowerMode(carVal);
+        }
+        String engineSource = "carPowerMode=" + carVal + ", engineState=" + engVal
+                + ((!carPowerSignalSeen && !engineStateSignalSeen) ? ", yedek: PowerMode=" + lastPowerMode : "");
+        if (isEngineRunning(carVal, engVal, carPowerSignalSeen, engineStateSignalSeen, lastPowerMode)) {
+            applyEngineRunningSignal(engineSource);
+        } else if (engineStartedThisDrive) {
+            engineStartedThisDrive = false;
+            log("Motor durdu algılandı (" + engineSource + "); aracın çalışması bekleniyor");
         }
     }
 
@@ -468,8 +785,13 @@ public final class ClimateAutomationEngine {
         lastPowerMode = mode;
         if (mode >= 1 && previous < 1) {
             ignitionOnAtMs = System.currentTimeMillis();
+            driveReadySinceMs = ignitionOnAtMs;
+            engineStartedThisDrive = false;
+            awaitingRestartAfterPowerDown = false;
             firedThisDrive.clear();
+            confirmedActive.clear();
             sendAttemptsThisPhase.clear();
+            ruleActivatedAtMs.clear();
             if (previous == 0) {
                 manualOverridesThisDrive.clear();
             }
@@ -478,19 +800,36 @@ public final class ClimateAutomationEngine {
             evaluate("power_mode");
         } else if (mode == 1 && previous >= 2) {
             ignitionOnAtMs = 0;
+            driveReadySinceMs = 0;
             awaitingRestartAfterPowerDown = true;
+            engineStartedThisDrive = false;
             firedThisDrive.clear();
             appliedWhileReady.clear();
             sendAttemptsThisPhase.clear();
+            ruleActivatedAtMs.clear();
             log("PowerMode 2→1; otomasyon PowerMode 1'de iki saniyelik aralıklarla koşulları değerlendirecek");
         } else if (mode >= 2 && previous == 1) {
-            if (awaitingRestartAfterPowerDown) {
-                ignitionOnAtMs = System.currentTimeMillis();
+            if (awaitingRestartAfterPowerDown || driveReadySinceMs == 0L) {
+                long nowMs = System.currentTimeMillis();
+                ignitionOnAtMs = nowMs;
+                driveReadySinceMs = nowMs;
                 awaitingRestartAfterPowerDown = false;
+                ruleActivatedAtMs.clear();
                 log("Kontak yeniden açıldı (PowerMode 1→2); otomasyon kuralları tekrar değerlendiriliyor");
             }
             sendAttemptsThisPhase.clear();
             if (!appliedWhileReady.isEmpty()) {
+                // PowerMode 1'de gönderilip araç tarafından hiç onaylanmayan (BCM'in kaçırdığı) komutlar
+                // "manuel müdahale" sayılmış olabilir; bunlar kullanıcı kapatması değildir, yeniden denenmeli.
+                for (String id : new HashSet<>(appliedWhileReady)) {
+                    if (!confirmedActive.contains(id)) {
+                        ruleActivatedAtMs.remove(id);
+                        if (manualOverridesThisDrive.remove(id)) {
+                            log("PowerMode 1'de onaylanmayan komut manuel müdahale sayılmayacak (" + id + "); yeniden denenecek");
+                        }
+                    }
+                    awaitingActivationFeedback.remove(id);
+                }
                 log("Araç PowerMode 1'den 2'ye geçti; PowerMode 1'de gönderilen "
                         + appliedWhileReady.size() + " otomasyon komutu tekrar deneniyor");
                 firedThisDrive.removeAll(appliedWhileReady);
@@ -499,11 +838,34 @@ public final class ClimateAutomationEngine {
             evaluate("power_mode_2");
         } else if (mode == 0) {
             ignitionOnAtMs = 0;
+            driveReadySinceMs = 0;
             awaitingRestartAfterPowerDown = false;
+            engineStartedThisDrive = false;
             firedThisDrive.clear();
             appliedWhileReady.clear();
+            confirmedActive.clear();
             sendAttemptsThisPhase.clear();
             manualOverridesThisDrive.clear();
+            ruleActivatedAtMs.clear();
+            ruleEnabledAtMs.clear();
+        }
+    }
+
+    private void applyEngineRunningSignal(String source) {
+        if (shouldRearmOnEngineRunning(lastPowerMode, engineStartedThisDrive, true)) {
+            engineStartedThisDrive = true;
+            awaitingRestartAfterPowerDown = false;
+            driveReadySinceMs = System.currentTimeMillis();
+            firedThisDrive.clear();
+            appliedWhileReady.clear();
+            confirmedActive.clear();
+            sendAttemptsThisPhase.clear();
+            manualOverridesThisDrive.clear();
+            awaitingActivationFeedback.clear();
+            ruleActivatedAtMs.clear();
+            log("Motor çalışıyor algılandı (" + source
+                    + "); konfor otomasyonu kuralları değerlendiriliyor");
+            evaluate("car_power_run");
         }
     }
 
@@ -518,7 +880,16 @@ public final class ClimateAutomationEngine {
         }
         if (lastPowerMode < 1) {
             logEvaluationGate("Araç PowerMode=" + lastPowerMode
-                    + "; kontak/araç hazır durumu bekleniyor");
+                    + "; araç gücü / kontak (PowerMode>=1) bekleniyor");
+            return;
+        }
+        if (awaitingRestartAfterPowerDown) {
+            logEvaluationGate("Araç stop edildi (PowerMode 2→1); yeni sürüş (PowerMode 2) bekleniyor");
+            return;
+        }
+        if (!engineStartedThisDrive) {
+            logEvaluationGate("Kontak açık (PowerMode=" + lastPowerMode
+                    + "); aracın çalışması (ID_CAR_POWER_MODE=4 / ID_ENGINE_STATE=1) bekleniyor");
             return;
         }
         Double temp = outsideTempC;
@@ -531,33 +902,52 @@ public final class ClimateAutomationEngine {
         if (ignitionOnAtMs == 0) {
             ignitionOnAtMs = now;
         }
+        if (driveReadySinceMs == 0L) {
+            driveReadySinceMs = now;
+        }
         for (String id : ClimateAutomationStore.ALL_IDS) {
             ClimateAutomationStore.Rule rule = ClimateAutomationStore.getRule(prefs, id);
-            boolean conditionMatches = ClimateAutomationStore.matchesTemperature(
-                    temp, rule.compare, rule.tempC);
-            boolean timedOut = (rule.delayMinutes > 0
-                    && ignitionOnAtMs > 0
-                    && (now - ignitionOnAtMs) >= (rule.delayMinutes * 60_000L));
+            boolean conditionMatches = ClimateAutomationStore.matchesTemperatureWithHysteresis(
+                    temp, rule.compare, rule.tempC, appliedThisDrive.contains(id));
+            int startDelayRem = remainingStartDelayMinutes(
+                    rule, effectiveStartDelayBase(id, driveReadySinceMs), now);
+            boolean startDelayPending = startDelayRem > 0;
+            boolean timedOut = isRuleTimedOut(id, rule, now);
 
-            if ((!rule.enabled || !conditionMatches || timedOut) && appliedThisDrive.contains(id)) {
+            if ((!rule.enabled || !conditionMatches || startDelayPending || timedOut) && appliedThisDrive.contains(id)) {
                 if (timedOut) {
                     log("Konfor otomasyonu kapatma süresi doldu (" + id
-                            + "); kontak sonrası " + rule.delayMinutes + " dk tamamlandığından kapatılıyor");
+                            + "); açıldıktan sonra " + rule.delayMinutes + " dk tamamlandığından kapatılıyor");
                 }
                 deactivateRule(id);
+                if (!rule.enabled || !conditionMatches || startDelayPending) {
+                    ruleActivatedAtMs.remove(id);
+                }
             }
             if (!rule.enabled) {
+                firedThisDrive.remove(id);
                 awaitingActivationFeedback.remove(id);
                 manualOverridesThisDrive.remove(id);
                 sendAttemptsThisPhase.remove(id);
+                ruleActivatedAtMs.remove(id);
                 logRuleEvaluationState(id, "kural kapalı");
                 continue;
             }
             if (!conditionMatches) {
+                firedThisDrive.remove(id);
                 awaitingActivationFeedback.remove(id);
                 manualOverridesThisDrive.remove(id);
                 sendAttemptsThisPhase.remove(id);
+                ruleActivatedAtMs.remove(id);
                 logRuleEvaluationState(id, "sıcaklık koşulu eşleşmiyor");
+                continue;
+            }
+            if (startDelayPending) {
+                firedThisDrive.remove(id);
+                awaitingActivationFeedback.remove(id);
+                sendAttemptsThisPhase.remove(id);
+                ruleActivatedAtMs.remove(id);
+                logRuleEvaluationState(id, "açılış gecikmesi bekleniyor (" + startDelayRem + " dk kaldı)");
                 continue;
             }
             if (timedOut) {
@@ -570,9 +960,11 @@ public final class ClimateAutomationEngine {
             }
             Boolean activationFeedback = readActivationFeedback(id, rule);
             if (Boolean.TRUE.equals(activationFeedback)) {
+                confirmedActive.add(id);
                 awaitingActivationFeedback.remove(id);
                 feedbackReadErrorsReported.remove(id);
                 lastCommandErrors.remove(id);
+                ruleActivatedAtMs.putIfAbsent(id, now);
                 if (!firedThisDrive.contains(id)) {
                     firedThisDrive.add(id);
                     appliedThisDrive.add(id);
@@ -588,7 +980,9 @@ public final class ClimateAutomationEngine {
                 continue;
             }
             if (firedThisDrive.contains(id)) {
-                if (Boolean.FALSE.equals(activationFeedback)
+                if (shouldDetectManualOverride(
+                        confirmedActive.contains(id),
+                        Boolean.FALSE.equals(activationFeedback))
                         && manualOverridesThisDrive.add(id)) {
                     awaitingActivationFeedback.remove(id);
                     log("Manuel müdahale algılandı (" + id
@@ -601,6 +995,7 @@ public final class ClimateAutomationEngine {
             if (partnerId != null && appliedThisDrive.contains(partnerId)) {
                 log("Karşıt kural aktif (" + partnerId + "); yeni kural (" + id + ") için kapatılıyor");
                 deactivateRule(partnerId);
+                ruleActivatedAtMs.remove(partnerId);
             }
             if (applyRule(id, rule)) {
                 lastCommandErrors.remove(id);
@@ -611,13 +1006,15 @@ public final class ClimateAutomationEngine {
                 }
                 int attempts = sendAttemptsThisPhase.getOrDefault(id, 0) + 1;
                 sendAttemptsThisPhase.put(id, attempts);
+                lastRuleEvaluationStates.remove(id);
+                lastAction = id;
                 if (awaitingActivationFeedback.add(id)) {
                     log("Konfor otomasyonu komutu gönderildi: " + id
                             + " (dış ortam " + String.format(java.util.Locale.getDefault(), "%.1f", temp)
                             + "°C, PowerMode=" + lastPowerMode + ", " + reason + ")");
                 }
                 // Başlangıçtaki 3 deneme (0s, 2s, 4s) tamamlandığında komutu bu sürüş için kilitle;
-                // böylece araç ekranından manuel kapatıldığında otomasyon tekrar açmaz.
+                // böylece araç ekranından manuel kapatıldığında veya donanım desteklemediğinde sonsuz tekrar yapılmaz.
                 if (attempts >= MAX_STARTUP_SEND_ATTEMPTS) {
                     firedThisDrive.add(id);
                     awaitingActivationFeedback.remove(id);
@@ -664,13 +1061,7 @@ public final class ClimateAutomationEngine {
             if (values == null || values.length == 0) {
                 return null;
             }
-            int v = values[0];
-            int wire = wireSeatLevel(uiLevel);
-            // Araç geri bildirimde ya wire değerini (2..4) ya da doğrudan kademe değerini (2..3) döner
-            if (v == wire || (uiLevel >= 2 && v == uiLevel)) {
-                return true;
-            }
-            return false;
+            return evaluateSeatFeedback(values[0], uiLevel, appliedThisDrive.contains(ruleId));
         } catch (Throwable t) {
             if (feedbackReadErrorsReported.add(ruleId)) {
                 log("Konfor otomasyonu geri bildirimi okunamadı (" + ruleId + "): "
@@ -755,9 +1146,14 @@ public final class ClimateAutomationEngine {
                 case ClimateAutomationStore.PASSENGER_VENT:
                     proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_VENTILATION, wireSeatLevel(rule.level));
                     break;
-                case ClimateAutomationStore.STEER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 1);
+                case ClimateAutomationStore.STEER_HEAT: {
+                    int[] current = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT);
+                    Integer cmd = resolveSteeringWheelHeatCommand(true, current);
+                    if (cmd != null) {
+                        proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, cmd);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.WINDSHIELD:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
@@ -849,9 +1245,15 @@ public final class ClimateAutomationEngine {
                 case ClimateAutomationStore.PASSENGER_VENT:
                     proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_COPILOT_SEAT_VENTILATION, 1);
                     break;
-                case ClimateAutomationStore.STEER_HEAT:
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 0);
+                case ClimateAutomationStore.STEER_HEAT: {
+                    int[] current = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT);
+                    Integer cmd = resolveSteeringWheelHeatCommand(false, current);
+                    if (cmd != null) {
+                        // Chery OEM ID_CAR_STEER_WHEEL_HEAT (160) toggle çalışır: açıkken (1) kapatmak için de 1 gönderilir; 0 etkisizdir.
+                        proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, cmd);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.WINDSHIELD:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 0);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 0);
@@ -871,6 +1273,7 @@ public final class ClimateAutomationEngine {
             firedThisDrive.remove(id);
             appliedThisDrive.remove(id);
             appliedWhileReady.remove(id);
+            confirmedActive.remove(id);
             pendingDeactivation.remove(id);
             log("Konfor otomasyonu kapatma komutu gönderildi: " + id);
         } catch (Throwable t) {
@@ -893,6 +1296,32 @@ public final class ClimateAutomationEngine {
                 Math.min(ClimateAutomationStore.LEVEL_MAX, uiLevel)) + 1;
     }
 
+    private boolean isRuleTimedOut(String id, ClimateAutomationStore.Rule rule, long nowMs) {
+        Long activatedAt = ruleActivatedAtMs.get(id);
+        return isRuleTimedOut(rule, activatedAt != null ? activatedAt : 0L, nowMs);
+    }
+
+    static boolean isRuleTimedOut(ClimateAutomationStore.Rule rule, long activatedAtMs, long nowMs) {
+        return rule != null
+                && rule.delayMinutes > 0
+                && activatedAtMs > 0
+                && (nowMs - activatedAtMs) >= (rule.delayMinutes * 60_000L);
+    }
+
+    /**
+     * Chery MCU protokolünde ID_CAR_STEER_WHEEL_HEAT (160) toggle (1) ile çalışır:
+     * durum 1 (açık) iken kapatmak için 1, 1 değilken (kapalı) açmak için 1 gönderilir;
+     * 0 göndermek direksiyon ısıtmayı kapatmaz. Zaten hedef durumdaysa çift toggle
+     * olmaması için null döner.
+     */
+    public static Integer resolveSteeringWheelHeatCommand(boolean turnOn, int[] currentValues) {
+        boolean isCurrentlyOn = currentValues != null && currentValues.length > 0 && currentValues[0] == 1;
+        if (turnOn) {
+            return isCurrentlyOn ? null : 1;
+        }
+        return isCurrentlyOn ? 1 : null;
+    }
+
     private void registerHvacCallback() {
         if (callbacksRegistered || !isConnected()) {
             return;
@@ -900,6 +1329,7 @@ public final class ClimateAutomationEngine {
         try {
             CarInfoProxy.getInstance().regCallBack(MODULE_HVAC, hvacNotify, HVAC_IDS);
             CarInfoProxy.getInstance().regCallBack(MODULE_SETTING, settingNotify, SETTING_IDS);
+            CarInfoProxy.getInstance().regCallBack(MODULE_READONLY, readonlyNotify, READONLY_IDS);
             callbacksRegistered = true;
         } catch (Throwable t) {
             Log.w(TAG, "HVAC subscribe failed", t);
