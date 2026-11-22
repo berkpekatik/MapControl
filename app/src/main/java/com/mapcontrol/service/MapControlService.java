@@ -121,6 +121,7 @@ public class MapControlService extends Service {
         createNotificationChannel();
         BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
+        com.mapcontrol.nav.HudNavigationManager.get(this).start();
         scheduler = Executors.newSingleThreadScheduledExecutor();
         if (skipClusterSplashOnce) {
             skipClusterSplashOnce = false;
@@ -317,6 +318,7 @@ public class MapControlService extends Service {
     @Override
     public void onDestroy() {
         com.mapcontrol.util.DiagJournal.event("hizmet", "MapControlService onDestroy");
+        com.mapcontrol.nav.HudNavigationManager.get(this).stop();
         if (gesturePrefListener != null) {
             TargetPackageStore.prefs(this).unregisterOnSharedPreferenceChangeListener(gesturePrefListener);
             gesturePrefListener = null;

@@ -13,11 +13,11 @@ class GoogleNavParseTest {
         assertTrue(s.active)
         assertEquals(NavManeuver.STRAIGHT, s.maneuver)
         assertEquals(152, s.distance!!.meters)
-        assertEquals("152 m", s.distance!!.text)
+        assertEquals("500 ft", s.distance!!.text)
         assertEquals("Head south-west", s.street)
         assertEquals("12:26", s.arrivalTime)
         assertEquals(94, s.remainingMinutes)
-        assertEquals("143,2 km", s.remainingDistance!!.text)
+        assertEquals("89 mi", s.remainingDistance!!.text)
         assertEquals("com.google.android.apps.maps", s.sourcePackage)
     }
 

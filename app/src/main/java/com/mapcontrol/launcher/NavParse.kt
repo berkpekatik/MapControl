@@ -32,8 +32,9 @@ data class NavDistance(val value: String, val unit: String, val meters: Int) {
 object NavParse {
 
     private const val NUM = """(\d+(?:[.,]\d+)?)"""
-    private val DISTANCE = Regex("""(?iu)(?<![\d:])$NUM\s*(км|km|м|m)(?![\p{L}])""")
-    private val DISTANCE_ONLY = Regex("""(?iu)^\s*$NUM\s*(км|km|м|m)\s*$""")
+    private const val UNIT = "км|km|миль|миля|мили|miles?|mi|feet|foot|ft|yards?|yd|футов|фута|фут|ярдов|ярда|ярд|м|m"
+    private val DISTANCE = Regex("""(?iu)(?<![\d:])$NUM\s*($UNIT)(?![\p{L}])""")
+    private val DISTANCE_ONLY = Regex("""(?iu)^\s*$NUM\s*($UNIT)\s*$""")
     private val CLOCK = Regex("""(?<!\d)([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d)""")
     private val HOURS = Regex("""(?iu)(\d+)\s*(sa|saat|ч|час|часа|часов|h|hr|hrs|hour|hours)(?![\p{L}])""")
     private val MINUTES = Regex("""(?iu)(\d+)\s*(dk|dakika|мин|min|mins|minute|minutes)(?![\p{L}])""")
@@ -95,10 +96,23 @@ object NavParse {
     }
 
     private fun distance(rawNum: String, rawUnit: String): NavDistance? {
-        val km = rawUnit.lowercase().let { it == "км" || it == "km" }
+        val unit = when (rawUnit.lowercase()) {
+            "км", "km" -> "km"
+            "миль", "миля", "мили", "mile", "miles", "mi" -> "mi"
+            "feet", "foot", "ft", "футов", "фута", "фут" -> "ft"
+            "yard", "yards", "yd", "ярдов", "ярда", "ярд" -> "yd"
+            else -> "m"
+        }
         val number = rawNum.replace(',', '.').toDoubleOrNull() ?: return null
-        // Ekranda Türkçe biçim: ondalık virgül, birim Latin harfli.
-        return NavDistance(rawNum.replace('.', ','), if (km) "km" else "m", (if (km) number * 1000 else number).toInt())
+        val meters = number * when (unit) {
+            "km" -> 1000.0
+            "mi" -> 1609.344
+            "ft" -> 0.3048
+            "yd" -> 0.9144
+            else -> 1.0
+        }
+        if (!meters.isFinite() || meters > Int.MAX_VALUE || meters < 0) return null
+        return NavDistance(rawNum.replace('.', ','), unit, meters.toInt())
     }
 
     /** "14:52" (ya da "14.52") → "14:52"; yoksa null. */

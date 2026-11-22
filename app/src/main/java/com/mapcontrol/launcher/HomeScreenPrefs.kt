@@ -32,9 +32,9 @@ object HomeScreenPrefs {
     }
 
     /** "Klima derece hesabı": true = tam derece ölçeği (en üst ham 16 = HI), false = yarım derece (varsayılan). */
-    /** Ana ekrandaki araç dikey (burun yukarı) mı; varsayılan yatay. */
+    /** Ana ekrandaki araç dikey (burun yukarı) mı; varsayılan ekran profilini izler, elle seçim korunur. */
     @JvmStatic fun carVertical(context: Context): Boolean =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_CAR_VERTICAL, false)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_CAR_VERTICAL, VehicleProfile.compute(context).portrait)
 
     @JvmStatic fun setCarVertical(context: Context, vertical: Boolean) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_CAR_VERTICAL, vertical).apply()

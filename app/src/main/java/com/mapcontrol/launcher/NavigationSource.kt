@@ -14,239 +14,175 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
- * Navigasyon durumunun tek kaynağı (gözlenebilir, yoklama yok). Uygulamanın mevcut bildirim dinleyicisi
- * (`LauncherMediaNotificationListener`) Yandex Haritalar / Yandex Navigator / Google Haritalar bildirimlerini buraya iletir
- * (yalnız başlatıcının harita seçimindeki uygulamanınki okunur, [MapAppPrefs]); Yandex için her bildirim
- * güncellemesinde [NavParse] ile yeni bir [NavigationState] üretilir ve dinleyicilere ana iş parçacığında verilir.
- * Rehberlik bildirimi kalkınca durum [NavigationState.NONE] olur.
- *
- * İş parçacığı: bildirim okuma ve ayrıştırma (yansıma ile RemoteViews gezintisi) tek bir arka plan iş parçacığında
- * ("NavParse") yapılır; 6 Kasım araç ANR'leri bu işin ana iş parçacığında olmasından geliyordu. İçeriği değişmeyen
- * yeniden yayımlar [NavParseGate] ile atlanır; dinleyiciler yalnız durum gerçekten değişince (ana iş parçacığında) çağrılır.
- *
- * Bilinen sınır (araştırma, araçta doğrulanmadı): Yandex zengin rehberlik bildirimini yalnızca kendisi arka plandayken
- * üretir; ana ekran öndeyken (Sahne görünürken) tam bu durumdur. Yandex öndeyken yalnızca "Navigator başlatıldı" yer
- * tutucusu kalır ve bu rota yok sayılır.
- *
- * Kullanım (Sahne paneli, mini gösterge):
- * ```
- * val l: (NavigationState) -> Unit = { s -> bind(s) }
- * NavigationSource.addListener(l)   // hemen son durumla da çağrılır
- * NavigationSource.removeListener(l)
- * ```
+ * Bildirimleri tek NavParse kuyruğunda bir kez çözümler. Launcher seçili haritanın durumunu,
+ * HUD ise paket bazındaki anlık görüntüyü dinler; kaynak seçimleri birbirinden bağımsızdır.
+ * Kaldır/yeniden yayımla aralığı ortak 800 ms beklemeyle yönetilir.
  */
 object NavigationSource {
     const val YANDEX_MAPS = "ru.yandex.yandexmaps"
     const val YANDEX_NAVI = "ru.yandex.yandexnavi"
     const val GOOGLE_MAPS = "com.google.android.apps.maps"
-    /** Okunabilen tüm rehberlik paketleri; hangisinin okunacağını harita seçimi ([MapAppChoice.notificationPackages]) belirler. */
     @JvmField val PACKAGES: Set<String> = setOf(YANDEX_MAPS, YANDEX_NAVI, GOOGLE_MAPS)
-
-    /** Etkin seçimin paketleri (varsayılan eski davranış: Yandex). Dinleyici bağlanınca ve seçim değişince güncellenir. */
-    @Volatile private var accepted: Set<String> = MapAppChoice.notificationPackages(null)
-    @Volatile private var acceptedResolved = false
-    /** Son seçim okuması (worker); kullanıcı seçmediyse seçim MapControl hedef paketine bağlıdır, bu yüzden ara ara yenilenir. */
-    private var acceptedReadAtMs = 0L
-    private const val ACCEPTED_REFRESH_MS = 5_000L
-
     private const val TAG = "NavSource"
-
-    /** Bildirim kalkınca (aynı anahtarla yeniden yazma arasında) kısa bekleme; panel boşa düşüp geri gelmesin. */
     private const val REMOVE_HOLD_MS = 800L
-
-    /** Debug: tek ayrıştırma bundan uzun sürerse uyarı. */
+    private const val ACCEPTED_REFRESH_MS = 5_000L
     private const val SLOW_PARSE_MS = 50L
-
     private val main = Handler(Looper.getMainLooper())
     private val worker: Handler by lazy {
-        val t = HandlerThread("NavParse", android.os.Process.THREAD_PRIORITY_BACKGROUND)
-        t.start()
-        Handler(t.looper)
+        val thread = HandlerThread("NavParse", android.os.Process.THREAD_PRIORITY_BACKGROUND)
+        thread.start()
+        Handler(thread.looper)
     }
+    internal val parsingHandler: Handler get() = worker
     private val listeners = CopyOnWriteArraySet<(NavigationState) -> Unit>()
-
-    /** Bildirimden okunan gerçek durum. */
-    @Volatile private var real: NavigationState = NavigationState.NONE
-    @Volatile private var demo = false
-    @Volatile private var serviceRef: WeakReference<NotificationListenerService>? = null
-
-    // Yalnız worker iş parçacığında erişilir.
-    private var activeKey: String? = null
+    private val packageListeners = CopyOnWriteArraySet<(Map<String, NavigationState>) -> Unit>()
+    private val routes = NavigationRoutes()
     private val gate = NavParseGate()
+    @Volatile private var real = NavigationState.NONE
+    @Volatile private var packages: Map<String, NavigationState> = emptyMap()
+    @Volatile private var demo = false
+    @Volatile private var serviceRef = WeakReference<NotificationListenerService>(null)
+    @Volatile private var epoch = 0
+    @Volatile private var accepted = MapAppChoice.notificationPackages(null)
+    private var acceptedReadAtMs = 0L
 
-    /** Son durum (demo açıksa demo rota). */
-    @JvmStatic
-    val state: NavigationState get() = if (demo) NavigationState.DEMO else real
+    @JvmStatic val state: NavigationState get() = if (demo) NavigationState.DEMO else real
+    @JvmStatic val isListenerBound: Boolean get() = serviceRef.get() != null
+    @JvmStatic fun hasAccess(context: Context): Boolean = LauncherMediaController.isNotificationAccessEnabled(context)
 
-    /** Dinleyici ekler ve hemen son durumla çağırır (çağıranın iş parçacığında). Sonraki çağrılar ana iş parçacığında. */
-    @JvmStatic
-    fun addListener(listener: (NavigationState) -> Unit) {
+    /** Ana iş parçacığından abone olunur; hemen son durum, ardından değişiklikler verilir. */
+    @JvmStatic fun addListener(listener: (NavigationState) -> Unit) {
         listeners.add(listener)
         listener(state)
     }
+    @JvmStatic fun removeListener(listener: (NavigationState) -> Unit) { listeners.remove(listener) }
 
-    @JvmStatic
-    fun removeListener(listener: (NavigationState) -> Unit) {
-        listeners.remove(listener)
+    /** Demo verisi bu hatta girmez. Aynı bildirim yeniden ayrıştırılmaz. */
+    internal fun addPackageListener(listener: (Map<String, NavigationState>) -> Unit) {
+        packageListeners.add(listener)
+        listener(packages)
+        worker.post { resync() }
+    }
+    internal fun removePackageListener(listener: (Map<String, NavigationState>) -> Unit) {
+        packageListeners.remove(listener)
     }
 
-    /** Bildirim dinleyicisi sisteme bağlı mı (erişim verildi ve servis çalışıyor). */
-    @JvmStatic
-    val isListenerBound: Boolean get() = serviceRef?.get() != null
-
-    /** Kullanıcı bildirim erişimini Ayarlar'da açmış mı. Kodla verilmez; yalnızca okunur. */
-    @JvmStatic
-    fun hasAccess(context: Context): Boolean = LauncherMediaController.isNotificationAccessEnabled(context)
-
-    /** Demo rota (`--ez launcher_demo_nav true`, yalnızca debug demo açıkken). */
-    @JvmStatic
-    fun setDemo(on: Boolean) {
+    @JvmStatic fun setDemo(on: Boolean) {
         if (demo == on) return
         demo = on
-        publish()
+        main.post { listeners.forEach { it(state) } }
     }
 
-    // --- Bildirim dinleyicisinden (ana iş parçacığı); iş worker'a aktarılır ---
-
-    /** Harita seçimi değişti: yalnız seçilen uygulamanın bildirimi okunur; durum etkin bildirimlerden yeniden kurulur. */
-    @JvmStatic
-    fun setMapApp(app: MapApp?) {
+    @JvmStatic fun setMapApp(app: MapApp?) {
         val next = MapAppChoice.notificationPackages(app)
-        acceptedResolved = true
         if (next == accepted) return
         accepted = next
-        worker.post {
-            worker.removeCallbacks(confirmRemoved)
-            activeKey = null
-            gate.clear()
-            if (!resync()) setReal(NavigationState.NONE)
-        }
+        worker.post { resync() }
     }
 
-    /** Seçimi tercihten yeniden okur (worker); kabul edilen paketler değiştiyse true. */
     private fun refreshAccepted(context: Context): Boolean {
-        val next = MapAppChoice.notificationPackages(try { MapAppPrefs.current(context) } catch (e: Exception) { null })
-        acceptedResolved = true
         acceptedReadAtMs = SystemClock.elapsedRealtime()
-        if (next == accepted) return false
+        val next = MapAppChoice.notificationPackages(try { MapAppPrefs.current(context) } catch (_: Exception) { null })
+        val changed = next != accepted
         accepted = next
-        return true
+        return changed
     }
 
-    @JvmStatic
-    fun onListenerConnected(service: NotificationListenerService) {
+    @JvmStatic fun onListenerConnected(service: NotificationListenerService) {
+        val token = ++epoch
         serviceRef = WeakReference(service)
         worker.post {
+            if (token != epoch) return@post
+            worker.removeCallbacks(confirmRemoved)
             refreshAccepted(service)
             PACKAGES.forEach { NavNotificationReader.forget(it) }
+            routes.clear()
             gate.clear()
-            resync()
-            // Erişim yeni verildiyse panel izin iletisinden çıksın: durum aynı olsa da dinleyiciler uyarılır.
-            publish()
+            resync(force = true)
         }
     }
 
-    @JvmStatic
-    fun onListenerDisconnected() {
-        serviceRef = null
+    @JvmStatic fun onListenerDisconnected() {
+        val token = ++epoch
+        serviceRef.clear()
         worker.post {
+            if (token != epoch) return@post
             worker.removeCallbacks(confirmRemoved)
-            activeKey = null
+            routes.clear()
             gate.clear()
-            real = NavigationState.NONE
-            publish()
+            publishRoutes(force = true)
         }
     }
 
-    @JvmStatic
-    fun onNotificationPosted(service: NotificationListenerService, sbn: StatusBarNotification?) {
+    @JvmStatic fun onNotificationPosted(service: NotificationListenerService, sbn: StatusBarNotification?) {
         if (sbn == null || sbn.packageName !in PACKAGES) return
-        serviceRef = WeakReference(service)
+        val token = epoch
         worker.post {
-            // Panel açılmadan da (mini gösterge) MapControl hedefi değişince seçim eskimesin: ara ara yeniden oku.
-            val stale = !acceptedResolved || SystemClock.elapsedRealtime() - acceptedReadAtMs > ACCEPTED_REFRESH_MS
-            if (stale && refreshAccepted(service)) {
-                worker.removeCallbacks(confirmRemoved)
-                activeKey = null
-                gate.clear()
-                if (!resync()) setReal(NavigationState.NONE)
-                return@post
+            if (token != epoch || serviceRef.get() !== service) return@post
+            if (SystemClock.elapsedRealtime() - acceptedReadAtMs > ACCEPTED_REFRESH_MS && refreshAccepted(service)) resync()
+            if (wanted(sbn.packageName)) {
+                parseGated(service, sbn)
+                publishRoutes()
             }
-            if (sbn.packageName in accepted) handlePosted(service, sbn)
         }
     }
 
-    @JvmStatic
-    fun onNotificationRemoved(service: NotificationListenerService, sbn: StatusBarNotification?) {
-        if (sbn == null || sbn.packageName !in accepted) return
-        serviceRef = WeakReference(service)
+    @JvmStatic fun onNotificationRemoved(service: NotificationListenerService, sbn: StatusBarNotification?) {
+        if (sbn == null || sbn.packageName !in PACKAGES) return
+        val token = epoch
         worker.post {
-            gate.forget(sbn.key)
-            if (sbn.key != activeKey) return@post
-            activeKey = null
+            if (token != epoch || serviceRef.get() !== service) return@post
+            // Rota bu aralıkta tutulur; aynı anahtarlı yeniden yayım önceki çerçeveyi boşaltmaz.
             worker.removeCallbacks(confirmRemoved)
             worker.postDelayed(confirmRemoved, REMOVE_HOLD_MS)
         }
     }
 
-    // --- worker iş parçacığı ---
+    private val confirmRemoved = Runnable { resync() }
+    private fun wanted(pkg: String): Boolean = pkg in accepted || packageListeners.isNotEmpty()
 
-    private fun handlePosted(service: NotificationListenerService, sbn: StatusBarNotification) {
-        val key = sbn.key
-        val result = parseGated(service, sbn) ?: return // içerik aynı: durum değişmez
-        val parsed = result.state
-        if (parsed != null) {
-            worker.removeCallbacks(confirmRemoved)
-            activeKey = key
-            setReal(parsed)
-        } else if (key == activeKey) {
-            // Aynı bildirim yer tutucuya döndü (Yandex öne geldi ya da rota bitti).
-            activeKey = null
-            setReal(NavigationState.NONE)
+    private fun resync(force: Boolean = false) {
+        val service = serviceRef.get() ?: return
+        val active = try { service.activeNotifications } catch (_: Exception) { null }
+        // Geçici binder hatasında çalışan rota korunur; kopma ayrı yaşam döngüsü olayıdır.
+        if (active == null) {
+            if (force) publishRoutes(force = true)
+            return
         }
+        val current = active.filterNotNull().filter { it.packageName in PACKAGES && wanted(it.packageName) }
+        val keys = current.map { it.key }.toSet()
+        routes.retainKeys(keys)
+        gate.retainKeys(keys)
+        current.forEach { parseGated(service, it) }
+        publishRoutes(force)
     }
 
-    private val confirmRemoved = Runnable { if (activeKey == null && !resync()) setReal(NavigationState.NONE) }
-
-    /** Etkin bildirimleri yeniden okur; rehberlik bulunduysa true. */
-    private fun resync(): Boolean {
-        val service = serviceRef?.get() ?: return false
-        val active = try {
-            service.activeNotifications
-        } catch (e: Exception) {
-            null
-        } ?: return false
-        // Google'da navigasyon kategorisindeki bildirim önce (aynı pakette başka süren bildirim de olabilir).
-        for (sbn in active.filterNotNull().sortedBy { if (it.packageName == GOOGLE_MAPS && it.notification?.category != android.app.Notification.CATEGORY_NAVIGATION) 1 else 0 }) {
-            val pkg = sbn.packageName ?: continue
-            if (pkg !in accepted) continue
-            // Yeniden eşitlemede kapı kullanılmaz: kayıtlı içerik aynı olsa bile durum yeniden kurulmalı.
-            val parsed = parse(service, sbn) ?: continue
-            gate.remember(sbn.key, sbn.postTime, signature(sbn))
-            activeKey = sbn.key
-            setReal(parsed)
-            return true
-        }
-        if (activeKey == null) setReal(NavigationState.NONE)
-        return false
-    }
-
-    /** Ayrıştırma sonucu; null = kapı atlattı (içerik değişmedi). */
-    private class Parsed(val state: NavigationState?)
-
-    private fun parseGated(context: Context, sbn: StatusBarNotification): Parsed? {
+    private fun parseGated(context: Context, sbn: StatusBarNotification) {
         var sig: Int? = null
-        val sigOf = { sig ?: signature(sbn).also { sig = it } }
-        if (!gate.shouldParse(sbn.key, sbn.postTime, sigOf)) return null
-        val state = parse(context, sbn)
-        gate.remember(sbn.key, sbn.postTime, sigOf())
-        return Parsed(state)
+        val signatureOf = { sig ?: signature(sbn).also { sig = it } }
+        if (!gate.shouldParse(sbn.key, sbn.postTime, signatureOf)) return
+        routes.update(sbn.key, parse(context, sbn))
+        gate.remember(sbn.key, sbn.postTime, signatureOf())
     }
 
     private fun signature(sbn: StatusBarNotification): Int = try {
         NavNotificationReader.contentSignature(sbn)
-    } catch (e: Exception) {
-        sbn.postTime.hashCode()
+    } catch (_: Exception) { sbn.postTime.hashCode() }
+
+    private fun publishRoutes(force: Boolean = false) {
+        val next = routes.byPackage()
+        val nextReal = latestNavigation(next, accepted)
+        val changed = nextReal.copy(updatedAtMs = 0) != real.copy(updatedAtMs = 0)
+        val packagesChanged = next != packages
+        packages = next
+        real = nextReal
+        if (!force && !changed && !packagesChanged) return
+        val token = epoch
+        main.post {
+            if (token != epoch) return@post
+            if (force || changed) listeners.forEach { it(state) }
+            if (force || packagesChanged) packageListeners.forEach { it(packages) }
+        }
     }
 
     private fun parse(context: Context, sbn: StatusBarNotification): NavigationState? {
@@ -257,7 +193,7 @@ object NavigationSource {
         } catch (e: Exception) {
             null
         }
-        val withEnd = result?.let { it.copy(endAction = findEndAction(sbn)) }
+        val withEnd = result?.copy(endAction = findEndAction(sbn), sourcePackage = sbn.packageName, updatedAtMs = sbn.postTime)
         if (BuildConfig.DEBUG) {
             val dt = SystemClock.elapsedRealtime() - t0
             if (dt > SLOW_PARSE_MS) Log.w(TAG, "slow parse ${dt} ms pkg=${sbn.packageName}")
@@ -289,18 +225,4 @@ object NavigationSource {
         )
     }
 
-    private fun setReal(next: NavigationState) {
-        if (next.copy(updatedAtMs = 0) == real.copy(updatedAtMs = 0)) return
-        real = next
-        if (!demo) publish()
-    }
-
-    private fun publish() {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            val s = state
-            listeners.forEach { it(s) }
-        } else {
-            main.post { val s = state; listeners.forEach { it(s) } }
-        }
-    }
 }

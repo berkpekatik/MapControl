@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hud_nav_title">Windshield HUD navigation</string>
+    <string name="hud_nav_description">Send Google Maps or Yandex guidance to the vehicle’s built-in HUD navigation area. Position and appearance are managed by the vehicle HUD software.</string>
+    <string name="hud_nav_enable">Show directions on HUD</string>
+    <string name="hud_nav_provider">Navigation source</string>
+    <string name="hud_nav_auto_provider">Automatic (latest active navigation)</string>
+    <string name="hud_nav_off">HUD navigation is off.</string>
+    <string name="hud_nav_need_notifications">Waiting for notification access and listener connection.</string>
+    <string name="hud_nav_waiting">Ready. Waiting for Google Maps or Yandex guidance.</string>
+    <string name="hud_nav_showing">Guidance data is being sent to the built-in HUD interface.</string>
+    <string name="hud_nav_permissions">Open notification access</string>
+    <string name="hud_nav_test">Test built-in HUD guidance for 10 seconds</string>
+    <string name="hud_nav_enable_first">Enable HUD navigation first.</string>
+    <string name="hud_nav_yandex_access">MapControl accessibility access supplies distance and road name while Yandex Maps is in the foreground. Turn arrows come from guidance notifications.</string>
+    <string name="hud_nav_accessibility">Open accessibility settings</string>
+    <string name="hud_nav_need_vehicle">Waiting for the vehicle HUD service connection.</string>
+    <string name="hud_nav_sending">Sending guidance to the vehicle HUD interface…</string>
+    <string name="hud_nav_send_error">Unable to send HUD data. The connection will be retried.</string>
+    <string name="hud_nav_check_support">Waiting for vehicle HUD equipment information.</string>
+    <string name="hud_nav_not_supported">This vehicle does not have a windshield HUD.</string>
+    <string name="hud_nav_need_power">Waiting for vehicle power and HUD availability.</string>
+</resources>
