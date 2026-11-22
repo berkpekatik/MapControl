@@ -32,7 +32,6 @@ import androidx.core.graphics.ColorUtils;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.wallpaper.OemWallpaperManager;
-import com.mapcontrol.wallpaper.RemoteWallpaperCatalog;
 import com.mapcontrol.wallpaper.WallpaperImageHelper;
 import com.mapcontrol.wallpaper.WallpaperThemeCatalog;
 
@@ -57,14 +56,11 @@ public class WallpaperThemesTabBuilder {
     private final OemWallpaperManager wallpaperManager;
 
     private List<WallpaperThemeCatalog.WallpaperItem> items = new ArrayList<>();
-    private List<RemoteWallpaperCatalog.RemoteItem> remoteItems = new ArrayList<>();
     @Nullable
     private WallpaperThemeCatalog.WallpaperItem selectedItem;
     @Nullable
-    private String downloadingRemoteId;
     private int downloadingPercent = 0;
     @Nullable
-    private String remoteNote;
 
     private TextView tvActiveStatus;
     private TextView tvFolderPath;
@@ -72,8 +68,6 @@ public class WallpaperThemesTabBuilder {
     private TextView tvResolutionBadge;
     private TextView tvActionStatus;
     private TextView tvCatalogTitle;
-    private TextView tvRemoteTitle;
-    private TextView tvRemoteNote;
 
     private ImageView previewImageView;
     private TextView previewEmptyView;
@@ -87,13 +81,10 @@ public class WallpaperThemesTabBuilder {
     private LinearLayout galleryContainer;
     private LinearLayout bundledGalleryContainer;
     private TextView tvBundledTitle;
-    private LinearLayout remoteSectionView;
-    private LinearLayout remoteGalleryContainer;
 
     private boolean isLandscape;
     private float currentDensity;
     private int catalogLoadGen = 0;
-    private int remoteLoadGen = 0;
 
     public WallpaperThemesTabBuilder(
             @NonNull AppCompatActivity activity,
@@ -131,11 +122,10 @@ public class WallpaperThemesTabBuilder {
         root.addView(buildPreviewCard(currentDensity, isLandscape));
         root.addView(buildBundledCatalogSection(currentDensity));
         root.addView(buildGallerySection(currentDensity));
-        root.addView(buildRemoteCatalogSection(currentDensity));
 
         scrollView.addView(root);
         reloadCatalog();
-        reloadRemoteCatalog(false);
+        wallpaperManager.detectBackendAsync(b -> refreshHeaderAndStatus());
         return scrollView;
     }
 
@@ -181,19 +171,6 @@ public class WallpaperThemesTabBuilder {
             refreshPreviewCard();
             renderBundledItems();
             renderGalleryItems();
-            renderRemoteItems();
-        });
-    }
-
-    public void reloadRemoteCatalog(boolean forceRefresh) {
-        final int gen = ++remoteLoadGen;
-        wallpaperManager.fetchRemoteCatalogAsync(forceRefresh, (loaded, fromCache, statusMsg) -> {
-            if (gen != remoteLoadGen) {
-                return;
-            }
-            remoteItems = new ArrayList<>(loaded);
-            remoteNote = statusMsg;
-            renderRemoteItems();
         });
     }
 
@@ -748,269 +725,6 @@ public class WallpaperThemesTabBuilder {
         });
     }
 
-    private View buildRemoteCatalogSection(float density) {
-        remoteSectionView = new LinearLayout(activity);
-        remoteSectionView.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams sectionLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        sectionLp.topMargin = dp(18, density);
-        remoteSectionView.setLayoutParams(sectionLp);
-        remoteSectionView.setVisibility(View.GONE);
-
-        LinearLayout headerRow = new LinearLayout(activity);
-        headerRow.setOrientation(LinearLayout.HORIZONTAL);
-        headerRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams hdrLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        hdrLp.bottomMargin = dp(8, density);
-        headerRow.setLayoutParams(hdrLp);
-
-        tvRemoteTitle = new TextView(activity);
-        tvRemoteTitle.setText(activity.getString(R.string.wallpaper_remote_section_title, 0));
-        tvRemoteTitle.setTextSize(14);
-        tvRemoteTitle.setTypeface(null, Typeface.BOLD);
-        tvRemoteTitle.setTextColor(UiStyles.color(activity, R.color.textPrimary));
-        tvRemoteTitle.setPadding(dp(2, density), 0, 0, 0);
-        headerRow.addView(tvRemoteTitle, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        Button btnSync = createSecondaryButton(R.string.wallpaper_remote_sync_btn, density);
-        btnSync.setMinimumHeight(dp(38, density));
-        btnSync.setTextSize(12);
-        btnSync.setPadding(dp(12, density), dp(4, density), dp(12, density), dp(4, density));
-        btnSync.setOnClickListener(v -> reloadRemoteCatalog(true));
-
-        headerRow.addView(btnSync, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        remoteSectionView.addView(headerRow);
-
-        tvRemoteNote = new TextView(activity);
-        tvRemoteNote.setTextSize(12);
-        tvRemoteNote.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
-        tvRemoteNote.setPadding(dp(2, density), 0, 0, dp(8, density));
-        tvRemoteNote.setVisibility(View.GONE);
-        remoteSectionView.addView(tvRemoteNote);
-
-        remoteGalleryContainer = new LinearLayout(activity);
-        remoteGalleryContainer.setOrientation(LinearLayout.VERTICAL);
-        remoteSectionView.addView(remoteGalleryContainer);
-
-        return remoteSectionView;
-    }
-
-    private void renderRemoteItems() {
-        if (remoteGalleryContainer == null || remoteSectionView == null) {
-            return;
-        }
-        remoteGalleryContainer.removeAllViews();
-
-        if (remoteItems.isEmpty()) {
-            remoteSectionView.setVisibility(View.GONE);
-            return;
-        }
-        remoteSectionView.setVisibility(View.VISIBLE);
-
-        if (tvRemoteTitle != null) {
-            tvRemoteTitle.setText(activity.getString(
-                    R.string.wallpaper_remote_section_title, remoteItems.size()));
-        }
-        if (tvRemoteNote != null) {
-            if (remoteNote != null && !remoteNote.trim().isEmpty()) {
-                tvRemoteNote.setText(remoteNote);
-                tvRemoteNote.setVisibility(View.VISIBLE);
-            } else {
-                tvRemoteNote.setVisibility(View.GONE);
-            }
-        }
-
-        renderGridCards(remoteGalleryContainer, remoteItems, this::buildRemoteWallpaperCard);
-    }
-
-    private View buildRemoteWallpaperCard(@NonNull RemoteWallpaperCatalog.RemoteItem remote) {
-        File storageDir = wallpaperManager.getStorageDirectory();
-        File localFile = RemoteWallpaperCatalog.findDownloadedFile(storageDir, remote.id);
-        boolean isDownloaded = localFile != null;
-        boolean isApplied = localFile != null && localFile.getAbsolutePath().equals(wallpaperManager.getAppliedPath());
-        boolean isDownloading = remote.id.equals(downloadingRemoteId);
-
-        LinearLayout card = new LinearLayout(activity);
-        card.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(10, currentDensity);
-        card.setPadding(pad, pad, pad, pad);
-
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(UiStyles.color(activity, R.color.surfaceCard));
-        bg.setCornerRadius(dp(14, currentDensity));
-        bg.setStroke(dp(1, currentDensity), UiStyles.color(activity, R.color.automationCardStroke));
-        card.setBackground(bg);
-
-        FrameLayout thumbFrame = new FrameLayout(activity);
-        GradientDrawable thumbBg = new GradientDrawable();
-        thumbBg.setColor(UiStyles.color(activity, R.color.surfaceCardInner));
-        thumbBg.setCornerRadius(dp(10, currentDensity));
-        thumbFrame.setBackground(thumbBg);
-        thumbFrame.setClipToOutline(true);
-        thumbFrame.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
-
-        ImageView thumb = new ImageView(activity);
-        thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        thumb.setTag("remote:" + remote.id);
-        thumbFrame.addView(thumb, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        if (isApplied || isDownloaded) {
-            int badgeColor = UiStyles.color(activity, R.color.statusSuccess);
-            TextView pill = new TextView(activity);
-            pill.setText(isApplied ? R.string.wallpaper_themes_card_applied : R.string.wallpaper_remote_downloaded_badge);
-            pill.setTextSize(11);
-            pill.setTypeface(null, Typeface.BOLD);
-            pill.setTextColor(contrastTextColor(badgeColor));
-            pill.setPadding(dp(8, currentDensity), dp(3, currentDensity), dp(8, currentDensity), dp(3, currentDensity));
-            GradientDrawable pillBg = new GradientDrawable();
-            pillBg.setCornerRadius(dp(8, currentDensity));
-            pillBg.setColor(badgeColor);
-            pill.setBackground(pillBg);
-            FrameLayout.LayoutParams pillLp = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.TOP | Gravity.END);
-            pillLp.setMargins(0, dp(8, currentDensity), dp(8, currentDensity), 0);
-            thumbFrame.addView(pill, pillLp);
-        }
-
-        if (localFile != null) {
-            wallpaperManager.loadThumbnailAsync(localFile.getAbsolutePath(), 640, 360, (path, bmp) -> {
-                if (bmp != null && ("remote:" + remote.id).equals(thumb.getTag())) {
-                    thumb.setImageBitmap(bmp);
-                }
-            });
-        } else {
-            wallpaperManager.loadRemoteThumbnailAsync(remote, 640, 360, (id, bmp) -> {
-                if (bmp != null && ("remote:" + remote.id).equals(thumb.getTag())) {
-                    thumb.setImageBitmap(bmp);
-                }
-            });
-        }
-
-        card.addView(thumbFrame, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(120, currentDensity)));
-
-        TextView titleView = new TextView(activity);
-        titleView.setText(remote.title);
-        titleView.setTextSize(14);
-        titleView.setTypeface(null, Typeface.BOLD);
-        titleView.setTextColor(UiStyles.color(activity, R.color.textPrimary));
-        titleView.setSingleLine(true);
-        titleView.setEllipsize(TextUtils.TruncateAt.END);
-        titleView.setPadding(dp(2, currentDensity), dp(8, currentDensity), dp(2, currentDensity), 0);
-        card.addView(titleView);
-
-        String sub = remote.subtitle.isEmpty()
-                ? (remote.resolution + " · " + remote.formatSize())
-                : (remote.subtitle + " · " + remote.formatSize());
-        TextView metaView = new TextView(activity);
-        metaView.setText(sub);
-        metaView.setTextSize(12);
-        metaView.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
-        metaView.setSingleLine(true);
-        metaView.setEllipsize(TextUtils.TruncateAt.END);
-        metaView.setPadding(dp(2, currentDensity), dp(2, currentDensity), dp(2, currentDensity), dp(8, currentDensity));
-        card.addView(metaView);
-
-        int accentColor = UiStyles.color(activity, R.color.oemAccent);
-        LinearLayout actionRow = new LinearLayout(activity);
-        actionRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        Button primaryBtn = new Button(activity);
-        primaryBtn.setAllCaps(false);
-        primaryBtn.setTextSize(12);
-        primaryBtn.setTypeface(null, Typeface.BOLD);
-        primaryBtn.setTextColor(contrastTextColor(accentColor));
-        primaryBtn.setMinimumHeight(dp(40, currentDensity));
-        primaryBtn.setPadding(dp(12, currentDensity), dp(4, currentDensity), dp(12, currentDensity), dp(4, currentDensity));
-        UiStyles.styleOemButton(primaryBtn, accentColor);
-
-        if (isDownloading) {
-            primaryBtn.setText(activity.getString(R.string.wallpaper_remote_downloading_pct, downloadingPercent));
-            primaryBtn.setEnabled(false);
-            primaryBtn.setAlpha(0.75f);
-            actionRow.addView(primaryBtn, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        } else if (localFile != null) {
-            WallpaperThemeCatalog.WallpaperItem matchingLocal = findByPath(localFile.getAbsolutePath());
-            primaryBtn.setText(R.string.wallpaper_themes_apply_btn);
-            primaryBtn.setOnClickListener(v -> {
-                if (matchingLocal != null) {
-                    selectItem(matchingLocal);
-                    applyWallpaper(matchingLocal);
-                } else {
-                    downloadAndApplyRemote(remote);
-                }
-            });
-
-            Button delBtn = createDestructiveButton(R.string.wallpaper_themes_delete_btn, currentDensity);
-            delBtn.setMinimumHeight(dp(40, currentDensity));
-            delBtn.setTextSize(12);
-            delBtn.setOnClickListener(v -> {
-                if (matchingLocal != null) {
-                    confirmDeleteWallpaper(matchingLocal);
-                } else {
-                    wallpaperManager.deleteWallpaperFile(localFile.getAbsolutePath(), (d, w, m) -> {
-                        setStatusNote(m);
-                        reloadCatalog();
-                    });
-                }
-            });
-
-            actionRow.addView(primaryBtn, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.3f));
-            LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.7f);
-            delLp.leftMargin = dp(8, currentDensity);
-            actionRow.addView(delBtn, delLp);
-        } else {
-            primaryBtn.setText(R.string.wallpaper_remote_download_apply_btn);
-            primaryBtn.setEnabled(downloadingRemoteId == null);
-            primaryBtn.setAlpha(downloadingRemoteId == null ? 1f : 0.55f);
-            primaryBtn.setOnClickListener(v -> downloadAndApplyRemote(remote));
-            actionRow.addView(primaryBtn, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        }
-
-        card.addView(actionRow);
-        return card;
-    }
-
-    private void downloadAndApplyRemote(@NonNull RemoteWallpaperCatalog.RemoteItem remote) {
-        downloadingRemoteId = remote.id;
-        downloadingPercent = 0;
-        renderRemoteItems();
-
-        wallpaperManager.downloadRemoteWallpaperAsync(remote, true, new OemWallpaperManager.DownloadCallback() {
-            @Override
-            public void onProgress(int percent) {
-                downloadingPercent = percent;
-                renderRemoteItems();
-            }
-
-            @Override
-            public void onFinished(@Nullable WallpaperThemeCatalog.WallpaperItem item, @NonNull String message) {
-                downloadingRemoteId = null;
-                downloadingPercent = 0;
-                setStatusNote(message);
-                callback.log("Çevrimiçi Arka Plan: " + message);
-                if (item != null) {
-                    selectedItem = item;
-                }
-                reloadCatalog();
-            }
-        });
-    }
-
     private void renderGalleryItems() {
         if (galleryContainer == null) {
             return;
@@ -1189,12 +903,30 @@ public class WallpaperThemesTabBuilder {
         }
 
         if (tvLauncherStatus != null) {
-            boolean oemInstalled = wallpaperManager.isOemLauncherInstalled();
-            tvLauncherStatus.setText(oemInstalled
-                    ? R.string.wallpaper_themes_launcher_connected
-                    : R.string.wallpaper_themes_launcher_fallback);
-            tvLauncherStatus.setTextColor(UiStyles.color(activity,
-                    oemInstalled ? R.color.statusSuccess : R.color.textSecondaryCool));
+            OemWallpaperManager.Backend backend = wallpaperManager.getCachedBackend();
+            int textRes;
+            int colorRes = R.color.textSecondaryCool;
+            if (backend == null) {
+                textRes = R.string.wallpaper_themes_launcher_checking;
+            } else {
+                switch (backend) {
+                    case SV_AIDL:
+                    case JAECOO_FILE:
+                        textRes = R.string.wallpaper_themes_launcher_connected;
+                        colorRes = R.color.statusSuccess;
+                        break;
+                    case UNSUPPORTED_OEM:
+                        textRes = R.string.wallpaper_themes_launcher_unsupported;
+                        colorRes = R.color.statusWarning;
+                        break;
+                    case SYSTEM:
+                    default:
+                        textRes = R.string.wallpaper_themes_launcher_fallback;
+                        break;
+                }
+            }
+            tvLauncherStatus.setText(textRes);
+            tvLauncherStatus.setTextColor(UiStyles.color(activity, colorRes));
         }
     }
 

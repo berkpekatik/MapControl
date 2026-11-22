@@ -48,8 +48,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,18 +85,6 @@ public final class OemWallpaperManager {
         void onThumbnailReady(@NonNull String filePath, @Nullable Bitmap bitmap);
     }
 
-    public interface RemoteCatalogCallback {
-        void onCatalogResult(
-                @NonNull List<RemoteWallpaperCatalog.RemoteItem> items,
-                boolean fromCache,
-                @Nullable String statusMessage);
-    }
-
-    public interface DownloadCallback {
-        void onProgress(int percent);
-        void onFinished(@Nullable WallpaperThemeCatalog.WallpaperItem item, @NonNull String message);
-    }
-
     private interface StreamOpener {
         @Nullable
         InputStream open() throws IOException;
@@ -109,6 +95,29 @@ public final class OemWallpaperManager {
     private static final String OEM_LAUNCHER_SERVICE = "com.desaysv.launcher.service.LauncherService";
     private static final String OEM_LAUNCHER_ACTION = "action.desaysv.launcher.service";
     public static final String OEM_WALLPAPER_DIR = "/storage/emulated/0/SVWallpaper";
+    /** T18/T28 SVLauncher AIDL tanımlayıcısı; Tiggo 7 (T19C) launcher'ı boş Binder döndürür. */
+    private static final String SV_AIDL_DESCRIPTOR = "com.desaysv.appmenu.ILauncherAidlInterface";
+    /** Yalnızca Jaecoo (Launcher3 tabanlı) SVLauncher'da bulunan provider. */
+    private static final String JAECOO_LAUNCHER_PROVIDER = "com.desaysv.launcher.preview";
+    /** Jaecoo SVLauncher {@code WallpaperRepository}: bu dosyayı ekran boyutunda, ölçeklemeden çizer. */
+    private static final String JAECOO_WALLPAPER_FILE = "/sdcard/WallPapers/WallPaper.jpg";
+    private static final String JAECOO_ACTION_SET = "com.lion.gallery.action.setwallpaper";
+    private static final String JAECOO_ACTION_RESET = "com.desaysv.setting.ACTION_RESET_WALLPAPER";
+    /** Boş değilse Jaecoo launcher'ı /data_extra altındaki OEM görselini tercih eder. */
+    private static final String JAECOO_SETTING_PRESET = "wallpaper_img_usbpicture";
+    private static final long LAUNCHER_IDLE_UNBIND_MS = 60_000L;
+
+    /** Araçtaki ana ekranın duvar kağıdını nasıl aldığı. */
+    public enum Backend {
+        /** T18/T28 (Tiggo 8): SVLauncher AIDL ile {@code setWallpaper}. */
+        SV_AIDL,
+        /** Jaecoo: {@link #JAECOO_WALLPAPER_FILE} + yeniden yükleme yayını. */
+        JAECOO_FILE,
+        /** SVLauncher var ama duvar kağıdı API'si yok (Tiggo 7 / T19C, T1E24): sabit arka plan. */
+        UNSUPPORTED_OEM,
+        /** SVLauncher yok (emülatör / standart Android): sistem duvar kağıdı. */
+        SYSTEM
+    }
     private static final String KEY_USER_WALLPAPER = WallpaperInfo.KEY_USER_WALLPAPER;
 
     private static volatile OemWallpaperManager instance;
@@ -117,7 +126,6 @@ public final class OemWallpaperManager {
     private final SharedPreferences prefs;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final ExecutorService networkWorker = Executors.newFixedThreadPool(2);
     private final LruCache<String, Bitmap> thumbnailCache = new LruCache<String, Bitmap>(24 * 1024 * 1024) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -131,19 +139,50 @@ public final class OemWallpaperManager {
     private boolean serviceBound = false;
     @Nullable
     private volatile CountDownLatch bindLatch;
-    private volatile boolean started = false;
+    @Nullable
+    private volatile Backend detectedBackend;
+    private volatile boolean aidlRejected = false;
+    private final Runnable idleUnbind = this::unbindLauncher;
 
     private final ServiceConnection launcherConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+            String descriptor = null;
+            try {
+                descriptor = service != null ? service.getInterfaceDescriptor() : null;
+            } catch (RemoteException ignored) {
+            }
             synchronized (aidlLock) {
-                launcherAidl = ILauncherAidlInterface.Stub.asInterface(service);
+                if (!SV_AIDL_DESCRIPTOR.equals(descriptor)) {
+                    // Tiggo 7 SVLauncher'ı arayüzsüz bir Binder döndürür; Proxy çağrıları sessizce
+                    // "başarılı" görünür ama hiçbir şey yapmaz. Bu yüzden desteklenmiyor say.
+                    launcherAidl = null;
+                    aidlRejected = true;
+                    mainHandler.post(OemWallpaperManager.this::unbindLauncher);
+                } else {
+                    launcherAidl = ILauncherAidlInterface.Stub.asInterface(service);
+                }
                 CountDownLatch latch = bindLatch;
                 if (latch != null) {
                     latch.countDown();
                 }
             }
-            Log.i(TAG, "SVLauncher AIDL connected: " + (name != null ? name.flattenToShortString() : "null"));
+            Log.i(TAG, "SVLauncher bağlandı: " + (name != null ? name.flattenToShortString() : "null")
+                    + ", arayüz=" + descriptor);
+        }
+
+        @Override
+        public void onNullBinding(ComponentName name) {
+            synchronized (aidlLock) {
+                launcherAidl = null;
+                aidlRejected = true;
+                mainHandler.post(OemWallpaperManager.this::unbindLauncher);
+                CountDownLatch latch = bindLatch;
+                if (latch != null) {
+                    latch.countDown();
+                }
+            }
+            Log.i(TAG, "SVLauncher servisi bağlanmaya izin vermiyor (null binding)");
         }
 
         @Override
@@ -177,23 +216,7 @@ public final class OemWallpaperManager {
         return instance;
     }
 
-    public synchronized void start() {
-        if (started) {
-            return;
-        }
-        started = true;
-        if (isOemLauncherInstalled()) {
-            ensureLauncherBound();
-        }
-    }
 
-    public synchronized void stop() {
-        if (!started) {
-            return;
-        }
-        started = false;
-        unbindLauncher();
-    }
 
     public boolean isOemLauncherInstalled() {
         try {
@@ -201,6 +224,55 @@ public final class OemWallpaperManager {
             return true;
         } catch (PackageManager.NameNotFoundException e) {
             return false;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Önbellekteki tespit sonucu; henüz bilinmiyorsa {@code null}. */
+    @Nullable
+    public Backend getCachedBackend() {
+        return detectedBackend;
+    }
+
+    public void detectBackendAsync(@NonNull java.util.function.Consumer<Backend> callback) {
+        worker.execute(() -> {
+            Backend b = detectBackend();
+            mainHandler.post(() -> callback.accept(b));
+        });
+    }
+
+    /** Worker iş parçacığında çağrılmalı (AIDL bağlantısını 1.5 sn'ye kadar bekleyebilir). */
+    @NonNull
+    private Backend detectBackend() {
+        Backend cached = detectedBackend;
+        if (cached != null) {
+            return cached;
+        }
+        Backend result;
+        if (!isOemLauncherInstalled()) {
+            result = Backend.SYSTEM;
+        } else if (hasJaecooLauncher()) {
+            result = Backend.JAECOO_FILE;
+        } else if (ensureLauncherBoundAndWait() != null) {
+            result = Backend.SV_AIDL;
+        } else if (aidlRejected) {
+            result = Backend.UNSUPPORTED_OEM;
+        } else {
+            // Zaman aşımı: kesin değil, bir sonraki denemede yeniden bak.
+            Log.w(TAG, "SVLauncher yanıt vermedi; arka uç bu sefer desteklenmiyor sayıldı");
+            return Backend.UNSUPPORTED_OEM;
+        }
+        detectedBackend = result;
+        Log.i(TAG, "Duvar kağıdı arka ucu: " + result);
+        return result;
+    }
+
+    private boolean hasJaecooLauncher() {
+        try {
+            android.content.pm.ProviderInfo pi = appContext.getPackageManager()
+                    .resolveContentProvider(JAECOO_LAUNCHER_PROVIDER, 0);
+            return pi != null && OEM_LAUNCHER_PKG.equals(pi.packageName);
         } catch (Throwable t) {
             return false;
         }
@@ -372,123 +444,6 @@ public final class OemWallpaperManager {
         });
     }
 
-    public void fetchRemoteCatalogAsync(boolean forceRefresh, @NonNull RemoteCatalogCallback callback) {
-        String url = RemoteWallpaperCatalog.CATALOG_URL;
-        if (!RemoteWallpaperCatalog.isValidHttpUrl(url)) {
-            mainHandler.post(() -> callback.onCatalogResult(Collections.emptyList(), false, null));
-            return;
-        }
-        networkWorker.execute(() -> {
-            File cacheFile = new File(appContext.getFilesDir(), RemoteWallpaperCatalog.CACHE_FILENAME);
-
-            if (!forceRefresh && cacheFile.isFile() && cacheFile.length() > 0) {
-                List<RemoteWallpaperCatalog.RemoteItem> cached = readCatalogCache(cacheFile);
-                if (!cached.isEmpty()) {
-                    mainHandler.post(() -> callback.onCatalogResult(
-                            cached, true, null));
-                    return;
-                }
-            }
-
-            try {
-                String json = httpGetText(url, 1024 * 1024);
-                RemoteWallpaperCatalog.CatalogParseResult parsed =
-                        RemoteWallpaperCatalog.parseCatalogJson(json);
-                writeUtf8File(cacheFile, json);
-                mainHandler.post(() -> callback.onCatalogResult(
-                        parsed.items,
-                        false,
-                        parsed.items.isEmpty() ? "Katalogda henüz tema bulunmuyor." : null));
-            } catch (Throwable t) {
-                Log.w(TAG, "fetchRemoteCatalogAsync failed: " + t.getMessage());
-                List<RemoteWallpaperCatalog.RemoteItem> fallback = readCatalogCache(cacheFile);
-                String note = !fallback.isEmpty()
-                        ? "İnternet bağlantısı yok, kayıtlı katalog gösteriliyor."
-                        : "Katalog sunucusuna şu anda erişilemedi.";
-                mainHandler.post(() -> callback.onCatalogResult(fallback, !fallback.isEmpty(), note));
-            }
-        });
-    }
-
-    public void loadRemoteThumbnailAsync(
-            @NonNull RemoteWallpaperCatalog.RemoteItem item,
-            int maxWidth,
-            int maxHeight,
-            @NonNull ThumbnailCallback callback) {
-        if (item.thumbUrl == null || item.thumbUrl.isEmpty()) {
-            mainHandler.post(() -> callback.onThumbnailReady(item.id, null));
-            return;
-        }
-        networkWorker.execute(() -> {
-            try {
-                File thumbDir = new File(appContext.getCacheDir(), "wallpaper_thumbs");
-                ensureWritableDir(thumbDir);
-                File cached = new File(thumbDir, RemoteWallpaperCatalog.localBaseNameForRemoteId(item.id) + ".img");
-                if (!cached.isFile() || cached.length() == 0) {
-                    downloadUrlToFile(item.thumbUrl, cached, 3 * 1024 * 1024, null);
-                }
-                Bitmap bmp = decodeOrientedSampledBitmapFromFile(cached.getAbsolutePath(), maxWidth, maxHeight);
-                mainHandler.post(() -> callback.onThumbnailReady(item.id, bmp));
-            } catch (Throwable t) {
-                Log.w(TAG, "loadRemoteThumbnailAsync failed for " + item.id + ": " + t.getMessage());
-                mainHandler.post(() -> callback.onThumbnailReady(item.id, null));
-            }
-        });
-    }
-
-    public void downloadRemoteWallpaperAsync(
-            @NonNull RemoteWallpaperCatalog.RemoteItem item,
-            boolean applyImmediately,
-            @NonNull DownloadCallback callback) {
-        networkWorker.execute(() -> {
-            File storageDir = resolveStorageDirectory();
-            File existing = RemoteWallpaperCatalog.findDownloadedFile(storageDir, item.id);
-            if (existing != null) {
-                WallpaperThemeCatalog.WallpaperItem localItem = buildWallpaperItem(existing);
-                setSelectedPath(existing.getAbsolutePath());
-                if (applyImmediately) {
-                    ApplyResult res = applyWallpaperSync(existing);
-                    mainHandler.post(() -> callback.onFinished(localItem, res.message));
-                } else {
-                    mainHandler.post(() -> callback.onFinished(localItem, existing.getName() + " zaten indirilmiş."));
-                }
-                return;
-            }
-
-            File dlDir = new File(appContext.getCacheDir(), "wallpaper_downloads");
-            ensureWritableDir(dlDir);
-            File tempFile = new File(dlDir, RemoteWallpaperCatalog.localBaseNameForRemoteId(item.id) + ".download");
-            try {
-                downloadUrlToFile(item.imageUrl, tempFile, 40L * 1024L * 1024L,
-                        percent -> mainHandler.post(() -> callback.onProgress(percent)));
-
-                String fixedBase = RemoteWallpaperCatalog.localBaseNameForRemoteId(item.id);
-                StreamOpener fileOpener = () -> new FileInputStream(tempFile);
-                AdaptResult adapted = adaptStreamToSvWallpaperSync(fileOpener, fixedBase, item.title);
-                if (adapted.item == null) {
-                    mainHandler.post(() -> callback.onFinished(null, adapted.message));
-                    return;
-                }
-                setSelectedPath(adapted.item.filePath);
-                if (applyImmediately) {
-                    ApplyResult applyRes = applyWallpaperSync(new File(adapted.item.filePath));
-                    mainHandler.post(() -> callback.onFinished(adapted.item, applyRes.message));
-                } else {
-                    mainHandler.post(() -> callback.onFinished(adapted.item, adapted.message));
-                }
-            } catch (Throwable t) {
-                Log.w(TAG, "downloadRemoteWallpaperAsync failed: " + t.getMessage());
-                String err = t.getMessage() != null ? t.getMessage() : "İndirme hatası";
-                mainHandler.post(() -> callback.onFinished(null, "İndirilemedi: " + err));
-            } finally {
-                if (tempFile.exists()) {
-                    //noinspection ResultOfMethodCallIgnored
-                    tempFile.delete();
-                }
-            }
-        });
-    }
-
     private static final class AdaptResult {
         @Nullable
         final WallpaperThemeCatalog.WallpaperItem item;
@@ -642,17 +597,24 @@ public final class OemWallpaperManager {
             info.setFileType(WallpaperInfo.FILE_LOCATION_2D);
             info.setWallpaperStyle(WallpaperStyle.IMAGE);
 
-            if (isOemLauncherInstalled()) {
+            Backend backend = detectBackend();
+            if (backend == Backend.UNSUPPORTED_OEM) {
+                // Tiggo 7 SVLauncher'ı sabit, opak bir arka plan çizer; sistem duvar kağıdı da görünmez.
+                return new ApplyResult(false, false, str(R.string.wallpaper_msg_unsupported_vehicle));
+            }
+            if (backend == Backend.SV_AIDL) {
+                // Launcher user_wallpaper ayarını kendisi yazar (LauncherService.setCurrWallInfo).
                 oemApplied = pushToSvLauncher(info);
-                try {
-                    Settings.Global.putString(appContext.getContentResolver(), KEY_USER_WALLPAPER, info.toJson());
-                } catch (Throwable ignored) {
+            } else if (backend == Backend.JAECOO_FILE) {
+                oemApplied = pushToJaecooLauncher(absPath, screen);
+                if (!oemApplied) {
+                    errorNote = str(R.string.wallpaper_msg_write_failed_launcher);
                 }
             }
 
-            // SVLauncher doğrudan kendi penceresinde duvar kağıdını günceller; araçta ayrıca sistem
+            // Araç launcher'ı duvar kağıdını kendi penceresinde çizer; araçta ayrıca sistem
             // WallpaperManager'ı tetiklemek Android'in renk/overlay Activity yeniden başlatmasını doğurabilir.
-            if (!oemApplied) {
+            if (!oemApplied && backend == Backend.SYSTEM) {
                 systemBitmap = decodeCenterCroppedForScreen(absPath, screen.width, screen.height);
                 if (systemBitmap != null) {
                     try {
@@ -691,9 +653,7 @@ public final class OemWallpaperManager {
         if (oemApplied) {
             msg = str(R.string.wallpaper_msg_applied_oem, target.getName());
         } else if (systemApplied) {
-            msg = isOemLauncherInstalled()
-                    ? str(R.string.wallpaper_msg_applied_system_fallback, target.getName())
-                    : str(R.string.wallpaper_msg_applied_system, target.getName());
+            msg = str(R.string.wallpaper_msg_applied_system, target.getName());
         } else {
             msg = errorNote != null
                     ? str(R.string.wallpaper_msg_apply_failed_reason, errorNote)
@@ -729,7 +689,7 @@ public final class OemWallpaperManager {
                 return;
             }
 
-            if (isOemLauncherInstalled()) {
+            if (detectBackend() == Backend.SV_AIDL) {
                 removeFromSvLauncher(target.getName(), absPath);
             }
 
@@ -765,7 +725,9 @@ public final class OemWallpaperManager {
 
             String msg = finalOem
                     ? str(R.string.wallpaper_msg_restored_oem)
-                    : str(R.string.wallpaper_msg_restored_system);
+                    : finalSys
+                    ? str(R.string.wallpaper_msg_restored_system)
+                    : str(R.string.wallpaper_msg_unsupported_vehicle);
             if (callback != null) {
                 mainHandler.post(() -> callback.onComplete(finalOem, finalSys, msg));
             }
@@ -776,23 +738,37 @@ public final class OemWallpaperManager {
     private boolean[] restoreDefaultInternal() {
         boolean oemRestored = false;
         boolean sysCleared = false;
-
-        if (isOemLauncherInstalled()) {
-            ILauncherAidlInterface aidl = ensureLauncherBoundAndWait();
-            if (aidl != null) {
-                try {
-                    aidl.switchWallpaperStyle(0);
-                    oemRestored = true;
-                } catch (RemoteException e) {
-                    Log.w(TAG, "switchWallpaperStyle(0) failed: " + e.getMessage());
+        switch (detectBackend()) {
+            case SV_AIDL: {
+                ILauncherAidlInterface aidl = ensureLauncherBoundAndWait();
+                if (aidl != null) {
+                    try {
+                        // 0 = görsel olmayan (fabrika 3D/sahne) stil; LauncherWallpaperManager.setWallpaper
+                        // IMAGE için 1 kullanır.
+                        aidl.switchWallpaperStyle(0);
+                        oemRestored = true;
+                    } catch (RemoteException e) {
+                        Log.w(TAG, "switchWallpaperStyle(0) failed: " + e.getMessage());
+                    }
+                    scheduleIdleUnbind();
                 }
+                break;
             }
-        }
-        try {
-            WallpaperManager.getInstance(appContext).clear();
-            sysCleared = true;
-        } catch (Throwable t) {
-            Log.w(TAG, "WallpaperManager.clear failed: " + t.getMessage());
+            case JAECOO_FILE:
+                // Launcher WallPaper.jpg'yi siler, ayarı temizler ve fabrika görseline döner.
+                oemRestored = sendLauncherBroadcast(JAECOO_ACTION_RESET);
+                break;
+            case SYSTEM:
+                try {
+                    WallpaperManager.getInstance(appContext).clear();
+                    sysCleared = true;
+                } catch (Throwable t) {
+                    Log.w(TAG, "WallpaperManager.clear failed: " + t.getMessage());
+                }
+                break;
+            case UNSUPPORTED_OEM:
+            default:
+                break;
         }
         return new boolean[]{oemRestored, sysCleared};
     }
@@ -980,124 +956,6 @@ public final class OemWallpaperManager {
         void onProgress(int percent);
     }
 
-    @NonNull
-    private static List<RemoteWallpaperCatalog.RemoteItem> readCatalogCache(@NonNull File cacheFile) {
-        if (!cacheFile.isFile() || cacheFile.length() == 0) {
-            return Collections.emptyList();
-        }
-        try (FileInputStream fis = new FileInputStream(cacheFile);
-             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = fis.read(buf)) > 0) {
-                bos.write(buf, 0, n);
-            }
-            String json = new String(bos.toByteArray(), StandardCharsets.UTF_8);
-            return RemoteWallpaperCatalog.parseCatalogJson(json).items;
-        } catch (Throwable ignored) {
-            return Collections.emptyList();
-        }
-    }
-
-    private static void writeUtf8File(@NonNull File target, @NonNull String content) {
-        try (FileOutputStream fos = new FileOutputStream(target)) {
-            fos.write(content.getBytes(StandardCharsets.UTF_8));
-            fos.flush();
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @NonNull
-    private static String httpGetText(@NonNull String urlStr, int maxBytes) throws IOException {
-        HttpURLConnection conn = openHttpConnection(urlStr);
-        try {
-            int code = conn.getResponseCode();
-            if (code < 200 || code >= 300) {
-                throw new IOException("HTTP " + code);
-            }
-            try (InputStream in = new BufferedInputStream(conn.getInputStream());
-                 ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-                byte[] buf = new byte[4096];
-                int n;
-                int total = 0;
-                while ((n = in.read(buf)) > 0) {
-                    total += n;
-                    if (total > maxBytes) {
-                        throw new IOException("Katalog dosyası çok büyük.");
-                    }
-                    bos.write(buf, 0, n);
-                }
-                return new String(bos.toByteArray(), StandardCharsets.UTF_8);
-            }
-        } finally {
-            conn.disconnect();
-        }
-    }
-
-    private static void downloadUrlToFile(
-            @NonNull String urlStr,
-            @NonNull File target,
-            long maxBytes,
-            @Nullable ProgressListener progressListener) throws IOException {
-        File tmp = new File(target.getParentFile(), target.getName() + ".part");
-        HttpURLConnection conn = openHttpConnection(urlStr);
-        try {
-            int code = conn.getResponseCode();
-            if (code < 200 || code >= 300) {
-                throw new IOException("HTTP " + code);
-            }
-            long expected = conn.getContentLengthLong();
-            try (InputStream in = new BufferedInputStream(conn.getInputStream());
-                 FileOutputStream fos = new FileOutputStream(tmp)) {
-                byte[] buf = new byte[8192];
-                int n;
-                long total = 0;
-                int lastPct = -1;
-                while ((n = in.read(buf)) > 0) {
-                    total += n;
-                    if (total > maxBytes) {
-                        throw new IOException("Dosya boyutu limiti aşıldı.");
-                    }
-                    fos.write(buf, 0, n);
-                    if (progressListener != null && expected > 0) {
-                        int pct = (int) Math.min(100, (total * 100L) / expected);
-                        if (pct != lastPct) {
-                            lastPct = pct;
-                            progressListener.onProgress(pct);
-                        }
-                    }
-                }
-                fos.flush();
-            }
-            if (target.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                target.delete();
-            }
-            if (!tmp.renameTo(target)) {
-                throw new IOException("Geçici dosya taşınamadı.");
-            }
-        } catch (IOException e) {
-            if (tmp.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                tmp.delete();
-            }
-            throw e;
-        } finally {
-            conn.disconnect();
-        }
-    }
-
-    @NonNull
-    private static HttpURLConnection openHttpConnection(@NonNull String urlStr) throws IOException {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setInstanceFollowRedirects(true);
-        conn.setConnectTimeout(8000);
-        conn.setReadTimeout(15000);
-        conn.setRequestProperty("User-Agent", "MapControl/1.3.4");
-        return conn;
-    }
-
     private static boolean isQuarterTurn(int exifOrientation) {
         return exifOrientation == ExifInterface.ORIENTATION_ROTATE_90
                 || exifOrientation == ExifInterface.ORIENTATION_ROTATE_270
@@ -1166,6 +1024,7 @@ public final class OemWallpaperManager {
         if (aidl == null) {
             return false;
         }
+        scheduleIdleUnbind();
         try {
             aidl.setWallpaper(info);
             return true;
@@ -1185,6 +1044,7 @@ public final class OemWallpaperManager {
         if (aidl == null) {
             return;
         }
+        scheduleIdleUnbind();
         String itemId = "mc_static_" + Integer.toHexString(fileName.hashCode());
         WallpaperInfo info = new WallpaperInfo(KEY_USER_WALLPAPER, itemId, absPath);
         info.setUserEditedImagePath(absPath);
@@ -1210,6 +1070,9 @@ public final class OemWallpaperManager {
             current = launcherAidl;
             if (current != null && current.asBinder().isBinderAlive()) {
                 return current;
+            }
+            if (aidlRejected) {
+                return null;
             }
             latch = new CountDownLatch(1);
             bindLatch = latch;
@@ -1246,6 +1109,53 @@ public final class OemWallpaperManager {
             }
         } catch (Throwable t) {
             Log.w(TAG, "bindService SVLauncher failed: " + t.getMessage());
+        }
+    }
+
+    private void scheduleIdleUnbind() {
+        mainHandler.removeCallbacks(idleUnbind);
+        mainHandler.postDelayed(idleUnbind, LAUNCHER_IDLE_UNBIND_MS);
+    }
+
+    private boolean pushToJaecooLauncher(@NonNull String sourcePath, @NonNull WallpaperImageHelper.Size screen) {
+        Bitmap bmp = decodeCenterCroppedForScreen(sourcePath, screen.width, screen.height);
+        if (bmp == null) {
+            return false;
+        }
+        try {
+            if (bmp.getWidth() != screen.width || bmp.getHeight() != screen.height) {
+                // Jaecoo launcher görseli ölçeklemeden (0,0) çizer: tam ekran boyutu şart.
+                Bitmap scaled = Bitmap.createScaledBitmap(bmp, screen.width, screen.height, true);
+                if (scaled != bmp) {
+                    bmp.recycle();
+                    bmp = scaled;
+                }
+            }
+            File target = new File(JAECOO_WALLPAPER_FILE);
+            File dir = target.getParentFile();
+            if (dir == null || !ensureWritableDir(dir) || !writeBitmapFile(bmp, target, false)) {
+                return false;
+            }
+            try {
+                Settings.Global.putString(appContext.getContentResolver(), JAECOO_SETTING_PRESET, "");
+            } catch (Throwable t) {
+                Log.w(TAG, JAECOO_SETTING_PRESET + " temizlenemedi: " + t.getMessage());
+            }
+            return sendLauncherBroadcast(JAECOO_ACTION_SET);
+        } finally {
+            if (!bmp.isRecycled()) {
+                bmp.recycle();
+            }
+        }
+    }
+
+    private boolean sendLauncherBroadcast(@NonNull String action) {
+        try {
+            appContext.sendBroadcast(new Intent(action).setPackage(OEM_LAUNCHER_PKG));
+            return true;
+        } catch (Throwable t) {
+            Log.w(TAG, "Launcher yayını gönderilemedi (" + action + "): " + t.getMessage());
+            return false;
         }
     }
 

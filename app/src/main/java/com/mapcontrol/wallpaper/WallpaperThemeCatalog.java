@@ -106,8 +106,37 @@ public final class WallpaperThemeCatalog {
     }
 
     @NonNull
+    public static String sanitizeId(@Nullable String rawId) {
+        if (rawId == null) {
+            return "";
+        }
+        String trimmed = rawId.trim();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < trimmed.length(); i++) {
+            char ch = trimmed.charAt(i);
+            if ((ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || (ch >= '0' && ch <= '9')
+                    || ch == '_'
+                    || ch == '-') {
+                sb.append(ch);
+            } else if (ch == ' ') {
+                sb.append('_');
+            }
+            if (sb.length() >= 48) {
+                break;
+            }
+        }
+        String out = sb.toString();
+        while (out.startsWith("_") || out.startsWith("-")) {
+            out = out.substring(1);
+        }
+        return out;
+    }
+
+    @NonNull
     public static String localBaseNameForBundledId(@NonNull String id) {
-        return PRESET_FILE_PREFIX + RemoteWallpaperCatalog.sanitizeId(id);
+        return PRESET_FILE_PREFIX + sanitizeId(id);
     }
 
     @Nullable
