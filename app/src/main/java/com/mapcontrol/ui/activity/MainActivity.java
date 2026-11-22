@@ -93,6 +93,7 @@ import com.mapcontrol.ui.builder.SplitScreenTabBuilder;
 import com.mapcontrol.ui.builder.SideRailBuilder;
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.ui.builder.VehicleInfoTabBuilder;
+import com.mapcontrol.ui.builder.WallpaperThemesTabBuilder;
 import com.mapcontrol.ui.builder.WelcomeSoundTabBuilder;
 import com.mapcontrol.ui.builder.WifiTabBuilder;
 import com.mapcontrol.util.DialogHelper;
@@ -129,12 +130,15 @@ public class MainActivity extends AppCompatActivity {
     public static final int TAB_CAMERA_360 = 14;
     public static final int TAB_SPLIT_SCREEN = 15;
     public static final int TAB_SUNROOF_AUTOMATION = 16;
+    public static final int TAB_WALLPAPER_THEMES = SideRailBuilder.TAB_WALLPAPER_THEMES;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
     private ScrollView sunroofAutomationScrollView;
+    private ScrollView wallpaperThemesScrollView;
     private ClimateAutomationTabBuilder climateAutomationTabBuilder;
     private DmsFaceRecognitionTabBuilder dmsFaceRecognitionTabBuilder;
     private SunroofAutomationTabBuilder sunroofAutomationTabBuilder;
+    private WallpaperThemesTabBuilder wallpaperThemesTabBuilder;
     private boolean faceRecognitionStatusBroadcastRegistered;
     private final BroadcastReceiver faceRecognitionStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -180,6 +184,14 @@ public class MainActivity extends AppCompatActivity {
                             welcomeSoundTabBuilder.onAudioPicked(result);
                         }
                     });
+    private final ActivityResultLauncher<Intent> wallpaperImagePicker =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (wallpaperThemesTabBuilder != null) {
+                            wallpaperThemesTabBuilder.onImagePicked(result);
+                        }
+                    });
     private EqualizerTabBuilder equalizerTabBuilder;
     private VehicleInfoTabBuilder vehicleInfoTabBuilder;
     private VehicleMetricsRepository vehicleMetricsRepository;
@@ -213,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
-    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_HOME_SCREEN + 1];
+    private final boolean[] tabNeedsUiModeRebuild = new boolean[TAB_WALLPAPER_THEMES + 1];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
     /** Son yerleşimin genişliği; {@link #mountShell} içerik genişliğini piksel olarak sabitler. */
@@ -897,6 +909,10 @@ public class MainActivity extends AppCompatActivity {
                 msg -> MainActivity.this.log(msg));
         rebuildSunroofAutomationTab();
 
+        wallpaperThemesTabBuilder = new WallpaperThemesTabBuilder(this,
+                wallpaperImagePicker,
+                msg -> MainActivity.this.log(msg));
+
         dmsFaceRecognitionTabBuilder = new DmsFaceRecognitionTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         faceRecognitionScrollView = new ScrollView(this);
@@ -1324,6 +1340,9 @@ public class MainActivity extends AppCompatActivity {
             // Değerler launcher'dan da değişebilir: her açılışta tercihlerden yeniden kurulur.
             homeScreenTabBuilder.rebuild();
             addTabChild(parent, homeScreenTabBuilder.getScrollView(), matchParent);
+        } else if (tabIndex == TAB_WALLPAPER_THEMES) {
+            rebuildWallpaperThemesTab();
+            addTabChild(parent, wallpaperThemesScrollView, matchParent);
         }
     }
 
@@ -1356,6 +1375,7 @@ public class MainActivity extends AppCompatActivity {
             case TAB_FACE_RECOGNITION: return R.string.side_rail_face_recognition;
             case TAB_SUNROOF_AUTOMATION: return R.string.side_rail_sunroof_automation;
             case TAB_HOME_SCREEN: return R.string.side_rail_home_screen;
+            case TAB_WALLPAPER_THEMES: return R.string.side_rail_wallpaper_themes;
             default: return R.string.topbar_vehicle_home;
         }
     }
@@ -2073,7 +2093,19 @@ public class MainActivity extends AppCompatActivity {
                     homeScreenTabBuilder.rebuild();
                 }
                 break;
+            case TAB_WALLPAPER_THEMES:
+                if (wallpaperThemesTabBuilder != null) {
+                    rebuildWallpaperThemesTab();
+                }
+                break;
         }
+    }
+
+    private void rebuildWallpaperThemesTab() {
+        if (wallpaperThemesTabBuilder == null) {
+            return;
+        }
+        wallpaperThemesScrollView = wallpaperThemesTabBuilder.build();
     }
 
     private void rebuildClimateAutomationTab() {
