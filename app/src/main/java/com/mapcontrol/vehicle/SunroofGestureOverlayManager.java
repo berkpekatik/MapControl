@@ -27,16 +27,17 @@ import androidx.appcompat.widget.AppCompatImageView;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.util.SplitScreenGesture;
 
 /**
  * Arka planda ve diğer tüm uygulamaların (Yandex Navigasyon, Spotify, vb.) üzerindeyken
- * çalışan iki parmakla hızlı jest (Sunroof Quick Gestures) kontrol yöneticisi.
+ * çalışan çok parmaklı hızlı jest (Sunroof Quick Gestures) kontrol yöneticisi.
  *
- * Jest Tanımları:
- * - İki parmakla SAĞA kaydırma: Cam Tavanı Aç
- * - İki parmakla SOLA kaydırma: Cam Tavanı Kapat
- * - İki parmakla YUKARI kaydırma: Perdeyi Kapat
- * - İki parmakla AŞAĞI kaydırma: Perdeyi Aç
+ * Varsayılan jest tanımları (parmak sayısı ve yön {@link SunroofGestureStore} ile değiştirilebilir):
+ * - Üç parmakla SAĞA kaydırma: Cam Tavanı Aç
+ * - Üç parmakla SOLA kaydırma: Cam Tavanı Kapat
+ * - Üç parmakla YUKARI kaydırma: Perdeyi Kapat
+ * - Üç parmakla AŞAĞI kaydırma: Perdeyi Aç
  */
 public final class SunroofGestureOverlayManager {
 
@@ -297,6 +298,17 @@ public final class SunroofGestureOverlayManager {
         });
     }
 
+    /** HUD açıklaması: seçili parmak sayısıyla "3 parmakla sağa kaydırıldı". */
+    private String swipeText(GestureAction action, int directionRes) {
+        String directionWord = appContext.getString(directionRes);
+        int code = SunroofGestureStore.getCode(appContext, action);
+        int fingers = SplitScreenGesture.fingersOf(code);
+        if (SplitScreenGesture.isValid(code)) {
+            return appContext.getString(R.string.sunroof_overlay_swipe_fingers, fingers, directionWord);
+        }
+        return appContext.getString(R.string.sunroof_overlay_swipe_generic, directionWord);
+    }
+
     /**
      * Jest algılandığında doğrudan VDBus kontrolcüsünü çalıştırır,
      * ekranda görsel HUD rozeti gösterir ve motoru bilgilendirir.
@@ -314,8 +326,14 @@ public final class SunroofGestureOverlayManager {
             case SWIPE_RIGHT:
                 // SAĞA: Cam Tavanı Aç
                 controller.openSunroof(controlShade);
-                title = appContext.getString(R.string.sunroof_overlay_opening_roof);
-                desc = appContext.getString(R.string.sunroof_overlay_desc_right, source);
+                VehicleMetricsSnapshot snap = VehicleMetricsRepository.getInstance(appContext).getSnapshot();
+                if (snap != null && !snap.isSunshadeOpen()) {
+                    title = appContext.getString(R.string.sunroof_overlay_opening_roof_and_shade);
+                    desc = appContext.getString(R.string.sunroof_overlay_desc_opening_shade_first);
+                } else {
+                    title = appContext.getString(R.string.sunroof_overlay_opening_roof);
+                    desc = "➡️ " + swipeText(action, R.string.sunroof_overlay_dir_right) + " (" + source + ")";
+                }
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_open_roof), true, false);
                 break;
@@ -324,7 +342,7 @@ public final class SunroofGestureOverlayManager {
                 // SOLA: Cam Tavanı Kapat
                 controller.closeSunroof(controlShade);
                 title = appContext.getString(R.string.sunroof_overlay_closing_roof);
-                desc = appContext.getString(R.string.sunroof_overlay_desc_left, source);
+                desc = "⬅️ " + swipeText(action, R.string.sunroof_overlay_dir_left) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_close_roof), true, true);
                 break;
@@ -333,7 +351,7 @@ public final class SunroofGestureOverlayManager {
                 // YUKARI: Perdeyi Kapat
                 controller.closeSunshadeOnly();
                 title = appContext.getString(R.string.sunroof_overlay_closing_shade);
-                desc = appContext.getString(R.string.sunroof_overlay_desc_up, source);
+                desc = "⬆️ " + swipeText(action, R.string.sunroof_overlay_dir_up) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_close_shade), false, true);
                 break;
@@ -342,7 +360,7 @@ public final class SunroofGestureOverlayManager {
                 // AŞAĞI: Perdeyi Aç
                 controller.openSunshadeOnly();
                 title = appContext.getString(R.string.sunroof_overlay_opening_shade);
-                desc = appContext.getString(R.string.sunroof_overlay_desc_down, source);
+                desc = "⬇️ " + swipeText(action, R.string.sunroof_overlay_dir_down) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
                 engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_open_shade), false, false);
                 break;

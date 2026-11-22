@@ -475,7 +475,7 @@ private void populateGestureGrid(float density) {
         int pad = dp(4, density);
         row.setPadding(pad, pad, pad, pad);
 
-        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SHADE_ONLY);
+        int currentScope = prefs.getInt(SunroofAutomationEngine.KEY_TARGET_SCOPE, SunroofAutomationEngine.TARGET_SUNROOF_AND_SHADE);
 
         btnScopeShadeOnly = new TextView(context);
         btnScopeShadeOnly.setText(R.string.sunroof_scope_shade_only);

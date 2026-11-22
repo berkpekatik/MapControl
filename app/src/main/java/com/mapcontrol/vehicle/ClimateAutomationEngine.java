@@ -3,7 +3,6 @@ package com.mapcontrol.vehicle;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -15,16 +14,13 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.extra.project.carinfo.proxy.Constants;
 import com.desaysv.ivi.vdb.IVDBusNotify;
-import com.desaysv.ivi.vdb.client.VDBus;
 import com.desaysv.ivi.vdb.event.VDEvent;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
@@ -233,7 +229,6 @@ public final class ClimateAutomationEngine {
             if (values == null || values.length == 0) {
                 return;
             }
-            int raw = values[0];
             try {
                 io.execute(() -> {
                     if (itemId == ReadOnlyID.ID_SYSTEM_POWER_MODE
@@ -372,7 +367,7 @@ public final class ClimateAutomationEngine {
             long nowMs = System.currentTimeMillis();
             for (String id : ClimateAutomationStore.ALL_IDS) {
                 if (!appliedThisDrive.contains(id)) {
-                    ruleEnabledAtMs.put(id, nowMs);
+                    ruleEnabledAtMs.putIfAbsent(id, nowMs);
                 }
             }
             firedThisDrive.clear();
@@ -1017,6 +1012,14 @@ public final class ClimateAutomationEngine {
                     log("Konfor otomasyonu komutu gönderildi: " + id
                             + " (dış ortam " + String.format(java.util.Locale.getDefault(), "%.1f", temp)
                             + "°C, PowerMode=" + lastPowerMode + ", " + reason + ")");
+                }
+                // Başlangıçtaki 3 deneme (0s, 2s, 4s) tamamlandığında komutu bu sürüş için kilitle;
+                // böylece araç ekranından manuel kapatıldığında veya donanım desteklemediğinde sonsuz tekrar yapılmaz.
+                if (attempts >= MAX_STARTUP_SEND_ATTEMPTS) {
+                    firedThisDrive.add(id);
+                    awaitingActivationFeedback.remove(id);
+                    lastRuleEvaluationStates.remove(id);
+                    lastAction = id;
                 }
             }
         }
