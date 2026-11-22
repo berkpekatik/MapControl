@@ -8,6 +8,8 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 
+import com.mapcontrol.R;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -43,6 +45,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
     public static final int TARGET_SHADE_ONLY = 0;    // Yalnızca Perde
     public static final int TARGET_SUNROOF_AND_SHADE = 1; // Tavan + Perde
     public static final String KEY_TARGET_SCOPE = "sunroof_auto_target_scope";
+    public static final String KEY_TILT_ONLY = "sunroof_auto_tilt_only";
 
     // Güneş Hassasiyeti Seviyeleri (Kullanıcı sayısal lux ile uğraşmasın diye)
     public static final int SENSITIVITY_SENSITIVE = 0; // Hassas (Güneşte Erken Kapatır)
@@ -131,7 +134,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
     private volatile long lastMovementTimestamp = 0L;
     private volatile long conditionMetSinceTimestamp = 0L;
     private volatile Boolean pendingTarget = null;
-    private volatile String lastActionDescription = "Hazır (İzleniyor)";
+    private volatile String lastActionDescription;
     private volatile long lastActionTimestamp = 0L;
     private volatile boolean manualClosedByDriver = false;
     private volatile Boolean lastKnownSunroofOpen = null;
@@ -277,11 +280,11 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
 
         int currentPower = snapshot.powerMode;
         boolean powerChanged = (previousPowerMode != currentPower);
-        if (previousPowerMode > 0 && currentPower == 0) {
-            initialStartupPending = true; // Kontak kapandı, sonraki ilk çalıştırma için hazırla
-            manualClosedByDriver = false; // Kontak kapanınca yeni sürüş için kilidi sıfırla
-        } else if (previousPowerMode <= 0 && currentPower > 0) {
-            initialStartupPending = true; // Kontak yeni açıldı, ilk çalıştırma aktif
+        if (previousPowerMode >= 2 && currentPower < 2) {
+            initialStartupPending = true; // Tam kontak kapandı, sonraki tam kontak için hazırla
+            manualClosedByDriver = false; // Yeni sürüş için kilidi sıfırla
+        } else if (previousPowerMode < 2 && currentPower >= 2) {
+            initialStartupPending = true; // Tam kontak açıldı, ilk çalıştırma aktif
             manualClosedByDriver = false;
         }
         previousPowerMode = currentPower;
@@ -354,7 +357,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         if (manualClosedByDriver) {
             pendingTarget = null;
             conditionMetSinceTimestamp = 0L;
-            notifyStatusChanged("Sürücü kapattı (Sürüş boyunca kilitli)");
+            notifyStatusChanged(appContext.getString(R.string.sunroof_engine_driver_locked));
             return;
         }
 
@@ -374,7 +377,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
                 controller.closeSunroof(false);
                 rainCloseTriggered = true;
                 lastMovementTimestamp = now;
-                lastActionDescription = "Yağmur algılandı — Tavan kapatıldı";
+                lastActionDescription = appContext.getString(R.string.sunroof_engine_rain_closed);
                 lastActionTimestamp = System.currentTimeMillis();
             }
             notifyStatusChanged();
@@ -383,8 +386,8 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
             rainCloseTriggered = false;
         }
 
-        // 3. Kontak / Güç Modu Kontrolü
-        if (metrics.powerMode == 0) {
+        // 3. Kontak / Güç Modu Kontrolü (Yarım kontak PowerMode=1 iken açma yapmaz, tam kontak PowerMode>=2 bekler)
+        if (metrics.powerMode < 2) {
             pendingTarget = null;
             conditionMetSinceTimestamp = 0L;
             notifyStatusChanged();
@@ -463,8 +466,8 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
                 logEvent("\u26A0\uFE0F Y\u00dcKSEK HIZ G\u00dcVENL\u0130\u011e\u0130: H\u0131z " + currentSpeed + " km/s > " + speedLimit + " km/s! Cam tavan kapat\u0131l\u0131yor.");
                 controller.closeSunroof(false);
                 lastMovementTimestamp = now;
-                lastActionDescription = String.format(Locale.getDefault(),
-                        "Yüksek hız (%d km/s) — Cam tavan kapatıldı [%s]", currentSpeed, timeFormat.format(new Date()));
+                lastActionDescription = appContext.getString(R.string.sunroof_engine_high_speed_closed,
+                        currentSpeed, timeFormat.format(new Date()));
                 lastActionTimestamp = System.currentTimeMillis();
                 notifyStatusChanged();
             }
@@ -490,7 +493,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         if (targetScope != TARGET_SHADE_ONLY && Boolean.TRUE.equals(targetAction) && !isInitialStartupOpen && currentSpeed < 15) {
             pendingTarget = null;
             conditionMetSinceTimestamp = 0L;
-            notifyStatusChanged("Hız bekleniyor (Dur-kalk / Işık koruması: < 15 km/s)");
+            notifyStatusChanged(appContext.getString(R.string.sunroof_engine_waiting_speed));
             return;
         }
 
@@ -518,14 +521,14 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         long conditionDurationMs = now - conditionMetSinceTimestamp;
         if (conditionDurationMs < debounceMs) {
             long remainingSec = Math.max(1, (debounceMs - conditionDurationMs) / 1000);
-            String actionName = Boolean.TRUE.equals(targetAction) ? "Açılıyor" : "Kapanıyor";
+            String actionName = appContext.getString(Boolean.TRUE.equals(targetAction) ? R.string.sunroof_engine_opening : R.string.sunroof_engine_closing);
             String reasonText;
             if (isHighSpeed) {
-                reasonText = "(Yüksek Hız Koruması: " + remainingSec + " sn)";
+                reasonText = appContext.getString(R.string.sunroof_engine_reason_speed, remainingSec);
             } else if (Boolean.TRUE.equals(targetAction)) {
-                reasonText = "(Gölge Onayı: " + remainingSec + " sn)";
+                reasonText = appContext.getString(R.string.sunroof_engine_reason_shade, remainingSec);
             } else {
-                reasonText = "(Güneş Koruması: " + remainingSec + " sn)";
+                reasonText = appContext.getString(R.string.sunroof_engine_reason_sun, remainingSec);
             }
             notifyStatusChanged(actionName + " " + reasonText);
             return;
@@ -543,23 +546,28 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
 
         if (timeSinceLastMovement < cooldownMs) {
             long remainingSec = Math.max(1, (cooldownMs - timeSinceLastMovement) / 1000);
-            notifyStatusChanged("Motor koruma beklemesi (" + remainingSec + " sn)");
+            notifyStatusChanged(appContext.getString(R.string.sunroof_engine_motor_cooldown, remainingSec));
             return;
         }
 
         // 9. Komut İcrası (Güneşlik/perde kontrolü kaldırıldı, yalnızca cam tavan yönetilir)
+        boolean tiltOnly = targetScope != TARGET_SHADE_ONLY && prefs.getBoolean(KEY_TILT_ONLY, false);
         boolean success;
-        String elementLabel = (targetScope == TARGET_SHADE_ONLY) ? "Perde" : "Cam tavan";
+        String elementLabel = appContext.getString((targetScope == TARGET_SHADE_ONLY)
+                ? R.string.sunroof_engine_label_shade
+                : (tiltOnly ? R.string.sunroof_engine_label_roof_tilt : R.string.sunroof_engine_label_roof));
         if (targetAction) {
             if (targetScope == TARGET_SHADE_ONLY) {
                 success = controller.openSunshadeOnly();
+            } else if (tiltOnly) {
+                success = controller.tiltSunroof();
             } else {
                 success = controller.openSunroof(false);
             }
-            String prefix = (mode == MODE_ALWAYS_OPEN) ? "Daima Açık Modu" :
-                    (isInitialStartupOpen ? "İlk çalıştırma" : "İdeal ışık koşulu");
-            lastActionDescription = String.format(Locale.getDefault(),
-                    "%s — %s açıldı [%s]", prefix, elementLabel, timeFormat.format(new Date()));
+            String prefix = appContext.getString((mode == MODE_ALWAYS_OPEN) ? R.string.sunroof_engine_prefix_always :
+                    (isInitialStartupOpen ? R.string.sunroof_engine_prefix_startup : R.string.sunroof_engine_prefix_ideal));
+            lastActionDescription = appContext.getString(R.string.sunroof_engine_opened_fmt,
+                    prefix, elementLabel, timeFormat.format(new Date()));
             logEvent(elementLabel + " açıldı (" + prefix + ", Işık: " + (int) currentLux + " lx, Ort: " + (int) avgLux + " lx)");
         } else {
             if (targetScope == TARGET_SHADE_ONLY) {
@@ -569,14 +577,14 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
             }
             String reason;
             if (isHighSpeed) {
-                reason = "Yüksek hız (" + currentSpeed + " km/s > " + speedLimit + " km/s)";
+                reason = appContext.getString(R.string.sunroof_engine_reason_high_speed, currentSpeed, speedLimit);
             } else if (currentLux >= sunThreshold || avgLux >= sunThreshold) {
-                reason = "Yakıcı güneş algılandı";
+                reason = appContext.getString(R.string.sunroof_engine_reason_harsh_sun);
             } else {
-                reason = "Karanlık/Gece algılandı";
+                reason = appContext.getString(R.string.sunroof_engine_reason_dark);
             }
-            lastActionDescription = String.format(Locale.getDefault(),
-                    "%s — %s kapatıldı [%s]", reason, elementLabel, timeFormat.format(new Date()));
+            lastActionDescription = appContext.getString(R.string.sunroof_engine_closed_fmt,
+                    reason, elementLabel, timeFormat.format(new Date()));
             logEvent(elementLabel + " kapatıldı (" + reason + ", Işık: " + (int) currentLux + " lx)");
         }
 
@@ -649,34 +657,34 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         String conditionAdvice;
 
         if (isRaining) {
-            conditionTitle = "🌧️ Yağmur Algılandı";
-            conditionAdvice = "Islanmayı önlemek için cam tavan güvenlik amacıyla kilitli tutuluyor.";
+            conditionTitle = appContext.getString(R.string.sunroof_engine_cond_rain_title);
+            conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_rain_advice);
         } else if (lux < 0) {
-            conditionTitle = "Sensör Bekleniyor...";
-            conditionAdvice = "Araç ortam ışık sensöründen veri okunuyor.";
+            conditionTitle = appContext.getString(R.string.sunroof_engine_cond_wait_title);
+            conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_wait_advice);
         } else if (lux >= getSunThreshold(sensitivity)) {
-            conditionTitle = "☀️🔥 Yakıcı / Dik Güneş";
-            conditionAdvice = "Kabin ısınmasını ve güneşi engellemek için cam tavan kapalı tutuluyor.";
+            conditionTitle = appContext.getString(R.string.sunroof_engine_cond_sun_title);
+            conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_sun_advice);
         } else if (lux <= getNightThreshold(sensitivity)) {
             if (closeAtNight) {
-                conditionTitle = "🌙 Gece / Karanlık";
-                conditionAdvice = "Hava karanlık olduğu için cam tavan kapalı tutuluyor.";
+                conditionTitle = appContext.getString(R.string.sunroof_engine_cond_night_closed_title);
+                conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_night_closed_advice);
             } else {
-                conditionTitle = "🌙 Akşam / Gece";
-                conditionAdvice = "Yakıcı güneş yok, ferah sürüş için cam tavan açık tutuluyor.";
+                conditionTitle = appContext.getString(R.string.sunroof_engine_cond_night_open_title);
+                conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_night_open_advice);
             }
         } else if (lux <= 10500f) {
-            conditionTitle = "🌆 Akşamüstü / Loş Işık";
-            conditionAdvice = "Yakıcı güneş yok, ferah sürüş için cam tavan açık tutuluyor.";
+            conditionTitle = appContext.getString(R.string.sunroof_engine_cond_dusk_title);
+            conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_night_open_advice);
         } else {
-            conditionTitle = "⛅ Tatlı Gün Işığı / Bulutlu";
-            conditionAdvice = "Işık rahatsız etmiyor, ferah sürüş için cam tavan açık tutuluyor.";
+            conditionTitle = appContext.getString(R.string.sunroof_engine_cond_cloudy_title);
+            conditionAdvice = appContext.getString(R.string.sunroof_advice_default);
         }
 
         if (manualClosedByDriver) {
-            conditionAdvice = "Sürücü tavanı manuel kapattı. Otomasyon bu sürüş boyunca kilitli tutuluyor.";
+            conditionAdvice = appContext.getString(R.string.sunroof_engine_cond_driver_locked_advice);
             if (pendingAction == null) {
-                pendingAction = "Sürücü kapattı (Sürüş kilidi aktif)";
+                pendingAction = appContext.getString(R.string.sunroof_engine_pending_driver_locked);
             }
         }
 
@@ -696,7 +704,7 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
                 isRaining,
                 speed,
                 power,
-                lastActionDescription,
+                lastActionDescription != null ? lastActionDescription : appContext.getString(R.string.sunroof_engine_ready),
                 lastActionTimestamp,
                 cooldownRemaining,
                 pendingAction);
@@ -744,9 +752,10 @@ public final class SunroofAutomationEngine implements VehicleLightSensorManager.
         if (actionName == null) {
             return;
         }
-        boolean isSunshade = actionName.contains("Perde") || actionName.contains("Güneşlik");
-        boolean isSunroof = !isSunshade && (actionName.contains("Tavan") || actionName.contains("Cam"));
-        boolean isClose = actionName.toLowerCase(Locale.ROOT).contains("kapat");
+        String low = actionName.toLowerCase(Locale.ROOT);
+        boolean isSunshade = actionName.contains("Perde") || actionName.contains("Güneşlik") || low.contains("shade");
+        boolean isSunroof = !isSunshade && (actionName.contains("Tavan") || actionName.contains("Cam") || low.contains("roof"));
+        boolean isClose = low.contains("kapat") || low.contains("close");
         notifyManualOverride(actionName, isSunroof, isClose);
     }
 }

@@ -29,7 +29,7 @@ import com.mapcontrol.nav.YandexNavStability;
  * Singleton mantığıyla çalışır
  */
 public class GlobalBackService extends AccessibilityService {
-    private static GlobalBackService instance = null;
+    private static volatile GlobalBackService instance = null;
     /**
      * Ayarlarda / shell'de kullanılacak tam bileşen (manifest: .service.GlobalBackService)
      * Yanlış: com.mapcontrol/.GlobalBackService → sınıf com.mapcontrol.GlobalBackService (mevcut değil)
@@ -65,7 +65,7 @@ public class GlobalBackService extends AccessibilityService {
     private boolean pollQueued;
     private final Runnable pollRunnable = () -> {
         pollQueued = false;
-        if (!YandexClusterNavOverlay.isEnabled(this)) {
+        if (!needsYandexRead()) {
             return;
         }
         requestScrape();
@@ -99,7 +99,7 @@ public class GlobalBackService extends AccessibilityService {
         // Ana ekran tuşu kuralı öndeki uygulamayı varsaymaz, şu an öndekini okur (HomePolicy).
         com.mapcontrol.launcher.HomeKey.onServiceConnected(this);
         InstallerConfirmClicker.onServiceConnected(this);
-        if (YandexClusterNavOverlay.isEnabled(this)) {
+        if (needsYandexRead()) {
             ensureYandexPoll();
             requestScrape();
         }
@@ -111,6 +111,7 @@ public class GlobalBackService extends AccessibilityService {
         com.mapcontrol.launcher.HomeKey.onServiceDisconnected(this);
         InstallerConfirmClicker.disarm();
         stopYandexPoll();
+        com.mapcontrol.nav.HudNavigationManager.get(this).onYandexSnapshot(YandexNavSnapshot.inactive());
         yandexStability.clear();
         try {
             YandexClusterNavOverlay.getInstance(this).hide();
@@ -126,7 +127,7 @@ public class GlobalBackService extends AccessibilityService {
      * Olaylar hızlandırır; arka planda olay kesilse de yoklama sürer.
      */
     private void maybeScrapeYandexNav(AccessibilityEvent event) {
-        if (!YandexClusterNavOverlay.isEnabled(this)) {
+        if (!needsYandexRead()) {
             stopYandexPoll();
             return;
         }
@@ -141,7 +142,7 @@ public class GlobalBackService extends AccessibilityService {
     }
 
     private void ensureYandexPoll() {
-        if (pollQueued || !YandexClusterNavOverlay.isEnabled(this)) {
+        if (pollQueued || !needsYandexRead()) {
             return;
         }
         pollQueued = true;
@@ -153,6 +154,26 @@ public class GlobalBackService extends AccessibilityService {
         pollQueued = false;
         yandexHandler.removeCallbacks(pollRunnable);
         yandexHandler.removeCallbacks(delayedScrapeRunnable);
+    }
+
+    private boolean needsYandexRead() {
+        return instance == this && (YandexClusterNavOverlay.isEnabled(this)
+                || com.mapcontrol.nav.HudNavigationManager.get(this).needsYandexScraping());
+    }
+
+    /** HUD ayarı değişince ortak Yandex okuyucusunu ana iş parçacığında yeniden değerlendirir. */
+    public static void refreshHudNavigation() {
+        GlobalBackService current = getInstance();
+        if (current == null) return;
+        current.yandexHandler.post(() -> {
+            if (getInstance() != current) return;
+            if (current.needsYandexRead()) {
+                current.ensureYandexPoll();
+                current.requestScrape();
+            } else {
+                current.stopYandexPoll();
+            }
+        });
     }
 
     private void kickPollRate() {
@@ -220,15 +241,21 @@ public class GlobalBackService extends AccessibilityService {
 
     private YandexSyncResult performYandexNavSync() {
         synchronized (yandexLock) {
-            if (!YandexClusterNavOverlay.isEnabled(this)) {
+            if (instance != this || !needsYandexRead()) {
                 yandexStability.clear();
                 lastGuidanceActive = false;
                 YandexClusterNavOverlay.getInstance(this).hide();
                 return YandexSyncResult.DISABLED;
             }
             YandexRead read = readYandexSnapshot();
+            if (instance != this) return YandexSyncResult.DISABLED;
             long now = SystemClock.uptimeMillis();
             YandexNavSnapshot stable = yandexStability.accept(read.snapshot, now);
+            yandexHandler.post(() -> {
+                if (instance == this) {
+                    com.mapcontrol.nav.HudNavigationManager.get(this).onYandexSnapshot(stable);
+                }
+            });
             boolean wasActive = lastGuidanceActive;
             lastGuidanceActive = stable.guidanceActive;
             if (wasActive != stable.guidanceActive) {
@@ -240,7 +267,9 @@ public class GlobalBackService extends AccessibilityService {
                         ? YandexSyncResult.NAV_INACTIVE
                         : YandexSyncResult.YANDEX_NOT_OPEN;
             }
-            YandexClusterNavOverlay.getInstance(this).apply(stable);
+            if (YandexClusterNavOverlay.isEnabled(this)) {
+                YandexClusterNavOverlay.getInstance(this).apply(stable);
+            }
             return YandexSyncResult.OK;
         }
     }

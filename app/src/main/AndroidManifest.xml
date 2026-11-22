@@ -84,6 +84,8 @@
     <!-- Fotoğraf kutucuğu (launcher, PhotoTile): İndirilenler'deki resmi gösterir; çalışma anında istenir. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_INTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
     
     <!-- Package uninstall permissions -->
     <!-- REQUEST_DELETE_PACKAGES: Diğer uygulamaların kaldırılmasını talep etmek için (ACTION_DELETE) -->
@@ -107,6 +109,7 @@
         <package android:name="ru.yandex.yandexmaps" />
         <package android:name="ru.yandex.yandexnavi" />
         <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.desaysv.launcher" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

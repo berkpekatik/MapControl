@@ -299,11 +299,14 @@ public final class SunroofGestureOverlayManager {
     }
 
     /** HUD açıklaması: seçili parmak sayısıyla "3 parmakla sağa kaydırıldı". */
-    private String swipeText(GestureAction action, String directionWord) {
+    private String swipeText(GestureAction action, int directionRes) {
+        String directionWord = appContext.getString(directionRes);
         int code = SunroofGestureStore.getCode(appContext, action);
         int fingers = SplitScreenGesture.fingersOf(code);
-        String count = SplitScreenGesture.isValid(code) ? fingers + " parmakla" : "Kaydırmayla";
-        return count + " " + directionWord + " kaydırıldı";
+        if (SplitScreenGesture.isValid(code)) {
+            return appContext.getString(R.string.sunroof_overlay_swipe_fingers, fingers, directionWord);
+        }
+        return appContext.getString(R.string.sunroof_overlay_swipe_generic, directionWord);
     }
 
     /**
@@ -324,42 +327,42 @@ public final class SunroofGestureOverlayManager {
                 // SAĞA: Cam Tavanı Aç
                 controller.openSunroof(controlShade);
                 VehicleMetricsSnapshot snap = VehicleMetricsRepository.getInstance(appContext).getSnapshot();
-                if (snap != null && !snap.isSunshadeOpen()) {
-                    title = "Cam Tavan & Perde Açılıyor";
-                    desc = "➡️ Perde açılıyor, ardından cam otomatik açılacak";
+                if (controlShade && snap != null && !snap.isSunshadeOpen()) {
+                    title = appContext.getString(R.string.sunroof_overlay_opening_roof_and_shade);
+                    desc = appContext.getString(R.string.sunroof_overlay_desc_opening_shade_first);
                 } else {
-                    title = "Cam Tavan Açılıyor";
-                    desc = "➡️ " + swipeText(action, "sağa") + " (" + source + ")";
+                    title = appContext.getString(R.string.sunroof_overlay_opening_roof);
+                    desc = "➡️ " + swipeText(action, R.string.sunroof_overlay_dir_right) + " (" + source + ")";
                 }
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Tavan Açıldı", true, false);
+                engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_open_roof), true, false);
                 break;
 
             case SWIPE_LEFT:
                 // SOLA: Cam Tavanı Kapat
                 controller.closeSunroof(controlShade);
-                title = "Cam Tavan Kapatılıyor";
-                desc = "⬅️ " + swipeText(action, "sola") + " (" + source + ")";
+                title = appContext.getString(R.string.sunroof_overlay_closing_roof);
+                desc = "⬅️ " + swipeText(action, R.string.sunroof_overlay_dir_left) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Tavan Kapatıldı", true, true);
+                engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_close_roof), true, true);
                 break;
 
             case SWIPE_UP:
                 // YUKARI: Perdeyi Kapat
                 controller.closeSunshadeOnly();
-                title = "Tavan Perdesi Kapatılıyor";
-                desc = "⬆️ " + swipeText(action, "yukarı") + " (" + source + ")";
+                title = appContext.getString(R.string.sunroof_overlay_closing_shade);
+                desc = "⬆️ " + swipeText(action, R.string.sunroof_overlay_dir_up) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Perde Kapatıldı", false, true);
+                engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_close_shade), false, true);
                 break;
 
             case SWIPE_DOWN:
                 // AŞAĞI: Perdeyi Aç
                 controller.openSunshadeOnly();
-                title = "Tavan Perdesi Açılıyor";
-                desc = "⬇️ " + swipeText(action, "aşağı") + " (" + source + ")";
+                title = appContext.getString(R.string.sunroof_overlay_opening_shade);
+                desc = "⬇️ " + swipeText(action, R.string.sunroof_overlay_dir_down) + " (" + source + ")";
                 iconRes = R.drawable.ic_mdi_car_sunroof;
-                engine.notifyManualOverride("Hızlı Jest: Perde Açıldı", false, false);
+                engine.notifyManualOverride(appContext.getString(R.string.sunroof_overlay_override_open_shade), false, false);
                 break;
 
             default:
@@ -496,7 +499,7 @@ public final class SunroofGestureOverlayManager {
         strip.setBackground(bg);
 
         TextView label = new TextView(appContext);
-        label.setText("👈 Tavan Kapat | 👉 Tavan Aç | 👆 Perde Kapat | 👇 Perde Aç");
+        label.setText(R.string.sunroof_overlay_strip);
         label.setTextSize(11);
         UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(0x88FFFFFF);
@@ -523,7 +526,7 @@ public final class SunroofGestureOverlayManager {
         pill.addView(icon, new LinearLayout.LayoutParams(dp(26, density), dp(26, density)));
 
         TextView label = new TextView(appContext);
-        label.setText(" Hızlı Jest");
+        label.setText(R.string.sunroof_overlay_pill);
         label.setTextSize(12);
         UiStyles.setFontStyle(label, Typeface.BOLD);
         label.setTextColor(Color.WHITE);

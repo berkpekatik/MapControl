@@ -8,6 +8,14 @@ import org.junit.Test
 
 /** Yandex bildirim çözümleyicisi: çizim adları, mesafe/saat/süre/çıkış metinleri ve tüm bildirimin duruma çevrilmesi. */
 class NavParseTest {
+    @Test fun imperialDistanceUnitsSurviveParsing() {
+        assertEquals(NavDistance("1,2", "mi", 1931), NavParse.parseDistanceOnly("1.2 mi"))
+        assertEquals(NavDistance("300", "ft", 91), NavParse.parseDistanceOnly("300 feet"))
+        assertEquals(NavDistance("100", "yd", 91), NavParse.findDistance("Remaining 100 yd"))
+        assertNull(NavParse.findDistance("999999999999999999999 miles"))
+        assertNull(NavParse.parseDistanceOnly("18 min"))
+    }
+
 
     private val maps = NavigationSource.YANDEX_MAPS
 

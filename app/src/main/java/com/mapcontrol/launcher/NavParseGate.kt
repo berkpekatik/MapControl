@@ -39,6 +39,8 @@ internal class NavParseGate(private val maxKeys: Int = 8) {
         seen.remove(key)
     }
 
+    fun retainKeys(keys: Set<String>) { seen.keys.retainAll(keys) }
+
     fun clear() = seen.clear()
 
     val size: Int get() = seen.size

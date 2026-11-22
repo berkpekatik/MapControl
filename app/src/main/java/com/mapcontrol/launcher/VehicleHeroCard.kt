@@ -68,6 +68,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
         val tireLow: TireLow? = null,
         /** Yakıt kapağı açık (salt-okur tur). */
         val fuelCapOpen: Boolean = false,
+        val driveMode: DriveMode? = null,
     )
 
     internal var onSummary: ((Summary) -> Unit)? = null
@@ -323,6 +324,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
         val locked: Boolean?,
         /** Panoramik tavanın konumu ([RoofTracker]); sinyal yoksa null. */
         val roof: RoofState? = null,
+        val driveMode: DriveMode? = null,
     )
 
     private val TIRE_WHEEL_NAMES = listOf(R.string.launcher_tire_fl, R.string.launcher_tire_fr, R.string.launcher_tire_rl, R.string.launcher_tire_rr)
@@ -398,6 +400,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
             ),
             locked = locked,
             roof = if (knowsSunroof || LauncherDemo.enabled) roofState(s) else null,
+            driveMode = if (s.connected && s.hasDriveMode()) DriveModes.fromRead(s.driveMode) else null,
         )
         val prev = lastUi
         if (ui == prev) return
@@ -473,6 +476,7 @@ class VehicleHeroCard(private val context: Context) : SizedWidget, Themeable, St
             tireAlert = tireAlert,
             tireLow = tireLow,
             fuelCapOpen = fuelCapOpen,
+            driveMode = ui.driveMode,
         )
         if (sum != summary) {
             summary = sum
