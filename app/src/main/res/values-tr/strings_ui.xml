@@ -1086,7 +1086,7 @@
     <string name="sunroof_overlay_opening_shade">Tavan Perdesi Açılıyor</string>
     <string name="sunroof_overlay_desc_opening_shade_first">➡️ Perde açılıyor, ardından cam otomatik açılacak</string>
     <string name="sunroof_overlay_swipe_fingers">%1$d parmakla %2$s kaydırıldı</string>
-    <string name="sunroof_overlay_swipe_generic">Kaydırmayla %1$s kaydırıldı</string>
+    <string name="sunroof_overlay_swipe_generic">%1$s kaydırıldı</string>
     <string name="sunroof_overlay_dir_right">sağa</string>
     <string name="sunroof_overlay_dir_left">sola</string>
     <string name="sunroof_overlay_dir_up">yukarı</string>

@@ -327,7 +327,7 @@ public final class SunroofGestureOverlayManager {
                 // SAĞA: Cam Tavanı Aç
                 controller.openSunroof(controlShade);
                 VehicleMetricsSnapshot snap = VehicleMetricsRepository.getInstance(appContext).getSnapshot();
-                if (snap != null && !snap.isSunshadeOpen()) {
+                if (controlShade && snap != null && !snap.isSunshadeOpen()) {
                     title = appContext.getString(R.string.sunroof_overlay_opening_roof_and_shade);
                     desc = appContext.getString(R.string.sunroof_overlay_desc_opening_shade_first);
                 } else {
