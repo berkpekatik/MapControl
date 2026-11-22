@@ -51,6 +51,7 @@ public class SideRailBuilder {
     private static final int TAB_SPLIT_SCREEN = 15;
     private static final int TAB_SUNROOF_AUTOMATION = 16;
     private static final int TAB_HOME_SCREEN = 17;
+    public static final int TAB_WALLPAPER_THEMES = 18;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -70,6 +71,7 @@ public class SideRailBuilder {
     private LinearLayout menuFaceRecognition;
     private LinearLayout menuSunroofAutomation;
     private LinearLayout menuHomeScreen;
+    private LinearLayout menuWallpaperThemes;
     private LinearLayout menuVehicleInfo;
     private LinearLayout menuSplitScreen;
     private LinearLayout sideRail;
@@ -141,6 +143,7 @@ public class SideRailBuilder {
                 t(R.string.side_rail_split_screen));
         menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
         menuHomeScreen = createRailMenuItemView(R.drawable.ic_mdi_view_grid, t(R.string.side_rail_home_screen));
+        menuWallpaperThemes = createRailMenuItemView(R.drawable.ic_mdi_wallpaper, t(R.string.side_rail_wallpaper_themes));
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
@@ -159,6 +162,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
         menuContainer.addView(menuHomeScreen);
+        menuContainer.addView(menuWallpaperThemes);
 
         float density = context.getResources().getDisplayMetrics().density;
         updateRailBottomInset();
@@ -222,6 +226,7 @@ public class SideRailBuilder {
                 t(R.string.side_rail_split_screen));
         menuSettings = createPortraitRailItem(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
         menuHomeScreen = createPortraitRailItem(R.drawable.ic_mdi_view_grid, t(R.string.side_rail_home_screen));
+        menuWallpaperThemes = createPortraitRailItem(R.drawable.ic_mdi_wallpaper, t(R.string.side_rail_wallpaper_themes));
 
         menuContainer.addView(menuWifi);
         menuContainer.addView(menuApps);
@@ -240,6 +245,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
         menuContainer.addView(menuHomeScreen);
+        menuContainer.addView(menuWallpaperThemes);
 
         // Let the final destination travel all the way to the left edge.
         menuContainer.setPaddingRelative(0, 0,
@@ -352,6 +358,10 @@ public class SideRailBuilder {
                     callback.onTabSelected(TAB_SPLIT_SCREEN, t(R.string.side_rail_split_screen));
                     updateMenuSelection(menuSplitScreen);
                 }));
+        menuWallpaperThemes.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_WALLPAPER_THEMES, t(R.string.side_rail_wallpaper_themes));
+            updateMenuSelection(menuWallpaperThemes);
+        });
     }
 
     /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
@@ -672,6 +682,9 @@ public class SideRailBuilder {
             case TAB_HOME_SCREEN:
                 updateMenuSelection(menuHomeScreen);
                 break;
+            case TAB_WALLPAPER_THEMES:
+                updateMenuSelection(menuWallpaperThemes);
+                break;
             default:
                 break;
         }
@@ -814,7 +827,7 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen, menuHomeScreen
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuSunroofAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen, menuHomeScreen, menuWallpaperThemes
         };
     }
 
