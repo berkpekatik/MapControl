@@ -25,6 +25,7 @@ import android.widget.TextView
 import com.mapcontrol.R
 import com.mapcontrol.launcher.CarAnimSpec
 import com.mapcontrol.util.AppLaunchHelper
+import com.mapcontrol.util.DiagJournal
 
 /**
  * Göstergede (cluster) sinyal kamerası kartı ([TurnCamera]). Yeri ve boyutu kullanıcı ayarıdır ([TurnCamLayout]; sol ve
@@ -195,6 +196,7 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
             wm?.updateViewLayout(r, p)
         } catch (e: RuntimeException) {
             Log.w(TAG, "gösterge penceresi taşınamadı", e)
+            DiagJournal.event("sinyal", "gösterge penceresi taşınamadı: $e")
         }
     }
 
@@ -220,6 +222,7 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
         val display = dm.displays.firstOrNull { it.displayId == id }
         if (display == null || display.displayId == Display.DEFAULT_DISPLAY) {
             Log.w(TAG, "gösterge ekranı yok (id=$id)")
+            DiagJournal.event("sinyal", "gösterge ekranı yok (id=$id)")
             return false
         }
         val ctx = app.createDisplayContext(display)
@@ -329,6 +332,7 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
             windowManager.addView(rootView, params)
         } catch (e: RuntimeException) {
             Log.w(TAG, "gösterge penceresi eklenemedi", e)
+            DiagJournal.event("sinyal", "gösterge penceresi eklenemedi: $e")
             return false
         }
         wm = windowManager
@@ -432,6 +436,7 @@ internal class TurnCameraOverlay(private val app: Context, private val demo: Boo
             if (r != null) wm?.removeView(r)
         } catch (e: RuntimeException) {
             Log.w(TAG, "gösterge penceresi kaldırılamadı", e)
+            DiagJournal.event("sinyal", "gösterge penceresi kaldırılamadı: $e")
         }
         root = null; card = null; header = null; label = null; arrow = null; accent = null; placeholder = null
         cardBg = null; ringBg = null

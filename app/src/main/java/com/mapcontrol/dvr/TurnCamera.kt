@@ -11,6 +11,7 @@ import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
 import com.mapcontrol.launcher.CarSignals
 import com.mapcontrol.util.ClusterNavigationState
+import com.mapcontrol.util.DiagJournal
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -316,6 +317,7 @@ object TurnCamera {
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private fun apply(on: Boolean) {
+        if (on != enabled) journal(if (on) "açıldı" else "kapandı")
         enabled = on
         synchronized(this) {
             if (on && task == null) {
@@ -362,7 +364,10 @@ object TurnCamera {
     }
 
     private fun onPush(id: Int, value: Int) {
-        if (pushSeen.add(id)) Log.i(TAG, "bildirim geliyor: ReadOnly $id = $value")
+        if (pushSeen.add(id)) {
+            Log.i(TAG, "bildirim geliyor: ReadOnly $id = $value")
+            journal("bildirim geliyor: ReadOnly $id = $value")
+        }
         when (id) {
             ReadOnlyID.ID_DIRECTION_IND_LEFT -> left = value
             ReadOnlyID.ID_DIRECTION_IND_RIGHT -> right = value
@@ -386,6 +391,7 @@ object TurnCamera {
             evaluate()
         } catch (t: Throwable) {
             Log.w(TAG, "poll başarısız", t)
+            journal("yoklama başarısız: $t")
         }
     }
 
@@ -419,8 +425,10 @@ object TurnCamera {
                 proxy.regCallBack(RO, notify, PUSH_IDS)
                 subscribed = true
                 Log.i(TAG, "sinyal aboneliği açıldı")
+                journal("abonelik açıldı")
             } catch (t: Throwable) {
                 Log.w(TAG, "sinyal aboneliği açılamadı: ${t.javaClass.simpleName}")
+                journal("abonelik açılamadı: $t")
             }
         }
         return true
@@ -436,11 +444,14 @@ object TurnCamera {
     private fun post(side: TurnSide?) {
         // io tarafı: durum zaten uygulandıysa ana thread'i hiç uyandırma (poll başına no-op post yok).
         if (side == posted) return
+        // Ham değerler io'ya ait: günlük satırı için burada (io'da) yakalanır.
+        val raw = "sol=$left sağ=$right dörtlü=$hazard vites=$gear"
         main.post apply@{
             if (side == posted) return@apply
             val c = app
             if (side == null || c == null) {
                 Log.i(TAG, "sinyal kamerası: $posted -> $side")
+                journal("kart: $posted -> $side ($raw)")
                 posted = side
                 overlay?.hide()
             } else {
@@ -448,6 +459,7 @@ object TurnCamera {
                 val shown = (overlay ?: TurnCameraOverlay(c).also { overlay = it }).show(side)
                 if (shown) {
                     Log.i(TAG, "sinyal kamerası: $posted -> $side")
+                    journal("kart: $posted -> $side ($raw)")
                     posted = side
                 }
             }
@@ -455,4 +467,7 @@ object TurnCamera {
     }
 
     private val RO = VDEventCarInfo.MODULE_READONLY_INFO
+
+    /** Kalıcı olay günlüğü ("Log Kaydını Geliştiriciye Gönder"); yalnızca durum geçişlerinde, hız sınırlı ve arka planda yazar. */
+    private fun journal(msg: String) = DiagJournal.event("sinyal", msg)
 }
