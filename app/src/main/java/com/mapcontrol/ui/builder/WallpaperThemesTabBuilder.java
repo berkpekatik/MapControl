@@ -684,7 +684,7 @@ public class WallpaperThemesTabBuilder {
         card.addView(titleView);
 
         TextView metaView = new TextView(activity);
-        metaView.setText(bundled.resolution + " (16:9 · 4K)");
+        metaView.setText(bundled.resolution + " (16:9)");
         metaView.setTextSize(12);
         metaView.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
         metaView.setPadding(dp(2, currentDensity), dp(2, currentDensity), dp(2, currentDensity), dp(8, currentDensity));

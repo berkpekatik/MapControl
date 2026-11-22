@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Statik duvar kağıdı tercih anahtarları, APK içi 4K paket listesi ve {@code SVWallpaper} klasör öğe modeli.
+ * Statik duvar kağıdı tercih anahtarları, APK içi hazır paket listesi ve {@code SVWallpaper} klasör öğe modeli.
  */
 public final class WallpaperThemeCatalog {
 
@@ -45,11 +45,11 @@ public final class WallpaperThemeCatalog {
     }
 
     private static final List<BundledItem> BUNDLED_ITEMS = Collections.unmodifiableList(Arrays.asList(
-            new BundledItem("mountain_landscape_4k", "Karanlık Dağ", "wallpapers/mountain_landscape_4k.jpg", "3840 × 2160"),
-            new BundledItem("gargantua_4k", "Gargantua", "wallpapers/gargantua_4k.jpg", "3840 × 2160"),
-            new BundledItem("gears_of_war_4k", "Gears of War", "wallpapers/gears_of_war_4k.png", "3840 × 2160"),
-            new BundledItem("milky_way_alps_4k", "Alpler Samanyolu", "wallpapers/milky_way_alps_4k.jpg", "3840 × 2160"),
-            new BundledItem("japan_artistic_4k", "Japonya & Fuji", "wallpapers/japan_artistic_4k.jpg", "3840 × 2160")
+            new BundledItem("mockup_1", "Mockup 1", "wallpapers/mockup_1.jpg", "1920 × 1080"),
+            new BundledItem("mockup_2", "Mockup 2", "wallpapers/mockup_2.jpg", "1920 × 1080"),
+            new BundledItem("mockup_3", "Mockup 3", "wallpapers/mockup_3.jpg", "1920 × 1080"),
+            new BundledItem("mockup_4", "Mockup 4", "wallpapers/mockup_4.jpg", "1920 × 1080"),
+            new BundledItem("mockup_5", "Mockup 5", "wallpapers/mockup_5.jpg", "1920 × 1080")
     ));
 
     public static final class WallpaperItem {

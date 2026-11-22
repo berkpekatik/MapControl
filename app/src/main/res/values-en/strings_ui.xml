@@ -1131,7 +1131,7 @@
     <string name="wallpaper_themes_delete_yes">Delete</string>
     <string name="wallpaper_themes_delete_no">Cancel</string>
     <string name="wallpaper_themes_no_picker">No image picker available on this device. Place images directly in SVWallpaper and tap Refresh.</string>
-    <string name="wallpaper_bundled_section_title">Built-in 4K Wallpapers (%1$d)</string>
+    <string name="wallpaper_bundled_section_title">Built-in Wallpapers (%1$d)</string>
     <string name="wallpaper_bundled_save_apply_btn">Save &amp; Apply</string>
     <string name="wallpaper_bundled_saved_badge">Saved ✓</string>
     <string name="wallpaper_remote_section_title">Online 4K Catalog (%1$d)</string>
@@ -1140,4 +1140,26 @@
     <string name="wallpaper_remote_download_apply_btn">Download &amp; Apply</string>
     <string name="wallpaper_remote_downloaded_badge">Downloaded ✓</string>
     <string name="wallpaper_remote_downloading_pct">Downloading %1$d%%…</string>
+    <string name="wallpaper_msg_open_failed">Could not open the image.</string>
+    <string name="wallpaper_msg_invalid_image">Not a valid image file.</string>
+    <string name="wallpaper_msg_read_failed">Could not read the image.</string>
+    <string name="wallpaper_msg_decode_failed">Could not decode the image (memory or format error).</string>
+    <string name="wallpaper_msg_write_failed">Could not write the image to the SVWallpaper folder.</string>
+    <string name="wallpaper_msg_saved">Saved (%1$s · %2$s)</string>
+    <string name="wallpaper_msg_unknown_error">Unknown error</string>
+    <string name="wallpaper_msg_process_failed">Could not process the image: %1$s</string>
+    <string name="wallpaper_msg_file_not_found">File not found: %1$s</string>
+    <string name="wallpaper_msg_decode_short">Could not decode the image</string>
+    <string name="wallpaper_msg_applied_oem">%1$s applied to the vehicle home screen.</string>
+    <string name="wallpaper_msg_applied_system_fallback">%1$s applied as the system wallpaper (the vehicle launcher did not respond).</string>
+    <string name="wallpaper_msg_applied_system">%1$s applied as the Android wallpaper (no vehicle launcher).</string>
+    <string name="wallpaper_msg_apply_failed">Could not apply the wallpaper.</string>
+    <string name="wallpaper_msg_apply_failed_reason">Could not apply the wallpaper: %1$s</string>
+    <string name="wallpaper_msg_delete_outside">Only files in the SVWallpaper folder can be deleted.</string>
+    <string name="wallpaper_msg_delete_missing">The file no longer exists.</string>
+    <string name="wallpaper_msg_delete_failed">Could not delete the file (write permission may be needed).</string>
+    <string name="wallpaper_msg_deleted_restored">%1$s deleted; the factory scene was restored.</string>
+    <string name="wallpaper_msg_deleted">%1$s deleted from the SVWallpaper folder.</string>
+    <string name="wallpaper_msg_restored_oem">Restored the original vehicle scene.</string>
+    <string name="wallpaper_msg_restored_system">Restored the default system wallpaper.</string>
 </resources>

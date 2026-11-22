@@ -33,8 +33,10 @@ import android.view.WindowManager;
 import android.view.WindowMetrics;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 import androidx.annotation.Nullable;
 
+import com.mapcontrol.R;
 import com.desaysv.appmenu.ILauncherAidlInterface;
 import com.desaysv.launcher.svwallpaper.data.WallpaperInfo;
 import com.desaysv.launcher.svwallpaper.data.WallpaperStyle;
@@ -156,6 +158,11 @@ public final class OemWallpaperManager {
     private OemWallpaperManager(@NonNull Context context) {
         this.appContext = context.getApplicationContext();
         this.prefs = WallpaperThemeCatalog.prefs(appContext);
+    }
+
+    @NonNull
+    private String str(@StringRes int res, Object... args) {
+        return appContext.getString(res, args);
     }
 
     @NonNull
@@ -516,13 +523,13 @@ public final class OemWallpaperManager {
             bounds.inJustDecodeBounds = true;
             try (InputStream in = opener.open()) {
                 if (in == null) {
-                    return new AdaptResult(null, "Görsel açılamadı.");
+                    return new AdaptResult(null, str(R.string.wallpaper_msg_open_failed));
                 }
                 BitmapFactory.decodeStream(in, null, bounds);
             }
 
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                return new AdaptResult(null, "Geçerli bir görsel dosyası değil.");
+                return new AdaptResult(null, str(R.string.wallpaper_msg_invalid_image));
             }
 
             boolean rotated90or270 = isQuarterTurn(orientation);
@@ -544,12 +551,12 @@ public final class OemWallpaperManager {
             Bitmap rawBitmap;
             try (InputStream in = opener.open()) {
                 if (in == null) {
-                    return new AdaptResult(null, "Görsel okunamadı.");
+                    return new AdaptResult(null, str(R.string.wallpaper_msg_read_failed));
                 }
                 rawBitmap = BitmapFactory.decodeStream(in, null, decodeOpts);
             }
             if (rawBitmap == null) {
-                return new AdaptResult(null, "Görsel çözümlenemedi (bellek veya biçim hatası).");
+                return new AdaptResult(null, str(R.string.wallpaper_msg_decode_failed));
             }
 
             Bitmap orientedBitmap = applyExifOrientation(rawBitmap, orientation);
@@ -571,17 +578,17 @@ public final class OemWallpaperManager {
 
             boolean saved = writeBitmapFile(adapted, targetFile, hasAlpha);
             if (!saved) {
-                return new AdaptResult(null, "Görsel SVWallpaper klasörüne yazılamadı.");
+                return new AdaptResult(null, str(R.string.wallpaper_msg_write_failed));
             }
 
             setSelectedPath(targetFile.getAbsolutePath());
             WallpaperThemeCatalog.WallpaperItem item = buildWallpaperItem(targetFile);
-            String msg = "Kaydedildi (" + item.formatResolution() + " · " + item.formatSize() + ")";
+            String msg = str(R.string.wallpaper_msg_saved, item.formatResolution(), item.formatSize());
             return new AdaptResult(item, msg);
         } catch (Throwable t) {
             Log.e(TAG, "adaptStreamToSvWallpaperSync failed", t);
-            String err = t.getMessage() != null ? t.getMessage() : "Bilinmeyen hata";
-            return new AdaptResult(null, "Görsel işlenemedi: " + err);
+            String err = t.getMessage() != null ? t.getMessage() : str(R.string.wallpaper_msg_unknown_error);
+            return new AdaptResult(null, str(R.string.wallpaper_msg_process_failed, err));
         } finally {
             if (adapted != null && !adapted.isRecycled()) {
                 adapted.recycle();
@@ -614,7 +621,7 @@ public final class OemWallpaperManager {
     @NonNull
     private ApplyResult applyWallpaperSync(@NonNull File target) {
         if (!target.exists() || !target.isFile()) {
-            return new ApplyResult(false, false, "Dosya bulunamadı: " + target.getAbsolutePath());
+            return new ApplyResult(false, false, str(R.string.wallpaper_msg_file_not_found, target.getAbsolutePath()));
         }
 
         boolean oemApplied = false;
@@ -661,7 +668,7 @@ public final class OemWallpaperManager {
                         Log.w(TAG, "WallpaperManager.setBitmap failed: " + t.getMessage());
                     }
                 } else {
-                    errorNote = "Görsel çözümlenemedi";
+                    errorNote = str(R.string.wallpaper_msg_decode_short);
                 }
             }
 
@@ -682,13 +689,15 @@ public final class OemWallpaperManager {
 
         final String msg;
         if (oemApplied) {
-            msg = target.getName() + " araç ana ekranına (SVLauncher) uygulandı.";
+            msg = str(R.string.wallpaper_msg_applied_oem, target.getName());
         } else if (systemApplied) {
             msg = isOemLauncherInstalled()
-                    ? target.getName() + " sistem arka planına uygulandı (SVLauncher AIDL yanıt vermedi)."
-                    : target.getName() + " Android duvar kağıdına uygulandı (SVLauncher yüklü değil).";
+                    ? str(R.string.wallpaper_msg_applied_system_fallback, target.getName())
+                    : str(R.string.wallpaper_msg_applied_system, target.getName());
         } else {
-            msg = "Arka plan uygulanamadı" + (errorNote != null ? ": " + errorNote : ".");
+            msg = errorNote != null
+                    ? str(R.string.wallpaper_msg_apply_failed_reason, errorNote)
+                    : str(R.string.wallpaper_msg_apply_failed);
         }
         return new ApplyResult(oemApplied, systemApplied, msg);
     }
@@ -699,13 +708,13 @@ public final class OemWallpaperManager {
             File target = new File(filePath);
             if (!WallpaperImageHelper.isInsideDirectory(storageDir, target)) {
                 if (callback != null) {
-                    mainHandler.post(() -> callback.onDeleted(false, false, "Sadece SVWallpaper klasöründeki dosyalar silinebilir."));
+                    mainHandler.post(() -> callback.onDeleted(false, false, str(R.string.wallpaper_msg_delete_outside)));
                 }
                 return;
             }
             if (!target.exists() || !target.isFile()) {
                 if (callback != null) {
-                    mainHandler.post(() -> callback.onDeleted(false, false, "Dosya zaten mevcut değil."));
+                    mainHandler.post(() -> callback.onDeleted(false, false, str(R.string.wallpaper_msg_delete_missing)));
                 }
                 return;
             }
@@ -715,7 +724,7 @@ public final class OemWallpaperManager {
             boolean deleted = target.delete();
             if (!deleted) {
                 if (callback != null) {
-                    mainHandler.post(() -> callback.onDeleted(false, wasActive, "Dosya silinemedi (yazma izni gerekebilir)."));
+                    mainHandler.post(() -> callback.onDeleted(false, wasActive, str(R.string.wallpaper_msg_delete_failed)));
                 }
                 return;
             }
@@ -739,8 +748,8 @@ public final class OemWallpaperManager {
             }
 
             String msg = wasActive
-                    ? target.getName() + " silindi ve fabrika sahnesine dönüldü."
-                    : target.getName() + " SVWallpaper klasöründen silindi.";
+                    ? str(R.string.wallpaper_msg_deleted_restored, target.getName())
+                    : str(R.string.wallpaper_msg_deleted, target.getName());
             if (callback != null) {
                 mainHandler.post(() -> callback.onDeleted(true, wasActive, msg));
             }
@@ -755,8 +764,8 @@ public final class OemWallpaperManager {
             prefs.edit().remove(WallpaperThemeCatalog.PREF_APPLIED_PATH).apply();
 
             String msg = finalOem
-                    ? "Orijinal araç sahnesine dönüldü."
-                    : "Sistem varsayılan duvar kağıdına dönüldü.";
+                    ? str(R.string.wallpaper_msg_restored_oem)
+                    : str(R.string.wallpaper_msg_restored_system);
             if (callback != null) {
                 mainHandler.post(() -> callback.onComplete(finalOem, finalSys, msg));
             }

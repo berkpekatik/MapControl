@@ -1158,7 +1158,7 @@
     <string name="wallpaper_themes_delete_yes">Sil</string>
     <string name="wallpaper_themes_delete_no">İptal</string>
     <string name="wallpaper_themes_no_picker">Bu cihazda görsel seçici bulunamadı. Görselleri SVWallpaper klasörüne kopyalayıp Yenile butonuna basın.</string>
-    <string name="wallpaper_bundled_section_title">Hazır 4K Duvar Kağıtları (%1$d)</string>
+    <string name="wallpaper_bundled_section_title">Hazır Duvar Kağıtları (%1$d)</string>
     <string name="wallpaper_bundled_save_apply_btn">Kaydet ve Uygula</string>
     <string name="wallpaper_bundled_saved_badge">Kayıtlı ✓</string>
     <string name="wallpaper_remote_section_title">Çevrimiçi 4K Katalog (%1$d)</string>
@@ -1167,4 +1167,26 @@
     <string name="wallpaper_remote_download_apply_btn">İndir ve Uygula</string>
     <string name="wallpaper_remote_downloaded_badge">İndirildi ✓</string>
     <string name="wallpaper_remote_downloading_pct">İndiriliyor %1$d%%…</string>
+    <string name="wallpaper_msg_open_failed">Görsel açılamadı.</string>
+    <string name="wallpaper_msg_invalid_image">Geçerli bir görsel dosyası değil.</string>
+    <string name="wallpaper_msg_read_failed">Görsel okunamadı.</string>
+    <string name="wallpaper_msg_decode_failed">Görsel çözümlenemedi (bellek veya biçim hatası).</string>
+    <string name="wallpaper_msg_write_failed">Görsel SVWallpaper klasörüne yazılamadı.</string>
+    <string name="wallpaper_msg_saved">Kaydedildi (%1$s · %2$s)</string>
+    <string name="wallpaper_msg_unknown_error">Bilinmeyen hata</string>
+    <string name="wallpaper_msg_process_failed">Görsel işlenemedi: %1$s</string>
+    <string name="wallpaper_msg_file_not_found">Dosya bulunamadı: %1$s</string>
+    <string name="wallpaper_msg_decode_short">Görsel çözümlenemedi</string>
+    <string name="wallpaper_msg_applied_oem">%1$s araç ana ekranına uygulandı.</string>
+    <string name="wallpaper_msg_applied_system_fallback">%1$s sistem arka planına uygulandı (araç launcher\'ı yanıt vermedi).</string>
+    <string name="wallpaper_msg_applied_system">%1$s Android duvar kağıdına uygulandı (araç launcher\'ı yok).</string>
+    <string name="wallpaper_msg_apply_failed">Arka plan uygulanamadı.</string>
+    <string name="wallpaper_msg_apply_failed_reason">Arka plan uygulanamadı: %1$s</string>
+    <string name="wallpaper_msg_delete_outside">Sadece SVWallpaper klasöründeki dosyalar silinebilir.</string>
+    <string name="wallpaper_msg_delete_missing">Dosya zaten mevcut değil.</string>
+    <string name="wallpaper_msg_delete_failed">Dosya silinemedi (yazma izni gerekebilir).</string>
+    <string name="wallpaper_msg_deleted_restored">%1$s silindi, fabrika sahnesine dönüldü.</string>
+    <string name="wallpaper_msg_deleted">%1$s SVWallpaper klasöründen silindi.</string>
+    <string name="wallpaper_msg_restored_oem">Orijinal araç sahnesine dönüldü.</string>
+    <string name="wallpaper_msg_restored_system">Sistem varsayılan duvar kağıdına dönüldü.</string>
 </resources>
