@@ -121,7 +121,8 @@ public final class ClimateAutomationEngine {
     };
     private static final int[] READONLY_IDS = {
             ReadOnlyID.ID_SYSTEM_POWER_MODE,
-            ReadOnlyID.ID_CAR_POWER_MODE
+            ReadOnlyID.ID_CAR_POWER_MODE,
+            ReadOnlyID.ID_ENGINE_STATE
     };
 
     private static volatile ClimateAutomationEngine instance;
@@ -157,6 +158,13 @@ public final class ClimateAutomationEngine {
     private volatile long driveReadySinceMs;
     private volatile boolean awaitingRestartAfterPowerDown;
     private volatile boolean engineStartedThisDrive;
+    /**
+     * Bu bağlantıda ID_CAR_POWER_MODE (13) / ID_ENGINE_STATE (74) en az bir kez sıfırdan farklı geldi mi?
+     * CarInfoProxy yanıt alamadığında [0] döndürdüğü için "hiç gelmedi" ile "0" ayırt edilemez;
+     * ikisi de hiç gelmediyse (ör. T19C) motor çalışıyor kontrolü PowerMode>=2'ye düşer.
+     */
+    private volatile boolean carPowerSignalSeen;
+    private volatile boolean engineStateSignalSeen;
     private volatile String lastAction = "";
     private String lastEvaluationGate = "";
     private String lastPollError = "";
@@ -229,7 +237,8 @@ public final class ClimateAutomationEngine {
             try {
                 io.execute(() -> {
                     if (itemId == ReadOnlyID.ID_SYSTEM_POWER_MODE
-                            || itemId == ReadOnlyID.ID_CAR_POWER_MODE) {
+                            || itemId == ReadOnlyID.ID_CAR_POWER_MODE
+                            || itemId == ReadOnlyID.ID_ENGINE_STATE) {
                         refreshPowerModeFromBus();
                     }
                     notifyListeners();
@@ -306,6 +315,8 @@ public final class ClimateAutomationEngine {
                         driveReadySinceMs = 0;
                         awaitingRestartAfterPowerDown = false;
                         engineStartedThisDrive = false;
+                        carPowerSignalSeen = false;
+                        engineStateSignalSeen = false;
                         callbacksRegistered = false;
                         firedThisDrive.clear();
                         appliedThisDrive.clear();
@@ -583,7 +594,32 @@ public final class ClimateAutomationEngine {
     }
 
     static boolean shouldRearmOnCarPowerRunning(int powerMode, boolean engineStartedThisDrive, int carPowerMode) {
-        return powerMode >= 1 && !engineStartedThisDrive && isCarPowerModeRunning(carPowerMode);
+        return shouldRearmOnEngineRunning(powerMode, engineStartedThisDrive, isCarPowerModeRunning(carPowerMode));
+    }
+
+    static boolean shouldRearmOnEngineRunning(int powerMode, boolean engineStartedThisDrive, boolean engineRunning) {
+        return powerMode >= 1 && !engineStartedThisDrive && engineRunning;
+    }
+
+    static boolean isEngineStateRunning(int engineState) {
+        return engineState == 1;
+    }
+
+    /**
+     * Motor çalışıyor mu? Önce ID_CAR_POWER_MODE (13) == 4, sonra ID_ENGINE_STATE (74) == 1 bakılır.
+     * T19C (Tiggo 7) firmware'inde 13 tanımlı değil; yalnızca T26/T1EJ 4x4 akışında okunuyor.
+     * İki sinyal de bu bağlantıda hiç sıfırdan farklı gelmediyse PowerMode>=2 (eski davranış) kabul edilir,
+     * böylece sinyalleri olmayan araçlarda konfor otomasyonu sessizce devre dışı kalmaz.
+     */
+    static boolean isEngineRunning(int carPowerMode, int engineState,
+            boolean carPowerSignalSeen, boolean engineStateSignalSeen, int powerMode) {
+        if (isCarPowerModeRunning(carPowerMode) || isEngineStateRunning(engineState)) {
+            return true;
+        }
+        if (!carPowerSignalSeen && !engineStateSignalSeen) {
+            return powerMode >= 2;
+        }
+        return false;
     }
 
     static Boolean evaluateSeatFeedback(int rawValue, int uiLevel, boolean alreadyAppliedThisDrive) {
@@ -709,12 +745,20 @@ public final class ClimateAutomationEngine {
     private void refreshPowerModeFromBus(CarInfoProxy proxy) {
         int[] sysPwr = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_SYSTEM_POWER_MODE);
         int[] carPwr = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_CAR_POWER_MODE);
+        int[] engState = proxy.getItemValues(MODULE_READONLY, ReadOnlyID.ID_ENGINE_STATE);
         int sysVal = (sysPwr != null && sysPwr.length > 0) ? sysPwr[0] : -1;
         int carVal = (carPwr != null && carPwr.length > 0) ? carPwr[0] : -1;
-        String sigKey = sysVal + "|" + carVal;
+        int engVal = (engState != null && engState.length > 0) ? engState[0] : -1;
+        if (carVal > 0) {
+            carPowerSignalSeen = true;
+        }
+        if (engVal > 0) {
+            engineStateSignalSeen = true;
+        }
+        String sigKey = sysVal + "|" + carVal + "|" + engVal;
         if (!sigKey.equals(lastLoggedSignals)) {
             lastLoggedSignals = sigKey;
-            log("Araç sinyalleri: sysPower=" + sysVal + ", carPower=" + carVal);
+            log("Araç sinyalleri: sysPower=" + sysVal + ", carPower=" + carVal + ", engineState=" + engVal);
         }
 
         int effectivePwr = resolveEffectivePowerMode(sysVal, carVal);
@@ -725,11 +769,16 @@ public final class ClimateAutomationEngine {
             }
             applyPowerMode(effectivePwr);
         }
-        if (isCarPowerModeRunning(carVal)) {
-            applyCarPowerRunningSignal(carVal);
-        } else if (engineStartedThisDrive && carVal >= 0 && carVal < 4) {
+        if (isCarPowerModeRunning(carVal) && lastPowerMode < 1) {
+            applyPowerMode(carVal);
+        }
+        String engineSource = "carPowerMode=" + carVal + ", engineState=" + engVal
+                + ((!carPowerSignalSeen && !engineStateSignalSeen) ? ", yedek: PowerMode=" + lastPowerMode : "");
+        if (isEngineRunning(carVal, engVal, carPowerSignalSeen, engineStateSignalSeen, lastPowerMode)) {
+            applyEngineRunningSignal(engineSource);
+        } else if (engineStartedThisDrive) {
             engineStartedThisDrive = false;
-            log("Motor durdu algılandı (carPowerMode=" + carVal + "); aracın çalışması bekleniyor");
+            log("Motor durdu algılandı (" + engineSource + "); aracın çalışması bekleniyor");
         }
     }
 
@@ -807,11 +856,8 @@ public final class ClimateAutomationEngine {
         }
     }
 
-    private void applyCarPowerRunningSignal(int carPowerMode) {
-        if (lastPowerMode < 1) {
-            applyPowerMode(carPowerMode);
-        }
-        if (shouldRearmOnCarPowerRunning(lastPowerMode, engineStartedThisDrive, carPowerMode)) {
+    private void applyEngineRunningSignal(String source) {
+        if (shouldRearmOnEngineRunning(lastPowerMode, engineStartedThisDrive, true)) {
             engineStartedThisDrive = true;
             awaitingRestartAfterPowerDown = false;
             driveReadySinceMs = System.currentTimeMillis();
@@ -822,7 +868,7 @@ public final class ClimateAutomationEngine {
             manualOverridesThisDrive.clear();
             awaitingActivationFeedback.clear();
             ruleActivatedAtMs.clear();
-            log("Motor çalışıyor algılandı (carPowerMode=" + carPowerMode
+            log("Motor çalışıyor algılandı (" + source
                     + "); konfor otomasyonu kuralları değerlendiriliyor");
             evaluate("car_power_run");
         }
@@ -848,7 +894,7 @@ public final class ClimateAutomationEngine {
         }
         if (!engineStartedThisDrive) {
             logEvaluationGate("Kontak açık (PowerMode=" + lastPowerMode
-                    + "); aracın çalışması (ID_CAR_POWER_MODE=4) bekleniyor");
+                    + "); aracın çalışması (ID_CAR_POWER_MODE=4 / ID_ENGINE_STATE=1) bekleniyor");
             return;
         }
         Double temp = outsideTempC;

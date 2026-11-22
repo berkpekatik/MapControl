@@ -187,4 +187,28 @@ public class ClimateAutomationEngineTest {
         assertEquals(2, ClimateAutomationEngine.remainingStartDelayMinutes(rule, base, enabledMidDriveAt));
         assertEquals(0, ClimateAutomationEngine.remainingStartDelayMinutes(rule, base, enabledMidDriveAt + 120_000L));
     }
+
+    @Test
+    public void engineRunningUsesCarPowerModeOrEngineState() {
+        // Tiggo 8 / T1E24: ID_CAR_POWER_MODE (13) == 4
+        assertTrue(ClimateAutomationEngine.isEngineRunning(4, 0, true, false, 2));
+        // ID_ENGINE_STATE (74) == 1 tek başına yeterli
+        assertTrue(ClimateAutomationEngine.isEngineRunning(0, 1, false, true, 2));
+        // Sinyaller destekleniyor ama motor çalışmıyor: kontak açık olsa da bekle
+        assertFalse(ClimateAutomationEngine.isEngineRunning(2, 0, true, false, 2));
+        assertFalse(ClimateAutomationEngine.isEngineRunning(0, 0, false, true, 2));
+    }
+
+    @Test
+    public void engineRunningFallsBackToPowerModeWhenSignalsMissing() {
+        // T19C: 13 ve 74 hiç gelmedi (CarInfoProxy [0] döndürür) -> PowerMode>=2 eski davranış
+        assertTrue(ClimateAutomationEngine.isEngineRunning(0, 0, false, false, 2));
+        assertTrue(ClimateAutomationEngine.isEngineRunning(-1, -1, false, false, 3));
+        assertFalse(ClimateAutomationEngine.isEngineRunning(0, 0, false, false, 1));
+        assertFalse(ClimateAutomationEngine.isEngineRunning(0, 0, false, false, 0));
+
+        assertTrue(ClimateAutomationEngine.shouldRearmOnEngineRunning(2, false, true));
+        assertFalse(ClimateAutomationEngine.shouldRearmOnEngineRunning(2, true, true));
+        assertFalse(ClimateAutomationEngine.shouldRearmOnEngineRunning(0, false, true));
+    }
 }
