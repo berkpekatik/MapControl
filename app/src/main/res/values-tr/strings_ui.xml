@@ -1158,7 +1158,6 @@
     <string name="wallpaper_themes_delete_yes">Sil</string>
     <string name="wallpaper_themes_delete_no">İptal</string>
     <string name="wallpaper_themes_no_picker">Bu cihazda görsel seçici bulunamadı. Görselleri SVWallpaper klasörüne kopyalayıp Yenile butonuna basın.</string>
-    <string name="wallpaper_bundled_section_title">Hazır Duvar Kağıtları (%1$d)</string>
     <string name="wallpaper_bundled_save_apply_btn">Kaydet ve Uygula</string>
     <string name="wallpaper_bundled_saved_badge">Kayıtlı ✓</string>
     <string name="wallpaper_msg_open_failed">Görsel açılamadı.</string>
@@ -1186,4 +1185,19 @@
     <string name="wallpaper_msg_write_failed_launcher">Görsel araç launcher klasörüne yazılamadı.</string>
     <string name="wallpaper_themes_launcher_checking">Araç ana ekranı kontrol ediliyor…</string>
     <string name="wallpaper_themes_launcher_unsupported">Bu aracın ana ekranı (SVLauncher) özel duvar kağıdını desteklemiyor; görseller yalnızca SVWallpaper klasöründe saklanır</string>
+    <string name="wallpaper_cloud_section_title">Hesabımdaki görseller (%1$d/%2$d)</string>
+    <string name="wallpaper_cloud_refresh">Yenile</string>
+    <string name="wallpaper_cloud_loading">Hesaptaki görseller yükleniyor…</string>
+    <string name="wallpaper_cloud_no_account">Telefonla eşleşince MapControl hesabına yüklediğin görseller burada görünür. Görselleri adbauth.vnoisy.dev → Duvar kağıtları ya da mobil uygulamadan ekle.</string>
+    <string name="wallpaper_cloud_offline">İnternet yok; hesaptaki görseller şu an alınamıyor.</string>
+    <string name="wallpaper_cloud_error">Hesaptaki görseller alınamadı. Daha sonra Yenile\'ye bas.</string>
+    <string name="wallpaper_cloud_empty">Hesabında görsel yok. adbauth.vnoisy.dev → Duvar kağıtları ya da mobil uygulamadan en çok 5 görsel ekleyebilirsin.</string>
+    <string name="wallpaper_cloud_hint">Bir görsele dokun: araç indirir, ekrana göre uyarlar ve uygular. İndirilen görseller SVWallpaper klasöründe kalır ve aşağıdaki kayıtlı görsellerde de görünür.</string>
+    <string name="wallpaper_cloud_unnamed">Duvar kağıdı</string>
+    <string name="wallpaper_cloud_downloaded">araçta</string>
+    <string name="wallpaper_cloud_apply">Uygula</string>
+    <string name="wallpaper_cloud_download_apply">İndir ve uygula</string>
+    <string name="wallpaper_cloud_applying">Uygulanıyor…</string>
+    <string name="wallpaper_cloud_applied">Uygulandı ✓</string>
+    <string name="wallpaper_msg_cloud_download_failed">Görsel hesaptan indirilemedi (internet ya da hesap bağlantısı yok).</string>
 </resources>

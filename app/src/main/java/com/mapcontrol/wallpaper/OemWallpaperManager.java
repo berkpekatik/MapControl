@@ -368,50 +368,14 @@ public final class OemWallpaperManager {
         });
     }
 
-    public void loadAssetThumbnailAsync(
-            @NonNull WallpaperThemeCatalog.BundledItem item,
-            int maxWidth,
-            int maxHeight,
-            @NonNull ThumbnailCallback callback) {
-        Bitmap cached = getCachedThumbnail(item.assetPath);
-        if (cached != null) {
-            callback.onThumbnailReady(item.assetPath, cached);
-            return;
-        }
+    /**
+     * Hesaptaki görseli indirir (araç token'ı), SVWallpaper'a ekran boyutunda {@code cloud_<id>_<ad>} adıyla kaydeder
+     * ve uygular. Dosya klasörde kalır (yerel galeride görünür, hesaptan silinse de durur); aynı görsel daha önce
+     * indirildiyse ağa çıkılmaz.
+     */
+    public void applyCloudWallpaperAsync(@NonNull CloudWallpapers.Item item, @Nullable Callback callback) {
         worker.execute(() -> {
-            Bitmap bmp = null;
-            try {
-                BitmapFactory.Options bounds = new BitmapFactory.Options();
-                bounds.inJustDecodeBounds = true;
-                try (InputStream in = appContext.getAssets().open(item.assetPath)) {
-                    BitmapFactory.decodeStream(in, null, bounds);
-                }
-                if (bounds.outWidth > 0 && bounds.outHeight > 0) {
-                    BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inSampleSize = WallpaperImageHelper.calculateInSampleSize(
-                            bounds.outWidth, bounds.outHeight, maxWidth, maxHeight);
-                    opts.inPreferredConfig = Bitmap.Config.RGB_565;
-                    try (InputStream in = appContext.getAssets().open(item.assetPath)) {
-                        bmp = BitmapFactory.decodeStream(in, null, opts);
-                    }
-                }
-            } catch (Throwable t) {
-                Log.w(TAG, "loadAssetThumbnailAsync failed for " + item.assetPath + ": " + t.getMessage());
-            }
-            if (bmp != null) {
-                thumbnailCache.put(item.assetPath, bmp);
-            }
-            final Bitmap finalBmp = bmp;
-            mainHandler.post(() -> callback.onThumbnailReady(item.assetPath, finalBmp));
-        });
-    }
-
-    public void applyBundledWallpaperAsync(
-            @NonNull WallpaperThemeCatalog.BundledItem item,
-            @Nullable Callback callback) {
-        worker.execute(() -> {
-            File storageDir = resolveStorageDirectory();
-            File existing = WallpaperThemeCatalog.findInstalledBundledFile(storageDir, item.id);
+            File existing = findCloudCopy(item);
             if (existing != null) {
                 ApplyResult res = applyWallpaperSync(existing);
                 if (callback != null) {
@@ -419,10 +383,16 @@ public final class OemWallpaperManager {
                 }
                 return;
             }
-
-            String fixedBase = WallpaperThemeCatalog.localBaseNameForBundledId(item.id);
-            StreamOpener assetOpener = () -> appContext.getAssets().open(item.assetPath);
-            AdaptResult adapted = adaptStreamToSvWallpaperSync(assetOpener, fixedBase, item.title);
+            byte[] data = CloudWallpapers.download(appContext, item.id);
+            if (data == null) {
+                if (callback != null) {
+                    String msg = str(R.string.wallpaper_msg_cloud_download_failed);
+                    mainHandler.post(() -> callback.onComplete(false, false, msg));
+                }
+                return;
+            }
+            StreamOpener opener = () -> new java.io.ByteArrayInputStream(data);
+            AdaptResult adapted = adaptStreamToSvWallpaperSync(opener, item.localBaseName(), item.name);
             if (adapted.item == null) {
                 if (callback != null) {
                     mainHandler.post(() -> callback.onComplete(false, false, adapted.message));
@@ -434,6 +404,23 @@ public final class OemWallpaperManager {
                 mainHandler.post(() -> callback.onComplete(applyRes.oemApplied, applyRes.systemApplied, applyRes.message));
             }
         });
+    }
+
+    /** Hesap görselinin SVWallpaper'daki kopyası ({@code cloud_<id>_…}); yoksa {@code null}. */
+    @Nullable
+    public File findCloudCopy(@NonNull CloudWallpapers.Item item) {
+        File[] files = resolveStorageDirectory().listFiles();
+        if (files == null) {
+            return null;
+        }
+        String prefix = item.localPrefix();
+        for (File f : files) {
+            if (f.isFile() && f.getName().startsWith(prefix)
+                    && WallpaperImageHelper.isSupportedImageFilename(f.getName())) {
+                return f;
+            }
+        }
+        return null;
     }
 
     public void importWallpaperFromUri(@NonNull Uri uri, @NonNull ImportCallback callback) {

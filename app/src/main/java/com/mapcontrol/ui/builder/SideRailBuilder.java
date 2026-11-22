@@ -395,6 +395,11 @@ public class SideRailBuilder {
         showRow(menuVehicleInfo, MenuTabs.VEHICLE_INFO, cards);
         showRow(menuSettings, MenuTabs.SETTINGS, cards);
         showRow(menuHomeScreen, MenuTabs.HOME_SCREEN, cards);
+        // Tiggo 7 (1920×720) ana ekranı özel duvar kağıdını desteklemez: menü o çözünürlükte hiç görünmez.
+        if (menuWallpaperThemes != null) {
+            menuWallpaperThemes.setVisibility(
+                    com.mapcontrol.wallpaper.WallpaperThemeCatalog.isSupportedScreen(context) ? View.VISIBLE : View.GONE);
+        }
         // Alt dokdaki "Hafıza" kısayolu da Hafıza modu kartına bağlı.
         showRow(btnDockDrive, MenuTabs.DRIVE_MODE, cards);
     }

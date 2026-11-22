@@ -31,6 +31,7 @@ import androidx.core.graphics.ColorUtils;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.wallpaper.CloudWallpapers;
 import com.mapcontrol.wallpaper.OemWallpaperManager;
 import com.mapcontrol.wallpaper.WallpaperImageHelper;
 import com.mapcontrol.wallpaper.WallpaperThemeCatalog;
@@ -79,8 +80,16 @@ public class WallpaperThemesTabBuilder {
     private Button btnRefreshFolder;
     private Button btnRestoreOem;
     private LinearLayout galleryContainer;
-    private LinearLayout bundledGalleryContainer;
-    private TextView tvBundledTitle;
+    private LinearLayout cloudContainer;
+    private TextView tvCloudTitle;
+    private TextView tvCloudNote;
+    @NonNull
+    private List<CloudWallpapers.Item> cloudItems = new ArrayList<>();
+    @Nullable
+    private CloudWallpapers.Status cloudStatus;
+    private int cloudMaxCount = 5;
+    private int applyingCloudId = 0;
+    private int cloudLoadGen = 0;
 
     private boolean isLandscape;
     private float currentDensity;
@@ -120,11 +129,12 @@ public class WallpaperThemesTabBuilder {
         root.addView(buildStatusBanner(currentDensity));
         root.addView(buildTopActionsBar(currentDensity, isLandscape));
         root.addView(buildPreviewCard(currentDensity, isLandscape));
-        root.addView(buildBundledCatalogSection(currentDensity));
+        root.addView(buildCloudSection(currentDensity));
         root.addView(buildGallerySection(currentDensity));
 
         scrollView.addView(root);
         reloadCatalog();
+        reloadCloud();
         wallpaperManager.detectBackendAsync(b -> refreshHeaderAndStatus());
         return scrollView;
     }
@@ -169,7 +179,7 @@ public class WallpaperThemesTabBuilder {
             syncSelectedItemWithCatalog();
             refreshHeaderAndStatus();
             refreshPreviewCard();
-            renderBundledItems();
+            renderCloudItems();
             renderGalleryItems();
         });
     }
@@ -538,7 +548,8 @@ public class WallpaperThemesTabBuilder {
         }
     }
 
-    private View buildBundledCatalogSection(float density) {
+    /** Üyenin hesabındaki görseller (web / mobil uygulamadan yüklenir, en çok 5). */
+    private View buildCloudSection(float density) {
         LinearLayout section = new LinearLayout(activity);
         section.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams sectionLp = new LinearLayout.LayoutParams(
@@ -547,180 +558,133 @@ public class WallpaperThemesTabBuilder {
         sectionLp.bottomMargin = dp(18, density);
         section.setLayoutParams(sectionLp);
 
-        tvBundledTitle = new TextView(activity);
-        tvBundledTitle.setText(activity.getString(
-                R.string.wallpaper_bundled_section_title,
-                WallpaperThemeCatalog.bundledItems().size()));
-        tvBundledTitle.setTextSize(14);
-        tvBundledTitle.setTypeface(null, Typeface.BOLD);
-        tvBundledTitle.setTextColor(UiStyles.color(activity, R.color.textPrimary));
-        tvBundledTitle.setPadding(dp(2, density), 0, 0, dp(8, density));
-        section.addView(tvBundledTitle);
+        LinearLayout header = new LinearLayout(activity);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        tvCloudTitle = new TextView(activity);
+        tvCloudTitle.setText(activity.getString(R.string.wallpaper_cloud_section_title, 0, cloudMaxCount));
+        tvCloudTitle.setTextSize(14);
+        tvCloudTitle.setTypeface(null, Typeface.BOLD);
+        tvCloudTitle.setTextColor(UiStyles.color(activity, R.color.textPrimary));
+        tvCloudTitle.setPadding(dp(2, density), 0, 0, 0);
+        header.addView(tvCloudTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        Button refresh = createSecondaryButton(R.string.wallpaper_cloud_refresh, density);
+        refresh.setOnClickListener(v -> reloadCloud());
+        header.addView(refresh);
+        section.addView(header);
 
-        bundledGalleryContainer = new LinearLayout(activity);
-        bundledGalleryContainer.setOrientation(LinearLayout.VERTICAL);
-        section.addView(bundledGalleryContainer);
+        tvCloudNote = new TextView(activity);
+        tvCloudNote.setTextSize(12);
+        tvCloudNote.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
+        tvCloudNote.setPadding(dp(2, density), dp(6, density), 0, dp(8, density));
+        section.addView(tvCloudNote);
 
+        cloudContainer = new LinearLayout(activity);
+        cloudContainer.setOrientation(LinearLayout.VERTICAL);
+        section.addView(cloudContainer);
         return section;
     }
 
-    private void renderBundledItems() {
-        if (bundledGalleryContainer == null) {
-            return;
+    private void reloadCloud() {
+        final int gen = ++cloudLoadGen;
+        if (tvCloudNote != null) {
+            tvCloudNote.setText(R.string.wallpaper_cloud_loading);
         }
-        bundledGalleryContainer.removeAllViews();
-        List<WallpaperThemeCatalog.BundledItem> bundled = WallpaperThemeCatalog.bundledItems();
-        if (tvBundledTitle != null) {
-            tvBundledTitle.setText(activity.getString(
-                    R.string.wallpaper_bundled_section_title, bundled.size()));
-        }
-        renderGridCards(bundledGalleryContainer, bundled, this::buildBundledWallpaperCard);
+        new Thread(() -> {
+            CloudWallpapers.ListResult result = CloudWallpapers.list(activity.getApplicationContext());
+            activity.runOnUiThread(() -> {
+                if (gen != cloudLoadGen) {
+                    return;
+                }
+                cloudStatus = result.status;
+                cloudItems = new ArrayList<>(result.items);
+                if (result.maxCount > 0) {
+                    cloudMaxCount = result.maxCount;
+                }
+                renderCloudItems();
+            });
+        }, "wallpaper-cloud").start();
     }
 
-    private View buildBundledWallpaperCard(@NonNull WallpaperThemeCatalog.BundledItem bundled) {
-        File storageDir = wallpaperManager.getStorageDirectory();
-        File localFile = WallpaperThemeCatalog.findInstalledBundledFile(storageDir, bundled.id);
-        boolean isInstalled = localFile != null;
-        boolean isApplied = localFile != null && localFile.getAbsolutePath().equals(wallpaperManager.getAppliedPath());
-
-        LinearLayout card = new LinearLayout(activity);
-        card.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(10, currentDensity);
-        card.setPadding(pad, pad, pad, pad);
-
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(UiStyles.color(activity, R.color.surfaceCard));
-        bg.setCornerRadius(dp(14, currentDensity));
-        int strokeColor = isApplied
-                ? UiStyles.color(activity, R.color.statusSuccess)
-                : UiStyles.color(activity, R.color.automationCardStroke);
-        bg.setStroke(dp(isApplied ? 2 : 1, currentDensity), strokeColor);
-        card.setBackground(bg);
-
-        FrameLayout thumbFrame = new FrameLayout(activity);
-        GradientDrawable thumbBg = new GradientDrawable();
-        thumbBg.setColor(UiStyles.color(activity, R.color.surfaceCardInner));
-        thumbBg.setCornerRadius(dp(10, currentDensity));
-        thumbFrame.setBackground(thumbBg);
-        thumbFrame.setClipToOutline(true);
-        thumbFrame.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
-
-        ImageView thumb = new ImageView(activity);
-        thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        thumb.setTag("asset:" + bundled.assetPath);
-        thumbFrame.addView(thumb, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        if (isApplied || isInstalled) {
-            int badgeColor = UiStyles.color(activity, R.color.statusSuccess);
-            TextView pill = new TextView(activity);
-            pill.setText(isApplied ? R.string.wallpaper_themes_card_applied : R.string.wallpaper_bundled_saved_badge);
-            pill.setTextSize(11);
-            pill.setTypeface(null, Typeface.BOLD);
-            pill.setTextColor(contrastTextColor(badgeColor));
-            pill.setPadding(dp(8, currentDensity), dp(3, currentDensity), dp(8, currentDensity), dp(3, currentDensity));
-            GradientDrawable pillBg = new GradientDrawable();
-            pillBg.setCornerRadius(dp(8, currentDensity));
-            pillBg.setColor(badgeColor);
-            pill.setBackground(pillBg);
-            FrameLayout.LayoutParams pillLp = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.TOP | Gravity.END);
-            pillLp.setMargins(0, dp(8, currentDensity), dp(8, currentDensity), 0);
-            thumbFrame.addView(pill, pillLp);
+    private void renderCloudItems() {
+        if (cloudContainer == null) {
+            return;
         }
-
-        if (localFile != null) {
-            wallpaperManager.loadThumbnailAsync(localFile.getAbsolutePath(), 640, 360, (path, bmp) -> {
-                if (bmp != null && ("asset:" + bundled.assetPath).equals(thumb.getTag())) {
-                    thumb.setImageBitmap(bmp);
-                }
-            });
-        } else {
-            wallpaperManager.loadAssetThumbnailAsync(bundled, 640, 360, (assetPath, bmp) -> {
-                if (bmp != null && ("asset:" + bundled.assetPath).equals(thumb.getTag())) {
-                    thumb.setImageBitmap(bmp);
-                }
-            });
+        cloudContainer.removeAllViews();
+        if (tvCloudTitle != null) {
+            tvCloudTitle.setText(activity.getString(
+                    R.string.wallpaper_cloud_section_title, cloudItems.size(), cloudMaxCount));
         }
-
-        card.addView(thumbFrame, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(120, currentDensity)));
-
-        TextView titleView = new TextView(activity);
-        titleView.setText(bundled.title);
-        titleView.setTextSize(14);
-        titleView.setTypeface(null, Typeface.BOLD);
-        titleView.setTextColor(UiStyles.color(activity, R.color.textPrimary));
-        titleView.setSingleLine(true);
-        titleView.setEllipsize(TextUtils.TruncateAt.END);
-        titleView.setPadding(dp(2, currentDensity), dp(8, currentDensity), dp(2, currentDensity), 0);
-        card.addView(titleView);
-
-        TextView metaView = new TextView(activity);
-        metaView.setText(bundled.resolution + " (16:9)");
-        metaView.setTextSize(12);
-        metaView.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
-        metaView.setPadding(dp(2, currentDensity), dp(2, currentDensity), dp(2, currentDensity), dp(8, currentDensity));
-        card.addView(metaView);
-
-        int accentColor = UiStyles.color(activity, R.color.oemAccent);
-        LinearLayout actionRow = new LinearLayout(activity);
-        actionRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        Button primaryBtn = new Button(activity);
-        primaryBtn.setAllCaps(false);
-        primaryBtn.setTextSize(12);
-        primaryBtn.setTypeface(null, Typeface.BOLD);
-        primaryBtn.setTextColor(contrastTextColor(accentColor));
-        primaryBtn.setMinimumHeight(dp(40, currentDensity));
-        primaryBtn.setPadding(dp(12, currentDensity), dp(4, currentDensity), dp(12, currentDensity), dp(4, currentDensity));
-        UiStyles.styleOemButton(primaryBtn, accentColor);
-
-        if (localFile != null) {
-            WallpaperThemeCatalog.WallpaperItem matchingLocal = findByPath(localFile.getAbsolutePath());
-            primaryBtn.setText(R.string.wallpaper_themes_apply_btn);
-            primaryBtn.setOnClickListener(v -> applyBundledItem(bundled));
-
-            Button delBtn = createDestructiveButton(R.string.wallpaper_themes_delete_btn, currentDensity);
-            delBtn.setMinimumHeight(dp(40, currentDensity));
-            delBtn.setTextSize(12);
-            delBtn.setOnClickListener(v -> {
-                if (matchingLocal != null) {
-                    confirmDeleteWallpaper(matchingLocal);
-                } else {
-                    wallpaperManager.deleteWallpaperFile(localFile.getAbsolutePath(), (d, w, m) -> {
-                        setStatusNote(m);
-                        reloadCatalog();
-                    });
-                }
-            });
-
-            actionRow.addView(primaryBtn, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.3f));
-            LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.7f);
-            delLp.leftMargin = dp(8, currentDensity);
-            actionRow.addView(delBtn, delLp);
-        } else {
-            primaryBtn.setText(R.string.wallpaper_bundled_save_apply_btn);
-            primaryBtn.setOnClickListener(v -> applyBundledItem(bundled));
-            actionRow.addView(primaryBtn, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        if (tvCloudNote != null) {
+            int note;
+            if (cloudStatus == null) {
+                note = R.string.wallpaper_cloud_loading;
+            } else if (cloudStatus == CloudWallpapers.Status.NO_ACCOUNT) {
+                note = R.string.wallpaper_cloud_no_account;
+            } else if (cloudStatus == CloudWallpapers.Status.OFFLINE) {
+                note = R.string.wallpaper_cloud_offline;
+            } else if (cloudStatus == CloudWallpapers.Status.ERROR) {
+                note = R.string.wallpaper_cloud_error;
+            } else if (cloudItems.isEmpty()) {
+                note = R.string.wallpaper_cloud_empty;
+            } else {
+                note = R.string.wallpaper_cloud_hint;
+            }
+            tvCloudNote.setText(note);
         }
+        renderGridCards(cloudContainer, cloudItems, this::buildCloudCard);
+    }
 
-        card.addView(actionRow);
+    private View buildCloudCard(@NonNull CloudWallpapers.Item item) {
+        float density = currentDensity;
+        LinearLayout card = createThemedCard(density, 0);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+
+        File local = wallpaperManager.findCloudCopy(item);
+        boolean applied = local != null && local.getAbsolutePath().equals(wallpaperManager.getAppliedPath());
+        boolean applying = applyingCloudId == item.id;
+
+        LinearLayout texts = new LinearLayout(activity);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(activity);
+        name.setText(item.name.isEmpty() ? activity.getString(R.string.wallpaper_cloud_unnamed) : item.name);
+        name.setTextSize(14);
+        name.setTypeface(null, Typeface.BOLD);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        name.setTextColor(UiStyles.color(activity, R.color.textPrimary));
+        texts.addView(name);
+        TextView meta = new TextView(activity);
+        meta.setText(item.width + " × " + item.height + " · " + item.formatSize()
+                + (local != null ? " · " + activity.getString(R.string.wallpaper_cloud_downloaded) : ""));
+        meta.setTextSize(12);
+        meta.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
+        texts.addView(meta);
+        card.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button btn = createSecondaryButton(applied ? R.string.wallpaper_cloud_applied
+                : applying ? R.string.wallpaper_cloud_applying
+                : local != null ? R.string.wallpaper_cloud_apply
+                : R.string.wallpaper_cloud_download_apply, density);
+        btn.setEnabled(!applied && applyingCloudId == 0);
+        btn.setAlpha(btn.isEnabled() ? 1f : 0.55f);
+        btn.setOnClickListener(v -> applyCloudItem(item));
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnLp.leftMargin = dp(10, density);
+        card.addView(btn, btnLp);
         return card;
     }
 
-    private void applyBundledItem(@NonNull WallpaperThemeCatalog.BundledItem bundled) {
+    private void applyCloudItem(@NonNull CloudWallpapers.Item item) {
+        applyingCloudId = item.id;
+        renderCloudItems();
         setBusyState(true, activity.getString(R.string.wallpaper_themes_applying));
-        wallpaperManager.applyBundledWallpaperAsync(bundled, (oemOk, sysOk, message) -> {
+        wallpaperManager.applyCloudWallpaperAsync(item, (oemOk, sysOk, message) -> {
+            applyingCloudId = 0;
             setBusyState(false, message);
-            callback.log("Hazır 4K Duvar Kağıdı: " + message);
+            callback.log("Hesap duvar kağıdı: " + message);
             reloadCatalog();
         });
     }
