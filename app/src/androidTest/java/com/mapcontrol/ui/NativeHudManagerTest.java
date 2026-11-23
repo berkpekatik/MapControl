@@ -173,6 +173,15 @@ public class NativeHudManagerTest {
         assertTrue(vehicle.commands.isEmpty());
     }
 
+    @Test public void savedPreferenceStaysVisibleWhileSupportIsUnknown() {
+        vehicle.support = null;
+        instrumentation.runOnMainSync(() -> hud.setEnabled(true));
+        awaitStatus(R.string.hud_nav_check_support);
+        assertTrue(hud.isPreferenceOn());
+        assertFalse(hud.isEnabled());
+        assertTrue(vehicle.commands.isEmpty());
+    }
+
     @Test public void powerOffDefersStartAndCleanupUntilPowerReturns() {
         postRoute();
         awaitStatus(R.string.hud_nav_showing);
