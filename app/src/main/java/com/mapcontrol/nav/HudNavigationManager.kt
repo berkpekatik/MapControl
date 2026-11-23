@@ -70,6 +70,8 @@ class HudNavigationManager internal constructor(context: Context, private val ve
     }
 
     fun isSupported(): Boolean = support == true
+    /** Donanım yok diye doğrulanmadıkça (bilinmiyor dahil) kart görünür; gönderim yine yalnız destek doğruysa yapılır. */
+    fun isKnownAbsent(): Boolean = support == false
     fun isEnabled(): Boolean = isSupported() && prefs.getBoolean(ENABLED, false)
     fun provider(): String = prefs.getString(PROVIDER, "auto") ?: "auto"
     fun status(): String = app.getString(lastStatus)

@@ -30,10 +30,21 @@ internal class NativeHudVehicle : HudVehicle {
     override fun hudSupport(): Boolean? {
         val now = SystemClock.elapsedRealtime()
         if (checkedAt?.let { now - it < 2_000L } != true) {
-            support = OemEolConfigReader.configBit(OemEolConfigReader.readConfig4Bytes(), 4, 4)
+            val config = OemEolConfigReader.readConfig4Bytes()
+            // Config bu araçta üçüncü taraf uygulamaya kapalıysa (SELinux), HUD'un kendi yanıtı donanım kanıtıdır.
+            support = OemEolConfigReader.configBit(config, 4, 4) ?: probeHud()
+            Log.i("HudNavigation", "HUD config4=" + config?.joinToString(",") + " destek=" + support)
             checkedAt = now
         }
         return support
+    }
+    /** Config okunamayan araçlarda (SELinux) HUD ünitesinin kendi yanıtı donanım kanıtıdır. */
+    private fun probeHud(): Boolean? {
+        val state = CarInfoRead.read(VDEventCarInfo.MODULE_HUD, HUDID.ID_HUD_STATE)
+        val display = CarInfoRead.read(VDEventCarInfo.MODULE_HUD, HUDID.ID_HUD_DISPLAY)
+        Log.i("HudNavigation", "HUD probe state=" + state?.joinToString(",") + " display=" + display?.joinToString(","))
+        // Yanıt yoksa "yok" denmez; bilinmiyor kalır ve gönderim yapılmaz.
+        return if (state != null || display != null) true else null
     }
     override fun connected(): Boolean = proxy.isServiceConnnected
     override fun powerMode(): Int? = CarInfoRead.readOnly(ReadOnlyID.ID_SYSTEM_POWER_MODE)?.firstOrNull()

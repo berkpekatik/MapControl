@@ -593,7 +593,7 @@ public class ProjectionTabBuilder {
     }
 
     private void syncHudNavigationCard() {
-        boolean enabled = com.mapcontrol.nav.HudNavigationManager.get(context).isSupported();
+        boolean enabled = !com.mapcontrol.nav.HudNavigationManager.get(context).isKnownAbsent();
         if (enabled && hudNavigationCard == null && featureGrid != null) {
             hudNavigationCard = HudNavigationCard.create(context);
             featureGrid.addCard(hudNavigationCard);
