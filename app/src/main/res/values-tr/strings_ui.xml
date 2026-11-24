@@ -1201,4 +1201,9 @@
     <string name="wallpaper_cloud_applying">Uygulanıyor…</string>
     <string name="wallpaper_cloud_applied">Uygulandı ✓</string>
     <string name="wallpaper_msg_cloud_download_failed">Görsel hesaptan indirilemedi (internet ya da hesap bağlantısı yok).</string>
+    <string name="climate_auto_rule_status_no_windshield_heat">● Aracınızda ön cam ısıtma bulunmuyor</string>
+    <string name="climate_auto_rule_status_unsupported">● Araç desteklemiyor / Yanıt yok</string>
+    <string name="climate_auto_windshield_mode_fan">Mod: Fan</string>
+    <string name="climate_auto_windshield_mode_heater">Mod: Rezistans</string>
+    <string name="climate_auto_windshield_mode_heater_toast">Sadece ön camında rezistans bulunan araçlarda çalışır (örn. Jaecoo)</string>
 </resources>

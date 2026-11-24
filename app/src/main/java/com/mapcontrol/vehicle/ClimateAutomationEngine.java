@@ -47,7 +47,8 @@ public final class ClimateAutomationEngine {
         WAITING_START_DELAY,
         ACTIVE,
         COMPLETED_TIMEOUT,
-        MANUAL_OVERRIDE
+        MANUAL_OVERRIDE,
+        UNSUPPORTED
     }
 
     public static final class RuleStatus {
@@ -520,6 +521,12 @@ public final class ClimateAutomationEngine {
                 map.put(id, new RuleStatus(RuleRunState.WAITING_START_DELAY, startRem));
                 continue;
             }
+            if (firedThisDrive.contains(id)
+                    && !awaitingActivationFeedback.contains(id)
+                    && sendAttemptsThisPhase.getOrDefault(id, 0) >= MAX_STARTUP_SEND_ATTEMPTS) {
+                map.put(id, new RuleStatus(RuleRunState.UNSUPPORTED, 0));
+                continue;
+            }
             map.put(id, new RuleStatus(RuleRunState.ACTIVATING, 0));
         }
         return map;
@@ -654,8 +661,10 @@ public final class ClimateAutomationEngine {
             // Koltuk ısıtma / soğutma: 0 veya 1 = kapalı
             isOffNotification = (raw == 0 || raw == 1);
             isOnNotification = (raw > 1);
-        } else if (ClimateAutomationStore.STEER_HEAT.equals(ruleId)) {
-            // Direksiyon ısıtma: 1 = açık, 0 (veya 2) = kapalı
+        } else if (ClimateAutomationStore.STEER_HEAT.equals(ruleId)
+                || ClimateAutomationStore.WINDSHIELD.equals(ruleId)
+                || ClimateAutomationStore.REAR_DEFROST.equals(ruleId)) {
+            // Direksiyon ısıtma ve ön/arka cam buğu çözme: 1 = açık, 0 (veya 2) = kapalı
             isOffNotification = (raw == 0 || raw == 2);
             isOnNotification = (raw == 1);
         } else {
@@ -1038,6 +1047,9 @@ public final class ClimateAutomationEngine {
             case ClimateAutomationStore.STEER_HEAT:
                 return feedbackMatches(id, MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 1);
             case ClimateAutomationStore.WINDSHIELD:
+                if (ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                    return feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
+                }
                 return anyFeedbackMatches(
                         feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1),
                         feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1));
@@ -1156,12 +1168,20 @@ public final class ClimateAutomationEngine {
                 }
                 case ClimateAutomationStore.WINDSHIELD:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
+                    if (!ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
+                    }
                     break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 1);
+                case ClimateAutomationStore.REAR_DEFROST: {
+                    int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
+                    int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
+                    boolean isOn = (hvacCur != null && hvacCur.length > 0 && hvacCur[0] == 1)
+                            || (setCur != null && setCur.length > 0 && setCur[0] == 1);
+                    if (!isOn) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.CLIMATE:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 1);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 1);
@@ -1255,13 +1275,22 @@ public final class ClimateAutomationEngine {
                     break;
                 }
                 case ClimateAutomationStore.WINDSHIELD:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 0);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 0);
+                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 2);
+                    if (!ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 2);
+                    }
                     break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 0);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 0);
+                case ClimateAutomationStore.REAR_DEFROST: {
+                    int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
+                    int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
+                    boolean isOn = (hvacCur != null && hvacCur.length > 0 && hvacCur[0] == 1)
+                            || (setCur != null && setCur.length > 0 && setCur[0] == 1);
+                    if (isOn) {
+                        // 0 ve 2 ile kapanmadığı için direksiyon ısıtması gibi toggle (1) ile kapatılır
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.CLIMATE:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 0);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 0);

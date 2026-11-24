@@ -440,6 +440,13 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
                     text = context.getString(R.string.climate_auto_rule_status_waiting_vehicle);
                     color = UiStyles.color(context, R.color.automationTextMuted);
                     break;
+                case UNSUPPORTED:
+                    text = (ClimateAutomationStore.WINDSHIELD.equals(entry.getKey())
+                            && ClimateAutomationStore.isWindshieldHeatOnly(prefs))
+                            ? context.getString(R.string.climate_auto_rule_status_no_windshield_heat)
+                            : context.getString(R.string.climate_auto_rule_status_unsupported);
+                    color = UiStyles.color(context, R.color.statusWarning);
+                    break;
                 case DISABLED:
                 default:
                     text = context.getString(R.string.climate_auto_rule_status_off);
@@ -683,9 +690,51 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         TextView conditionDesc = new TextView(context);
         UiStyles.setTextSize(conditionDesc, R.dimen.text_size_tiny);
         conditionDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-        conditionDesc.setPadding(dp(10, density), 0, 0, 0);
+        conditionDesc.setPadding(dp(10, density), 0, dp(6, density), 0);
         conditionDesc.setText(formatConditionDesc(rule));
-        compareRow.addView(conditionDesc);
+        compareRow.addView(conditionDesc, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (ClimateAutomationStore.WINDSHIELD.equals(id)) {
+            TextView modeChip = new TextView(context);
+            UiStyles.setTextSize(modeChip, R.dimen.text_size_tiny);
+            UiStyles.setFontStyle(modeChip, Typeface.BOLD);
+            modeChip.setPadding(dp(10, density), dp(5, density), dp(10, density), dp(5, density));
+            modeChip.setSingleLine(true);
+
+            Runnable refreshModeChip = () -> {
+                boolean heatOnly = ClimateAutomationStore.isWindshieldHeatOnly(prefs);
+                modeChip.setText(heatOnly
+                        ? R.string.climate_auto_windshield_mode_heater
+                        : R.string.climate_auto_windshield_mode_fan);
+                int chipColor = heatOnly
+                        ? UiStyles.color(context, R.color.oemAccent)
+                        : UiStyles.color(context, R.color.textSecondaryCool);
+                modeChip.setTextColor(chipColor);
+                GradientDrawable bg = new GradientDrawable();
+                bg.setColor(heatOnly
+                        ? ((chipColor & 0x00FFFFFF) | 0x22000000)
+                        : UiStyles.color(context, R.color.surfaceCardInner));
+                bg.setCornerRadius(dp(10, density));
+                bg.setStroke(dp(1, density), heatOnly
+                        ? ((chipColor & 0x00FFFFFF) | 0x88000000)
+                        : UiStyles.color(context, R.color.automationCardStroke));
+                modeChip.setBackground(bg);
+            };
+            refreshModeChip.run();
+            modeChip.setOnClickListener(v -> {
+                boolean next = !ClimateAutomationStore.isWindshieldHeatOnly(prefs);
+                ClimateAutomationStore.setWindshieldHeatOnly(prefs, next);
+                refreshModeChip.run();
+                if (next) {
+                    Toast.makeText(context,
+                            R.string.climate_auto_windshield_mode_heater_toast,
+                            Toast.LENGTH_LONG).show();
+                }
+                engine.notifyRuleChanged(id);
+            });
+            compareRow.addView(modeChip);
+        }
 
         card.addView(compareRow);
 

@@ -54,7 +54,7 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
             return;
         }
 
-        // Perde açıldıktan sonra camın açılmasını veya Tilt'e kalkmasını bekleyen işlem varsa:
+        // Perde açıldıktan sonra camın açılmasını bekleyen işlem varsa:
         if (awaitingSunshadeToOpenGlass) {
             if (snapshot.isSunshadeOpen()) {
                 Log.i(TAG, "VDBus ONAY: Tavan perdesi tamamen arkaya çekildi! Cam motoru anında devreye sokuluyor...");
@@ -62,16 +62,6 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
                 handler.postDelayed(this::sendSunroofOpenDirect, 800);
                 handler.postDelayed(this::sendSunroofOpenDirect, 1800);
                 awaitingSunshadeToOpenGlass = false;
-                unregisterMetricsListener();
-            }
-        }
-        if (awaitingSunshadeToTiltGlass) {
-            if (snapshot.isSunshadeOpen()) {
-                Log.i(TAG, "VDBus ONAY: Tavan perdesi açıldı! Cam tavan Tilt moduna alınıyor...");
-                sendSunroofTiltDirect();
-                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 800);
-                handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 1800);
-                awaitingSunshadeToTiltGlass = false;
                 unregisterMetricsListener();
             }
         }
@@ -343,7 +333,6 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
                 awaitingSunshadeToTiltGlass = true;
                 registerMetricsListener();
                 openSunshadeOnly();
-                sendSunroofTiltDirect();
                 scheduleMultiStageSunroofTilt();
             } else {
                 unregisterMetricsListener();
@@ -361,14 +350,12 @@ public final class VehicleSunroofController implements VehicleMetricsRepository.
 
     private void scheduleMultiStageSunroofTilt() {
         handler.removeCallbacksAndMessages(SUNROOF_TOKEN);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 1500);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 3500);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 5500);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 7000);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 8200);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 9500);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 11000);
-        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 12500);
+        // Perde hareket halindeyken erken Tilt darbesi perdeyi yarıda durdurabileceği için
+        // VDBus perde-açık onayı gelmezse yedek Tilt darbeleri perde açılma süresinden (~7.5 sn) sonra başlar.
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 7500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 9000);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 10500);
+        handler.postAtTime(this::sendSunroofTiltDirect, SUNROOF_TOKEN, SystemClock.uptimeMillis() + 12000);
         handler.postAtTime(() -> {
             awaitingSunshadeToTiltGlass = false;
             unregisterMetricsListener();

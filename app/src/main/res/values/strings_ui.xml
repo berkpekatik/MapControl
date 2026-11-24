@@ -1182,4 +1182,9 @@
     <string name="wallpaper_cloud_applying">Applying…</string>
     <string name="wallpaper_cloud_applied">Applied ✓</string>
     <string name="wallpaper_msg_cloud_download_failed">Could not download the image from your account (no internet or account link).</string>
+    <string name="climate_auto_rule_status_no_windshield_heat">● Front glass heater not available on vehicle</string>
+    <string name="climate_auto_rule_status_unsupported">● Not supported by vehicle</string>
+    <string name="climate_auto_windshield_mode_fan">Mode: Fan</string>
+    <string name="climate_auto_windshield_mode_heater">Mode: Heater</string>
+    <string name="climate_auto_windshield_mode_heater_toast">Only works on vehicles with a heated front windshield (e.g. Jaecoo)</string>
 </resources>
