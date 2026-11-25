@@ -229,4 +229,18 @@ public class ClimateAutomationEngineTest {
         assertFalse(ClimateAutomationEngine.isIgnoredWindshieldSignal(
                 ClimateAutomationStore.REAR_DEFROST, hvac, HvacID.ID_AC_REAR_DEFROST, true));
     }
+
+    @Test
+    public void rearDefrostToggleCommandAvoidsDoubleToggle() {
+        assertEquals(Integer.valueOf(1),
+                ClimateAutomationEngine.resolveRearDefrostCommand(true, new int[] {0}, new int[] {0}));
+        assertNull(ClimateAutomationEngine.resolveRearDefrostCommand(true, new int[] {1}, new int[] {0}));
+        assertNull(ClimateAutomationEngine.resolveRearDefrostCommand(true, new int[] {0}, new int[] {1}));
+
+        assertEquals(Integer.valueOf(1),
+                ClimateAutomationEngine.resolveRearDefrostCommand(false, new int[] {1}, new int[] {0}));
+        assertEquals(Integer.valueOf(1),
+                ClimateAutomationEngine.resolveRearDefrostCommand(false, new int[] {0}, new int[] {1}));
+        assertNull(ClimateAutomationEngine.resolveRearDefrostCommand(false, new int[] {0}, new int[] {0}));
+    }
 }

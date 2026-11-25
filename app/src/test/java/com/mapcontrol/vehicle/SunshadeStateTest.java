@@ -35,4 +35,13 @@ public class SunshadeStateTest {
         assertFalse(withSunshade(VehicleMetricsCache.INVALID).isSunshadeOpen());
         assertFalse(VehicleMetricsSnapshot.empty(true).isSunshadeOpen());
     }
+
+    @Test
+    public void onlyFiveIsFullyOpen() {
+        assertTrue(withSunshade(5).isSunshadeFullyOpen());
+        for (int v : new int[] {0, 1, 2, 3, 4, 6, VehicleMetricsCache.INVALID}) {
+            assertFalse("deger " + v, withSunshade(v).isSunshadeFullyOpen());
+        }
+        assertFalse(VehicleMetricsSnapshot.empty(true).isSunshadeFullyOpen());
+    }
 }

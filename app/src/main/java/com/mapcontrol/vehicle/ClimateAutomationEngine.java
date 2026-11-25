@@ -1201,10 +1201,9 @@ public final class ClimateAutomationEngine {
                 case ClimateAutomationStore.REAR_DEFROST: {
                     int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
                     int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
-                    boolean isOn = (hvacCur != null && hvacCur.length > 0 && hvacCur[0] == 1)
-                            || (setCur != null && setCur.length > 0 && setCur[0] == 1);
-                    if (!isOn) {
-                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
+                    Integer cmd = resolveRearDefrostCommand(true, hvacCur, setCur);
+                    if (cmd != null) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, cmd);
                     }
                     break;
                 }
@@ -1311,11 +1310,10 @@ public final class ClimateAutomationEngine {
                 case ClimateAutomationStore.REAR_DEFROST: {
                     int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
                     int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
-                    boolean isOn = (hvacCur != null && hvacCur.length > 0 && hvacCur[0] == 1)
-                            || (setCur != null && setCur.length > 0 && setCur[0] == 1);
-                    if (isOn) {
+                    Integer cmd = resolveRearDefrostCommand(false, hvacCur, setCur);
+                    if (cmd != null) {
                         // 0 ve 2 ile kapanmadığı için direksiyon ısıtması gibi toggle (1) ile kapatılır
-                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, cmd);
                     }
                     break;
                 }
@@ -1373,6 +1371,20 @@ public final class ClimateAutomationEngine {
      */
     public static Integer resolveSteeringWheelHeatCommand(boolean turnOn, int[] currentValues) {
         boolean isCurrentlyOn = currentValues != null && currentValues.length > 0 && currentValues[0] == 1;
+        if (turnOn) {
+            return isCurrentlyOn ? null : 1;
+        }
+        return isCurrentlyOn ? 1 : null;
+    }
+
+    /**
+     * Arka cam ısıtma (ID_AC_REAR_DEFROST = 80) toggle (1) ile çalışır:
+     * durum 1 (açık) iken kapatmak için 1, kapalı iken açmak için 1 gönderilir;
+     * zaten hedef durumdaysa çift toggle olmaması için null döner.
+     */
+    public static Integer resolveRearDefrostCommand(boolean turnOn, int[] hvacValues, int[] settingValues) {
+        boolean isCurrentlyOn = (hvacValues != null && hvacValues.length > 0 && hvacValues[0] == 1)
+                || (settingValues != null && settingValues.length > 0 && settingValues[0] == 1);
         if (turnOn) {
             return isCurrentlyOn ? null : 1;
         }
