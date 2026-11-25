@@ -1,5 +1,8 @@
 package com.mapcontrol.vehicle;
 
+import com.desaysv.ivi.extra.project.carinfo.HvacID;
+import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -210,5 +213,20 @@ public class ClimateAutomationEngineTest {
         assertTrue(ClimateAutomationEngine.shouldRearmOnEngineRunning(2, false, true));
         assertFalse(ClimateAutomationEngine.shouldRearmOnEngineRunning(2, true, true));
         assertFalse(ClimateAutomationEngine.shouldRearmOnEngineRunning(0, false, true));
+    }
+
+    @Test
+    public void heatOnlyModeIgnoresMaxFrontDefrostSignalForWindshield() {
+        int hvac = VDEventCarInfo.MODULE_HVAC;
+        assertTrue(ClimateAutomationEngine.isIgnoredWindshieldSignal(
+                ClimateAutomationStore.WINDSHIELD, hvac, HvacID.ID_AC_MAX_FRONT_DEFOREST, true));
+        // Fan modunda 24 kuralın parçasıdır
+        assertFalse(ClimateAutomationEngine.isIgnoredWindshieldSignal(
+                ClimateAutomationStore.WINDSHIELD, hvac, HvacID.ID_AC_MAX_FRONT_DEFOREST, false));
+        // Rezistans (65) her iki modda da izlenir
+        assertFalse(ClimateAutomationEngine.isIgnoredWindshieldSignal(
+                ClimateAutomationStore.WINDSHIELD, hvac, HvacID.ID_AC_FRONT_GLASS_HEAT, true));
+        assertFalse(ClimateAutomationEngine.isIgnoredWindshieldSignal(
+                ClimateAutomationStore.REAR_DEFROST, hvac, HvacID.ID_AC_REAR_DEFROST, true));
     }
 }

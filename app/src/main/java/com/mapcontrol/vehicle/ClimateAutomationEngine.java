@@ -136,6 +136,11 @@ public final class ClimateAutomationEngine {
     /** Araç geri bildirimiyle gerçekten aktif olduğu görülen kurallar (bu sürüş). */
     private final Set<String> confirmedActive = new HashSet<>();
     private final Set<String> awaitingActivationFeedback = new HashSet<>();
+    /**
+     * Bu sürüşte ön cam kuralı için ID_AC_MAX_FRONT_DEFOREST (24) açıldı mı. Kapatma, o anki mod
+     * tercihine değil buna göre yapılır; böylece kural aktifken Fan → Rezistans geçişinde 24 açık kalmaz.
+     */
+    private boolean windshieldFanAppliedThisDrive;
     private final Set<String> feedbackReadErrorsReported = new HashSet<>();
     private final Map<String, Integer> sendAttemptsThisPhase = new HashMap<>();
     private final Map<String, Long> lastSentElapsedMs = new HashMap<>();
@@ -316,6 +321,7 @@ public final class ClimateAutomationEngine {
                         callbacksRegistered = false;
                         firedThisDrive.clear();
                         appliedThisDrive.clear();
+                        windshieldFanAppliedThisDrive = false;
                         appliedWhileReady.clear();
                         sendAttemptsThisPhase.clear();
                         ruleActivatedAtMs.clear();
@@ -355,6 +361,7 @@ public final class ClimateAutomationEngine {
         engineStartedThisDrive = false;
         firedThisDrive.clear();
         appliedThisDrive.clear();
+        windshieldFanAppliedThisDrive = false;
         appliedWhileReady.clear();
         sendAttemptsThisPhase.clear();
         ruleActivatedAtMs.clear();
@@ -649,6 +656,12 @@ public final class ClimateAutomationEngine {
         if (ruleId == null || !appliedThisDrive.contains(ruleId)) {
             return;
         }
+        if (isIgnoredWindshieldSignal(ruleId, module, itemId,
+                ClimateAutomationStore.isWindshieldHeatOnly(prefs))) {
+            // Rezistans modunda 24'ü otomasyon yönetmez; sürücünün fanlı buğu çözmeyi
+            // elle açıp kapatması kuralın aktif / manuel müdahale durumunu etkilemez.
+            return;
+        }
         Long sentAt = lastSentElapsedMs.get(ruleId);
         long nowElapsed = SystemClock.elapsedRealtime();
         // Kendi gönderdiğimiz komutun hemen ardından gelen ilk yansımayı (800ms) yoksay
@@ -684,6 +697,14 @@ public final class ClimateAutomationEngine {
             firedThisDrive.add(ruleId);
             awaitingActivationFeedback.remove(ruleId);
         }
+    }
+
+    /** Rezistans modunda ön cam kuralı için 24 (ID_AC_MAX_FRONT_DEFOREST) bildirimleri yok sayılır. */
+    static boolean isIgnoredWindshieldSignal(String ruleId, int module, int itemId, boolean heatOnly) {
+        return heatOnly
+                && ClimateAutomationStore.WINDSHIELD.equals(ruleId)
+                && module == MODULE_HVAC
+                && itemId == HvacID.ID_AC_MAX_FRONT_DEFOREST;
     }
 
     private String ruleIdForSignal(int module, int itemId) {
@@ -1170,6 +1191,11 @@ public final class ClimateAutomationEngine {
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
                     if (!ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
                         proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
+                        windshieldFanAppliedThisDrive = true;
+                    } else if (windshieldFanAppliedThisDrive) {
+                        // Kural aktifken Fan → Rezistans geçildi: önceki modda açılan fanı kapat.
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 2);
+                        windshieldFanAppliedThisDrive = false;
                     }
                     break;
                 case ClimateAutomationStore.REAR_DEFROST: {
@@ -1276,8 +1302,10 @@ public final class ClimateAutomationEngine {
                 }
                 case ClimateAutomationStore.WINDSHIELD:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 2);
-                    if (!ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                    // Mod tercihine değil bu sürüşte gerçekten 24'e yazılıp yazılmadığına bak.
+                    if (windshieldFanAppliedThisDrive) {
                         proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 2);
+                        windshieldFanAppliedThisDrive = false;
                     }
                     break;
                 case ClimateAutomationStore.REAR_DEFROST: {
