@@ -84,7 +84,7 @@ public final class AccessibilityKeeper {
         try {
             String current = Settings.Secure.getString(app.getContentResolver(),
                     Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            String updated = withService(current, GlobalBackService.ACCESSIBILITY_FLAT_COMPONENT);
+            String updated = withService(current, GlobalBackService.accessibilityFlatComponent(app));
             Settings.Secure.putString(app.getContentResolver(),
                     Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated);
             Settings.Secure.putInt(app.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 1);
@@ -110,7 +110,8 @@ public final class AccessibilityKeeper {
         }
         for (String raw : current.split(":")) {
             String id = raw.trim();
-            if (id.equals(component) || id.endsWith("service.GlobalBackService")) {
+            // Yalnız bu paketin kaydı sayılır: başka paket adlı (ör. eski com.mapcontrol) kayıt bu hizmeti bağlamaz.
+            if (id.equals(component)) {
                 return current;
             }
         }

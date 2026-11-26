@@ -87,4 +87,27 @@ class NavigationRoutesTest {
         assertEquals(yandex, hudRoute(yandex.copy(maneuver = NavManeuver.UNKNOWN), yandex, "yandex"))
         assertFalse(hudRoute(NavigationState.NONE, yandex, "google").active)
     }
+
+    @Test fun YandexNotificationArrowAndForegroundMetricsReachHudTogether() {
+        val screen = yandex.copy(maneuver = NavManeuver.UNKNOWN,
+            distance = NavDistance("300", "m", 300), street = "Atatürk Cd.",
+            remainingDistance = NavDistance("18", "km", 18_000))
+        val result = hudRoute(yandex, screen, "yandex")
+        assertEquals(NavManeuver.LEFT, result.maneuver)
+        assertEquals(screen.distance, result.distance)
+        assertEquals(screen.street, result.street)
+        assertEquals(screen.remainingDistance, result.remainingDistance)
+    }
+
+    @Test fun ForegroundDoesNotOverwritePopulatedNotificationFields() {
+        val notification = yandex.copy(distance = NavDistance("200", "m", 200), street = "Yeni yol")
+        val screen = yandex.copy(distance = NavDistance("300", "m", 300), street = "Eski yol")
+        assertEquals(notification, hudRoute(notification, screen, "auto"))
+    }
+
+    @Test fun YandexMapsScreenDoesNotFillAnotherNavigatorsRoute() {
+        val navigator = yandex.copy(sourcePackage = NavigationSource.YANDEX_NAVI)
+        val screen = yandex.copy(distance = NavDistance("300", "m", 300), street = "Maps yolu")
+        assertEquals(navigator, hudRoute(navigator, screen, "yandex"))
+    }
 }

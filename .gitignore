@@ -12,6 +12,7 @@ output/
 
 # Documentation & UI Previews
 /docs/*
+!/docs/hud-jcartools-reference.md
 !/docs/ui/
 
 # Android Studio

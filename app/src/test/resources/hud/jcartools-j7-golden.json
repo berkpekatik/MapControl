@@ -1,0 +1,347 @@
+{
+  "referenceApkSha256": "550c5e408a04a1a53d62a4781ec66dc5c6aa67375a6e00140edf87992e815483",
+  "referenceCoreSha256": "87243bdb72aacc8bab4d6e3e2c3e314a3d7327f200aeb377965b24b3ecf56d77",
+  "producer": "Original ProInfoJ.StartHUD/SendHUD/arrc, compiled with recording CarInfo transport stub",
+  "cases": [
+    {
+      "name": "right",
+      "street": "Atatürk Cd.",
+      "maneuver": "RIGHT",
+      "turnMeters": 300,
+      "remainingMeters": 18000,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          12,
+          65,
+          116,
+          97,
+          116,
+          195,
+          188,
+          114,
+          107,
+          32,
+          67,
+          100,
+          46
+        ],
+        [
+          49,
+          5,
+          3,
+          0,
+          44,
+          1,
+          0
+        ],
+        [
+          51,
+          4,
+          80,
+          70,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "roundabout",
+      "street": "Döner kavşak",
+      "maneuver": "ROUNDABOUT_ENTER",
+      "turnMeters": 1200,
+      "remainingMeters": 20000,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          14,
+          68,
+          195,
+          182,
+          110,
+          101,
+          114,
+          32,
+          107,
+          97,
+          118,
+          197,
+          159,
+          97,
+          107
+        ],
+        [
+          49,
+          5,
+          24,
+          0,
+          -80,
+          4,
+          0
+        ],
+        [
+          51,
+          4,
+          32,
+          78,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "unknown",
+      "street": " ",
+      "maneuver": "UNKNOWN",
+      "turnMeters": 0,
+      "remainingMeters": 0,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          1,
+          32
+        ],
+        [
+          49,
+          5,
+          -1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        [
+          51,
+          4,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "signed",
+      "street": "Signed bytes",
+      "maneuver": "HARD_RIGHT",
+      "turnMeters": 200,
+      "remainingMeters": 305441741,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          12,
+          83,
+          105,
+          103,
+          110,
+          101,
+          100,
+          32,
+          98,
+          121,
+          116,
+          101,
+          115
+        ],
+        [
+          49,
+          5,
+          7,
+          0,
+          -56,
+          0,
+          0
+        ],
+        [
+          51,
+          4,
+          -51,
+          -85,
+          52,
+          18
+        ]
+      ]
+    },
+    {
+      "name": "truncated",
+      "street": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀x",
+      "maneuver": "LEFT",
+      "turnMeters": 1,
+      "remainingMeters": 1,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          47,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          240,
+          159,
+          152
+        ],
+        [
+          49,
+          5,
+          2,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          51,
+          4,
+          1,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "imperial",
+      "street": "Mile road",
+      "maneuver": "STRAIGHT",
+      "turnMeters": 1609,
+      "remainingMeters": 19312,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          9,
+          77,
+          105,
+          108,
+          101,
+          32,
+          114,
+          111,
+          97,
+          100
+        ],
+        [
+          49,
+          5,
+          9,
+          0,
+          73,
+          6,
+          0
+        ],
+        [
+          51,
+          4,
+          112,
+          75,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "empty-road",
+      "street": "",
+      "maneuver": "RIGHT",
+      "turnMeters": 300,
+      "remainingMeters": 18000,
+      "packets": [
+        [
+          52,
+          1,
+          0
+        ],
+        [
+          48,
+          0
+        ],
+        [
+          49,
+          5,
+          3,
+          0,
+          44,
+          1,
+          0
+        ],
+        [
+          51,
+          4,
+          80,
+          70,
+          0,
+          0
+        ]
+      ]
+    }
+  ]
+}

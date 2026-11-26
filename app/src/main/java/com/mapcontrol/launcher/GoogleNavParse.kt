@@ -14,15 +14,16 @@ import com.mapcontrol.nav.GoogleMapsNavSnapshot
  *  - başlık yok, metin "Salkım Söğüt Sk. yönüne doğru", alt metin "1 dk. · 260 m · TVS: 23:01"
  *  - başlık "200 m", metin "Turn left - Main", alt metin "5 min · 800 m"
  *
- * Manevra oku Google'da bitmap (büyük ikon) olarak gelir; okunmaz. Ok, talimat metnindeki sözcüklerden temkinli çıkarılır
- * (Türkçe / İngilizce); tanınmazsa [NavManeuver.UNKNOWN] (sönük düz ok, mesafe ve talimat yine gösterilir).
+ * Manevra oku Google'da bitmap (büyük ikon) olarak gelir; [GoogleManeuverIcon] onu Haritalar'ın kendi ok çizimleriyle
+ * eşleştirir. Eşleşmezse ok talimat metnindeki sözcüklerden temkinli çıkarılır (Türkçe / İngilizce); "X yönüne doğru"
+ * her manevrada kullanıldığından düz sayılmaz. Tanınmazsa [NavManeuver.UNKNOWN] (sönük ok, mesafe ve talimat yine gösterilir).
  */
 object GoogleNavParse {
 
     /** Bildirim extras metinlerinden durum; rota yoksa null. */
-    fun parse(title: String?, text: String?, subText: String?, nowMs: Long = 0L): NavigationState? {
+    fun parse(title: String?, text: String?, subText: String?, nowMs: Long = 0L, iconManeuver: NavManeuver? = null): NavigationState? {
         val state = fromSnapshot(
-            GoogleMapsNavNotificationParser.parseFields(clean(title), clean(text), clean(subText), false), nowMs,
+            GoogleMapsNavNotificationParser.parseFields(clean(title), clean(text), clean(subText), false), nowMs, iconManeuver,
         ) ?: return null
         return state.copy(
             distance = NavParse.parseDistanceOnly(title?.substringBefore(" - ")) ?: state.distance,
@@ -30,7 +31,8 @@ object GoogleNavParse {
         )
     }
 
-    fun fromSnapshot(snap: GoogleMapsNavSnapshot, nowMs: Long = 0L): NavigationState? {
+    /** [iconManeuver]: büyük ikondaki ok resminden tanınan manevra ([GoogleManeuverIcon]); metinden önce gelir. */
+    fun fromSnapshot(snap: GoogleMapsNavSnapshot, nowMs: Long = 0L, iconManeuver: NavManeuver? = null): NavigationState? {
         if (!snap.active) return null
         val distance = NavParse.parseDistanceOnly(snap.formatManeuverDistanceLine())
         val instruction = snap.formatManeuverDirectionLine()?.takeIf { it.any(Char::isLetter) && NavParse.parseDistanceOnly(it) == null }
@@ -38,7 +40,7 @@ object GoogleNavParse {
         val remaining = NavParse.findDistance(snap.etaDistanceLabel())
         val arrival = arrivalClock(snap.etaArrivalLabel())
         if (distance == null && instruction == null && minutes == null && remaining == null) return null
-        val maneuver = maneuverFromInstruction(instruction) ?: NavManeuver.UNKNOWN
+        val maneuver = iconManeuver ?: maneuverFromInstruction(instruction) ?: NavManeuver.UNKNOWN
         val exit = if (maneuver == NavManeuver.ROUNDABOUT_ENTER) NavParse.parseExitNumber(instruction) else null
         return NavigationState(
             active = true,
@@ -90,7 +92,7 @@ object GoogleNavParse {
     private val EXIT_RIGHT = Regex("""(?iu)exit\s+(on\s+the\s+)?right|sağdaki\s+çıkış|sağ\s+çıkış""")
     private val LEFT = Regex("""(?iu)turn\s+left|sola\s+dön|sola\s+sap|sola\s+gir""")
     private val RIGHT = Regex("""(?iu)turn\s+right|sağa\s+dön|sağa\s+sap|sağa\s+gir""")
-    private val STRAIGHT = Regex("""(?iu)\bhead\b|continue|go\s+straight|straight\s+ahead|düz\s+devam|devam\s+edin|ilerleyin|yönüne\s+doğru|doğru\s+ilerle""")
+    private val STRAIGHT = Regex("""(?iu)\bhead\b|continue|go\s+straight|straight\s+ahead|düz\s+devam|devam\s+edin|ilerleyin|doğru\s+ilerle""")
 
     /**
      * Talimat metninden manevra (sıra önemli: U dönüşü ve kavşak, "sola" sözcüğü içerse de önce gelir). Tanınmayan metin null.

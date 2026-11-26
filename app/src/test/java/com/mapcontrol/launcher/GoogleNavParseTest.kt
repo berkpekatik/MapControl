@@ -26,7 +26,8 @@ class GoogleNavParseTest {
         val s = GoogleNavParse.parse(null, "Salkım Söğüt Sk. yönüne doğru", "1 dk. · 260 m · TVS: 23:01")!!
         assertNull(s.distance)
         assertEquals("Salkım Söğüt Sk. yönüne doğru", s.street)
-        assertEquals(NavManeuver.STRAIGHT, s.maneuver)
+        // "yönüne doğru" dönüşlerde de kullanılır: düz ok uydurulmaz.
+        assertEquals(NavManeuver.UNKNOWN, s.maneuver)
         assertEquals("23:01", s.arrivalTime)
         assertEquals(1, s.remainingMinutes)
         assertEquals(260, s.remainingDistance!!.meters)
