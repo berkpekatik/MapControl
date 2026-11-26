@@ -47,7 +47,8 @@ public final class ClimateAutomationEngine {
         WAITING_START_DELAY,
         ACTIVE,
         COMPLETED_TIMEOUT,
-        MANUAL_OVERRIDE
+        MANUAL_OVERRIDE,
+        UNSUPPORTED
     }
 
     public static final class RuleStatus {
@@ -135,6 +136,11 @@ public final class ClimateAutomationEngine {
     /** Araç geri bildirimiyle gerçekten aktif olduğu görülen kurallar (bu sürüş). */
     private final Set<String> confirmedActive = new HashSet<>();
     private final Set<String> awaitingActivationFeedback = new HashSet<>();
+    /**
+     * Bu sürüşte ön cam kuralı için ID_AC_MAX_FRONT_DEFOREST (24) açıldı mı. Kapatma, o anki mod
+     * tercihine değil buna göre yapılır; böylece kural aktifken Fan → Rezistans geçişinde 24 açık kalmaz.
+     */
+    private boolean windshieldFanAppliedThisDrive;
     private final Set<String> feedbackReadErrorsReported = new HashSet<>();
     private final Map<String, Integer> sendAttemptsThisPhase = new HashMap<>();
     private final Map<String, Long> lastSentElapsedMs = new HashMap<>();
@@ -315,6 +321,7 @@ public final class ClimateAutomationEngine {
                         callbacksRegistered = false;
                         firedThisDrive.clear();
                         appliedThisDrive.clear();
+                        windshieldFanAppliedThisDrive = false;
                         appliedWhileReady.clear();
                         sendAttemptsThisPhase.clear();
                         ruleActivatedAtMs.clear();
@@ -354,6 +361,7 @@ public final class ClimateAutomationEngine {
         engineStartedThisDrive = false;
         firedThisDrive.clear();
         appliedThisDrive.clear();
+        windshieldFanAppliedThisDrive = false;
         appliedWhileReady.clear();
         sendAttemptsThisPhase.clear();
         ruleActivatedAtMs.clear();
@@ -520,6 +528,12 @@ public final class ClimateAutomationEngine {
                 map.put(id, new RuleStatus(RuleRunState.WAITING_START_DELAY, startRem));
                 continue;
             }
+            if (firedThisDrive.contains(id)
+                    && !awaitingActivationFeedback.contains(id)
+                    && sendAttemptsThisPhase.getOrDefault(id, 0) >= MAX_STARTUP_SEND_ATTEMPTS) {
+                map.put(id, new RuleStatus(RuleRunState.UNSUPPORTED, 0));
+                continue;
+            }
             map.put(id, new RuleStatus(RuleRunState.ACTIVATING, 0));
         }
         return map;
@@ -642,6 +656,12 @@ public final class ClimateAutomationEngine {
         if (ruleId == null || !appliedThisDrive.contains(ruleId)) {
             return;
         }
+        if (isIgnoredWindshieldSignal(ruleId, module, itemId,
+                ClimateAutomationStore.isWindshieldHeatOnly(prefs))) {
+            // Rezistans modunda 24'ü otomasyon yönetmez; sürücünün fanlı buğu çözmeyi
+            // elle açıp kapatması kuralın aktif / manuel müdahale durumunu etkilemez.
+            return;
+        }
         Long sentAt = lastSentElapsedMs.get(ruleId);
         long nowElapsed = SystemClock.elapsedRealtime();
         // Kendi gönderdiğimiz komutun hemen ardından gelen ilk yansımayı (800ms) yoksay
@@ -654,8 +674,10 @@ public final class ClimateAutomationEngine {
             // Koltuk ısıtma / soğutma: 0 veya 1 = kapalı
             isOffNotification = (raw == 0 || raw == 1);
             isOnNotification = (raw > 1);
-        } else if (ClimateAutomationStore.STEER_HEAT.equals(ruleId)) {
-            // Direksiyon ısıtma: 1 = açık, 0 (veya 2) = kapalı
+        } else if (ClimateAutomationStore.STEER_HEAT.equals(ruleId)
+                || ClimateAutomationStore.WINDSHIELD.equals(ruleId)
+                || ClimateAutomationStore.REAR_DEFROST.equals(ruleId)) {
+            // Direksiyon ısıtma ve ön/arka cam buğu çözme: 1 = açık, 0 (veya 2) = kapalı
             isOffNotification = (raw == 0 || raw == 2);
             isOnNotification = (raw == 1);
         } else {
@@ -675,6 +697,14 @@ public final class ClimateAutomationEngine {
             firedThisDrive.add(ruleId);
             awaitingActivationFeedback.remove(ruleId);
         }
+    }
+
+    /** Rezistans modunda ön cam kuralı için 24 (ID_AC_MAX_FRONT_DEFOREST) bildirimleri yok sayılır. */
+    static boolean isIgnoredWindshieldSignal(String ruleId, int module, int itemId, boolean heatOnly) {
+        return heatOnly
+                && ClimateAutomationStore.WINDSHIELD.equals(ruleId)
+                && module == MODULE_HVAC
+                && itemId == HvacID.ID_AC_MAX_FRONT_DEFOREST;
     }
 
     private String ruleIdForSignal(int module, int itemId) {
@@ -1038,6 +1068,9 @@ public final class ClimateAutomationEngine {
             case ClimateAutomationStore.STEER_HEAT:
                 return feedbackMatches(id, MODULE_SETTING, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, 1);
             case ClimateAutomationStore.WINDSHIELD:
+                if (ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                    return feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
+                }
                 return anyFeedbackMatches(
                         feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1),
                         feedbackMatches(id, MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1));
@@ -1156,12 +1189,24 @@ public final class ClimateAutomationEngine {
                 }
                 case ClimateAutomationStore.WINDSHIELD:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 1);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
+                    if (!ClimateAutomationStore.isWindshieldHeatOnly(prefs)) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 1);
+                        windshieldFanAppliedThisDrive = true;
+                    } else if (windshieldFanAppliedThisDrive) {
+                        // Kural aktifken Fan → Rezistans geçildi: önceki modda açılan fanı kapat.
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 2);
+                        windshieldFanAppliedThisDrive = false;
+                    }
                     break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 1);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 1);
+                case ClimateAutomationStore.REAR_DEFROST: {
+                    int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
+                    int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
+                    Integer cmd = resolveRearDefrostCommand(true, hvacCur, setCur);
+                    if (cmd != null) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, cmd);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.CLIMATE:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 1);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 1);
@@ -1255,13 +1300,23 @@ public final class ClimateAutomationEngine {
                     break;
                 }
                 case ClimateAutomationStore.WINDSHIELD:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 0);
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 0);
+                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_FRONT_GLASS_HEAT, 2);
+                    // Mod tercihine değil bu sürüşte gerçekten 24'e yazılıp yazılmadığına bak.
+                    if (windshieldFanAppliedThisDrive) {
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_MAX_FRONT_DEFOREST, 2);
+                        windshieldFanAppliedThisDrive = false;
+                    }
                     break;
-                case ClimateAutomationStore.REAR_DEFROST:
-                    proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, 0);
-                    proxy.sendItemValue(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT, 0);
+                case ClimateAutomationStore.REAR_DEFROST: {
+                    int[] hvacCur = proxy.getItemValues(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST);
+                    int[] setCur = proxy.getItemValues(MODULE_SETTING, CarSettingID.ID_CAR_REAR_WINDOW_HEAT);
+                    Integer cmd = resolveRearDefrostCommand(false, hvacCur, setCur);
+                    if (cmd != null) {
+                        // 0 ve 2 ile kapanmadığı için direksiyon ısıtması gibi toggle (1) ile kapatılır
+                        proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_REAR_DEFROST, cmd);
+                    }
                     break;
+                }
                 case ClimateAutomationStore.CLIMATE:
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_STATE, 0);
                     proxy.sendItemValue(MODULE_HVAC, HvacID.ID_AC_WORKING, 0);
@@ -1316,6 +1371,20 @@ public final class ClimateAutomationEngine {
      */
     public static Integer resolveSteeringWheelHeatCommand(boolean turnOn, int[] currentValues) {
         boolean isCurrentlyOn = currentValues != null && currentValues.length > 0 && currentValues[0] == 1;
+        if (turnOn) {
+            return isCurrentlyOn ? null : 1;
+        }
+        return isCurrentlyOn ? 1 : null;
+    }
+
+    /**
+     * Arka cam ısıtma (ID_AC_REAR_DEFROST = 80) toggle (1) ile çalışır:
+     * durum 1 (açık) iken kapatmak için 1, kapalı iken açmak için 1 gönderilir;
+     * zaten hedef durumdaysa çift toggle olmaması için null döner.
+     */
+    public static Integer resolveRearDefrostCommand(boolean turnOn, int[] hvacValues, int[] settingValues) {
+        boolean isCurrentlyOn = (hvacValues != null && hvacValues.length > 0 && hvacValues[0] == 1)
+                || (settingValues != null && settingValues.length > 0 && settingValues[0] == 1);
         if (turnOn) {
             return isCurrentlyOn ? null : 1;
         }
