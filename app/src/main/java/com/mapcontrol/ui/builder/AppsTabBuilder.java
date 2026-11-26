@@ -2186,13 +2186,32 @@ public class AppsTabBuilder {
         boolean addedAdbHeader = false;
         boolean anyRow = false;
 
+        // Bir izni değiştirmek gruptaki diğerlerini de etkileyebilir (ör. FINE_LOCATION verilince
+        // sistem COARSE_LOCATION'ı da verir). Her değişiklikten sonra tüm anahtarlar gerçek
+        // durumdan yeniden okunur.
+        final java.util.Map<String, SwitchCompat> toggles = new java.util.HashMap<>();
+        final java.util.Map<String, AppPermissionManager.Entry> byKey = new java.util.HashMap<>();
+        final Runnable resync = () -> {
+            for (AppPermissionManager.Entry fresh : manager.read(packageName)) {
+                String key = fresh.kind + "|" + fresh.id;
+                SwitchCompat sw = toggles.get(key);
+                AppPermissionManager.Entry shown = byKey.get(key);
+                if (sw != null && shown != null) {
+                    shown.granted = fresh.granted;
+                    sw.setChecked(fresh.granted);
+                }
+            }
+        };
+
         for (AppPermissionManager.Entry entry : entries) {
             if (entry.controllable()) {
                 if (!addedControllableHeader) {
                     root.addView(sectionHeader(R.string.apps_perm_runtime_header));
                     addedControllableHeader = true;
                 }
-                root.addView(buildPermissionRow(manager, packageName, entry));
+                String key = entry.kind + "|" + entry.id;
+                byKey.put(key, entry);
+                root.addView(buildPermissionRow(manager, packageName, entry, toggles, key, resync));
                 anyRow = true;
             }
         }
@@ -2230,7 +2249,9 @@ public class AppsTabBuilder {
     }
 
     private LinearLayout buildPermissionRow(AppPermissionManager manager, String packageName,
-                                            AppPermissionManager.Entry entry) {
+                                            AppPermissionManager.Entry entry,
+                                            java.util.Map<String, SwitchCompat> toggles,
+                                            String key, Runnable resync) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -2251,6 +2272,7 @@ public class AppsTabBuilder {
 
         SwitchCompat toggle = new SwitchCompat(context);
         toggle.setChecked(entry.granted);
+        toggles.put(key, toggle);
         toggle.setOnClickListener(v -> {
             boolean want = toggle.isChecked();
             boolean ok = manager.apply(packageName, entry, want);
@@ -2264,6 +2286,7 @@ public class AppsTabBuilder {
                         context.getString(R.string.apps_perm_apply_failed, entry.label),
                         Toast.LENGTH_SHORT).show();
             }
+            resync.run();
         });
         row.addView(toggle);
         return row;

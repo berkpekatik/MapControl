@@ -171,8 +171,8 @@
     <string name="apps_perm_runtime_header">Araçtan verilebilir</string>
     <string name="apps_perm_accessibility_suffix">(erişilebilirlik)</string>
     <string name="apps_perm_notification_suffix">(bildirim)</string>
-    <string name="apps_perm_adb_header">USB gerekir (FrostNav)</string>
-    <string name="apps_perm_adb_note">Bunlar ADB/shell ister, araçtan verilemez. FrostNav ile USB üzerinden verin.</string>
+    <string name="apps_perm_adb_header">Bilgisayar + USB gerekir</string>
+    <string name="apps_perm_adb_note">Bunlar ADB/shell ister, araçtan verilemez. Bilgisayardan USB ile ADB üzerinden verin.</string>
     <string name="apps_perm_no_owner">Cihaz sahibi kapalı — tehlikeli izinler değiştirilemez.</string>
     <string name="apps_perm_no_secure">WRITE_SECURE_SETTINGS yok — erişilebilirlik ve bildirim erişimi değiştirilemez.</string>
     <string name="apps_perm_empty">Bu uygulamada araçtan yönetilebilecek izin yok.</string>

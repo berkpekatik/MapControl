@@ -29,7 +29,7 @@ import java.util.List;
  *
  * <p>appops (üstte gösterme, kullanım verisi, sahte konum...), Doze beyazlistesi ve imza/sistem
  * izinleri (READ_LOGS, WRITE_SECURE_SETTINGS...) bu yolla <b>verilemez</b>: shell/sistem imzası
- * ister. Onlar için FrostNav + USB gerekir. {@link Kind#ADB_ONLY} bu durumu işaretler.
+ * ister. Onlar için bilgisayar + USB (ADB) gerekir. {@link Kind#ADB_ONLY} bu durumu işaretler.
  */
 public final class AppPermissionManager {
 
@@ -173,6 +173,13 @@ public final class AppPermissionManager {
                     ? DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
                     : DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED;
             boolean ok = dpm.setPermissionGrantState(admin(), packageName, permission, state);
+            // GRANTED/DENIED izni politika ile kilitler (POLICY_FIXED): kullanıcı sistem
+            // ayarlarından artık değiştiremez. DEFAULT yalnızca kilidi kaldırır, verilmiş/geri
+            // alınmış durum aynen kalır; böylece Ayarlar'dan da yönetilebilir olur.
+            if (ok) {
+                dpm.setPermissionGrantState(admin(), packageName, permission,
+                        DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT);
+            }
             return ok && isRuntimeGranted(packageName, permission) == grant;
         } catch (Exception e) {
             return false;
