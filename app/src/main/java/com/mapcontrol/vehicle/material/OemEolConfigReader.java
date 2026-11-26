@@ -200,7 +200,7 @@ public final class OemEolConfigReader {
         return seatMirrorMemoryFromConfig5(config5);
     }
 
-    static boolean seatMirrorMemoryFromConfig5(int[] config5) {
+    public static boolean seatMirrorMemoryFromConfig5(int[] config5) {
         return ((config5[1] >> 1) & 1) == 1;
     }
 

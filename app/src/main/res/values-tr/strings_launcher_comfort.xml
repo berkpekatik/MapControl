@@ -15,4 +15,11 @@
     <string name="launcher_trunk_close_title">Bagaj kapansın mı?</string>
     <string name="launcher_trunk_close_message">Arkada kimse olmadığından emin olun.</string>
     <string name="launcher_trunk_close_confirm">Kapat</string>
+    <string name="launcher_seat_row_memory">Hafıza</string>
+    <string name="launcher_seat_memory_slot">Koltuk %1$d</string>
+    <string name="launcher_seat_memory_position">Konum %1$d</string>
+    <string name="launcher_seat_memory_hold">Koltuğu taşımak için basılı tutun</string>
+    <string name="launcher_seat_memory_failed">Koltuk hafızası çağrılamadı</string>
+    <string name="launcher_seat_memory_not_ready">Koltuk hafızası hazır değil</string>
+    <string name="launcher_seat_memory_moving">Koltuk hafızası %1$d çağrılıyor</string>
 </resources>

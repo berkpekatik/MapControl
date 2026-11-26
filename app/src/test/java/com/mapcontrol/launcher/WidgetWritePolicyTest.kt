@@ -159,8 +159,8 @@ class WidgetWritePolicyTest {
             assertTrue(e.widget, v is WidgetWritePolicy.Verdict.Allowed)
             assertEquals("sent", WidgetWritePolicy.resultText(v))
         }
-        // Park kapılı yalnız bagajdır: hız 0 ve vites P iken geçer.
-        assertEquals(setOf("Trunk"), WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.map { it.widget }.toSet())
+        // Park kapılı yalnız bagaj ve koltuk hafızasıdır (koltuğu hareket ettirir): hız 0 ve vites P iken geçer.
+        assertEquals(setOf("Trunk", "SeatMemory"), WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.map { it.widget }.toSet())
         assertTrue(WidgetWritePolicy.ENTRIES.filter { it.parkOnly }.all { it.verified })
         assertTrue(WidgetWritePolicy.evaluate(trunkOpen.module, trunkOpen.id, trunkOpen.value, parked) is WidgetWritePolicy.Verdict.Allowed)
         assertTrue(WidgetWritePolicy.evaluate(cs, lockId, 2, parked) is WidgetWritePolicy.Verdict.Allowed)
@@ -197,5 +197,25 @@ class WidgetWritePolicyTest {
             com.desaysv.ivi.vdb.event.id.dsp.VDEventDsp.SOUND_FIELD, SoundFieldMath.WRITE_ID, SoundFieldMath.FRONT_EXTREME,
         )
         assertTrue(v is WidgetWritePolicy.Verdict.NotVerified)
+    }
+
+    // --- Koltuk hafızası (CS 52, OEM "Konumu N") ---
+
+    private val CS = VDEventCarInfo.MODULE_CAR_SETTING
+
+    @Test fun `koltuk hafızası yalnız 52 ← 1 ya da 2 ile ve park halinde gider`() {
+        for (slot in listOf(1, 2)) {
+            assertTrue(WidgetWritePolicy.evaluate(CS, 52, slot, parked) is WidgetWritePolicy.Verdict.Allowed)
+            assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot, moving(5))))
+            assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot, inGear(3))))
+            assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot) /* hız/vites okunamadı */))
+        }
+        for (bad in listOf(0, 3, 16, -1)) {
+            assertEquals(WidgetWritePolicy.Verdict.NotWhitelisted, WidgetWritePolicy.evaluate(CS, 52, bad, parked))
+        }
+    }
+
+    @Test fun `koltuk hafızası kaydetme (54) hiçbir değerle beyaz listede değil`() {
+        for (v in -1..20) assertFalse(allowed(CS, 54, v))
     }
 }

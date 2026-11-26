@@ -15,4 +15,11 @@
     <string name="launcher_trunk_close_title">Close the trunk?</string>
     <string name="launcher_trunk_close_message">Make sure nobody is behind the car.</string>
     <string name="launcher_trunk_close_confirm">Close</string>
+    <string name="launcher_seat_row_memory">Memory</string>
+    <string name="launcher_seat_memory_slot">Seat %1$d</string>
+    <string name="launcher_seat_memory_position">Position %1$d</string>
+    <string name="launcher_seat_memory_hold">Hold to move the seat</string>
+    <string name="launcher_seat_memory_failed">Seat memory could not be recalled</string>
+    <string name="launcher_seat_memory_not_ready">Seat memory is not ready</string>
+    <string name="launcher_seat_memory_moving">Recalling seat memory %1$d</string>
 </resources>
