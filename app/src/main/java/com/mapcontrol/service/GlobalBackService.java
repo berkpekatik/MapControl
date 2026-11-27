@@ -35,8 +35,8 @@ public class GlobalBackService extends AccessibilityService {
      * Yanlış: com.mapcontrol/.GlobalBackService → sınıf com.mapcontrol.GlobalBackService (mevcut değil)
      */
     public static String accessibilityFlatComponent(Context context) {
-        // Paket adı derlemeye göre değişir (com.mapcontrol / com.frostnav); sınıf adı her zaman com.mapcontrol...
-        // Sabit "com.mapcontrol/..." com.frostnav kurulumunda var olmayan bileşeni yazıyordu (araçta 2026-11-24).
+        // Paket adı (applicationId) derlemeye göre sınıfların paketinden farklı olabilir; sabit bir "paket/sınıf"
+        // dizgisi farklı applicationId ile kurulan uygulamada var olmayan bileşeni yazıyordu (araçta 2026-11-24).
         return new android.content.ComponentName(context.getPackageName(), GlobalBackService.class.getName())
                 .flattenToString();
     }

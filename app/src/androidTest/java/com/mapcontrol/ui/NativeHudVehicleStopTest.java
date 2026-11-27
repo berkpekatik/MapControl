@@ -15,7 +15,7 @@ import static org.junit.Assert.*;
 /** Records the actual transport's intents without broadcasting to a vehicle or binding a service. */
 @RunWith(AndroidJUnit4.class)
 public class NativeHudVehicleStopTest {
-    @Test public void stopMatchesOriginalJCarToolsEvenWhenAnotherComponentEstablishedTheConnection() {
+    @Test public void stopSendsBothFinishBroadcastsEvenWhenAnotherComponentEstablishedTheConnection() {
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
         List<Intent> sent = new ArrayList<>();
         Context recording = new ContextWrapper(target) {

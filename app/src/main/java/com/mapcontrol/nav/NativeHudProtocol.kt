@@ -10,7 +10,7 @@ internal data class NativeHudFrame(
 )
 
 /**
- * JCarTools J7 yerleşik HUD paketleri (ProInfoJ.SendHUD / StartHUD).
+ * Yerleşik HUD paketleri (MODULE_HUD / ID_HUD_IHU_INTERCONNECT): 52 başlat, 48 yol adı, 49 ok + metre, 51 kalan metre.
  * Aktif her karede tam olarak üç veri paketi gönderilir; eksik alanlar sıfırlanır.
  */
 internal object NativeHudProtocol {
@@ -18,7 +18,7 @@ internal object NativeHudProtocol {
 
     fun start(): IntArray = intArrayOf(52, 1, 0)
 
-    /** Rota bitişinde StartHUD olmadan gönderilen üç temizleme paketi. */
+    /** Rota bitişinde başlatma paketi (52) olmadan gönderilen üç temizleme paketi. */
     fun blank(): NativeHudFrame = NativeHudFrame(
         listOf(
             listOf(48, 1, 0x20),
@@ -103,15 +103,15 @@ internal object NativeHudProtocol {
         NavManeuver.UTURN_LEFT -> 8
         NavManeuver.UTURN_RIGHT -> 19
         // HUD ok kodları Amap simgeleridir (OEM SVVDSMap Amap okunu aynen geçirir): 11 kavşağa gir, 12 kavşaktan çık.
-        // JCarTools'un 24/55'i açılı kavşak oklarıdır (OEM NaviUtil.formatTeleNaviArrow: 360° → 24, 135° → 55); 24 HUD'da
+        // 24/55 açılı kavşak oklarıdır (OEM NaviUtil.formatTeleNaviArrow: 360° → 24, 135° → 55); 24 HUD'da
         // tam tur / U dönüşü gibi çiziliyordu (araçta 2026-11-26).
         NavManeuver.ROUNDABOUT_ENTER -> 11
         NavManeuver.ROUNDABOUT_EXIT -> 12
         NavManeuver.FERRY -> 49
         NavManeuver.FINISH -> 15
-        // -1 yalnız bitiş/temizleme karesinindir (JCarTools e0.v0.g, [blank]); aktif karede HUD onu "rota bitti" sayıp
-        // ok, mesafe ve yolu kapatıyor (araçta 2026-11-24: sonraki adımda HUD söndü, kapat-aç ile döndü). JCarTools da
-        // ok bilgisi gelmezse önceki değeri tutar, hiç yoksa başlangıç değeri 0'dır (HUDMassageObj).
+        // -1 yalnız bitiş/temizleme karesinindir ([blank]); aktif karede HUD onu "rota bitti" sayıp ok, mesafe ve yolu
+        // kapatıyor (araçta 2026-11-24: sonraki adımda HUD söndü, kapat-aç ile döndü). Ok bilinmiyorsa 0 gider;
+        // önceki ok [HudLastKnown] ile tutulur.
         NavManeuver.UNKNOWN, NavManeuver.WAYPOINT -> 0
     }
 }

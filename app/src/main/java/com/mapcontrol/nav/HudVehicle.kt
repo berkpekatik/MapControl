@@ -23,7 +23,7 @@ internal interface HudVehicle {
     fun listen(listener: IServiceConnectListener)
     fun unlisten(listener: IServiceConnectListener)
     fun send(packet: IntArray): Boolean
-    /** ProBro.onStopNavi: iki navigasyon bitiş yayını. Bağlantı donanım kanıtı sayılmaz. */
+    /** İki navigasyon bitiş yayını (OEM navigasyon / Amap standart yayını). Bağlantı donanım kanıtı sayılmaz. */
     fun stopNavigation(): Boolean
 }
 

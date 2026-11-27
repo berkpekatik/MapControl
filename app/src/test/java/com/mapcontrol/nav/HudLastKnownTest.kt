@@ -47,7 +47,7 @@ class HudLastKnownTest {
         memory.merge(full(NavigationSource.GOOGLE_MAPS))
         now += 10_001
         val merged = memory.merge(full(NavigationSource.GOOGLE_MAPS).copy(maneuver = NavManeuver.UNKNOWN, distance = null))
-        // JCarTools gibi: ok gelmezse önceki ok kalır (bilinmeyen ok HUD'u kapatır).
+        // Ok gelmezse önceki ok kalır (bilinmeyen ok HUD'u kapatır).
         assertEquals(NavManeuver.RIGHT, merged.maneuver)
         assertNull(merged.distance)
     }

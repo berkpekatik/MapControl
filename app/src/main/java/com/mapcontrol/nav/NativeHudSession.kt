@@ -3,8 +3,8 @@ package com.mapcontrol.nav
 /**
  * Yerleşik HUD aktarım oturumu. Yalnız seri gönderim iş parçacığından çağrılır.
  *
- * Referans davranış (JCarTools e0.a0.f/g): her değişen aktif kare StartHUD + üç veri paketi gönderir.
- * Rota bitince 50 ms sonra StartHUD olmadan üç boş paket, 20 s sonra navigasyon bitiş yayını yapılır.
+ * Her değişen aktif kare başlatma paketi (52) + veri paketlerini gönderir.
+ * Rota bitince 50 ms sonra başlatma paketi olmadan üç boş paket, 20 s sonra navigasyon bitiş yayını yapılır.
  * Kısmi gönderim veya bağlantı kaybı eski çerçeveyi geçersiz kılar; yeniden bağlanınca tam kare gönderilir.
  */
 internal class NativeHudSession(

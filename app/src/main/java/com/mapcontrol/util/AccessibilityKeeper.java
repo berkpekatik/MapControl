@@ -110,7 +110,7 @@ public final class AccessibilityKeeper {
         }
         for (String raw : current.split(":")) {
             String id = raw.trim();
-            // Yalnız bu paketin kaydı sayılır: başka paket adlı (ör. eski com.mapcontrol) kayıt bu hizmeti bağlamaz.
+            // Yalnız bu paketin kaydı sayılır: başka paket adlı (ör. eski bir kurulumdan kalan) kayıt bu hizmeti bağlamaz.
             if (id.equals(component)) {
                 return current;
             }

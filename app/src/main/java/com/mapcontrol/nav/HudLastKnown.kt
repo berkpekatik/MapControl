@@ -6,7 +6,7 @@ import com.mapcontrol.launcher.NavigationState
 
 /**
  * Aktif rotada bildirim bir an eksik alan (ok, mesafe, yol adı) verirse HUD'a eski değeri tutar.
- * JCarTools'ta da alan boşsa önceki değer korunur (e0.n3.e). Ok, JCarTools gibi süresiz tutulur: ok bilinmeyen kare
+ * Ok süresiz tutulur: ok bilinmeyen kare
  * HUD'a "ok yok" kodu taşıyamaz (bkz. [NativeHudProtocol]), adım değişince ok ya yeni değerle gelir ya da eskisi kalır.
  * Mesafe, yol ve varış bilgisi sınırlı süre tutulur. Kaynak (Google/Yandex) paketine göre ayrı tutulur,
  * paket değişirse hafıza sıfırlanır. Birden çok iş parçacığından çağrılabilir.

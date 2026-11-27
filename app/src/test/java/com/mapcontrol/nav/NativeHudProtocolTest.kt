@@ -15,7 +15,7 @@ class NativeHudProtocolTest {
 
     private fun packet(frame: NativeHudFrame, command: Int) = frame.packets.single { it.first() == command }
 
-    @Test fun lifecycleMatchesJCarToolsCommands() {
+    @Test fun lifecycleStartAndBlankPackets() {
         assertArrayEquals(intArrayOf(52, 1, 0), NativeHudProtocol.start())
         val blank = NativeHudProtocol.blank()
         assertEquals(listOf(48, 49, 51), blank.packets.map { it.first() })
