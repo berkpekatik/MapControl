@@ -78,6 +78,14 @@ class GoogleNavParseTest {
     }
 
     @Test
+    fun roundaboutExitIconAndEnterIconBothKeepExitNumber() {
+        val text = "300 m - Döner kavşakta 2. çıkıştan çıkın"
+        assertEquals(2, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.ROUNDABOUT_EXIT)!!.roundaboutExit)
+        assertEquals(2, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.ROUNDABOUT_ENTER)!!.roundaboutExit)
+        assertEquals(null, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.LEFT)!!.roundaboutExit)
+    }
+
+    @Test
     fun unknownInstructionKeepsDistance() {
         val s = GoogleNavParse.parse("1,5 km - Vega AVM", null, "20 dk. · 9 km · TVS: 18:40")!!
         assertEquals(NavManeuver.UNKNOWN, s.maneuver)

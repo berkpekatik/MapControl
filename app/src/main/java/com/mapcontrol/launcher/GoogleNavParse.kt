@@ -41,7 +41,7 @@ object GoogleNavParse {
         val arrival = arrivalClock(snap.etaArrivalLabel())
         if (distance == null && instruction == null && minutes == null && remaining == null) return null
         val maneuver = iconManeuver ?: maneuverFromInstruction(instruction) ?: NavManeuver.UNKNOWN
-        val exit = if (maneuver == NavManeuver.ROUNDABOUT_ENTER) NavParse.parseExitNumber(instruction) else null
+        val exit = if (maneuver == NavManeuver.ROUNDABOUT_ENTER || maneuver == NavManeuver.ROUNDABOUT_EXIT) NavParse.parseExitNumber(instruction) else null
         return NavigationState(
             active = true,
             maneuver = maneuver,
