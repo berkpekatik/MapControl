@@ -15,12 +15,12 @@ public final class CarInfoRead {
     private CarInfoRead() {
     }
 
-    /** {@code MODULE_READONLY_INFO} içindeki bir ID; yanıt yoksa ya da okuma hata verirse null. */
-    public static int[] readOnly(int itemId) {
+    /** Herhangi bir CarInfo modülünden ham okuma; yanıt yoksa null. */
+    public static int[] read(int module, int itemId) {
         try {
             Bundle request = new Bundle();
             request.putInt(Constants.CMD_ID, itemId);
-            VDEvent once = VDBus.getDefault().getOnce(new VDEvent(VDEventCarInfo.MODULE_READONLY_INFO, request));
+            VDEvent once = VDBus.getDefault().getOnce(new VDEvent(module, request));
             if (once == null || once.getPayload() == null) {
                 return null;
             }
@@ -29,5 +29,10 @@ public final class CarInfoRead {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /** {@code MODULE_READONLY_INFO} içindeki bir ID; yanıt yoksa ya da okuma hata verirse null. */
+    public static int[] readOnly(int itemId) {
+        return read(VDEventCarInfo.MODULE_READONLY_INFO, itemId);
     }
 }

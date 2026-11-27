@@ -159,9 +159,11 @@ object NavigationSource {
 
     private fun parseGated(context: Context, sbn: StatusBarNotification) {
         var sig: Int? = null
-        val signatureOf = { sig ?: signature(sbn).also { sig = it } }
+        // Google'da ok yalnız resimde: ok değişip metin aynı kalırsa da yeniden çözülsün.
+        val icon = if (sbn.packageName == GOOGLE_MAPS) sbn.notification?.let { GoogleManeuverIcon.pixels(context, it) } else null
+        val signatureOf = { sig ?: (31 * signature(sbn) + (icon?.hash ?: 0)).also { sig = it } }
         if (!gate.shouldParse(sbn.key, sbn.postTime, signatureOf)) return
-        routes.update(sbn.key, parse(context, sbn))
+        routes.update(sbn.key, parse(context, sbn, icon))
         gate.remember(sbn.key, sbn.postTime, signatureOf())
     }
 
@@ -185,11 +187,11 @@ object NavigationSource {
         }
     }
 
-    private fun parse(context: Context, sbn: StatusBarNotification): NavigationState? {
+    private fun parse(context: Context, sbn: StatusBarNotification, icon: GoogleManeuverIcon.Pixels? = null): NavigationState? {
         val t0 = if (BuildConfig.DEBUG) SystemClock.elapsedRealtime() else 0L
         val google = sbn.packageName == GOOGLE_MAPS
         val result = try {
-            if (google) parseGoogle(sbn) else NavParse.parse(NavNotificationReader.read(context, sbn), System.currentTimeMillis())
+            if (google) parseGoogle(context, sbn, icon) else NavParse.parse(NavNotificationReader.read(context, sbn), System.currentTimeMillis())
         } catch (e: Exception) {
             null
         }
@@ -212,7 +214,7 @@ object NavigationSource {
     }
 
     /** Google Haritalar: yalnız rehberlik bildirimi ([GoogleNavParse.isGuidanceNotification]) ve extras metinleri (başlık, metin, alt metin); RemoteViews gezilmez. */
-    private fun parseGoogle(sbn: StatusBarNotification): NavigationState? {
+    private fun parseGoogle(context: Context, sbn: StatusBarNotification, icon: GoogleManeuverIcon.Pixels?): NavigationState? {
         val n = sbn.notification ?: return null
         // Trafik / işe gidiş gibi sayı içeren diğer Google bildirimleri kartı ele geçirmesin.
         if (!GoogleNavParse.isGuidanceNotification(n.category, n.flags)) return null
@@ -222,6 +224,7 @@ object NavigationSource {
             extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
             extras.getCharSequence(android.app.Notification.EXTRA_SUB_TEXT)?.toString(),
             System.currentTimeMillis(),
+            icon?.let { GoogleManeuverIcon.classify(context, it).match?.maneuver },
         )
     }
 

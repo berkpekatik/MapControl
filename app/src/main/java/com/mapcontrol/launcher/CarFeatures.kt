@@ -5,6 +5,9 @@ import android.os.SystemClock
 import android.util.Log
 import com.desaysv.ivi.vdb.client.VDBus
 import com.desaysv.ivi.vdb.client.bind.VDServiceDef
+import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy
+import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo
+import com.mapcontrol.vehicle.CarInfoRead
 import com.mapcontrol.vehicle.material.OemEolConfigReader
 
 /**
@@ -27,6 +30,15 @@ internal object CarConfigMath {
         if ((configs5[0] shr 1) and 1 != 1) return false
         return (configs5[6] and 255) !in HEAT_HIDDEN_REGIONS
     }
+
+    /**
+     * Sürücü koltuk hafızası: config 127 = configs5[1] bit 1 (OEM `EolConfig` case 127). OEM ayarları "Konumu 1/2/3"
+     * satırını yalnız bu bit 1 iken gösterir (`VehicleComfortFragment.initOfflineConfig`). Blok okunamadıysa null.
+     */
+    fun seatMemory(configs5: IntArray?): Boolean? {
+        if (configs5 == null || configs5.size < 8) return null
+        return OemEolConfigReader.seatMirrorMemoryFromConfig5(configs5)
+    }
 }
 
 /**
@@ -39,6 +51,7 @@ internal object CarFeatures {
     private const val PREFS = "launcher_car_config"
     private const val KEY_STEER = "steer_heat"      // -1 bilinmiyor, 0 yok, 1 var
     private const val KEY_DRIVE = "config109"       // -1 bilinmiyor
+    private const val KEY_SEAT = "seat_memory"      // -1 bilinmiyor, 0 yok, 1 var
     private const val BIND_WAIT_MS = 3_000L
     private const val BIND_STEP_MS = 100L
     private const val TRIES = 3
@@ -51,6 +64,13 @@ internal object CarFeatures {
     /** CarConfig 109 (sürüş modu listesi); null bilinmiyor. */
     @Volatile
     var config109: Int? = null
+
+    /**
+     * Sürücü koltuk hafızası; null bilinmiyor (widget gizli). Önce config 127; okunamazsa CS 52 yoklaması
+     * ([SeatMemoryLogic.probeSupport]). Bu uygulamanın config okuması bazı araçlarda boş döner (SELinux).
+     */
+    @Volatile
+    var seatMemory: Boolean? = null
 
     @Volatile
     private var started = false
@@ -71,11 +91,16 @@ internal object CarFeatures {
             1 -> steerHeat = true
         }
         prefs.getInt(KEY_DRIVE, -1).let { if (it >= 0) config109 = it }
+        when (prefs.getInt(KEY_SEAT, -1)) {
+            0 -> seatMemory = false
+            1 -> seatMemory = true
+        }
         if (LauncherDemo.enabled) return
         Thread({ readLoop(app) }, "car-config").apply { isDaemon = true }.start()
     }
 
     private fun readLoop(app: Context) {
+        com.mapcontrol.util.DiagJournal.event("SeatMemory", "okuma başladı")
         repeat(TRIES) { attempt ->
             if (attempt > 0) SystemClock.sleep(RETRY_GAP_MS)
             val (c4, c5) = try {
@@ -87,13 +112,38 @@ internal object CarFeatures {
             }
             val steer = CarConfigMath.steerHeat(c5)
             val drive = DriveModes.config109(c4)
+            val seatConfig = CarConfigMath.seatMemory(c5)
+            val probe = if (seatConfig == null) probeSeat52(app) else null
+            val seat = try {
+                SeatMemoryLogic.support(seatConfig, SeatMemoryLogic.probeSupport(probe))
+            } catch (t: Throwable) {
+                com.mapcontrol.util.DiagJournal.event("SeatMemory", "karar hatası: $t")
+                null
+            }
             val edit = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             if (steer != null) { steerHeat = steer; edit.putInt(KEY_STEER, if (steer) 1 else 0) }
             if (drive != null) { config109 = drive; edit.putInt(KEY_DRIVE, drive) }
+            if (seat != null) { seatMemory = seat; edit.putInt(KEY_SEAT, if (seat) 1 else 0) }
             edit.apply()
-            Log.i(TAG, "config120+163 direksiyon ısıtma=$steer, config109=$drive (deneme ${attempt + 1})")
-            if (steer != null && drive != null) return
+            Log.i(TAG, "config120+163 direksiyon ısıtma=$steer, config109=$drive, koltuk hafızası=$seat " +
+                "(config127=$seatConfig cs52=${probe?.joinToString(",", "[", "]")}) (deneme ${attempt + 1})")
+            com.mapcontrol.util.DiagJournal.event("SeatMemory", "destek=$seat config127=$seatConfig cs52=" +
+                probe?.joinToString(",", "[", "]") + " deneme=${attempt + 1}")
+            if (steer != null && drive != null && seat != null) return
         }
+    }
+
+    /** CS 52 ham okuması (CAR_INFO bağlanana kadar en çok [BIND_WAIT_MS] bekler); yanıt yoksa null. */
+    private fun probeSeat52(app: Context): IntArray? = try {
+        val proxy = CarInfoProxy.getInstance()
+        if (!proxy.isServiceConnnected) proxy.init(app)
+        val until = SystemClock.elapsedRealtime() + BIND_WAIT_MS
+        while (!proxy.isServiceConnnected && SystemClock.elapsedRealtime() < until) SystemClock.sleep(BIND_STEP_MS)
+        if (proxy.isServiceConnnected) CarInfoRead.read(VDEventCarInfo.MODULE_CAR_SETTING, SeatMemoryLogic.ID_SELECT) else null
+    } catch (t: Throwable) {
+        // RemoteException gibi denetimli hatalar da gelebilir: iş parçacığı ölmesin, neden günlüğe.
+        com.mapcontrol.util.DiagJournal.event("SeatMemory", "CS 52 okunamadı: $t")
+        null
     }
 
     private fun bind(app: Context) {

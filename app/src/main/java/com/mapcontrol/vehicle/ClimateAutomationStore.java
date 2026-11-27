@@ -34,6 +34,7 @@ public final class ClimateAutomationStore {
     public static final int LEVEL_MAX = 3;
 
     private static final String MASTER_KEY = "climateAutoEnabled";
+    private static final String WINDSHIELD_HEAT_ONLY_KEY = "climateAuto_windshield_heat_only";
 
     public static final class Rule {
         public boolean enabled;
@@ -53,6 +54,14 @@ public final class ClimateAutomationStore {
 
     public static void setMasterEnabled(SharedPreferences prefs, boolean enabled) {
         prefs.edit().putBoolean(MASTER_KEY, enabled).apply();
+    }
+
+    public static boolean isWindshieldHeatOnly(SharedPreferences prefs) {
+        return prefs.getBoolean(WINDSHIELD_HEAT_ONLY_KEY, false);
+    }
+
+    public static void setWindshieldHeatOnly(SharedPreferences prefs, boolean heatOnly) {
+        prefs.edit().putBoolean(WINDSHIELD_HEAT_ONLY_KEY, heatOnly).apply();
     }
 
     public static boolean usesHeatLevel(String id) {

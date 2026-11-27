@@ -34,7 +34,7 @@ object HudNavigationCard {
         val enabled = Switch(context).apply {
             setText(R.string.hud_nav_enable)
             setTextColor(UiStyles.color(context, R.color.textPrimary))
-            isChecked = hud.isEnabled()
+            isChecked = hud.isPreferenceOn()
             card.addView(this)
         }
         text(R.string.hud_nav_provider)
@@ -48,7 +48,7 @@ object HudNavigationCard {
         var binding = false
         val watcher = Runnable {
             binding = true
-            enabled.isChecked = hud.isEnabled()
+            enabled.isChecked = hud.isPreferenceOn()
             source.setSelection(providers.indexOf(hud.provider()).coerceAtLeast(0))
             status.text = hud.status()
             binding = false
@@ -80,7 +80,11 @@ object HudNavigationCard {
         button(R.string.hud_nav_accessibility) { YandexClusterNavCoordinator.openAccessibilitySettings(context) }
         button(R.string.hud_nav_test) {
             hud.showTest()
-            if (!hud.isEnabled()) Toast.makeText(context, R.string.hud_nav_enable_first, Toast.LENGTH_SHORT).show()
+            when {
+                !hud.isPreferenceOn() -> Toast.makeText(context, R.string.hud_nav_enable_first, Toast.LENGTH_SHORT).show()
+                // Destek henüz doğrulanmadı, araç bağlı değil ya da güç kapalı: test gönderilmez, nedeni söylenir.
+                !hud.isEnabled() -> Toast.makeText(context, hud.status(), Toast.LENGTH_SHORT).show()
+            }
         }
         card.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(view: View) {

@@ -108,6 +108,10 @@ internal class SeatTile(
     private var popup: PopupWindow? = null
     private var dismissedAt = 0L
 
+    /** Sürücü koltuk hafızası (yalnız sürücü koltuğunda ve destek kesinken; [SeatMemoryRecall]). */
+    private val memory = SeatMemoryRecall(activity)
+    private var memActive: Int? = null
+
     private val titleRes = if (driverSeat) R.string.launcher_widget_seat_driver else R.string.launcher_widget_seat_passenger
 
     private val art = ImageView(activity).apply {
@@ -370,6 +374,7 @@ internal class SeatTile(
         private val titled: Boolean = false,
     ) {
         private val buttons = ArrayList<Pair<SeatTarget, TextView>>()
+        private val memButtons = ArrayList<Pair<Int, TextView>>()
         val view: LinearLayout = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         private val cellH = activity.dp(if (titled) CELL_H_DP else BTN_DP)
 
@@ -383,6 +388,8 @@ internal class SeatTile(
             addMode(R.string.launcher_seat_row_cool, SeatMode.COOL, first = false)
             view.addView(button(SeatTarget(SeatMode.OFF), activity.getString(R.string.launcher_seat_off)),
                 LinearLayout.LayoutParams(MATCH, activity.dp(if (titled) OFF_BTN_DP else BTN_DP)).apply { topMargin = activity.dp(if (titled) 16 else ROW_GAP_DP) })
+            // Koltuk hafızası ısıtma/soğutma grubunun (ve "Kapalı"nın) altında.
+            if (driverSeat && memory.available) addMemory()
         }
 
         /** Yan yana (seçici: etiket solda) ya da üst üste (panel: etiket üstte, düğmeler tam genişlikte). */
@@ -407,6 +414,58 @@ internal class SeatTile(
             view.addView(row, LinearLayout.LayoutParams(MATCH, cellH).apply {
                 topMargin = activity.dp(if (stacked) 4 else if (first) 0 else ROW_GAP_DP)
             })
+        }
+
+        /** "Hafıza" 1 · 2 · 3: ısıtma/soğutma satırlarıyla aynı biçim; dokunuş OEM "Konumu N" gibi koltuğu çağırır. */
+        private fun addMemory() {
+            val label = sahneOrText(if (stacked) STACKED_LABEL_SP else if (titled) CHOOSER_LABEL_SP else LABEL_SP, 500).apply {
+                setText(R.string.launcher_seat_row_memory)
+                setTextColor(ink())
+                maxLines = 1
+            }
+            val row = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                if (!stacked) addView(label, if (titled) LinearLayout.LayoutParams(0, WRAP, 1f) else LinearLayout.LayoutParams(activity.dp(LABEL_W_DP), WRAP))
+                for (slot in SeatMemoryLogic.SLOTS) {
+                    val b = sahneOrText(BTN_SP, 600).apply {
+                        text = slot.toString()
+                        gravity = Gravity.CENTER
+                        isClickable = true
+                        isFocusable = true
+                        contentDescription = activity.getString(R.string.launcher_seat_memory_slot, slot)
+                        setOnClickListener {
+                            memory.recall(slot) { memActive = it; bindMemory() }
+                            onPicked()
+                        }
+                        pressFeedback()
+                    }
+                    memButtons += slot to b
+                    addView(b, (if (titled) LinearLayout.LayoutParams(activity.dp(CELL_W_DP), MATCH) else LinearLayout.LayoutParams(0, MATCH, 1f)).apply {
+                        if (slot > 1 || !stacked) marginStart = activity.dp(BTN_GAP_DP)
+                    })
+                }
+                // Üç hücreli satırlarla hizalı kalsın: eksik hücre yerine boşluk.
+                repeat(SeatChoice.MAX - SeatMemoryLogic.SLOTS.size) {
+                    addView(View(activity), (if (titled) LinearLayout.LayoutParams(activity.dp(CELL_W_DP), MATCH) else LinearLayout.LayoutParams(0, MATCH, 1f)).apply {
+                        marginStart = activity.dp(BTN_GAP_DP)
+                    })
+                }
+            }
+            if (stacked) view.addView(label, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = activity.dp(ROW_GAP_DP) })
+            view.addView(row, LinearLayout.LayoutParams(MATCH, cellH).apply { topMargin = activity.dp(if (stacked) 4 else if (titled) 16 else ROW_GAP_DP) })
+            bindMemory()
+            memory.readActive { memActive = it; bindMemory() }
+        }
+
+        /** Etkin hafıza konumu tam dolgulu (buz mavisi), diğerleri sakin. */
+        fun bindMemory() {
+            memButtons.forEach { (slot, b) ->
+                val current = slot == memActive
+                b.background = if (current) rounded(activity, ACTIVE_COOL, BTN_RADIUS_DP) else rounded(activity, Sahne.SOFT_FILL, BTN_RADIUS_DP, Sahne.HAIR_2)
+                b.setTextColor(if (current) 0xFFFFFFFF.toInt() else ink())
+                b.isSelected = current
+            }
         }
 
         private fun button(target: SeatTarget, label: String): TextView = sahneOrText(BTN_SP, 600).apply {

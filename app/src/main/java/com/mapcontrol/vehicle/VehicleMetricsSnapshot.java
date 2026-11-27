@@ -249,6 +249,14 @@ public final class VehicleMetricsSnapshot {
         return isValid(sunshade) && sunshade > 0 && sunshade != 1;
     }
 
+    /**
+     * Güneşlik tamamen açık mı (sunshade == 5).
+     * 2 (açılıyor), 4 (kapanıyor) ve 6 (arada durdu) durumlarında false döner.
+     */
+    public boolean isSunshadeFullyOpen() {
+        return isValid(sunshade) && sunshade == 5;
+    }
+
     public boolean isRaining() {
         if (isValid(rainDetected) && rainDetected > 0) {
             return true;
