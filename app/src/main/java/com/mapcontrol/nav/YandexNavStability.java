@@ -77,7 +77,9 @@ public final class YandexNavStability {
                 eta,
                 fresh == null ? null : fresh.speed,
                 fresh == null ? null : fresh.speedLimit,
-                status);
+                status,
+                // Çıkış numarası tutulmaz: kavşak geçince balon altı kaybolur, eski numara sonraki kavşağa taşınmasın.
+                fresh == null ? null : fresh.exitNumber);
     }
 
     private static final class Slot {

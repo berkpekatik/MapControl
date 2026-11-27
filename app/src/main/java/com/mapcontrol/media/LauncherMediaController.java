@@ -458,9 +458,14 @@ public final class LauncherMediaController {
             } catch (Exception ignoredToo) {
                 // son çare genel ayarlar
             }
-            Intent fallback = new Intent(Settings.ACTION_SETTINGS);
-            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            appContext.startActivity(fallback);
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                appContext.startActivity(fallback);
+            } catch (RuntimeException noSettings) {
+                // Araç Ayarlar'ı hiçbir ayar ekranını çözmüyor (ActivityNotFoundException ana iş parçacığını çökertiyordu).
+                android.util.Log.w("MediaAccess", "ayar ekranı yok: " + noSettings.getClass().getSimpleName());
+            }
         }
     }
 

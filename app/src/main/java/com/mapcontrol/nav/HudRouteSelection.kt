@@ -4,11 +4,21 @@ import com.mapcontrol.launcher.NavigationSource
 import com.mapcontrol.launcher.NavigationState
 import com.mapcontrol.launcher.NavManeuver
 
-/** Ön plan Yandex okuması, Google'ın etkin rehberliğini devralmaz. */
+/** Aynı Yandex uygulamasının oku ve ekran ölçümleri tek yönlendirmede tamamlanır. */
 internal fun hudRoute(notification: NavigationState, foreground: NavigationState, provider: String): NavigationState {
-    val yandexNotification = notification.sourcePackage == NavigationSource.YANDEX_MAPS ||
-        notification.sourcePackage == NavigationSource.YANDEX_NAVI
-    return if (provider != "google" && foreground.active &&
-        (!notification.active || (yandexNotification && notification.maneuver == NavManeuver.UNKNOWN))) foreground
-    else notification
+    if (provider == "google" || !foreground.active) return notification
+    if (!notification.active) return foreground
+    val sameYandex = notification.sourcePackage in setOf(NavigationSource.YANDEX_MAPS, NavigationSource.YANDEX_NAVI) &&
+        notification.sourcePackage == foreground.sourcePackage
+    if (!sameYandex) return notification
+    return notification.copy(
+        maneuver = if (notification.maneuver == NavManeuver.UNKNOWN) foreground.maneuver else notification.maneuver,
+        // Yandex bildirimi kavşak çıkış numarası taşımaz; ekrandaki "3. çıkış" ile tamamlanır (HUD 28 + n).
+        roundaboutExit = notification.roundaboutExit ?: foreground.roundaboutExit,
+        distance = notification.distance ?: foreground.distance,
+        street = notification.street?.takeIf { it.isNotBlank() } ?: foreground.street,
+        remainingDistance = notification.remainingDistance ?: foreground.remainingDistance,
+        remainingMinutes = notification.remainingMinutes ?: foreground.remainingMinutes,
+        arrivalTime = notification.arrivalTime?.takeIf { it.isNotBlank() } ?: foreground.arrivalTime,
+    )
 }

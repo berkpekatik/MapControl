@@ -76,6 +76,13 @@ internal object WidgetWritePolicy {
     /** Sürüş modu (NewEnergy 4) araçta doğrulandı: her yazılan mod geri okumada aynı değerle göründü. */
     const val DRIVE_MODE_WRITE_VERIFIED = true
 
+    /**
+     * Koltuk hafızası çağırma (CarSetting 52 ← konum): OEM ayarlarının "Konumu N" düğmesiyle aynı tek yazma
+     * (`sendItemValues(CS, 52, [N])`, SVSetting presenter `n.a`). OEM kodundan alındı, araçta koltuk hareketi henüz
+     * gözlenmedi; park kapılı. Kaydetme (CS 54) beyaz listede YOK: profil üzerine yazılmasın.
+     */
+    const val SEAT_MEMORY_WRITE_VERIFIED = true
+
     /** Direksiyon ısıtma (CarSetting 160) yalnız Tiggo 8'de var; araçta denenmedi. */
     const val STEER_HEAT_WRITE_VERIFIED = false
 
@@ -141,6 +148,10 @@ internal object WidgetWritePolicy {
         // Direksiyon ısıtma (Tiggo 8): anahtar gibi, açarken de kapatırken de 160 ← 1 (OEM sesli komut); 0 yazılmaz. Doğrulanmadı.
         Entry("SteerHeat", CS, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, setOf(ComfortPlan.STEER_WHEEL_TOGGLE),
             listOf(ComfortPlan.STEER_WHEEL_HEAT), verified = STEER_HEAT_WRITE_VERIFIED),
+        // Koltuk hafızası: CS 52 ← 1/2/3 (OEM "Konumu 1/2/3"). Geri okuma 52 = [hazır, etkin konum]; 16 = çağırma başarısız.
+        // Koltuğu fiziksel olarak hareket ettirir: yalnız park halinde (hız 0, vites P; OEM P ya da N ister).
+        Entry("SeatMemory", CS, SeatMemoryLogic.ID_SELECT, SeatMemoryLogic.SLOTS.toSet(),
+            listOf(sig("cs52_seat_memory", CS, SeatMemoryLogic.ID_SELECT)), verified = SEAT_MEMORY_WRITE_VERIFIED, parkOnly = true),
     )
 
     private fun seat(widget: String, id: Int) =

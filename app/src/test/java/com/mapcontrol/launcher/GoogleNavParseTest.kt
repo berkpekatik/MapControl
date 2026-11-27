@@ -26,7 +26,8 @@ class GoogleNavParseTest {
         val s = GoogleNavParse.parse(null, "Salkım Söğüt Sk. yönüne doğru", "1 dk. · 260 m · TVS: 23:01")!!
         assertNull(s.distance)
         assertEquals("Salkım Söğüt Sk. yönüne doğru", s.street)
-        assertEquals(NavManeuver.STRAIGHT, s.maneuver)
+        // "yönüne doğru" dönüşlerde de kullanılır: düz ok uydurulmaz.
+        assertEquals(NavManeuver.UNKNOWN, s.maneuver)
         assertEquals("23:01", s.arrivalTime)
         assertEquals(1, s.remainingMinutes)
         assertEquals(260, s.remainingDistance!!.meters)
@@ -74,6 +75,14 @@ class GoogleNavParseTest {
         assertEquals(NavManeuver.ROUNDABOUT_ENTER, s.maneuver)
         assertEquals(3, s.roundaboutExit)
         assertEquals(300, s.distance!!.meters)
+    }
+
+    @Test
+    fun roundaboutExitIconAndEnterIconBothKeepExitNumber() {
+        val text = "300 m - Döner kavşakta 2. çıkıştan çıkın"
+        assertEquals(2, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.ROUNDABOUT_EXIT)!!.roundaboutExit)
+        assertEquals(2, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.ROUNDABOUT_ENTER)!!.roundaboutExit)
+        assertEquals(null, GoogleNavParse.parse(text, null, "4 dk. · 1,2 km", iconManeuver = NavManeuver.LEFT)!!.roundaboutExit)
     }
 
     @Test

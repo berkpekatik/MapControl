@@ -50,28 +50,48 @@ public class NativeHudManagerTest {
 
     private static class FakeVehicle implements HudVehicle {
         volatile Boolean support = true;
-        volatile boolean connected = true;
         volatile Integer power = 2;
+        volatile boolean connected = true;
+        volatile boolean sendResult = true;
+        volatile boolean stopResult = true;
         volatile IServiceConnectListener listener;
         volatile Runnable onSend;
         volatile int connects;
+        volatile int stops;
         volatile int[] lastTurn;
+        volatile int[] lastRemaining;
+        final List<int[]> packets = Collections.synchronizedList(new ArrayList<>());
         final List<Integer> commands = Collections.synchronizedList(new ArrayList<>());
         @Override public Boolean hudSupport() { return support; }
-        @Override public boolean connected() { return connected; }
         @Override public Integer powerMode() { return power; }
+        @Override public boolean connected() { return connected; }
         @Override public void connect(Context context) { connects++; }
         @Override public void listen(IServiceConnectListener value) { listener = value; }
         @Override public void unlisten(IServiceConnectListener value) { if (listener == value) listener = null; }
         @Override public boolean send(int[] packet) {
+            int[] copy = packet.clone();
+            packets.add(copy);
             commands.add(packet[0]);
-            if (packet[0] == 50) lastTurn = packet.clone();
+            if (packet[0] == 49) lastTurn = copy;
+            if (packet[0] == 51) lastRemaining = copy;
             Runnable hook = onSend;
             if (hook != null) hook.run();
-            return true;
+            return sendResult;
         }
+        @Override public boolean stopNavigation() { stops++; return stopResult; }
         int count(int command) {
             synchronized (commands) { return Collections.frequency(commands, command); }
+        }
+        int turnMeters() {
+            int[] packet = lastTurn;
+            return packet == null ? -1 : (packet[4] & 255) | ((packet[5] & 255) << 8) | ((packet[6] & 255) << 16);
+        }
+        boolean lastFrameIsBlank() {
+            int[] turn = lastTurn;
+            int[] remaining = lastRemaining;
+            return turn != null && remaining != null && turn[2] == -1 && turn[3] == -1
+                    && turnMeters() == 0 && remaining[2] == 0 && remaining[3] == 0
+                    && remaining[4] == 0 && remaining[5] == 0;
         }
     }
 
@@ -84,7 +104,7 @@ public class NativeHudManagerTest {
                     .remove("nativeHudOwned").commit();
             listener = new TestListener(context);
             NavigationSource.onListenerConnected(listener);
-            hud = new HudNavigationManager(context, vehicle);
+            hud = new HudNavigationManager(context, vehicle, 1000L, 20L);
             hud.start();
         });
         awaitStatus(R.string.hud_nav_waiting);
@@ -93,15 +113,14 @@ public class NativeHudManagerTest {
     @After public void tearDown() {
         if (hud == null) return;
         vehicle.onSend = null;
-        vehicle.support = true;
         vehicle.connected = true;
-        vehicle.power = 2;
+        vehicle.sendResult = true;
+        vehicle.stopResult = true;
         instrumentation.runOnMainSync(() -> {
             hud.setEnabled(false);
             NavigationSource.onListenerDisconnected();
         });
         awaitStatus(R.string.hud_nav_off);
-        // İkinci temizleme tamamlanmadan test tercihlerinin üstüne yazılmaz.
         waitFor(() -> !prefs.getBoolean("nativeHudOwned", false));
         instrumentation.runOnMainSync(() -> {
             hud.stop();
@@ -142,48 +161,164 @@ public class NativeHudManagerTest {
         listener.notifications = new StatusBarNotification[]{route};
         instrumentation.runOnMainSync(() -> NavigationSource.onNotificationPosted(listener, route));
     }
+    private void removeRoute() {
+        StatusBarNotification route = listener.notifications[0];
+        listener.notifications = new StatusBarNotification[0];
+        instrumentation.runOnMainSync(() -> NavigationSource.onNotificationRemoved(listener, route));
+    }
 
     @Test public void notificationAndRemovalUseTheSharedSource() {
         postRoute();
         awaitStatus(R.string.hud_nav_showing);
         assertEquals(1, vehicle.count(52));
-        StatusBarNotification route = listener.notifications[0];
-        listener.notifications = new StatusBarNotification[0];
-        instrumentation.runOnMainSync(() -> NavigationSource.onNotificationRemoved(listener, route));
+        assertEquals(1, vehicle.count(49));
+        removeRoute();
         awaitStatus(R.string.hud_nav_waiting);
-        waitFor(() -> vehicle.count(3) == 2);
+        waitFor(() -> vehicle.count(49) == 2 && vehicle.lastFrameIsBlank());
+        assertFalse(vehicle.commands.contains(3));
     }
 
-    @Test public void unsupportedVehicleNeverSendsOrKeepsHudListeners() {
-        vehicle.support = false;
-        instrumentation.runOnMainSync(() -> hud.refresh());
-        awaitStatus(R.string.hud_nav_not_supported);
-        postRoute();
-        instrumentation.runOnMainSync(() -> hud.showTest());
-        assertFalse(hud.isEnabled());
-        assertNull(vehicle.listener);
-        assertTrue(vehicle.commands.isEmpty());
-    }
-
-    @Test public void unknownSupportIsNotReportedAsAnUnsupportedVehicle() {
-        vehicle.support = null;
-        instrumentation.runOnMainSync(() -> hud.refresh());
-        awaitStatus(R.string.hud_nav_check_support);
-        assertFalse(hud.isSupported());
-        assertTrue(vehicle.commands.isEmpty());
-    }
-
-    @Test public void powerOffDefersStartAndCleanupUntilPowerReturns() {
+    @Test public void naturalRouteEndBlanksThenStops() {
         postRoute();
         awaitStatus(R.string.hud_nav_showing);
-        vehicle.power = 0;
-        instrumentation.runOnMainSync(() -> { hud.refresh(); hud.setEnabled(false); });
-        awaitStatus(R.string.hud_nav_off);
-        assertEquals(0, vehicle.count(3));
-        assertTrue(prefs.getBoolean("nativeHudOwned", false));
-        vehicle.power = 2;
+        removeRoute();
+        awaitStatus(R.string.hud_nav_waiting);
+        waitFor(() -> vehicle.stops == 1);
+        assertTrue(vehicle.lastFrameIsBlank());
+        assertFalse(vehicle.commands.contains(3));
+        waitFor(() -> !prefs.getBoolean("nativeHudOwned", false));
+    }
+
+    @Test public void missingConnectionKeepsPreferenceAndDefersTransfer() {
+        vehicle.connected = false;
         instrumentation.runOnMainSync(() -> hud.refresh());
-        waitFor(() -> vehicle.count(3) == 2);
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        assertTrue(hud.isPreferenceOn());
+        assertFalse(hud.isEnabled());
+        assertTrue(vehicle.commands.isEmpty());
+        postRoute();
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        assertTrue(vehicle.commands.isEmpty());
+        vehicle.connected = true;
+        instrumentation.runOnMainSync(() -> hud.refresh());
+        awaitStatus(R.string.hud_nav_showing);
+        assertEquals(1, vehicle.count(52));
+    }
+
+    @Test public void testButtonReportsWaitingForVehicleConnection() {
+        vehicle.connected = false;
+        instrumentation.runOnMainSync(() -> {
+            hud.refresh();
+            hud.showTest();
+        });
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        assertTrue(vehicle.commands.isEmpty());
+    }
+
+    @Test public void userOffWhileUnownedDoesNotBindOrSend() {
+        vehicle.connected = false;
+        instrumentation.runOnMainSync(() -> {
+            prefs.edit().remove("nativeHudOwned").commit();
+            hud.setEnabled(false);
+        });
+        awaitStatus(R.string.hud_nav_off);
+        waitFor(() -> vehicle.listener == null);
+        assertTrue(vehicle.commands.isEmpty());
+        assertEquals(0, vehicle.stops);
+        assertEquals(0, vehicle.connects);
+    }
+
+    @Test public void resumedRouteCancelsTheManagersOldEndTimer() {
+        postRoute();
+        awaitStatus(R.string.hud_nav_showing);
+        removeRoute();
+        awaitStatus(R.string.hud_nav_waiting);
+        waitFor(() -> vehicle.lastFrameIsBlank());
+        postRoute();
+        awaitStatus(R.string.hud_nav_showing);
+        android.os.SystemClock.sleep(1300);
+        assertEquals(0, vehicle.stops);
+        assertEquals(2, vehicle.count(52));
+        assertFalse(vehicle.lastFrameIsBlank());
+    }
+
+    @Test public void explicitOffDuringAFrameBlocksRemainingGuidancePackets() {
+        AtomicBoolean first = new AtomicBoolean(true);
+        vehicle.onSend = () -> {
+            if (first.compareAndSet(true, false)) {
+                instrumentation.runOnMainSync(() -> hud.setEnabled(false));
+            }
+        };
+        postRoute();
+        waitFor(() -> vehicle.stops == 1);
+        assertEquals(1, vehicle.count(52));
+        assertEquals(1, vehicle.count(49));
+        assertTrue(vehicle.lastFrameIsBlank());
+        assertFalse(prefs.getBoolean("nativeHudOwned", false));
+    }
+
+    @Test public void frequentGuidanceUpdatesDoNotPostponeConnectionRetries() {
+        vehicle.connected = false;
+        vehicle.listener.onServiceConnectedChanged(0);
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        long until = android.os.SystemClock.elapsedRealtime() + 6800;
+        int distance = 300;
+        while (android.os.SystemClock.elapsedRealtime() < until) {
+            YandexNavSnapshot snapshot = new YandexNavSnapshot(true,
+                    Integer.toString(distance++), "m", "Test Cd.", "18 km",
+                    null, null, null, null, null);
+            instrumentation.runOnMainSync(() -> hud.onYandexSnapshot(snapshot));
+            android.os.SystemClock.sleep(200);
+        }
+        assertTrue("Live route updates must not starve the periodic bind retry", vehicle.connects >= 2);
+        assertTrue(vehicle.commands.isEmpty());
+    }
+
+    @Test public void connectionDropKeepsRouteAndResumesWithoutLegacyClear() {
+        postRoute();
+        awaitStatus(R.string.hud_nav_showing);
+        vehicle.connected = false;
+        vehicle.listener.onServiceConnectedChanged(0);
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        assertEquals(1, vehicle.count(52));
+        assertEquals(0, vehicle.stops);
+        vehicle.connected = true;
+        vehicle.listener.onServiceConnectedChanged(1);
+        awaitStatus(R.string.hud_nav_showing);
+        assertEquals(2, vehicle.count(52));
+        assertEquals(0, vehicle.count(3));
+        assertEquals(0, vehicle.stops);
+    }
+
+    @Test public void explicitOffBlanksAndStopsImmediately() {
+        postRoute();
+        awaitStatus(R.string.hud_nav_showing);
+        instrumentation.runOnMainSync(() -> hud.setEnabled(false));
+        awaitStatus(R.string.hud_nav_off);
+        waitFor(() -> vehicle.stops == 1);
+        assertTrue(vehicle.lastFrameIsBlank());
+        assertEquals(2, vehicle.count(49));
+        assertEquals(2, vehicle.count(51));
+        assertEquals(0, vehicle.count(3));
+        assertFalse(prefs.getBoolean("nativeHudOwned", false));
+    }
+
+    @Test public void disconnectedOffRetainsCleanupUntilReconnect() {
+        postRoute();
+        awaitStatus(R.string.hud_nav_showing);
+        vehicle.connected = false;
+        vehicle.listener.onServiceConnectedChanged(0);
+        awaitStatus(R.string.hud_nav_need_vehicle);
+        instrumentation.runOnMainSync(() -> hud.setEnabled(false));
+        awaitStatus(R.string.hud_nav_off);
+        android.os.SystemClock.sleep(300);
+        assertEquals(0, vehicle.stops);
+        assertTrue(prefs.getBoolean("nativeHudOwned", false));
+        vehicle.connected = true;
+        instrumentation.runOnMainSync(() -> hud.refresh());
+        waitFor(() -> vehicle.stops == 1);
+        assertTrue(vehicle.lastFrameIsBlank());
+        assertEquals(0, vehicle.count(3));
         waitFor(() -> !prefs.getBoolean("nativeHudOwned", false));
     }
 
@@ -195,6 +330,7 @@ public class NativeHudManagerTest {
         android.os.SystemClock.sleep(300);
         assertEquals(1, vehicle.count(52));
         assertEquals(0, vehicle.count(3));
+        assertEquals(0, vehicle.stops);
     }
 
     @Test public void realDisconnectRebuildsTheSessionAfterReconnect() {
@@ -207,10 +343,10 @@ public class NativeHudManagerTest {
         vehicle.listener.onServiceConnectedChanged(1);
         awaitStatus(R.string.hud_nav_showing);
         assertEquals(2, vehicle.count(52));
-        assertEquals(1, vehicle.count(3));
+        assertEquals(0, vehicle.count(3));
     }
 
-    @Test public void repeatedYandexSnapshotsDoNotInterruptAnInFlightFrame() throws Exception {
+    @Test public void repeatedYandexSnapshotsDoNotAbortAnInFlightFrame() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicBoolean first = new AtomicBoolean(true);
@@ -234,7 +370,7 @@ public class NativeHudManagerTest {
         awaitStatus(R.string.hud_nav_showing);
         assertEquals(1, vehicle.count(52));
         assertEquals(0, vehicle.count(3));
-        assertEquals(1, vehicle.count(50));
+        assertEquals(1, vehicle.count(49));
     }
 
     @Test public void changingContentIsCoalescedWithoutAbortingTheCurrentFrame() throws Exception {
@@ -259,25 +395,26 @@ public class NativeHudManagerTest {
             instrumentation.waitForIdleSync();
         } finally { release.countDown(); }
         awaitStatus(R.string.hud_nav_showing);
-        assertEquals(1, vehicle.count(52));
+        assertEquals(2, vehicle.count(52));
         assertEquals(0, vehicle.count(3));
-        assertEquals(2, vehicle.count(50));
-        assertEquals(4000, (vehicle.lastTurn[4] & 255) | ((vehicle.lastTurn[5] & 255) << 8));
+        assertEquals(2, vehicle.count(49));
+        assertEquals(400, vehicle.turnMeters());
     }
 
-    @Test public void powerLossDuringAFrameBlocksEveryRemainingPacketAndRecovers() {
+    @Test public void partialSendFailureRetriesFullFrameWithoutPowerGate() {
         AtomicBoolean first = new AtomicBoolean(true);
-        vehicle.onSend = () -> { if (first.compareAndSet(true, false)) vehicle.power = 0; };
+        vehicle.onSend = () -> {
+            if (first.compareAndSet(true, false)) vehicle.sendResult = false;
+        };
         postRoute();
         awaitStatus(R.string.hud_nav_send_error);
-        assertEquals(1, vehicle.commands.size());
         assertEquals(1, vehicle.count(52));
         assertTrue(prefs.getBoolean("nativeHudOwned", false));
-        vehicle.power = 2;
+        vehicle.sendResult = true;
         instrumentation.runOnMainSync(() -> hud.refresh());
         awaitStatus(R.string.hud_nav_showing);
-        assertEquals(1, vehicle.count(3));
         assertEquals(2, vehicle.count(52));
+        assertEquals(0, vehicle.count(3));
     }
 
     @Test public void hudUsesGoogleWhileLauncherIsSetToYandex() {
@@ -286,14 +423,6 @@ public class NativeHudManagerTest {
         awaitStatus(R.string.hud_nav_showing);
         assertFalse(NavigationSource.getState().getActive());
         assertEquals(1, vehicle.count(52));
-    }
-
-    @Test public void unknownPowerPreventsEveryPacket() {
-        vehicle.power = null;
-        postRoute();
-        awaitStatus(R.string.hud_nav_need_power);
-        assertTrue(vehicle.commands.isEmpty());
-        assertFalse(prefs.getBoolean("nativeHudOwned", false));
     }
 
     @Test public void portraitDefaultsToUprightAndRespectsExplicitOverride() {
@@ -323,6 +452,7 @@ public class NativeHudManagerTest {
         awaitStatus(R.string.hud_nav_showing);
         instrumentation.runOnMainSync(NavigationSource::onListenerDisconnected);
         awaitStatus(R.string.hud_nav_need_notifications);
-        waitFor(() -> vehicle.count(3) == 2);
+        waitFor(() -> vehicle.count(49) == 2 && vehicle.lastFrameIsBlank());
+        assertEquals(0, vehicle.count(3));
     }
 }

@@ -18,8 +18,6 @@ import java.util.List;
  */
 public final class GrantedPermissionStatus {
 
-    private static final String NOTIFICATION_LISTENER =
-            "com.mapcontrol/com.mapcontrol.media.LauncherMediaNotificationListener";
 
     private static final String[] APP_OPS = {
             "SYSTEM_ALERT_WINDOW",
@@ -141,8 +139,9 @@ public final class GrantedPermissionStatus {
             String enabled = Settings.Secure.getString(
                     context.getContentResolver(),
                     "enabled_notification_listeners");
-            return enabled != null && (enabled.contains(NOTIFICATION_LISTENER)
-                    || enabled.contains("LauncherMediaNotificationListener"));
+            String own = new android.content.ComponentName(context.getPackageName(),
+                    com.mapcontrol.media.LauncherMediaNotificationListener.class.getName()).flattenToString();
+            return enabled != null && java.util.Arrays.asList(enabled.split(":")).contains(own);
         } catch (Exception ignored) {
             return false;
         }
