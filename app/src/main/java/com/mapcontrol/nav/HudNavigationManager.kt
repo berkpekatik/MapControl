@@ -226,6 +226,7 @@ class HudNavigationManager @JvmOverloads internal constructor(
             yandexForeground = if (snapshot.guidanceActive) NavigationState(
                 active = true,
                 distance = NavParse.parseDistanceOnly(snapshot.formatManeuverLine()),
+                roundaboutExit = snapshot.exitNumber,
                 street = snapshot.nextStreet?.takeIf { it.isNotBlank() } ?: snapshot.statusPanel,
                 arrivalTime = snapshot.etaArrival,
                 remainingDistance = NavParse.findDistance(snapshot.etaDistance),

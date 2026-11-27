@@ -23,6 +23,9 @@ public final class YandexNavScraper {
     private static final String SUFFIX_SPEED = "text_speed_value";
     private static final String SUFFIX_SPEED_LIMIT = "text_speedlimit";
     private static final String SUFFIX_STATUS = "status_panel_text";
+    /** Manevra balonunun altındaki kavşak çıkışı: TR "3. çıkış", EN "Exit 3" / "Third exit" (Yandex 27.0.2). */
+    private static final String SUFFIX_EXIT_NUMBER = "exit_number_text";
+    private static final String[] EXIT_WORDS = {"first", "second", "third", "fourth", "fifth"};
 
     private YandexNavScraper() {
     }
@@ -48,6 +51,7 @@ public final class YandexNavScraper {
         String speed = tree.get(SUFFIX_SPEED);
         String speedLimit = tree.get(SUFFIX_SPEED_LIMIT);
         String statusPanel = tree.get(SUFFIX_STATUS);
+        Integer exitNumber = parseExitNumber(tree.get(SUFFIX_EXIT_NUMBER));
 
         boolean active = nonEmpty(maneuverDistance)
                 || nonEmpty(etaDistance)
@@ -70,7 +74,30 @@ public final class YandexNavScraper {
                 etaTime,
                 speed,
                 speedLimit,
-                statusPanel);
+                statusPanel,
+                exitNumber);
+    }
+
+    /** "3. çıkış", "Exit 3", "Third exit" → 3; 1..10 dışı ya da tanınmayan metin null. */
+    @Nullable
+    static Integer parseExitNumber(@Nullable String text) {
+        if (text == null) {
+            return null;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2})").matcher(text);
+        Integer value = null;
+        if (m.find()) {
+            value = Integer.parseInt(m.group(1));
+        } else {
+            String lower = text.toLowerCase(java.util.Locale.ROOT);
+            for (int i = 0; i < EXIT_WORDS.length; i++) {
+                if (lower.contains(EXIT_WORDS[i]) || (i == 3 && lower.contains("forth"))) {
+                    value = i + 1;
+                    break;
+                }
+            }
+        }
+        return value != null && value >= 1 && value <= 10 ? value : null;
     }
 
     private static void collectBySuffix(AccessibilityNodeInfo node, Map<String, String> out) {
@@ -132,6 +159,9 @@ public final class YandexNavScraper {
         }
         if (viewId.endsWith(SUFFIX_STATUS)) {
             return SUFFIX_STATUS;
+        }
+        if (viewId.endsWith(SUFFIX_EXIT_NUMBER)) {
+            return SUFFIX_EXIT_NUMBER;
         }
         return null;
     }

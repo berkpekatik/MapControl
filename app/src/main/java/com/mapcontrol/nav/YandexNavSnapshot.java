@@ -17,6 +17,8 @@ public final class YandexNavSnapshot {
     @Nullable public final String speed;
     @Nullable public final String speedLimit;
     @Nullable public final String statusPanel;
+    /** Kavşak çıkış numarası: balonun altındaki "3. çıkış" ({@code exit_number_text}); yoksa null. */
+    @Nullable public final Integer exitNumber;
 
     public YandexNavSnapshot(
             boolean guidanceActive,
@@ -29,6 +31,23 @@ public final class YandexNavSnapshot {
             @Nullable String speed,
             @Nullable String speedLimit,
             @Nullable String statusPanel) {
+        this(guidanceActive, maneuverDistance, maneuverUnit, nextStreet, etaDistance, etaArrival, etaTime,
+                speed, speedLimit, statusPanel, null);
+    }
+
+    public YandexNavSnapshot(
+            boolean guidanceActive,
+            @Nullable String maneuverDistance,
+            @Nullable String maneuverUnit,
+            @Nullable String nextStreet,
+            @Nullable String etaDistance,
+            @Nullable String etaArrival,
+            @Nullable String etaTime,
+            @Nullable String speed,
+            @Nullable String speedLimit,
+            @Nullable String statusPanel,
+            @Nullable Integer exitNumber) {
+        this.exitNumber = exitNumber;
         this.guidanceActive = guidanceActive;
         this.maneuverDistance = maneuverDistance;
         this.maneuverUnit = maneuverUnit;
@@ -93,7 +112,8 @@ public final class YandexNavSnapshot {
                 prefer(etaTime, other.etaTime),
                 prefer(speed, other.speed),
                 prefer(speedLimit, other.speedLimit),
-                prefer(statusPanel, other.statusPanel));
+                prefer(statusPanel, other.statusPanel),
+                exitNumber != null ? exitNumber : other.exitNumber);
     }
 
     public boolean hasManeuverDistance() {
@@ -157,7 +177,8 @@ public final class YandexNavSnapshot {
                 && eq(etaTime, other.etaTime)
                 && eq(speed, other.speed)
                 && eq(speedLimit, other.speedLimit)
-                && eq(statusPanel, other.statusPanel);
+                && eq(statusPanel, other.statusPanel)
+                && java.util.Objects.equals(exitNumber, other.exitNumber);
     }
 
     private static boolean eq(@Nullable String a, @Nullable String b) {

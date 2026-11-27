@@ -13,6 +13,8 @@ internal fun hudRoute(notification: NavigationState, foreground: NavigationState
     if (!sameYandex) return notification
     return notification.copy(
         maneuver = if (notification.maneuver == NavManeuver.UNKNOWN) foreground.maneuver else notification.maneuver,
+        // Yandex bildirimi kavşak çıkış numarası taşımaz; ekrandaki "3. çıkış" ile tamamlanır (HUD 28 + n).
+        roundaboutExit = notification.roundaboutExit ?: foreground.roundaboutExit,
         distance = notification.distance ?: foreground.distance,
         street = notification.street?.takeIf { it.isNotBlank() } ?: foreground.street,
         remainingDistance = notification.remainingDistance ?: foreground.remainingDistance,

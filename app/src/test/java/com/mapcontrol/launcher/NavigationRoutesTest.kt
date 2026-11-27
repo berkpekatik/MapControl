@@ -105,6 +105,13 @@ class NavigationRoutesTest {
         assertEquals(notification, hudRoute(notification, screen, "auto"))
     }
 
+    @Test fun YandexScreenExitNumberCompletesRoundaboutNotification() {
+        val notification = yandex.copy(maneuver = NavManeuver.ROUNDABOUT_ENTER, roundaboutExit = null)
+        val screen = yandex.copy(maneuver = NavManeuver.UNKNOWN, roundaboutExit = 3)
+        assertEquals(3, hudRoute(notification, screen, "yandex").roundaboutExit)
+        assertEquals(2, hudRoute(notification.copy(roundaboutExit = 2), screen, "yandex").roundaboutExit)
+    }
+
     @Test fun YandexMapsScreenDoesNotFillAnotherNavigatorsRoute() {
         val navigator = yandex.copy(sourcePackage = NavigationSource.YANDEX_NAVI)
         val screen = yandex.copy(distance = NavDistance("300", "m", 300), street = "Maps yolu")
