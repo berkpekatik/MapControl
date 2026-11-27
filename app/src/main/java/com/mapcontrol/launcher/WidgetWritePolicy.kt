@@ -148,7 +148,7 @@ internal object WidgetWritePolicy {
         // Direksiyon ısıtma (Tiggo 8): anahtar gibi, açarken de kapatırken de 160 ← 1 (OEM sesli komut); 0 yazılmaz. Doğrulanmadı.
         Entry("SteerHeat", CS, CarSettingID.ID_CAR_STEER_WHEEL_HEAT, setOf(ComfortPlan.STEER_WHEEL_TOGGLE),
             listOf(ComfortPlan.STEER_WHEEL_HEAT), verified = STEER_HEAT_WRITE_VERIFIED),
-        // Koltuk hafızası: CS 52 ← 1/2 (OEM "Konumu 1/2"). Geri okuma 52 = [hazır, etkin konum]; 16 = çağırma başarısız.
+        // Koltuk hafızası: CS 52 ← 1/2/3 (OEM "Konumu 1/2/3"). Geri okuma 52 = [hazır, etkin konum]; 16 = çağırma başarısız.
         // Koltuğu fiziksel olarak hareket ettirir: yalnız park halinde (hız 0, vites P; OEM P ya da N ister).
         Entry("SeatMemory", CS, SeatMemoryLogic.ID_SELECT, SeatMemoryLogic.SLOTS.toSet(),
             listOf(sig("cs52_seat_memory", CS, SeatMemoryLogic.ID_SELECT)), verified = SEAT_MEMORY_WRITE_VERIFIED, parkOnly = true),

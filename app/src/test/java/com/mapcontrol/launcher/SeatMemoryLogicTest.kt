@@ -52,7 +52,8 @@ class SeatMemoryLogicTest {
         assertEquals(SeatMemoryLogic.Action.SEND, SeatMemoryLogic.decide(2, ready, 10_000, null))
         // Etkin konuma yeniden basmak da gönderir (elle oynanmış koltuğu geri getirir, OEM gibi).
         assertEquals(SeatMemoryLogic.Action.SEND, SeatMemoryLogic.decide(1, ready, 10_000, null))
-        assertEquals(SeatMemoryLogic.Action.REFUSE, SeatMemoryLogic.decide(3, ready, 10_000, null))
+        assertEquals(SeatMemoryLogic.Action.SEND, SeatMemoryLogic.decide(3, ready, 10_000, null))
+        assertEquals(SeatMemoryLogic.Action.REFUSE, SeatMemoryLogic.decide(4, ready, 10_000, null))
         assertEquals(SeatMemoryLogic.Action.REFUSE, SeatMemoryLogic.decide(0, ready, 10_000, null))
         assertEquals(SeatMemoryLogic.Action.NOT_READY, SeatMemoryLogic.decide(1, null, 10_000, null))
         assertEquals(SeatMemoryLogic.Action.NOT_READY, SeatMemoryLogic.decide(1, intArrayOf(0, 1), 10_000, null))
@@ -61,7 +62,7 @@ class SeatMemoryLogicTest {
         assertEquals(SeatMemoryLogic.Action.SEND, SeatMemoryLogic.decide(2, ready, 10_000, 10_000 - SeatMemoryLogic.RESEND_GAP_MS))
     }
 
-    @Test fun `iki sürücü profili sunulur`() {
-        assertEquals(listOf(1, 2), SeatMemoryLogic.SLOTS)
+    @Test fun `OEM'deki üç konum sunulur`() {
+        assertEquals(listOf(1, 2, 3), SeatMemoryLogic.SLOTS)
     }
 }

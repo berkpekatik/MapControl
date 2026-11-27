@@ -203,14 +203,14 @@ class WidgetWritePolicyTest {
 
     private val CS = VDEventCarInfo.MODULE_CAR_SETTING
 
-    @Test fun `koltuk hafızası yalnız 52 ← 1 ya da 2 ile ve park halinde gider`() {
-        for (slot in listOf(1, 2)) {
+    @Test fun `koltuk hafızası yalnız 52 ← 1, 2 ya da 3 ile ve park halinde gider`() {
+        for (slot in listOf(1, 2, 3)) {
             assertTrue(WidgetWritePolicy.evaluate(CS, 52, slot, parked) is WidgetWritePolicy.Verdict.Allowed)
             assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot, moving(5))))
             assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot, inGear(3))))
             assertTrue(refusedForPark(WidgetWritePolicy.evaluate(CS, 52, slot) /* hız/vites okunamadı */))
         }
-        for (bad in listOf(0, 3, 16, -1)) {
+        for (bad in listOf(0, 4, 16, -1)) {
             assertEquals(WidgetWritePolicy.Verdict.NotWhitelisted, WidgetWritePolicy.evaluate(CS, 52, bad, parked))
         }
     }

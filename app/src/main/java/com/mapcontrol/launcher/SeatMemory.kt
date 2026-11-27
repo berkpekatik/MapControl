@@ -16,13 +16,13 @@ import com.mapcontrol.vehicle.CarInfoRead
  *  - Çağırma: CS 52 ← [konum] (konum 1..3; "Konumu N" düğmesi `sendItemValues(CS, 52, [N])`).
  *  - Okuma: CS 52 = [hazır, etkin konum]; [0] == 1 koltuk ayarı hazır, [1] 1..3 etkin konum, [1] == 16 çağırma başarısız.
  *  - Kaydetme CS 54'tür; burada YOK (profil üzerine yazılmasın).
- * Günay'ın isteğiyle iki sürücü profili sunulur ([SLOTS]); OEM menüsünde üçüncü konum da var.
+ * OEM menüsündeki üç konumun üçü de sunulur ([SLOTS]).
  */
 internal object SeatMemoryLogic {
 
     const val ID_SELECT = CarSettingID.ID_CAR_SELECT_SEAT_MIRROR_POSI // 52
 
-    val SLOTS: List<Int> = listOf(1, 2)
+    val SLOTS: List<Int> = listOf(1, 2, 3)
 
     const val RESTORE_FAILED = 16
 
@@ -61,7 +61,7 @@ internal object SeatMemoryLogic {
 }
 
 /**
- * Sürücü koltuk hafızasının okuma/yazma yardımcısı; sürücü koltuğu seçicisindeki "Hafıza 1 · 2" satırı kullanır ([SeatTile]).
+ * Sürücü koltuk hafızasının okuma/yazma yardımcısı; sürücü koltuğu seçicisindeki "Hafıza 1 · 2 · 3" satırı kullanır ([SeatTile]).
  * Seçici bir açılır pencere olduğundan dokunuş zaten iki adımdır (öğe → konum). Yazma tek noktadan
  * ([LauncherEdition.sendItemValue] → [WidgetWritePolicy]: beyaz liste, park kapısı) gider. Satır yalnız destek kesinken
  * ([CarFeatures.seatMemory]) gösterilir.

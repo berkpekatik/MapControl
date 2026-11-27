@@ -416,7 +416,7 @@ internal class SeatTile(
             })
         }
 
-        /** "Hafıza" 1 · 2: ısıtma/soğutma satırlarıyla aynı biçim; dokunuş OEM "Konumu N" gibi koltuğu çağırır. */
+        /** "Hafıza" 1 · 2 · 3: ısıtma/soğutma satırlarıyla aynı biçim; dokunuş OEM "Konumu N" gibi koltuğu çağırır. */
         private fun addMemory() {
             val label = sahneOrText(if (stacked) STACKED_LABEL_SP else if (titled) CHOOSER_LABEL_SP else LABEL_SP, 500).apply {
                 setText(R.string.launcher_seat_row_memory)
