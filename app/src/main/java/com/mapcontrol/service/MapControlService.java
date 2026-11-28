@@ -123,6 +123,20 @@ public class MapControlService extends Service {
         handler = new Handler(Looper.getMainLooper());
         com.mapcontrol.nav.HudNavigationManager.get(this).start();
         scheduler = Executors.newSingleThreadScheduledExecutor();
+        // Sesli asistan: "Chery asistanını kapat" açıksa yeniden uygula; asistan kaldırıldıysa Chery'yi geri aç.
+        scheduler.execute(() -> {
+            try {
+                com.mapcontrol.ai.StockVoiceAssistant.reapplyOnStart(this);
+            } catch (Throwable t) {
+                android.util.Log.w("MapControlService", "Chery asistanı politikası: " + t);
+            }
+            // Servis modu: USB zaten takılıysa (yayın kaçtıysa) kilit dosyasına bak.
+            try {
+                com.mapcontrol.admin.ServiceModeUsbReceiver.checkNow(this);
+            } catch (Throwable t) {
+                android.util.Log.w("MapControlService", "Servis modu USB kontrolü: " + t);
+            }
+        });
         if (skipClusterSplashOnce) {
             skipClusterSplashOnce = false;
         } else {

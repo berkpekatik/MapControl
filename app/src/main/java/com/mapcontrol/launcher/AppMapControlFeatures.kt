@@ -158,7 +158,10 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
 
     // --- Bölünmüş ekran (SplitScreenTabBuilder.onStartClicked ile aynı yol) ---
 
-    override fun readSplitPair() = SplitPair(SplitScreenStore.getPkg1(app), SplitScreenStore.getPkg2(app))
+    /** Kayıtlı çift; eski sürümden kalan geçersiz seçim (ör. kaldırılan Mini gösterge bileşeni) boş sayılır. */
+    override fun readSplitPair() = SplitPair(allowed(SplitScreenStore.getPkg1(app)), allowed(SplitScreenStore.getPkg2(app)))
+
+    private fun allowed(entry: String?): String? = entry?.takeIf { com.mapcontrol.util.SplitSlot.isAllowed(it, app.packageName) }
 
     override fun readSplitAxis(): Int = SplitScreenStore.getAxis(app).ordinal
 
@@ -170,10 +173,6 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
 
     override fun splitCandidates(): List<SplitCandidate> {
         val out = ArrayList<SplitCandidate>()
-        // MapControl sekmesiyle aynı: Mini gösterge yalnız launcher modu açıkken.
-        if (com.mapcontrol.util.LauncherModeManager.isEnabled(app)) {
-            out += SplitCandidate(com.mapcontrol.util.SplitSlot.miniDash(app.packageName), app.getString(com.mapcontrol.R.string.launcher_mini_title))
-        }
         try {
             com.mapcontrol.util.ProjectionTargetApps.loadSortedRows(app).forEach { out += SplitCandidate(it.packageName, it.label) }
         } catch (e: Exception) {
@@ -188,9 +187,9 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
         Log.i(TAG, "split app ${slot + 1} -> $entry")
     }
 
-    /** SplitScreenTabBuilder.isSlotValid ile aynı: bileşen ise yalnız Mini gösterge, değilse sistem dışı kullanıcı uygulaması. */
+    /** SplitScreenTabBuilder.isSlotValid ile aynı: sistem dışı kullanıcı uygulaması (bileşen dizesi geçersiz). */
     private fun splitEntryValid(entry: String): Boolean {
-        if (com.mapcontrol.util.SplitSlot.isComponent(entry)) return com.mapcontrol.util.SplitSlot.isMiniDash(entry, app.packageName)
+        if (!com.mapcontrol.util.SplitSlot.isAllowed(entry, app.packageName)) return false
         return try {
             !com.mapcontrol.util.ProjectionTargetApps.isSystemOrPrivApp(app.packageManager.getApplicationInfo(entry, 0))
         } catch (e: Exception) {
@@ -210,37 +209,9 @@ internal class AppMapControlFeatures(context: Context) : MapControlFeatures {
         }
     }
 
-    override fun startSplitWithMiniDash(done: (String?) -> Unit) {
-        val other = MapControlWidgetMath.miniDashSplitOther(SplitScreenLauncher.lastOtherApp(app)) { pkg ->
-            try { app.packageManager.getApplicationInfo(pkg, 0); true } catch (e: Exception) { false }
-        }
-        SplitScreenLauncher.startWithMiniDash(app, other) { result ->
-            Log.i(TAG, "split(miniDash, $other) -> $result")
-            done(if (result == SplitScreenLauncher.Result.STARTED) null else SplitScreenMessages.resultText(app, result))
-        }
-    }
-
-    // --- Sürüş ekranı (Navigasyon kartı; MapControl'ın aynı bölme başlatıcısı) ---
-
-    override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) {
-        val slot = mapPkg ?: com.mapcontrol.util.SplitSlot.mapPicker(app.packageName)
-        SplitScreenLauncher.startDriveScreen(app, slot, route) { result ->
-            Log.i(TAG, "split(drive, ${if (mapPkg == null) "picker" else mapPkg}) -> $result")
-            done(if (result == SplitScreenLauncher.Result.STARTED) null else SplitScreenMessages.resultText(app, result))
-        }
-    }
-
-    override fun mapFullScreen(pkg: String, done: (Boolean) -> Unit) {
-        SplitScreenLauncher.mapFullScreen(app, pkg) { result -> done(result == SplitScreenLauncher.Result.STARTED) }
-    }
-
-    override fun endDriveScreen() = SplitScreenLauncher.endDriveScreen(app)
-
     override fun openFullScreen(pkg: String) = SplitScreenLauncher.openFullScreenAsync(app, pkg)
 
     override fun restoreStaleMap(pkg: String) = SplitScreenLauncher.restoreStaleMap(app, pkg)
-
-    override fun driveMapSlot(): android.graphics.Rect? = SplitScreenLauncher.driveMapSlot(app)
 
     // --- Göstergeye yansıt (MapControlService aç/kapa eylemleri → ClusterDisplayManager, Yansıtma sekmesiyle aynı) ---
 

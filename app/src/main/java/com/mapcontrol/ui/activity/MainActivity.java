@@ -2438,6 +2438,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (topBarBuilder != null) topBarBuilder.release();
         if (driveModeTabBuilder != null) driveModeTabBuilder.release();
+        if (climateAutomationTabBuilder != null) climateAutomationTabBuilder.release();
         ApkSessionInstaller.clearListener(apkSessionListener);
         if (sBenchHost == this) {
             sBenchHost = null;

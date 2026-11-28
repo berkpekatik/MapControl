@@ -14,7 +14,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
@@ -42,7 +41,7 @@ public final class DmsFaceRecognitionTabBuilder {
     private LinearLayout normalContentContainer;
     private TextView activeModeLabel;
 
-    private SwitchCompat enabledSwitch;
+    private android.widget.CompoundButton enabledSwitch;
     private TextView description;
     private TextView toggleLabel;
     private TextView status;
@@ -286,9 +285,10 @@ public final class DmsFaceRecognitionTabBuilder {
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         applySeatMemoryCopy();
 
-        enabledSwitch = new SwitchCompat(activity);
+        enabledSwitch = UiStyles.createLargeSwitch(activity);
         enabledSwitch.setChecked(DmsFaceRecognitionManager.isEnabled(activity));
         toggleRow.addView(enabledSwitch);
+        UiStyles.makeToggleRow(toggleRow, enabledSwitch);
         enabledSwitch.setOnCheckedChangeListener((button, enabled) -> {
             if (suppressSwitchCallback) {
                 return;

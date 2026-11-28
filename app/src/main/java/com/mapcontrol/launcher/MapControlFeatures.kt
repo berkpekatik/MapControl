@@ -1,7 +1,6 @@
 package com.mapcontrol.launcher
 
 import android.app.Activity
-import android.content.Intent
 
 /**
  * MapControl özelliklerine bağlanan dört widget'ın (web paneli, ekolayzer, otomasyon, göstergeye yansıt)
@@ -63,7 +62,7 @@ internal interface MapControlFeatures {
 
     fun setSplitAxis(axis: Int)
 
-    /** Bölünmüş ekrana seçilebilen uygulamalar (MapControl sekmesindeki listeyle aynı; Mini gösterge launcher modunda başta). */
+    /** Bölünmüş ekrana seçilebilen uygulamalar (MapControl sekmesindeki listeyle aynı). */
     fun splitCandidates(): List<SplitCandidate>
 
     /** [slot] 0 ya da 1; [entry] null ise yuva boşaltılır. Geçersiz seçim yok sayılır. */
@@ -72,32 +71,11 @@ internal interface MapControlFeatures {
     /** Bölünmüş ekranı seçili çiftle başlatır; [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden. */
     fun startSplit(done: (String?) -> Unit)
 
-    /**
-     * Mini gösterge solda, son seçilen diğer uygulama (yoksa Yandex Haritalar) sağda yarı yarıya bölünmüş ekran açar;
-     * [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden.
-     */
-    fun startSplitWithMiniDash(done: (String?) -> Unit)
-
-    /**
-     * Sürüş ekranı ([DriveScreen]): Mini gösterge bir yarıda, [mapPkg] (null: "+ Harita ekle" seçicisi) diğer yarıda; [route] verilirse
-     * harita onunla açılır (Ev / İş). [done] ana iş parçacığında: null = başladı, yoksa kullanıcıya gösterilecek neden.
-     */
-    fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit)
-
-    /** Sürüş ekranındaki haritayı tam ekran yapar; [done] ana iş parçacığında (true = yapıldı). */
-    fun mapFullScreen(pkg: String, done: (Boolean) -> Unit)
-
-    /** Sürüş ekranı bitti: kendi yarılarımızın (Mini gösterge, seçici) görevleri kapatılır. */
-    fun endDriveScreen()
-
-    /** [pkg]'yi tam ekran açar; sürüş ekranından yarıda serbest pencere kalmış görevi tam ekrana taşınır (arka planda). */
+    /** [pkg]'yi tam ekran açar; serbest pencerede kalmış görevi tam ekrana taşınır (arka planda). */
     fun openFullScreen(pkg: String)
 
-    /** Süreç ölümüyle yarıda kalmış sürüş ekranı haritasını tüm alana büyütür; engelleyen çağrı (arka plan iş parçacığında kullanılır). */
+    /** Eski sürüş ekranından süreç ölümüyle yarıda kalmış haritayı tüm alana büyütür; engelleyen çağrı (arka plan iş parçacığında kullanılır). */
     fun restoreStaleMap(pkg: String) = Unit
-
-    /** Sürüş ekranında haritanın yarısı (ekran koordinatı); bölme yoksa null. */
-    fun driveMapSlot(): android.graphics.Rect?
 
     /** Göstergeye (cluster) yansıtma durumu ve hedef uygulama. */
     fun readCluster(): ClusterState
@@ -129,12 +107,7 @@ internal interface MapControlFeatures {
             override fun setSplitAxis(axis: Int) = Unit
             override fun splitCandidates(): List<SplitCandidate> = emptyList()
             override fun setSplitApp(slot: Int, entry: String?) = Unit
-            override fun startSplitWithMiniDash(done: (String?) -> Unit) = Unit
-            override fun startDriveScreen(mapPkg: String?, route: Intent?, done: (String?) -> Unit) = Unit
-            override fun mapFullScreen(pkg: String, done: (Boolean) -> Unit) = Unit
-            override fun endDriveScreen() = Unit
             override fun openFullScreen(pkg: String) = Unit
-            override fun driveMapSlot(): android.graphics.Rect? = null
             override fun readCluster() = ClusterState(open = false, target = null)
             override fun setCluster(open: Boolean) = Unit
             override fun openTab(activity: Activity, tab: MapControlTab) = Unit
@@ -194,19 +167,6 @@ object MapControlWidgetMath {
         val a = pair.first?.trim().orEmpty()
         val b = pair.second?.trim().orEmpty()
         return a.isNotEmpty() && b.isNotEmpty() && a != b
-    }
-
-    /** Mini gösterge ile bölünecek varsayılan eş: Yandex Haritalar. */
-    const val SPLIT_DEFAULT_PKG = "ru.yandex.yandexmaps"
-
-    /**
-     * Mini gösterge bölünmüş ekranının diğer uygulaması: son seçilen (paketi hâlâ kuruluysa; "pkg/cls" ise paket kısmı
-     * denetlenir), yoksa kuruluysa varsayılan, o da yoksa null.
-     */
-    fun miniDashSplitOther(last: String?, isInstalled: (String) -> Boolean): String? {
-        val l = last?.trim().orEmpty()
-        if (l.isNotEmpty() && isInstalled(l.substringBefore('/'))) return l
-        return SPLIT_DEFAULT_PKG.takeIf(isInstalled)
     }
 
     /**

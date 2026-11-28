@@ -127,9 +127,9 @@ internal object StageFit {
 }
 
 /**
- * "+N" kuralı (saf, JVM'de sınanır): Sahne uyarı şeridi ve mini gösterge en çok [MAX_VISIBLE] maddeyi adlandırır, fazlası tek
+ * "+N" kuralı (saf, JVM'de sınanır): Sahne uyarı şeridi en çok [MAX_VISIBLE] maddeyi adlandırır, fazlası tek
  * bir "+N" olur. §10 (4 Kasım, son karar): araç çiziminde görünen şeyler (kapı, bagaj, kaput, cam, cam tavan) şeride yazılmaz;
- * şerit yalnızca arabada görünmeyenler içindir ([MiniAlerts]: düşük lastik, bakım, yakıt az, kötü hava).
+ * şerit yalnızca arabada görünmeyenler içindir ([StripAlerts]: düşük lastik, bakım, yakıt az, kötü hava).
  */
 internal object StageNotices {
 

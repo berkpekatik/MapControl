@@ -29,7 +29,7 @@ import com.mapcontrol.admin.MapControlDeviceAdminReceiver;
 /**
  * Ekranı iki bitişik pencereye böler. Android'in hazır split API'si kullanılmaz; kullanılabilir alan
  * iki dikdörtgene ayrılır ve her uygulama {@code WINDOWING_MODE_FREEFORM} (5) ile kendi
- * dikdörtgeninde açılır. Mantık MyCar'ın freeform yolundan ({@code C0320p4.u/r}) alınmıştır.
+ * dikdörtgeninde açılır.
  *
  * <p>Mode 6 (Desay launcher oturumu) bilerek taşınmadı: hidden API muafiyeti ve launcher
  * sözleşmesi gerektirir, her araç imajında yoktur.
@@ -38,15 +38,15 @@ public final class SplitScreenLauncher {
 
     private static final String TAG = "SplitScreen";
 
-    /** {@code Settings.Global}: freeform pencere desteğini açar (MyCar {@code RealApplication.b}). */
+    /** {@code Settings.Global}: freeform pencere desteğini açar. */
     private static final String SETTING_ENABLE_FREEFORM = "enable_freeform_support";
     private static final String FEATURE_FREEFORM = "android.software.freeform_window_management";
 
     /** {@code ActivityOptions.WINDOWING_MODE_FREEFORM}. */
     private static final int WINDOWING_MODE_FREEFORM = 5;
-    /** Süreç düşürüldükten sonra beklenen süre (MyCar ile aynı). */
+    /** Süreç düşürüldükten sonra beklenen süre. */
     private static final long RECYCLE_WAIT_MS = 600L;
-    /** NEW_TASK | RESET_TASK_IF_NEEDED | REORDER_TO_FRONT (MyCar: 270663680). */
+    /** NEW_TASK | RESET_TASK_IF_NEEDED | REORDER_TO_FRONT. */
     private static final int LAUNCH_FLAGS = Intent.FLAG_ACTIVITY_NEW_TASK
             | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
             | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT;
@@ -54,7 +54,7 @@ public final class SplitScreenLauncher {
     private SplitScreenLauncher() {
     }
 
-    /** İlk uygulamanın ekrandaki payı. Kimlikler MyCar ile aynıdır. */
+    /** İlk uygulamanın ekrandaki payı. */
     public enum Ratio {
         LEFT_THIRD("left_third", 1f / 3f),
         HALF("half", 0.5f),
@@ -181,43 +181,12 @@ public final class SplitScreenLauncher {
             @NonNull String pkg2,
             @NonNull Ratio ratio,
             @Nullable Callback callback) {
-        start(context, pkg1, pkg2, ratio, LaunchOpts.DEFAULT, callback);
-    }
-
-    /**
-     * Açılış ayrıntıları. MapControl bölmesi ({@link #DEFAULT}) eskisi gibidir; sürüş ekranı ({@link #startDriveScreen}) başlığı
-     * durum çubuğu altına itmez, harita kutusuna rota intent'i verebilir ve Mini göstergeye "sürüş ekranı" işaretini geçirir.
-     */
-    static final class LaunchOpts {
-        static final LaunchOpts DEFAULT = new LaunchOpts(true, null, false);
-
-        /** Üst kenarı durum çubuğuna değen yarıyı başlık kadar yukarı başlat ({@link #tuckedTop}). */
-        final boolean tuckCaption;
-        /** İkinci kutu için başlatıcı intent'i yerine açılacak intent (ör. Ev/İş rotası); null = başlatıcı intent'i. */
-        @Nullable final Intent secondIntent;
-        /** Mini gösterge sürüş ekranının yarısı olarak açılır ({@code MiniDashActivity.EXTRA_DRIVE}). */
-        final boolean drive;
-
-        LaunchOpts(boolean tuckCaption, @Nullable Intent secondIntent, boolean drive) {
-            this.tuckCaption = tuckCaption;
-            this.secondIntent = secondIntent;
-            this.drive = drive;
-        }
-    }
-
-    private static void start(
-            @NonNull Context context,
-            @NonNull String pkg1,
-            @NonNull String pkg2,
-            @NonNull Ratio ratio,
-            @NonNull LaunchOpts opts,
-            @Nullable Callback callback) {
         final Context app = context.getApplicationContext();
         final Handler main = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             Result result;
             try {
-                result = startBlocking(app, pkg1, pkg2, ratio, opts);
+                result = startBlocking(app, pkg1, pkg2, ratio);
             } catch (Exception e) {
                 Log.w(TAG, "split start failed", e);
                 result = Result.LAUNCH_FAILED;
@@ -229,7 +198,7 @@ public final class SplitScreenLauncher {
         }, "split-screen-start").start();
     }
 
-    private static Result startBlocking(Context app, String pkg1, String pkg2, Ratio ratio, LaunchOpts opts)
+    private static Result startBlocking(Context app, String pkg1, String pkg2, Ratio ratio)
             throws InterruptedException {
         if (pkg1.equals(pkg2)) {
             return Result.SAME_APP;
@@ -247,13 +216,9 @@ public final class SplitScreenLauncher {
             return Result.NO_FREEFORM;
         }
 
-        // Açık görev yeni sınırları almaz; MyCar süreci düşürür. Yalnızca device owner iken mümkün.
+        // Açık görev yeni sınırları almaz; bu yüzden süreç düşürülür. Yalnızca device owner iken mümkün.
         boolean recycled = recycleProcess(app, pkg1);
         recycled |= recycleProcess(app, pkg2);
-        // Kendi Mini göstergemiz (singleTask, ayrı görev) süreç düşürmeyle yenilenemez; açık görevi kapatılır ki yeni
-        // sınırlarla açılsın (yoksa eski tam ekran/boyutuyla öne gelir).
-        recycled |= closeOwnTask(app, pkg1, self);
-        recycled |= closeOwnTask(app, pkg2, self);
         if (recycled || !wasOn) {
             Thread.sleep(RECYCLE_WAIT_MS);
         }
@@ -263,54 +228,27 @@ public final class SplitScreenLauncher {
             Log.e(TAG, "Invalid usable bounds: " + usable);
             return Result.BAD_BOUNDS;
         }
-        // Kullanıcının bölme yönü (Otomatik / Sol-sağ / Üst-alt); sürüş ekranı launcher düzenine bağlı, hep otomatik.
-        Rect[] parts = split(usable, ratio, opts.drive ? Axis.AUTO : SplitScreenStore.getAxis(app));
+        // Kullanıcının bölme yönü (Otomatik / Sol-sağ / Üst-alt).
+        Rect[] parts = split(usable, ratio, SplitScreenStore.getAxis(app));
         // Serbest pencere başlığı (küçült/kapat, ~42 px) pencerenin içinde çizilir; üst kenarı kullanılabilir alanın üstüne
         // değen yarılar başlık kadar yukarı alınır ki başlık durum çubuğunun altında kalsın ve içerik tam yarıyı alsın.
-        // Sürüş ekranında itilmez: öykünücüde (7 Kasım) görev sınırı kabul edildi ama pencere yine durum çubuğunun altından
-        // başladı, içerik başlık kadar aşağı kaydı ve altı kesildi.
-        int caption = opts.tuckCaption ? captionHeightPx(app) : 0;
+        int caption = captionHeightPx(app);
         for (Rect part : parts) {
             part.top = tuckedTop(part.top, usable.top, caption);
         }
-        boolean first = launchFreeform(app, pkg1, parts[0], null, opts.drive);
-        boolean second = launchFreeform(app, pkg2, parts[1], opts.secondIntent, opts.drive);
+        boolean first = launchFreeform(app, pkg1, parts[0]);
+        boolean second = launchFreeform(app, pkg2, parts[1]);
         Log.d(TAG, "first=" + first + " second=" + second + " usable=" + usable);
         if (first && second) {
             // Başka uygulamanın önceden açık görevi açılış sınırlarını almaz (eski yerinde öne gelir): görev kimliği olay
-            // günlüğünden bulunup sınırlarla yeniden öne alınır. Kendi Mini göstergemiz yukarıda yeni görevle açıldı.
-            boolean waited = false;
+            // günlüğünden bulunup sınırlarla yeniden öne alınır.
+            Thread.sleep(PLACE_WAIT_MS);
             String[] slots = {pkg1, pkg2};
             for (int i = 0; i < slots.length; i++) {
-                if (SplitSlot.packageOf(slots[i]).equals(self)) {
-                    continue;
-                }
-                if (!waited) {
-                    Thread.sleep(PLACE_WAIT_MS);
-                    waited = true;
-                }
                 placeExistingTask(app, SplitSlot.packageOf(slots[i]), parts[i]);
-                if (opts.drive) {
-                    markDrivePlaced(app, SplitSlot.packageOf(slots[i]));
-                }
             }
         }
         return first && second ? Result.STARTED : Result.LAUNCH_FAILED;
-    }
-
-    /** {@code DriveMapPrefs} ile aynı tercih dosyası / anahtar: sürüş ekranının yarısına yerleştirdiğimiz harita paketi (süreç ölse de kalır). */
-    private static final String DRIVE_PREFS = "launcher_nav";
-    private static final String KEY_DRIVE_PLACED = "drive_placed_map";
-
-    private static void markDrivePlaced(Context app, String pkg) {
-        if (pkg.equals(app.getPackageName())) {
-            return;
-        }
-        app.getSharedPreferences(DRIVE_PREFS, Context.MODE_PRIVATE).edit().putString(KEY_DRIVE_PLACED, pkg).apply();
-    }
-
-    private static void clearDrivePlaced(Context app) {
-        app.getSharedPreferences(DRIVE_PREFS, Context.MODE_PRIVATE).edit().remove(KEY_DRIVE_PLACED).apply();
     }
 
     /** Açılıştan sonra görevin olay günlüğüne düşmesi için beklenen süre. */
@@ -392,79 +330,7 @@ public final class SplitScreenLauncher {
         return new Intent(Intent.ACTION_MAIN).setComponent(cn);
     }
 
-    /**
-     * Mini gösterge solda, verilen diğer uygulama sağda, yarı yarıya bölünmüş ekran açar.
-     * Launcher bunu ileride çağırır; arayüz bağlanmadı. Diğer kutu boşsa ya da Mini göstergenin
-     * kendisiyse {@link Result#NOT_INSTALLED} döner.
-     *
-     * @param otherApp paket adı ya da "pkg/cls" bileşen dizesi; genelde {@link #lastOtherApp}
-     */
-    public static void startWithMiniDash(
-            @NonNull Context context, @Nullable String otherApp, @Nullable Callback callback) {
-        Context app = context.getApplicationContext();
-        String self = app.getPackageName();
-        if (otherApp == null || !SplitSlot.isAllowed(otherApp, self) || SplitSlot.isMiniDash(otherApp, self)) {
-            if (callback != null) {
-                new Handler(Looper.getMainLooper()).post(() -> callback.onResult(Result.NOT_INSTALLED));
-            }
-            return;
-        }
-        start(app, SplitSlot.miniDash(self), otherApp, Ratio.HALF, callback);
-    }
-
-    /** Kayıtlı bölünmüş ekran çiftinden Mini gösterge olmayan, en son seçilen uygulama (sağ kutu önce). */
-    @Nullable
-    public static String lastOtherApp(@NonNull Context context) {
-        String self = context.getApplicationContext().getPackageName();
-        String a = SplitScreenStore.getPkg1(context);
-        String b = SplitScreenStore.getPkg2(context);
-        if (b != null && !SplitSlot.isMiniDash(b, self)) {
-            return b;
-        }
-        if (a != null && !SplitSlot.isMiniDash(a, self)) {
-            return a;
-        }
-        return null;
-    }
-
-    /**
-     * Kutu kendi etkinliğimizse (Mini gösterge, harita seçici) ve onun görevi açıksa görev kapatılır (kendi görevlerimiz; yetki
-     * gerekmez).
-     */
-    private static boolean closeOwnTask(Context context, String slot, String self) {
-        if (!SplitSlot.isOwn(slot, self)) {
-            return false;
-        }
-        boolean closed = false;
-        try {
-            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-            if (am == null) {
-                return false;
-            }
-            String cls = SplitSlot.classOf(slot);
-            for (ActivityManager.AppTask task : am.getAppTasks()) {
-                ComponentName base;
-                try {
-                    ActivityManager.RecentTaskInfo info = task.getTaskInfo();
-                    base = info.baseIntent != null ? info.baseIntent.getComponent() : null;
-                    if (base == null) {
-                        base = info.baseActivity;
-                    }
-                } catch (IllegalArgumentException e) {
-                    continue; // görev bu arada kapandı
-                }
-                if (base != null && self.equals(base.getPackageName()) && base.getClassName().equals(cls)) {
-                    task.finishAndRemoveTask();
-                    closed = true;
-                }
-            }
-        } catch (RuntimeException e) {
-            Log.w(TAG, "own task close failed", e);
-        }
-        return closed;
-    }
-
-    /** Paketi askıya alıp geri açarak çalışan süreci düşürür (MyCar {@code A()}). */
+    /** Paketi askıya alıp geri açarak çalışan süreci düşürür. */
     private static boolean recycleProcess(Context context, String slot) {
         String packageName = SplitSlot.packageOf(slot);
         if (packageName.equals(context.getPackageName()) || !isDeviceOwner(context)) {
@@ -506,7 +372,7 @@ public final class SplitScreenLauncher {
         return partTop - captionPx;
     }
 
-    /** Sistem çubukları ve kesim düşülmüş kullanılabilir alan (MyCar {@code o()}). */
+    /** Sistem çubukları ve kesim düşülmüş kullanılabilir alan. */
     @NonNull
     static Rect usableBounds(Context context) {
         WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
@@ -669,22 +535,8 @@ public final class SplitScreenLauncher {
         return bundle;
     }
 
-    /**
-     * Pencere modu, sınırlar ve ekran 0. [custom] verilirse (rota intent'i) o açılır; açılamazsa kutunun başlatıcı intent'ine
-     * düşülür. [drive]: kendi Mini göstergemize sürüş ekranı işareti.
-     */
-    private static boolean launchFreeform(Context context, String packageName, Rect bounds,
-                                          @Nullable Intent custom, boolean drive) {
-        if (custom != null) {
-            try {
-                Intent intent = new Intent(custom);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent, freeformOptions(bounds));
-                return true;
-            } catch (Exception e) {
-                Log.w(TAG, "custom launch failed for " + packageName + ": " + e.getClass().getSimpleName());
-            }
-        }
+    /** Pencere modu, sınırlar ve ekran 0; kutunun başlatıcı intent'i açılır. */
+    private static boolean launchFreeform(Context context, String packageName, Rect bounds) {
         try {
             Intent intent = launchIntent(context, packageName);
             if (intent == null) {
@@ -692,9 +544,6 @@ public final class SplitScreenLauncher {
             }
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             intent.setFlags(LAUNCH_FLAGS);
-            if (drive && SplitSlot.isOwn(packageName, context.getPackageName())) {
-                intent.putExtra(EXTRA_DRIVE, true);
-            }
             context.startActivity(intent, freeformOptions(bounds));
             return true;
         } catch (Exception e) {
@@ -704,65 +553,15 @@ public final class SplitScreenLauncher {
     }
 
     // ------------------------------------------------------------------------------------------------------------------
-    // Sürüş ekranı (Navigasyon kartı): Mini gösterge + harita, tam ekran harita, temizlik
+    // Tam ekran harita (Navigasyon kartı, harita seçici)
     // ------------------------------------------------------------------------------------------------------------------
-
-    /** Kendi etkinliklerimize (Mini gösterge, harita seçici): sürüş ekranının yarısı olarak açıldı. */
-    public static final String EXTRA_DRIVE = com.mapcontrol.launcher.DriveScreen.EXTRA_DRIVE;
 
     /** {@code WINDOWING_MODE_FULLSCREEN}. */
     private static final int WINDOWING_MODE_FULLSCREEN = 1;
 
     /**
-     * Sürüş ekranı: Mini gösterge ilk yarıda (Tiggo 7 sol, Tiggo 8 üst), [mapSlot] diğer yarıda, yarı yarıya. [mapSlot] bir
-     * harita paketi ya da harita seçicimiz ({@link SplitSlot#mapPicker}); [route] verilirse harita onunla (Ev/İş rotası) açılır.
-     * MapControl bölmesinden farkı: başlık durum çubuğu altına itilmez, Mini göstergeye sürüş ekranı işareti gider.
-     */
-    public static void startDriveScreen(
-            @NonNull Context context, @NonNull String mapSlot, @Nullable Intent route, @Nullable Callback callback) {
-        Context app = context.getApplicationContext();
-        String self = app.getPackageName();
-        if (!SplitSlot.isAllowed(mapSlot, self) || SplitSlot.isMiniDash(mapSlot, self)) {
-            if (callback != null) {
-                new Handler(Looper.getMainLooper()).post(() -> callback.onResult(Result.NOT_INSTALLED));
-            }
-            return;
-        }
-        start(app, SplitSlot.miniDash(self), mapSlot, Ratio.HALF, new LaunchOpts(false, route, true), callback);
-    }
-
-    /**
-     * Harita seçiciden: seçilen [intent] seçicinin penceresi [bounds]'ta açılır; harita önceden açıksa (eski görev açılış
-     * sınırlarını almaz) görevi aynı sınırlarla öne alınır. Arka planda; sonuç ana iş parçacığında.
-     */
-    public static void launchInto(@NonNull Context context, @NonNull String pkg, @NonNull Intent intent,
-                                  @NonNull Rect bounds, @Nullable Callback callback) {
-        final Context app = context.getApplicationContext();
-        final Handler main = new Handler(Looper.getMainLooper());
-        new Thread(() -> {
-            Result result;
-            if (launchFreeform(app, pkg, bounds, intent, false)) {
-                try {
-                    Thread.sleep(PLACE_WAIT_MS);
-                } catch (InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                }
-                placeExistingTask(app, pkg, bounds);
-                markDrivePlaced(app, pkg);
-                result = Result.STARTED;
-            } else {
-                result = Result.LAUNCH_FAILED;
-            }
-            if (callback != null) {
-                final Result r = result;
-                main.post(() -> callback.onResult(r));
-            }
-        }, "split-launch-into").start();
-    }
-
-    /**
      * Haritayı tam ekran yapar ({@link #openFullScreen}); arka planda, sonuç ana iş parçacığında. {@link Result#STARTED} değilse
-     * harita yerinden oynamamış olabilir (çağıran, ör. Mini gösterge, açık kalır).
+     * harita yerinden oynamamış olabilir.
      */
     public static void mapFullScreen(@NonNull Context context, @NonNull String pkg, @Nullable Callback callback) {
         final Context app = context.getApplicationContext();
@@ -776,7 +575,7 @@ public final class SplitScreenLauncher {
     }
 
     /**
-     * [pkg]'yi tam ekran açar; serbest pencerede (sürüş ekranının yarısı) kalmış görevi varsa onu tüm kullanılabilir alana büyütür.
+     * [pkg]'yi tam ekran açar; serbest pencerede (ör. bölünmüş ekranın yarısı) kalmış görevi varsa onu tüm kullanılabilir alana büyütür.
      * Engelleyen iş parçacığında çağrılır (olay günlüğü okunur).
      *
      * <p>Görev olay günlüğünden bulunursa {@code moveTaskToFront} ile SERBEST PENCERE olarak tüm alana (durum çubuğunun altı)
@@ -801,7 +600,6 @@ public final class SplitScreenLauncher {
                             ? windowingOptions(displayBounds(app), WINDOWING_MODE_FULLSCREEN)
                             : freeformOptions(usable));
                     Log.i(TAG, "full: task " + taskId + " (" + pkg + ")");
-                    clearDrivePlaced(app);
                     moved = true;
                 }
             } catch (RuntimeException e) {
@@ -859,8 +657,8 @@ public final class SplitScreenLauncher {
     }
 
     /**
-     * Sürüş ekranından yarıda kalmış haritayı (bkz. {@code DriveMapPrefs.leftover}) tam ekran açar; arka planda. Başka açılış yolları
-     * (ana ekran kısayolları) bunu kullanmazsa Android açık serbest pencere görevini ana ekranın üstünde yarım pencere olarak öne getirir.
+     * Haritayı tam ekran açar ({@link #openFullScreen}); arka planda. Serbest pencerede kalmış görevi tüm alana taşınır, yoksa
+     * Android açık serbest pencere görevini ana ekranın üstünde yarım pencere olarak öne getirir.
      */
     public static void openFullScreenAsync(@NonNull Context context, @NonNull String pkg) {
         final Context app = context.getApplicationContext();
@@ -868,7 +666,7 @@ public final class SplitScreenLauncher {
     }
 
     /**
-     * Süreç ölümüyle yarıda kalmış sürüş ekranı haritasını ({@code DriveScreen.recoverStale}) tüm kullanılabilir alana büyütür.
+     * Eski sürüş ekranından süreç ölümüyle yarıda kalmış haritayı ({@code MapLaunch.recoverStale}) tüm kullanılabilir alana büyütür.
      * Engelleyen iş parçacığında çağrılır. {@link #openFullScreen}'den farkı: görev günlükte yoksa uygulama BAŞLATILMAZ; uygulama
      * hiçbir koşulda kapatılmaz. Görev yoksa / günlük okunamazsa / taşıma başarısızsa hiçbir şey yapılmaz.
      */
@@ -887,27 +685,8 @@ public final class SplitScreenLauncher {
             }
             am.moveTaskToFront(taskId, 0, freeformOptions(usable));
             Log.i(TAG, "stale: task " + taskId + " restored");
-            clearDrivePlaced(app);
         } catch (RuntimeException e) {
             Log.w(TAG, "stale: restore failed: " + e.getClass().getSimpleName());
         }
-    }
-
-    /** Sürüş ekranında haritanın yarısı (ekran koordinatı; {@link #startDriveScreen} ile aynı bölme); alan geçersizse null. */
-    @Nullable
-    public static Rect driveMapSlot(@NonNull Context context) {
-        Rect usable = usableBounds(context.getApplicationContext());
-        if (usable.width() <= 0 || usable.height() <= 0) {
-            return null;
-        }
-        return split(usable, Ratio.HALF)[1];
-    }
-
-    /** Sürüş ekranından çıkış: kendi yarılarımızın (Mini gösterge, harita seçici) görevleri kapatılır. */
-    public static void endDriveScreen(@NonNull Context context) {
-        Context app = context.getApplicationContext();
-        String self = app.getPackageName();
-        closeOwnTask(app, SplitSlot.miniDash(self), self);
-        closeOwnTask(app, SplitSlot.mapPicker(self), self);
     }
 }

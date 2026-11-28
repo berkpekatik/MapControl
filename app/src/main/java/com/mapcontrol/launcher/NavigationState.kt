@@ -19,7 +19,7 @@ enum class NavManeuver {
 
 /**
  * Navigasyon durumu: bildirimden ([NavigationSource]) okunan sonraki manevra ve varış bilgisi. Değişmez (immutable);
- * her bildirim güncellemesinde yeni bir örnek yayınlanır. Sahne Navigasyon paneli ve ileride mini gösterge (MiniDash)
+ * her bildirim güncellemesinde yeni bir örnek yayınlanır. Sahne Navigasyon paneli
  * bunu okur: `NavigationSource.addListener { state -> ... }` ana iş parçacığında çağrılır, `NavigationSource.state` son
  * değeri verir.
  *

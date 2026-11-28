@@ -16,7 +16,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.appcompat.widget.SwitchCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
@@ -40,6 +39,26 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
     private final java.util.Map<String, TextView> conflictNotes = new java.util.HashMap<>();
     private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
+    /** Motor yalnızca olaylarda durum yayınlar; geri sayım varken rozetleri saniyede bir yeniler. */
+    private static final long COUNTDOWN_TICK_MS = 1_000L;
+    private View rootView;
+    private boolean countdownVisible;
+    private boolean countdownTickScheduled;
+    private final Runnable countdownTick = new Runnable() {
+        @Override
+        public void run() {
+            countdownTickScheduled = false;
+            if (rootView == null || !rootView.isAttachedToWindow()) {
+                return;
+            }
+            if (rootView.isShown()) {
+                updateRuleStatusBadges(engine.currentStatus());
+            } else if (countdownVisible) {
+                scheduleCountdownTick();
+            }
+        }
+    };
+
     public ClimateAutomationTabBuilder(Context context, SharedPreferences prefs, Callback callback) {
         this.context = context;
         this.prefs = prefs;
@@ -50,15 +69,47 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
     public void release() {
         engine.removeListener(this);
         uiHandler.removeCallbacksAndMessages(null);
+        countdownTickScheduled = false;
+        rootView = null;
+    }
+
+    private void scheduleCountdownTick() {
+        if (countdownTickScheduled || rootView == null || !rootView.isAttachedToWindow()) {
+            return;
+        }
+        countdownTickScheduled = true;
+        // Saniye sınırına hizala ki tüm kartlar aynı anda ve düzenli değişsin.
+        long delay = COUNTDOWN_TICK_MS - (System.currentTimeMillis() % COUNTDOWN_TICK_MS);
+        uiHandler.postDelayed(countdownTick, Math.max(50L, delay));
     }
 
     public LinearLayout build() {
         engine.removeListener(this);
+        uiHandler.removeCallbacks(countdownTick);
+        countdownTickScheduled = false;
+        countdownVisible = false;
         ruleStatusBadges.clear();
         conflictNotes.clear();
 
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
+        rootView = root;
+        root.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                if (rootView == v) {
+                    updateRuleStatusBadges(engine.currentStatus());
+                }
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                if (rootView == v) {
+                    uiHandler.removeCallbacks(countdownTick);
+                    countdownTickScheduled = false;
+                }
+            }
+        });
 
         float density = context.getResources().getDisplayMetrics().density;
         boolean compactLayout = context.getResources().getConfiguration().screenWidthDp < 600;
@@ -142,7 +193,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         statusCard.addView(statusTextColumn, statusTextLp);
         TextView sensorLabel = new TextView(context);
         sensorLabel.setText(R.string.climate_auto_sensor_label);
-        UiStyles.setTextSize(sensorLabel, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(sensorLabel, R.dimen.text_size_small);
         UiStyles.setFontStyle(sensorLabel, Typeface.BOLD);
         sensorLabel.setLetterSpacing(0.08f);
         sensorLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
@@ -191,17 +242,11 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         UiStyles.setFontStyle(masterTitle, Typeface.BOLD);
         masterTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         masterText.addView(masterTitle);
-        SwitchCompat masterSwitch = new SwitchCompat(context);
-        masterSwitch.setShowText(false);
+        android.widget.CompoundButton masterSwitch = UiStyles.createLargeSwitch(context);
         masterSwitch.setChecked(ClimateAutomationStore.isMasterEnabled(prefs));
-        masterSwitch.setThumbTintList(createSwitchTint(
-                UiStyles.color(context, R.color.oemAccent),
-                UiStyles.color(context, R.color.outlineMuted)));
-        masterSwitch.setTrackTintList(createSwitchTint(
-                UiStyles.color(context, R.color.assistStrokeActive),
-                UiStyles.color(context, R.color.outline)));
         masterRow.addView(masterSwitch, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        UiStyles.makeToggleRow(masterRow, masterSwitch);
         masterSwitch.setOnCheckedChangeListener((button, enabled) -> {
             ClimateAutomationStore.setMasterEnabled(prefs, enabled);
             if (enabled) {
@@ -265,7 +310,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(context.getString(sectionTitleRes));
-        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_normal);
+        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
         UiStyles.setFontStyle(sectionTitle, Typeface.BOLD);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         headerRow.addView(sectionTitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -274,7 +319,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         seatBadge.setText(heatId.contains("driver")
                 ? R.string.climate_auto_badge_driver
                 : R.string.climate_auto_badge_passenger);
-        UiStyles.setTextSize(seatBadge, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(seatBadge, R.dimen.text_size_small);
         UiStyles.setFontStyle(seatBadge, Typeface.BOLD);
         seatBadge.setTextColor(UiStyles.color(context, R.color.oemAccent));
         seatBadge.setPadding(dp(8, density), dp(3, density), dp(8, density), dp(3, density));
@@ -329,7 +374,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         TextView sectionTitle = new TextView(context);
         sectionTitle.setText(R.string.climate_auto_other_section);
-        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_normal);
+        UiStyles.setTextSize(sectionTitle, R.dimen.text_size_medium);
         UiStyles.setFontStyle(sectionTitle, Typeface.BOLD);
         sectionTitle.setTextColor(UiStyles.color(context, R.color.automationText));
         sectionTitle.setPadding(dp(4, density), 0, dp(4, density), dp(12, density));
@@ -394,6 +439,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
             return;
         }
         float density = context.getResources().getDisplayMetrics().density;
+        boolean anyCountdown = false;
         for (java.util.Map.Entry<String, TextView> entry : ruleStatusBadges.entrySet()) {
             String id = entry.getKey();
             TextView badge = entry.getValue();
@@ -407,9 +453,13 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
             int color;
             switch (state) {
                 case ACTIVE:
-                    text = rs.remainingMinutes > 0
-                            ? context.getString(R.string.climate_auto_rule_status_active_countdown, rs.remainingMinutes)
-                            : context.getString(R.string.climate_auto_rule_status_active);
+                    if (rs.remainingMs > 0) {
+                        text = context.getString(R.string.climate_auto_rule_status_active_countdown,
+                                formatCountdown(rs.remainingMs));
+                        anyCountdown = true;
+                    } else {
+                        text = context.getString(R.string.climate_auto_rule_status_active);
+                    }
                     color = UiStyles.color(context, R.color.statusSuccess);
                     break;
                 case MANUAL_OVERRIDE:
@@ -425,7 +475,9 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
                     color = UiStyles.color(context, R.color.textSecondaryCool);
                     break;
                 case WAITING_START_DELAY:
-                    text = context.getString(R.string.climate_auto_rule_status_waiting_start_delay, rs.remainingMinutes);
+                    text = context.getString(R.string.climate_auto_rule_status_waiting_start_delay,
+                            formatCountdown(rs.remainingMs));
+                    anyCountdown = rs.remainingMs > 0 || anyCountdown;
                     color = UiStyles.color(context, R.color.statusWarning);
                     break;
                 case WAITING_ENGINE:
@@ -457,9 +509,25 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
             badge.setTextColor(color);
             GradientDrawable bg = new GradientDrawable();
             bg.setColor((color & 0x00FFFFFF) | 0x1F000000);
-            bg.setCornerRadius(dp(8, density));
+            bg.setCornerRadius(dp(10, density));
             badge.setBackground(bg);
         }
+        countdownVisible = anyCountdown;
+        if (anyCountdown) {
+            scheduleCountdownTick();
+        }
+    }
+
+    /** 754000 ms → "12:34"; bir saati geçerse "1:02:03". Saniye yukarı yuvarlanır (00:00'a sıfırda düşer). */
+    static String formatCountdown(long remainingMs) {
+        long totalSec = Math.max(0L, (remainingMs + 999L) / 1000L);
+        long h = totalSec / 3600L;
+        long m = (totalSec % 3600L) / 60L;
+        long s = totalSec % 60L;
+        if (h > 0) {
+            return String.format(java.util.Locale.ROOT, "%d:%02d:%02d", h, m, s);
+        }
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", m, s);
     }
 
     private FrameLayout buildRuleCard(String id, int titleRes, int iconRes, float density,
@@ -492,8 +560,8 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         AppCompatImageView icon = new AppCompatImageView(context);
         icon.setImageResource(getRuleIconResource(id, rule.tempC, iconRes));
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        int iconPx = dp(compactLayout ? 36 : 40, density);
-        int badgePx = dp(compactLayout ? 64 : 72, density);
+        int iconPx = dp(compactLayout ? 48 : 56, density);
+        int badgePx = dp(compactLayout ? 84 : 96, density);
         FrameLayout iconBadge = new FrameLayout(context);
         GradientDrawable iconBackground = new GradientDrawable();
         iconBackground.setColor(UiStyles.color(context, R.color.automationIconSurface));
@@ -509,7 +577,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         TextView name = new TextView(context);
         name.setText(titleRes);
-        UiStyles.setTextSize(name, R.dimen.text_size_small);
+        UiStyles.setTextSize(name, R.dimen.text_size_medium);
         UiStyles.setFontStyle(name, Typeface.BOLD);
         name.setTextColor(UiStyles.color(context, R.color.automationText));
         name.setGravity(Gravity.CENTER);
@@ -519,15 +587,8 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         header.addView(name, nameLp);
 
-        SwitchCompat ruleSwitch = new SwitchCompat(context);
-        ruleSwitch.setShowText(false);
+        android.widget.CompoundButton ruleSwitch = UiStyles.createLargeSwitch(context);
         ruleSwitch.setChecked(rule.enabled);
-        ruleSwitch.setThumbTintList(createSwitchTint(
-                UiStyles.color(context, R.color.oemAccent),
-                UiStyles.color(context, R.color.outlineMuted)));
-        ruleSwitch.setTrackTintList(createSwitchTint(
-                UiStyles.color(context, R.color.assistStrokeActive),
-                UiStyles.color(context, R.color.outline)));
         LinearLayout switchRow = new LinearLayout(context);
         switchRow.setGravity(Gravity.CENTER);
         switchRow.setPadding(0, dp(6, density), 0, 0);
@@ -536,17 +597,18 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         header.addView(switchRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         TextView statusBadge = new TextView(context);
-        statusBadge.setTextSize(11f);
+        UiStyles.setTextSize(statusBadge, R.dimen.text_size_normal);
         statusBadge.setTypeface(null, Typeface.BOLD);
         statusBadge.setGravity(Gravity.CENTER);
         statusBadge.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        statusBadge.setPadding(dp(10, density), dp(3, density), dp(10, density), dp(3, density));
+        statusBadge.setPadding(dp(14, density), dp(6, density), dp(14, density), dp(6, density));
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         badgeLp.gravity = Gravity.CENTER_HORIZONTAL;
         badgeLp.topMargin = dp(6, density);
         header.addView(statusBadge, badgeLp);
         ruleStatusBadges.put(id, statusBadge);
+        UiStyles.makeToggleRow(header, ruleSwitch);
         card.addView(header);
 
         final boolean[] editingStartDelay = {false};
@@ -561,26 +623,26 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         timerTabsRow.setLayoutParams(timerTabsLp);
 
         TextView startDelayTab = new TextView(context);
-        startDelayTab.setTextSize(11f);
+        UiStyles.setTextSize(startDelayTab, R.dimen.text_size_small);
         startDelayTab.setGravity(Gravity.CENTER);
-        startDelayTab.setSingleLine(true);
-        startDelayTab.setPadding(dp(8, density), dp(5, density), dp(8, density), dp(5, density));
+        startDelayTab.setMaxLines(2);
+        startDelayTab.setPadding(dp(8, density), dp(8, density), dp(8, density), dp(8, density));
         LinearLayout.LayoutParams startTabLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         startTabLp.rightMargin = dp(4, density);
         timerTabsRow.addView(startDelayTab, startTabLp);
 
         TextView stopDelayTab = new TextView(context);
-        stopDelayTab.setTextSize(11f);
+        UiStyles.setTextSize(stopDelayTab, R.dimen.text_size_small);
         stopDelayTab.setGravity(Gravity.CENTER);
-        stopDelayTab.setSingleLine(true);
-        stopDelayTab.setPadding(dp(8, density), dp(5, density), dp(8, density), dp(5, density));
+        stopDelayTab.setMaxLines(2);
+        stopDelayTab.setPadding(dp(8, density), dp(8, density), dp(8, density), dp(8, density));
         LinearLayout.LayoutParams stopTabLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         stopTabLp.leftMargin = dp(4, density);
         timerTabsRow.addView(stopDelayTab, stopTabLp);
         card.addView(timerTabsRow);
 
         TextView delayLabel = new TextView(context);
-        UiStyles.setTextSize(delayLabel, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(delayLabel, R.dimen.text_size_small);
         delayLabel.setTextColor(UiStyles.color(context, R.color.automationTextMuted));
         delayLabel.setGravity(Gravity.CENTER);
         delayLabel.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
@@ -674,7 +736,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         compareRow.setPadding(0, dp(8, density), 0, 0);
 
         TextView compareChip = new TextView(context);
-        UiStyles.setTextSize(compareChip, R.dimen.text_size_small);
+        UiStyles.setTextSize(compareChip, R.dimen.text_size_medium);
         UiStyles.setFontStyle(compareChip, Typeface.BOLD);
         compareChip.setPadding(dp(14, density), dp(6, density), dp(14, density), dp(6, density));
         compareChip.setTextColor(accentColor);
@@ -688,7 +750,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         compareRow.addView(compareChip);
 
         TextView conditionDesc = new TextView(context);
-        UiStyles.setTextSize(conditionDesc, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(conditionDesc, R.dimen.text_size_small);
         conditionDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         conditionDesc.setPadding(dp(10, density), 0, dp(6, density), 0);
         conditionDesc.setText(formatConditionDesc(rule));
@@ -697,7 +759,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         if (ClimateAutomationStore.WINDSHIELD.equals(id)) {
             TextView modeChip = new TextView(context);
-            UiStyles.setTextSize(modeChip, R.dimen.text_size_tiny);
+            UiStyles.setTextSize(modeChip, R.dimen.text_size_small);
             UiStyles.setFontStyle(modeChip, Typeface.BOLD);
             modeChip.setPadding(dp(10, density), dp(5, density), dp(10, density), dp(5, density));
             modeChip.setSingleLine(true);
@@ -745,7 +807,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
 
         // Çakışma Bilgilendirme Uyarı Metni (Kullanıcı çakışan derece seçerse görünür)
         TextView conflictNote = new TextView(context);
-        UiStyles.setTextSize(conflictNote, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(conflictNote, R.dimen.text_size_small);
         UiStyles.setFontStyle(conflictNote, Typeface.BOLD);
         conflictNote.setTextColor(0xFFFF4D4F); // Belirgin kırmızı/turuncu uyarı
         conflictNote.setPadding(0, dp(6, density), 0, 0);
@@ -823,7 +885,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         SeekBar levelSeek = null;
         if (ClimateAutomationStore.usesHeatLevel(id)) {
             levelLabel = new TextView(context);
-            UiStyles.setTextSize(levelLabel, R.dimen.text_size_tiny);
+            UiStyles.setTextSize(levelLabel, R.dimen.text_size_small);
             levelLabel.setTextColor(UiStyles.color(context, R.color.automationTextMuted));
             levelLabel.setGravity(Gravity.CENTER);
             levelLabel.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
@@ -893,7 +955,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         bar.setProgress(value);
         int accent = UiStyles.color(context, R.color.oemAccent);
         int track = dp(8, density);
-        int thumbSize = dp(28, density);
+        int thumbSize = dp(34, density);
         bar.setMinHeight(track);
         bar.setMaxHeight(track);
         bar.setSplitTrack(false);
@@ -910,7 +972,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         int vertical = dp(12, density);
         bar.setPadding(side, vertical, side, vertical);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(52, density));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(60, density));
         bar.setLayoutParams(lp);
         if (onChange != null || onStop != null) {
             bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -962,15 +1024,6 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         background.setCornerRadius(dp(radiusDp, density));
         background.setStroke(dp(1, density), stroke);
         return background;
-    }
-
-    private ColorStateList createSwitchTint(int checked, int unchecked) {
-        return new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{checked, unchecked});
     }
 
     private void setStatusIndicator(int colorRes) {

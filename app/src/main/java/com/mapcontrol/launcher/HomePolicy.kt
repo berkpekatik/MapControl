@@ -12,10 +12,9 @@ import android.view.accessibility.AccessibilityWindowInfo
  * Ana ekran tuşu ve açılış ekranı (MapControl launcher modu açıkken; kapalıyken hiçbir şey değişmez). Kural bilerek dar tutuldu:
  *
  * 1. Araç / uygulama açılınca MapControl bizim ana ekranımızda ([HomeLauncherActivity]) açılır, MapControl ayarlarında değil.
- * 2. MapControl'ın kendi ekranları öndeyken (ayarlar sekmeleri, harita seçici, kamera, Mini gösterge…; bizim ana ekranımız hariç)
+ * 2. MapControl'ın kendi ekranları öndeyken (ayarlar sekmeleri, harita seçici, kamera…; bizim ana ekranımız hariç)
  *    aracın Ana ekran tuşu bizim ana ekranımıza getirir.
- * 3. Sürüş ekranı ([DriveScreen]) sürerken yarılardan ya da tam ekran haritadan basılan Ana ekran tuşu da bizim ana ekranımıza getirir.
- * 4. Başka her durumda araç kendi bildiği gibi davranır: üçüncü taraf uygulamadan (Google Haritalar, müzik…) ya da bizim ana
+ * 3. Başka her durumda araç kendi bildiği gibi davranır: üçüncü taraf uygulamadan (Google Haritalar, müzik…) ya da bizim ana
  *    ekranımızdan basılan Ana ekran tuşu aracın kendi ana ekranına (OEM, `com.desaysv.launcher`) çıkar; biz geri çekmeyiz.
  *
  * Sistemin varsayılan HOME ayarına dokunulmaz: tuş her zaman OEM ana ekranını açar, erişilebilirlik hizmeti ([HomeKey.onWindowStateChanged])
@@ -27,7 +26,7 @@ internal enum class HomeAction {
     /** Bu olayla ilgili bir şey yapılmaz. */
     NONE,
 
-    /** Ana ekran tuşu MapControl ekranında (ya da sürüş ekranında) basıldı: bizim ana ekranımız öne gelir. */
+    /** Ana ekran tuşu MapControl ekranında basıldı: bizim ana ekranımız öne gelir. */
     REDIRECT_TO_LAUNCHER,
 
     /** Ana ekran tuşu bizim ana ekranımızdayken basıldı: aracın kendi ana ekranında kalınır (yalnız günlük için ayrı). */
@@ -42,7 +41,7 @@ internal enum class FrontApp {
     /** Bizim ana ekranımız ([HomeLauncherActivity]). */
     OUR_LAUNCHER,
 
-    /** MapControl'ın kendi başka bir ekranı (ayarlar, harita seçici, kamera, Mini gösterge…). */
+    /** MapControl'ın kendi başka bir ekranı (ayarlar, harita seçici, kamera…). */
     OUR_SCREEN,
 
     /** Aracın kendi ana ekranı. */
@@ -192,7 +191,7 @@ internal class HomeKeyTracker(private val selfPkg: String, private val launcherC
 
 /**
  * Ana ekran tuşu kuralının Android tarafı (tek süreç: erişilebilirlik hizmeti ve etkinlikler aynı süreçte). Yönlendirme bizim ana
- * ekranımızı tam ekran açar ([DriveScreen.launchHome]); sürüş ekranı sürerken basılan Ana ekran tuşu da bu yoldan gelir.
+ * ekranımızı tam ekran açar ([MapLaunch.launchHome]).
  */
 object HomeKey {
 
@@ -233,7 +232,7 @@ object HomeKey {
         when (action) {
             HomeAction.REDIRECT_TO_LAUNCHER -> {
                 Log.i(TAG, "home key -> launcher")
-                DriveScreen.launchHome(service)
+                MapLaunch.launchHome(service)
             }
             HomeAction.STAY_ON_OEM -> Log.i(TAG, "home key on launcher -> car home")
             HomeAction.NONE -> Unit
@@ -300,7 +299,7 @@ object HomeKey {
         val screen = HomePolicy.appStartScreen(LauncherEdition.launcherModeOn(context), icon, hasOwnRequest, restored)
         if (screen != StartScreen.LAUNCHER) return false
         Log.i(TAG, "app start -> launcher")
-        DriveScreen.launchHome(context)
+        MapLaunch.launchHome(context)
         return true
     }
 
@@ -309,9 +308,9 @@ object HomeKey {
     fun bootOpensLauncher(context: Context): Boolean =
         HomePolicy.bootScreen(LauncherEdition.launcherModeOn(context)) == StartScreen.LAUNCHER
 
-    /** Ana ekranımızı tam ekran öne getirir ([DriveScreen.launchHome]). */
+    /** Ana ekranımızı tam ekran öne getirir ([MapLaunch.launchHome]). */
     @JvmStatic
-    fun openLauncher(context: Context) = DriveScreen.launchHome(context)
+    fun openLauncher(context: Context) = MapLaunch.launchHome(context)
 
     /**
      * Aracın kendi ana ekranı: sistem varsayılan HOME paketi; çözülemezse (seçici "android" ya da biz) bizden başka ilk HOME adayı.

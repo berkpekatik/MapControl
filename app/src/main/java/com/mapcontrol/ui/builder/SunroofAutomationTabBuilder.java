@@ -18,7 +18,7 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Switch;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -70,10 +70,10 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
     private TextView tvStatusMessage;
 
     // Ayar View'ları
-    private Switch switchMaster;
-    private Switch switchRainGuard;
-    private Switch switchSpeedGuard;
-    private Switch switchCloseAtNight;
+    private CompoundButton switchMaster;
+    private CompoundButton switchRainGuard;
+    private CompoundButton switchSpeedGuard;
+    private CompoundButton switchCloseAtNight;
 
     // Seçilebilir Mod Kartları
     private LinearLayout cardModeSmart;
@@ -171,10 +171,10 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         titleIcon.setImageResource(R.drawable.ic_mdi_car_sunroof);
         titleIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         titleIcon.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.oemAccent)));
-        int iconPx = dp(28, density);
+        int iconPx = dp(36, density);
         FrameLayout.LayoutParams titleIconLp = new FrameLayout.LayoutParams(iconPx, iconPx, Gravity.CENTER);
         titleIconBadge.addView(titleIcon, titleIconLp);
-        titleRow.addView(titleIconBadge, new LinearLayout.LayoutParams(dp(52, density), dp(52, density)));
+        titleRow.addView(titleIconBadge, new LinearLayout.LayoutParams(dp(64, density), dp(64, density)));
 
         LinearLayout heading = new LinearLayout(context);
         heading.setOrientation(LinearLayout.VERTICAL);
@@ -215,13 +215,13 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         TextView tvCondLabel = new TextView(context);
         tvCondLabel.setText(R.string.sunroof_cond_header);
-        UiStyles.setTextSize(tvCondLabel, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvCondLabel, R.dimen.text_size_small);
         UiStyles.setFontStyle(tvCondLabel, Typeface.BOLD);
         tvCondLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         conditionBox.addView(tvCondLabel);
 
         tvConditionTitle = new TextView(context);
-        UiStyles.setTextSize(tvConditionTitle, R.dimen.text_size_medium);
+        UiStyles.setTextSize(tvConditionTitle, R.dimen.text_size_large);
         UiStyles.setFontStyle(tvConditionTitle, Typeface.BOLD);
         tvConditionTitle.setTextColor(UiStyles.color(context, R.color.oemAccent));
         tvConditionTitle.setPadding(0, dp(3, density), 0, dp(1, density));
@@ -229,7 +229,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         // Anlık Ölçülen Lux Değeri
         tvLiveLux = new TextView(context);
-        UiStyles.setTextSize(tvLiveLux, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvLiveLux, R.dimen.text_size_medium);
         UiStyles.setFontStyle(tvLiveLux, Typeface.BOLD);
         tvLiveLux.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tvLiveLux.setPadding(0, dp(1, density), 0, dp(2, density));
@@ -253,7 +253,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         tvConditionAdvice = new TextView(context);
         tvConditionAdvice.setText(R.string.sunroof_advice_default);
-        UiStyles.setTextSize(tvConditionAdvice, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvConditionAdvice, R.dimen.text_size_small);
         tvConditionAdvice.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         conditionBox.addView(tvConditionAdvice);
 
@@ -274,7 +274,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         // Alt Bilgi Notu (Son Otomasyon Hareketi)
         tvStatusMessage = new TextView(context);
         tvStatusMessage.setText(R.string.sunroof_status_waiting);
-        UiStyles.setTextSize(tvStatusMessage, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvStatusMessage, R.dimen.text_size_small);
         tvStatusMessage.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tvStatusMessage.setPadding(dp(4, density), dp(6, density), 0, 0);
         card.addView(tvStatusMessage);
@@ -296,14 +296,14 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         TextView tvLabel = new TextView(context);
         tvLabel.setText(label);
-        UiStyles.setTextSize(tvLabel, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvLabel, R.dimen.text_size_small);
         tvLabel.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tvLabel.setGravity(Gravity.CENTER);
         badge.addView(tvLabel);
 
         TextView tvVal = new TextView(context);
         tvVal.setText(initialValue);
-        UiStyles.setTextSize(tvVal, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvVal, R.dimen.text_size_medium);
         UiStyles.setFontStyle(tvVal, Typeface.BOLD);
         tvVal.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tvVal.setGravity(Gravity.CENTER);
@@ -333,26 +333,27 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
         masterTextCol.setOrientation(LinearLayout.VERTICAL);
         TextView masterTitle = new TextView(context);
         masterTitle.setText(R.string.sunroof_master_title);
-        UiStyles.setTextSize(masterTitle, R.dimen.text_size_normal);
+        UiStyles.setTextSize(masterTitle, R.dimen.text_size_medium);
         UiStyles.setFontStyle(masterTitle, Typeface.BOLD);
         masterTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         masterTextCol.addView(masterTitle);
 
         TextView masterDesc = new TextView(context);
         masterDesc.setText(R.string.sunroof_master_desc);
-        UiStyles.setTextSize(masterDesc, R.dimen.text_size_small);
+        UiStyles.setTextSize(masterDesc, R.dimen.text_size_normal);
         masterDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         masterTextCol.addView(masterDesc);
 
         masterRow.addView(masterTextCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        switchMaster = new Switch(context);
+        switchMaster = UiStyles.createLargeSwitch(context);
         switchMaster.setChecked(prefs.getBoolean(SunroofAutomationEngine.KEY_ENABLED, false));
         switchMaster.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean(SunroofAutomationEngine.KEY_ENABLED, isChecked).apply();
             callback.log(isChecked ? "Cam tavan otomasyonu açıldı" : "Cam tavan otomasyonu kapatıldı");
         });
         masterRow.addView(switchMaster);
+        UiStyles.makeToggleRow(masterRow, switchMaster);
         card.addView(masterRow);
 
         // 1.5. Otomasyon Kapsamı (Yalnızca Perde / Tavan + Perde)
@@ -437,7 +438,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         TextView subtitle = new TextView(context);
         subtitle.setText(R.string.sunroof_gesture_subtitle);
-        UiStyles.setTextSize(subtitle, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(subtitle, R.dimen.text_size_small);
         subtitle.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         subtitle.setPadding(0, 0, 0, dp(6, density));
         card.addView(subtitle);
@@ -449,7 +450,7 @@ public final class SunroofAutomationTabBuilder implements SunroofAutomationEngin
 
         TextView tvInfo = new TextView(context);
         tvInfo.setText(R.string.sunroof_gesture_info);
-        UiStyles.setTextSize(tvInfo, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvInfo, R.dimen.text_size_small);
         tvInfo.setTextColor(0xFF38BDF8);
         tvInfo.setPadding(dp(2, density), dp(6, density), 0, 0);
         card.addView(tvInfo);
@@ -479,13 +480,13 @@ private void populateGestureGrid(float density) {
 
         btnScopeShadeOnly = new TextView(context);
         btnScopeShadeOnly.setText(R.string.sunroof_scope_shade_only);
-        UiStyles.setTextSize(btnScopeShadeOnly, R.dimen.text_size_small);
+        UiStyles.setTextSize(btnScopeShadeOnly, R.dimen.text_size_normal);
         btnScopeShadeOnly.setGravity(Gravity.CENTER);
         btnScopeShadeOnly.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
 
         btnScopeSunroofAndShade = new TextView(context);
         btnScopeSunroofAndShade.setText(R.string.sunroof_scope_roof_and_shade);
-        UiStyles.setTextSize(btnScopeSunroofAndShade, R.dimen.text_size_small);
+        UiStyles.setTextSize(btnScopeSunroofAndShade, R.dimen.text_size_normal);
         btnScopeSunroofAndShade.setGravity(Gravity.CENTER);
         btnScopeSunroofAndShade.setPadding(dp(12, density), dp(8, density), dp(12, density), dp(8, density));
 
@@ -560,7 +561,7 @@ private void populateGestureGrid(float density) {
 
         TextView change = new TextView(context);
         change.setText("✎ " + context.getString(R.string.sunroof_gesture_change));
-        UiStyles.setTextSize(change, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(change, R.dimen.text_size_small);
         change.setTextColor(0xFF38BDF8);
         change.setClickable(true);
         change.setFocusable(true);
@@ -695,7 +696,7 @@ private void populateGestureGrid(float density) {
         LinearLayout pill = new LinearLayout(context);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER_VERTICAL);
-        pill.setPadding(dp(10, density), dp(8, density), dp(10, density), dp(8, density));
+        pill.setPadding(dp(12, density), dp(12, density), dp(12, density), dp(12, density));
         pill.setClickable(true);
         pill.setFocusable(true);
 
@@ -707,7 +708,7 @@ private void populateGestureGrid(float density) {
 
         TextView tvArrow = new TextView(context);
         tvArrow.setText(arrow);
-        UiStyles.setTextSize(tvArrow, R.dimen.text_size_normal);
+        UiStyles.setTextSize(tvArrow, R.dimen.text_size_large);
         tvArrow.setPadding(0, 0, dp(8, density), 0);
         pill.addView(tvArrow);
 
@@ -716,14 +717,14 @@ private void populateGestureGrid(float density) {
 
         TextView tvSub = new TextView(context);
         tvSub.setText(subtext);
-        UiStyles.setTextSize(tvSub, R.dimen.text_size_tiny);
+        UiStyles.setTextSize(tvSub, R.dimen.text_size_small);
         tvSub.setTextColor(0xCC000000 | (color & 0x00FFFFFF));
         UiStyles.setFontStyle(tvSub, Typeface.BOLD);
         textCol.addView(tvSub);
 
         TextView tvTitle = new TextView(context);
         tvTitle.setText(actionTitle);
-        UiStyles.setTextSize(tvTitle, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvTitle, R.dimen.text_size_medium);
         UiStyles.setFontStyle(tvTitle, Typeface.BOLD);
         tvTitle.setTextColor(0xFFFFFFFF);
         textCol.addView(tvTitle);
@@ -787,7 +788,7 @@ private void populateGestureGrid(float density) {
     private LinearLayout createModeSelectableCard(String title, String desc, int modeId, boolean selected, float density) {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14, density), dp(10, density), dp(14, density), dp(10, density));
+        card.setPadding(dp(16, density), dp(14, density), dp(16, density), dp(14, density));
 
         updateModeCardStyle(card, selected, density);
 
@@ -798,14 +799,14 @@ private void populateGestureGrid(float density) {
 
         TextView tvTitle = new TextView(context);
         tvTitle.setText(title);
-        UiStyles.setTextSize(tvTitle, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvTitle, R.dimen.text_size_medium);
         UiStyles.setFontStyle(tvTitle, Typeface.BOLD);
         tvTitle.setTextColor(selected ? UiStyles.color(context, R.color.oemAccent) : UiStyles.color(context, R.color.textPrimary));
         card.addView(tvTitle);
 
         TextView tvDesc = new TextView(context);
         tvDesc.setText(desc);
-        UiStyles.setTextSize(tvDesc, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvDesc, R.dimen.text_size_normal);
         tvDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tvDesc.setPadding(0, dp(2, density), 0, 0);
         card.addView(tvDesc);
@@ -950,7 +951,7 @@ private void populateGestureGrid(float density) {
     private TextView createSectionTitle(String text, float density) {
         TextView tv = new TextView(context);
         tv.setText(text);
-        UiStyles.setTextSize(tv, R.dimen.text_size_normal);
+        UiStyles.setTextSize(tv, R.dimen.text_size_medium);
         UiStyles.setFontStyle(tv, Typeface.BOLD);
         tv.setTextColor(UiStyles.color(context, R.color.textPrimary));
         tv.setPadding(0, 0, 0, dp(8, density));
@@ -983,8 +984,8 @@ private void populateGestureGrid(float density) {
     private Button createSensitivityButton(String label, int sensLevel, int currentSens, float density) {
         Button btn = new Button(context);
         btn.setText(label);
-        UiStyles.setTextSize(btn, R.dimen.text_size_tiny);
-        btn.setPadding(dp(4, density), dp(8, density), dp(4, density), dp(8, density));
+        UiStyles.setTextSize(btn, R.dimen.text_size_small);
+        btn.setPadding(dp(4, density), dp(12, density), dp(4, density), dp(12, density));
         updateSensitivityButtonStyle(btn, sensLevel == currentSens, density);
 
         btn.setOnClickListener(v -> {
@@ -1030,7 +1031,7 @@ private void populateGestureGrid(float density) {
         return btn;
     }
 
-    private Switch createSwitchRow(LinearLayout parent, String title, String desc,
+    private CompoundButton createSwitchRow(LinearLayout parent, String title, String desc,
                                    String prefKey, boolean defaultVal, float density) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -1042,27 +1043,28 @@ private void populateGestureGrid(float density) {
 
         TextView tvTitle = new TextView(context);
         tvTitle.setText(title);
-        UiStyles.setTextSize(tvTitle, R.dimen.text_size_small);
+        UiStyles.setTextSize(tvTitle, R.dimen.text_size_medium);
         tvTitle.setTextColor(UiStyles.color(context, R.color.textPrimary));
         textCol.addView(tvTitle);
 
         if (desc != null && !desc.isEmpty()) {
             TextView tvDesc = new TextView(context);
             tvDesc.setText(desc);
-            UiStyles.setTextSize(tvDesc, R.dimen.text_size_small);
+            UiStyles.setTextSize(tvDesc, R.dimen.text_size_normal);
             tvDesc.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
             textCol.addView(tvDesc);
         }
 
         row.addView(textCol, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        Switch sw = new Switch(context);
+        CompoundButton sw = UiStyles.createLargeSwitch(context);
         sw.setChecked(prefs.getBoolean(prefKey, defaultVal));
         sw.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean(prefKey, isChecked).apply();
             callback.log(title + ": " + (isChecked ? "Açık" : "Kapalı"));
         });
         row.addView(sw);
+        UiStyles.makeToggleRow(row, sw);
         parent.addView(row);
         return sw;
     }

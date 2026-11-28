@@ -12,7 +12,6 @@ class HomePolicyTest {
     private val launcher = "com.mapcontrol.launcher.HomeLauncherActivity"
     private val settings = "com.mapcontrol.ui.activity.MainActivity"
     private val picker = "com.mapcontrol.ui.activity.DriveMapPickerActivity"
-    private val miniDash = "com.mapcontrol.launcher.MiniDashActivity"
     private val maps = "com.google.android.apps.maps"
     private val music = "com.desaysv.music"
 
@@ -157,14 +156,13 @@ class HomePolicyTest {
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 31_000, oem, true, appWindow = false))
     }
 
-    @Test fun driveScreenHomeFromMapReturnsToLauncher() {
+    @Test fun homeFromMapReturnsToLauncher() {
         val t = tracker()
         t.onLauncherTop(true)
         t.onLauncherTop(false)
-        t.onWindow(self, miniDash, 10_000, oem, true)
         t.onWindow(maps, "MapsActivity", 10_200, oem, true)
         assertEquals(HomeAction.REDIRECT_TO_LAUNCHER, t.onWindow(oem, "Main", 30_000, oem, true))
-        // Sürüş ekranı bittikten sonra da aynı: tuş launcher'a döner.
+        // Ana ekrana dönüp haritayı yeniden açınca da aynı: tuş launcher'a döner.
         t.onLauncherTop(true)
         t.onLauncherTop(false)
         t.onWindow(maps, "MapsActivity", 40_000, oem, true)

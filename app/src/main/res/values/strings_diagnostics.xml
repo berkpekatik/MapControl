@@ -23,4 +23,7 @@
     <string name="diag_oem_icons_run">Fix</string>
     <string name="diag_oem_icons_done">Car home screen icons fixed.</string>
     <string name="diag_oem_icons_failed">Could not fix the icons.</string>
+    <string name="diag_iflytek_loop_title">iFlytek restart-loop fix</string>
+    <string name="diag_iflytek_loop_help_on">Stops the iFlytek voice assistant from crashing and restarting in a loop at startup. Only its faulty server address (flamesdev.iflytekauto.cn) is blocked, inside the car; no traffic leaves the car. A VPN key icon may appear in the status bar.</string>
+    <string name="diag_iflytek_loop_help_off">Off: with Wi-Fi on, the iFlytek voice assistant may crash and restart repeatedly at startup.</string>
 </resources>

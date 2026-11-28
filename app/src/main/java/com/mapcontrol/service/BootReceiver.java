@@ -41,6 +41,8 @@ public class BootReceiver extends BroadcastReceiver {
         // Açılışta da launcher modunu geri kur (alias + cihaz sahibi HOME sabitlemesi); otomatik
         // başlatma kapalı olsa bile çalışır.
         LauncherModeManager.restoreIfEnabled(app);
+        // iFlytek sonsuz döngü koruması (always-on DNS VPN): ayar/koşul değiştiyse kur ya da kaldır.
+        com.mapcontrol.net.IflytekLoopGuard.apply(app);
         SharedPreferences prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         if (!prefs.getBoolean(KEY_BOOT_AUTO_START, true)) {
             com.mapcontrol.util.DiagJournal.event("acilis", "otomatik baslatma kapali, hizmet baslatilmadi");

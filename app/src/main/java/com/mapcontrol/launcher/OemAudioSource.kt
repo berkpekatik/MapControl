@@ -78,10 +78,21 @@ internal object MediaSourcePick {
      * SOP6/SOP7) neden 8 radyoda "cards_start" olur: ses uygulaması radyoyu açmaz, yalnız açık radyo ekranına "çalmaya devam"
      * yollar; arka planda açtığımız için ekran yok ve hiçbir şey çalmaz (araç logu 10 Kasım: seçimden sonra kaynak 9'a geçmedi).
      * Aracın kendi başlatıcısı bu yazılımda 13 gönderir ("other_app_start" → OPEN_RADIO, son istasyon çalar). Diğer yazılımda
-     * (`svaudioapp`) 8 araçta doğrulandı, dokunulmaz; BT ve USB de değişmez.
+     * (`svaudioapp`) 8 araçta doğrulandı, dokunulmaz; BT değişmez.
+     *
+     * USB (USB0 3, USB1 4, LOCAL_MUSIC 2) her yazılımda 6: ses uygulamasının USB modülü (`MusicControlUtils.openSource`)
+     * yalnız "boot_resume" / "mode" (Jaecoo'da bir de "open_source_list") nedeninde çalar; 8 ("cards_start") AIDL'e düşer,
+     * USB açılmaz (Jaecoo araç videosu 25 Kasım: USB seçildi, kart FM'de kaldı). Medya servisi (`SVVDSMedia`, Jaecoo ve
+     * T18/T28) 6'yı "boot_resume"a çevirir ve ekranı arka planda tutar; 2 ("mode") ise başlatıcımız öndeyken USB ekranını açar.
      */
-    fun openReason(type: Int, oldAudioApp: Boolean): Int =
-        if (oldAudioApp && type in RADIO_SOURCES) OemAudioSource.REASON_OTHER_APP else OemAudioSource.REASON_CARDS
+    fun openReason(type: Int, oldAudioApp: Boolean): Int = when {
+        type in USB_SOURCES -> OemAudioSource.REASON_BOOT
+        oldAudioApp && type in RADIO_SOURCES -> OemAudioSource.REASON_OTHER_APP
+        else -> OemAudioSource.REASON_CARDS
+    }
+
+    /** OEM ses uygulamasının USB modülünün kaynakları (LOCAL_MUSIC 2, USB0 3, USB1 4). */
+    private val USB_SOURCES = setOf(2, 3, 4)
 
     /** Oturum üçüncü taraf bir uygulamanınki mi (BT ya da OEM ses uygulaması değil). */
     fun isThirdParty(pkg: String?) = pkg != null && !isBluetooth(pkg) && !isOemAudio(pkg)
@@ -304,6 +315,8 @@ internal object OemAudioSource {
     const val REASON_CARDS = 8
     /** VDValueMedia: başka uygulamadan açılış (aracın kendi başlatıcısının kaynak değiştirme nedeni; bkz. [MediaSourcePick.openReason]). */
     const val REASON_OTHER_APP = 13
+    /** VDValueMedia REASON_BOOT: medya servisi "boot_resume" yapar, ekranı arka planda tutar (USB açılışı; bkz. [MediaSourcePick.openReason]). */
+    const val REASON_BOOT = 6
     const val DISPLAY_BACKGROUND = 2
     const val INTENT_DEFAULT_VIEW = 1
 
@@ -792,7 +805,7 @@ internal object OemAudioSource {
 
     /**
      * Kart seçicisinden BT dışı kaynak ([type]: FM 9, AM 10, USB0 3): OEM kartı / SystemUI gibi `MEDIA_SOURCE_PLAY_STATUS
-     * {type, playAction 6, reason 8}`, ama arka planda
+     * {type, playAction 6, reason [MediaSourcePick.openReason]}`, ama arka planda
      * (disPlayView 2; intent görünümü yalnızca ön planda anlamlı). Telefon önceliği
      * bir süre karışmaz. Yalnızca kullanıcı dokunuşuyla çağrılır. Gönderilirse kart bu kaynağa bağlanır (kaynak zaten buysa
      * OEM değişim bildirmez, bu yüzden kart burada yeniden seçim yapar); gönderilemezse [onFailed] ana iş parçacığında çalışır.

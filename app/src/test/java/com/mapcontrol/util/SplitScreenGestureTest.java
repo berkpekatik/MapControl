@@ -8,7 +8,7 @@ import org.junit.Test;
 
 public class SplitScreenGestureTest {
 
-    /** MyCar M6.onReceive tablosu: parmak sayısı * 100 + yön kodu. */
+    /** Araç yayınındaki kod tablosu: parmak sayısı * 100 + yön kodu. */
     @Test
     public void codesMatchVehicleBroadcastTable() {
         assertEquals(203, SplitScreenGesture.code(2, SplitScreenGesture.UP));
@@ -54,7 +54,7 @@ public class SplitScreenGestureTest {
     }
 
     @Test
-    public void ratioIdsMatchMyCarAndDefaultToHalf() {
+    public void ratioIdsAreStableAndDefaultToHalf() {
         assertEquals(SplitScreenLauncher.Ratio.LEFT_THIRD, SplitScreenLauncher.Ratio.fromId("left_third"));
         assertEquals(SplitScreenLauncher.Ratio.HALF, SplitScreenLauncher.Ratio.fromId("half"));
         assertEquals(SplitScreenLauncher.Ratio.RIGHT_THIRD, SplitScreenLauncher.Ratio.fromId("right_third"));

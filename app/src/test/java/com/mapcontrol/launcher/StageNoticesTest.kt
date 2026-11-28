@@ -10,26 +10,26 @@ import org.junit.Test
  */
 class StageNoticesTest {
 
-    private fun kinds(l: List<MiniAlerts.Item>) = l.map { it.kind }
+    private fun kinds(l: List<StripAlerts.Item>) = l.map { it.kind }
 
     @Test
     fun calmCarHasNoStrip() {
-        assertTrue(MiniAlerts.build(false, null, false, 3_978, 155, 4).isEmpty())
-        assertTrue(MiniAlerts.build(false, null, null, null, null, null).isEmpty())
+        assertTrue(StripAlerts.build(false, null, false, 3_978, 155, 4).isEmpty())
+        assertTrue(StripAlerts.build(false, null, null, null, null, null).isEmpty())
     }
 
     @Test
     fun onlyInvisibleThingsInImportanceOrder() {
         val low = TireLow(2, 1.6)
-        val l = MiniAlerts.build(true, low, true, 800, 40, 80)
-        assertEquals(listOf(MiniAlerts.Kind.TIRE, MiniAlerts.Kind.FUEL_LOW, MiniAlerts.Kind.SERVICE_NEAR, MiniAlerts.Kind.AIR_BAD), kinds(l))
+        val l = StripAlerts.build(true, low, true, 800, 40, 80)
+        assertEquals(listOf(StripAlerts.Kind.TIRE, StripAlerts.Kind.FUEL_LOW, StripAlerts.Kind.SERVICE_NEAR, StripAlerts.Kind.AIR_BAD), kinds(l))
         assertEquals(low, l.first().tireLow)
-        assertEquals(800, l.first { it.kind == MiniAlerts.Kind.SERVICE_NEAR }.serviceKm)
+        assertEquals(800, l.first { it.kind == StripAlerts.Kind.SERVICE_NEAR }.serviceKm)
     }
 
     @Test
     fun atMostTwoNamedPlusCount() {
-        val all = MiniAlerts.build(true, null, true, 0, 0, 80)
+        val all = StripAlerts.build(true, null, true, 0, 0, 80)
         assertEquals(4, all.size) // lastik, yakıt, bakım geçti, hava
         val (shown, more) = StageNotices.visible(all)
         assertEquals(2, shown.size)
@@ -38,7 +38,7 @@ class StageNoticesTest {
         // Hiç sığmazsa en önemlisi yine görünür.
         assertEquals(1 to 3, StageNotices.visible(all, fit = 0).let { it.first.size to it.second })
         assertEquals(0, StageNotices.visible(all.take(2)).second)
-        assertEquals(0, StageNotices.visible(emptyList<MiniAlerts.Item>()).second)
+        assertEquals(0, StageNotices.visible(emptyList<StripAlerts.Item>()).second)
     }
 
     @Test

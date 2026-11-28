@@ -43,6 +43,10 @@ public final class ReleaseOwnerReceiver extends BroadcastReceiver {
             if (dpm == null || !dpm.isDeviceOwnerApp(pkg)) {
                 return RESULT_NOT_OWNER;
             }
+            // Servis modu aciksa once uygulamalari geri ac: sahiplik gidince gizli paketleri kimse acamaz.
+            if (ServiceMode.isActive(context)) {
+                ServiceMode.deactivate(context);
+            }
             // Cihaz sahipligini, admin kaydini ve ana ekran sabitlemesini birlikte kaldirir.
             dpm.clearDeviceOwnerApp(pkg);
             Log.i(TAG, "cihaz sahipligi birakildi");

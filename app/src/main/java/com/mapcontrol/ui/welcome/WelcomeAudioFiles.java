@@ -59,7 +59,8 @@ public final class WelcomeAudioFiles {
         }
     }
 
-    public static UsbScan scanUsb(Context context) {
+    /** Takılı USB birimlerinin kök dizinleri (dahili depolama hariç). Servis modu kilit dosyası da burada aranır. */
+    public static List<File> usbRoots(Context context) {
         Set<String> seen = new LinkedHashSet<>();
         List<File> roots = new ArrayList<>();
         addVolumeRoots(context, roots, seen);
@@ -67,6 +68,11 @@ public final class WelcomeAudioFiles {
             addRoot(new File(path), roots, seen);
         }
         addMediaRwChildren(roots, seen);
+        return roots;
+    }
+
+    public static UsbScan scanUsb(Context context) {
+        List<File> roots = usbRoots(context);
         if (roots.isEmpty()) {
             return new UsbScan(false, Collections.emptyList());
         }

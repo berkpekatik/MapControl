@@ -159,7 +159,7 @@ void SleepNs(long ns) {
     nanosleep(&ts, nullptr);
 }
 
-// mycar FUN_0012d914 eşdeğeri: deadline'a kadar EAGAIN/EINTR'de tekrar dene.
+// Deadline'a kadar EAGAIN/EINTR'de tekrar dene.
 int HabRecv(int fd, uint32_t chan, void* buf, uint32_t cap, int timeoutMs, uint32_t* outSize) {
     const uint64_t deadlineNs = NowNs() + (uint64_t)timeoutMs * 1000000ULL;
     int polls = 0;
@@ -348,8 +348,8 @@ constexpr float kDefaultFps = 25.0f;
 constexpr int kCamBuffers = 4;
 constexpr uint32_t kCamIds[4] = {5, 4, 8, 9};
 
-// mycar D0 ile ayni beyaz liste. Hepsi 2 bayt/piksel paketli (Y0 U Y1 V) islenir;
-// mycar da donusturucuye formati gecirmez.
+// Desteklenen formatlar. Hepsi 2 bayt/piksel paketli (Y0 U Y1 V) islenir;
+// donusturucuye format gecirilmez.
 constexpr uint32_t kSupportedFormats[7] = {0x07080100, 0x07080102, 0x07080176, 0x07080161,
                                            0x07080164, 0x07080169, 0x0708016D};
 
@@ -360,7 +360,7 @@ bool FormatSupported(uint32_t format) {
     return false;
 }
 
-// mycar D0 kurali: W/H cift ve 2..4096, stride >= W*2, kare boyutu = W*H*2.
+// Geometri kurali: W/H cift ve 2..4096, stride >= W*2, kare boyutu = W*H*2.
 bool GeometryValid(uint32_t w, uint32_t h, uint32_t stride, uint64_t bytes) {
     if (w < 2 || h < 2 || w > 4096 || h > 4096 || (w & 1) != 0 || (h & 1) != 0) return false;
     return stride >= w * 2 && bytes == (uint64_t)w * h * 2;

@@ -301,6 +301,7 @@
     <string name="dialog_accept">Kabul Ediyorum</string>
     <string name="dialog_decline">Kabul Etmiyorum</string>
     <string name="dialog_back">Geri</string>
+    <string name="dialog_confirm">Onayla</string>
     <string name="dialog_auto_select">Otomatik Seç</string>
     <string name="dialog_yes_pull">Evet, Çek</string>
     <string name="dialog_restart">Yeniden Başlat</string>
@@ -463,6 +464,8 @@
     <string name="camera360_usb_auto_note">Kontak açık ve USB takılıyken bu ayarlarla otomatik kaydeder.</string>
     <string name="camera360_turn_cam">Sinyalde göstergede yan kamera</string>
     <string name="camera360_turn_cam_note">Göstergeye yansıtma açıkken sol ya da sağ sinyal verdiğiniz an o taraftaki kamera göstergenin üstünde görünür.</string>
+    <string name="camera360_turn_cam_warn_title">Deneysel özellik</string>
+    <string name="camera360_turn_cam_warn_msg">SİNYAL KAMERALARI KULLANIMDA DONMA, KASMA VE EKRAN KAPANMASINA SEBEP OLABİLİR. BU DURUMU YAŞARSANIZ BAŞ ÜNİTEYİ YENİDEN BAŞLATARAK ÇÖZEBİLİRSİNİZ.\n\nMEVCUT SÜRÜMDE BU ÖZELLİK DENEYSELDİR VE ÖNERİLMEMEKTEDİR. DİKKATLİ KULLANIN.</string>
     <string name="camera360_turn_cam_starting">Kamera açılıyor…</string>
     <string name="camera360_turn_cam_flat">Düz görünüm</string>
     <string name="camera360_turn_cam_flat_note">Yan kameradaki balık gözü etkisini azaltır. Biraz daha fazla işlemci kullanır.</string>
@@ -1017,13 +1020,13 @@
     <string name="climate_auto_cond_lt">%1$d°C altındayken aç</string>
     <string name="climate_auto_cond_lte">%1$d°C ve altındayken aç</string>
     <string name="climate_auto_rule_status_active">● Aktif • Sürekli</string>
-    <string name="climate_auto_rule_status_active_countdown">● Aktif • %1$d dk kaldı</string>
+    <string name="climate_auto_rule_status_active_countdown">● Aktif • %1$s kaldı</string>
     <string name="climate_auto_rule_status_completed">● Tamamlandı • Süre doldu</string>
     <string name="climate_auto_rule_status_manual_off">● Durduruldu • Manuel kapatıldı</string>
     <string name="climate_auto_rule_status_off">○ Kapalı</string>
     <string name="climate_auto_rule_status_waiting_temp">● Beklemede • Eşik bekleniyor</string>
     <string name="climate_auto_rule_status_waiting_vehicle">● Beklemede • Kontak bekleniyor</string>
-    <string name="climate_auto_rule_status_waiting_start_delay">• %1$d dk sonra açılacak</string>
+    <string name="climate_auto_rule_status_waiting_start_delay">• %1$s sonra açılacak</string>
     <string name="climate_auto_rule_status_waiting_engine">● Aracın çalışması bekleniyor</string>
     <string name="climate_auto_rule_status_activating">● Devreye alınıyor…</string>
     <string name="climate_auto_tab_start_now">Açılış: Hemen</string>
@@ -1218,4 +1221,30 @@
     <string name="climate_auto_windshield_mode_fan">Mod: Fan</string>
     <string name="climate_auto_windshield_mode_heater">Mod: Rezistans</string>
     <string name="climate_auto_windshield_mode_heater_toast">Sadece ön camında rezistans bulunan araçlarda çalışır (örn. Jaecoo)</string>
+    <!-- Servis modu -->
+    <string name="service_mode_title">Servis Modu</string>
+    <string name="service_mode_desc">Servise giderken uygulamaları silmeden gizler. Aracın sistem uygulamalarına dokunulmaz; yalnızca sonradan yüklenenler gizlenir (Uygulamalar &gt; Yerel listesi). Geri açmak için USB belleğin köküne %1$s dosyasını koyup içine şifrenizi yazın ve USB\'yi takın.</string>
+    <string name="service_mode_button">SERVİS MODU</string>
+    <string name="service_mode_not_owner">Servis modu için MapControl\'ın cihaz sahibi (device owner) olarak kurulmuş olması gerekir.</string>
+    <string name="service_mode_danger_title">DİKKAT</string>
+    <string name="service_mode_danger_msg">BU YAPTIĞINIZ İŞLEM **TAMAMEN SİZİN SORUMLULUĞUNUZDADIR.** GELİŞTİRİCİ BU YÖNTEMİ **KESİNLİKLE ÖNERMEZ.**\n\nŞİDDETLE TAVSİYE EDİLEN: SERVİSE GİTMEDEN ÖNCE **SİSTEM &gt; FABRİKA AYARLARINA DÖN** SEÇENEĞİNİ KULLANMANIZDIR.\n\n**OLUŞTURDUĞUNUZ ŞİFRE İLE USB TAKTIĞINIZDA** UYGULAMALAR AKTİF EDİLECEKTİR.\n\n**ONAYLIYOR MUSUNUZ?**</string>
+    <string name="service_mode_danger_confirm">ONAYLIYORUM</string>
+    <string name="service_mode_loading">Uygulamalar taranıyor…</string>
+    <string name="service_mode_list_title">Gizlenecek uygulamalar (%1$d)</string>
+    <string name="service_mode_list_note">Aracın sistem uygulamalarına dokunulmaz; yalnızca sonradan yüklenenler gizlenir (Uygulamalar &gt; Yerel listesi).</string>
+    <string name="service_mode_list_empty">Gizlenecek uygulama bulunamadı.</string>
+    <string name="service_mode_list_continue">Devam</string>
+    <string name="service_mode_password_title">Şifre belirle</string>
+    <string name="service_mode_password_msg">Uygulamaları geri açmak için USB belleğin köküne **%1$s** adlı bir dosya oluşturun, içine bu şifreyi yazın ve USB\'yi araca takın.</string>
+    <string name="service_mode_password_serial">Şifreyi unutursanız dosyaya araç seri numarasını yazın: **%1$s**</string>
+    <string name="service_mode_password_hint">Şifre</string>
+    <string name="service_mode_password_repeat_hint">Şifre (tekrar)</string>
+    <string name="service_mode_password_too_short">Şifre en az %1$d karakter olmalı.</string>
+    <string name="service_mode_password_mismatch">Şifreler aynı değil.</string>
+    <string name="service_mode_activate">Servis modunu aç</string>
+    <string name="service_mode_applying">Uygulanıyor…</string>
+    <string name="service_mode_activated_toast">Servis modu açıldı: %1$d uygulama gizlendi.</string>
+    <string name="service_mode_unlocked_toast">Servis modu kapatıldı, uygulamalar geri açıldı. MapControl ikonunun görünmesi için aracı yeniden başlatın.</string>
+    <string name="service_mode_restart_title">Servis modu kapatıldı</string>
+    <string name="service_mode_restart_message">Uygulamalar geri açıldı. MapControl ikonunun ana ekranda yeniden görünmesi için aracı bir kez kapatıp açın.</string>
 </resources>

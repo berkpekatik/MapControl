@@ -68,6 +68,16 @@ public final class CloudToken {
         return token;
     }
 
+    /** Saklı token'ın şasesi (büyük harf); yoksa "". */
+    public static String vin(Context context) {
+        return prefs(context).getString(KEY_VIN, "");
+    }
+
+    /** Saklı token'ın bitişi (epoch ms); yoksa 0. */
+    public static long expiresAtMs(Context context) {
+        return prefs(context).getLong(KEY_EXPIRES, 0L);
+    }
+
     /** Sunucu token'ı reddetti (401): telefon yenisini verene kadar kullanılmaz. */
     public static void clear(Context context) {
         prefs(context).edit().clear().commit();

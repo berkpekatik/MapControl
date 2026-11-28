@@ -22,17 +22,6 @@ class MapControlWidgetMathTest {
         assertFalse(MapControlWidgetMath.isLoopback("192.168.43.1"))
     }
 
-    @Test fun miniDashSplitOtherPrefersLastThenYandex() {
-        assertEquals("com.spotify.music", MapControlWidgetMath.miniDashSplitOther("com.spotify.music") { true })
-        assertEquals("a.b/a.b.Main", MapControlWidgetMath.miniDashSplitOther("a.b/a.b.Main") { it == "a.b" })
-        // Son seçilen kaldırıldı: varsayılana düşülür, o da yoksa null.
-        assertEquals("ru.yandex.yandexmaps", MapControlWidgetMath.miniDashSplitOther("com.spotify.music") { it == "ru.yandex.yandexmaps" })
-        assertNull(MapControlWidgetMath.miniDashSplitOther("com.spotify.music") { false })
-        assertEquals("ru.yandex.yandexmaps", MapControlWidgetMath.miniDashSplitOther(null) { it == "ru.yandex.yandexmaps" })
-        assertEquals("ru.yandex.yandexmaps", MapControlWidgetMath.miniDashSplitOther(" ") { true })
-        assertNull(MapControlWidgetMath.miniDashSplitOther(null) { false })
-    }
-
     @Test fun automationCount() {
         val items = listOf(
             AutomationItem(AutomationId.CLIMATE, on = true, toggleable = true),

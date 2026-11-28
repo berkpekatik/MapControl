@@ -47,4 +47,11 @@
     <string name="launcher_sport_summary_max">Max</string>
     <string name="launcher_sport_summary_time">Time</string>
     <string name="launcher_sport_summary_title">Drive summary</string>
+    <!-- Uyarı şeridi (StripAlerts). -->
+    <string name="launcher_strip_tire">Low tire pressure</string>
+    <string name="launcher_strip_tire_psi" formatted="true">Low tire %1$d psi</string>
+    <string name="launcher_strip_fuel_low">Low fuel</string>
+    <string name="launcher_strip_service">Service due soon</string>
+    <string name="launcher_strip_service_km" formatted="true">Service in %1$d km</string>
+    <string name="launcher_strip_service_overdue">Service overdue</string>
 </resources>

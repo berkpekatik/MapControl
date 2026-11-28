@@ -28,9 +28,16 @@ public class VDBusManager {
         void onProjectionTargetPickerKeyRight();
         /** keyCode 8 + action 4: sol — picker açıksa bir önceki öğe. */
         void onProjectionTargetPickerKeyLeft();
+        /** keyCode 6 (direksiyon ses tuşu) kısa bas-bırak: sesli asistan (com.mapcontrol.ai) kuruluysa. */
+        void onAssistantKey();
     }
 
-    private static final int[] VDBUS_KEY_SUBSCRIBE_CODES = new int[]{10, 14, 26, 7, 8};
+    /** 6: direksiyon ses (VR) tuşu, 10/14: telefon, 26: nav/sessiz, 7/8: medya. */
+    private static final int[] VDBUS_KEY_SUBSCRIBE_CODES = new int[]{6, 10, 14, 26, 7, 8};
+    private static final int KEY_VOICE = 6;
+    private final VoiceKeyGesture voiceKeyGesture = new VoiceKeyGesture();
+    /** Harita/medya tuşları ayardan kapatılabilir; ses tuşu (asistan kuruluysa) yine dinlenir. */
+    private volatile boolean mapKeysEnabled = true;
 
     private final Context context;
     private final VDBusCallback callback;
@@ -58,6 +65,15 @@ public class VDBusManager {
             int action = payload.getInt(VDKey.ACTION, -1);
             callback.log("VDBus KeyEvent: keyCode=" + keyCode + " action=" + action);
 
+            if (keyCode == KEY_VOICE) {
+                if (com.mapcontrol.ai.AssistantLauncher.isInstalled(context) && voiceKeyGesture.accept(action)) {
+                    mainHandler.post(callback::onAssistantKey);
+                }
+                return;
+            }
+            if (!mapKeysEnabled) {
+                return;
+            }
             if (keyCode == 26 && action == 1) {
                 callback.onAlertTone();
             } else if (keyCode == 26 && action == 4) {
@@ -114,9 +130,13 @@ public class VDBusManager {
             callback.log("VDBus başlatıldı");
 
             SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
-            boolean mapControlKeyEnabled = prefs.getBoolean("mapControlKeyEnabled", true);
-            if (mapControlKeyEnabled) {
+            mapKeysEnabled = prefs.getBoolean("mapControlKeyEnabled", true);
+            boolean assistant = com.mapcontrol.ai.AssistantLauncher.isInstalled(context);
+            if (mapKeysEnabled || assistant) {
                 start();
+                if (!mapKeysEnabled) {
+                    callback.log("Harita kontrol tuşu kapalı; yalnızca sesli asistan tuşu dinleniyor");
+                }
             } else {
                 callback.log("Harita kontrol tuşu devre dışı bırakılmış, VDBus listener başlatılmadı");
             }

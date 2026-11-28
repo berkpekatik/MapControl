@@ -7,7 +7,6 @@ import org.junit.Test
 class SplitTileTextTest {
     @Test fun packageFromComponent() {
         assertEquals("ru.yandex.yandexmaps", SplitTileText.packageOf("ru.yandex.yandexmaps/.MainActivity"))
-        assertEquals("com.mapcontrol", SplitTileText.packageOf("com.mapcontrol/com.mapcontrol.launcher.MiniDashActivity"))
     }
 
     @Test fun plainPackageKept() {
@@ -36,36 +35,12 @@ class SplitTileTextClassTest {
     }
 }
 
-/** "Bölünmüş ekran" kutusu hangi bölmeyi açar (7 Kasım kararı: tek bölünmüş ekran deneyimi). */
-class SplitTileRouteTest {
-    private val self = "com.mapcontrol"
-    private val mini = "com.mapcontrol/com.mapcontrol.launcher.MiniDashActivity"
-    private val miniShort = "com.mapcontrol/.launcher.MiniDashActivity"
-    private val picker = "com.mapcontrol/com.mapcontrol.ui.activity.DriveMapPickerActivity"
-
-    @Test fun noOrIncompletePairOpensDriveScreen() {
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair(null, null), self))
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair("ru.yandex.yandexmaps", null), self))
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair("ru.yandex.yandexmaps", "ru.yandex.yandexmaps"), self))
-    }
-
-    @Test fun miniDashPairOpensDriveScreenOnEitherSide() {
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair(mini, "ru.yandex.yandexmaps"), self))
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair("com.google.android.apps.maps", mini), self))
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair(miniShort, "com.spotify.music"), self))
-        assertEquals(SplitRoute.DRIVE, SplitTileText.route(SplitPair(mini, picker), self))
-    }
-
-    @Test fun twoOtherAppsKeepMapControlSplit() {
-        assertEquals(SplitRoute.PAIR, SplitTileText.route(SplitPair("ru.yandex.yandexmaps", "com.spotify.music"), self))
-        // Başka paketin aynı adlı sınıfı bizim Mini göstergemiz değildir.
-        assertEquals(SplitRoute.PAIR, SplitTileText.route(SplitPair("other.pkg/com.mapcontrol.launcher.MiniDashActivity", "com.spotify.music"), self))
-    }
-
-    @Test fun miniDashDetection() {
-        assertEquals(true, SplitTileText.isMiniDash(mini, self))
-        assertEquals(true, SplitTileText.isMiniDash(miniShort, self))
-        assertEquals(false, SplitTileText.isMiniDash(picker, self))
-        assertEquals(false, SplitTileText.isMiniDash("com.mapcontrol", self))
+/** "Bölünmüş ekran" kutusu yalnız iki farklı uygulama seçiliyken bölmeyi başlatır; yoksa hızlı ayar sayfası açılır. */
+class SplitLoadReadyTest {
+    @Test fun readyOnlyWithTwoDifferentApps() {
+        assertEquals(false, SplitLoad(SplitPair(null, null), null, null).ready)
+        assertEquals(false, SplitLoad(SplitPair("ru.yandex.yandexmaps", null), null, null).ready)
+        assertEquals(false, SplitLoad(SplitPair("ru.yandex.yandexmaps", "ru.yandex.yandexmaps"), null, null).ready)
+        assertEquals(true, SplitLoad(SplitPair("ru.yandex.yandexmaps", "com.spotify.music"), null, null).ready)
     }
 }

@@ -54,10 +54,17 @@ public final class ClimateAutomationEngine {
     public static final class RuleStatus {
         public final RuleRunState state;
         public final int remainingMinutes;
+        /** Geri sayım için kalan süre (ms); geri sayım yoksa 0. Arayüz saniye saniye gösterir. */
+        public final long remainingMs;
 
         public RuleStatus(RuleRunState state, int remainingMinutes) {
+            this(state, remainingMinutes, remainingMinutes * 60_000L);
+        }
+
+        public RuleStatus(RuleRunState state, int remainingMinutes, long remainingMs) {
             this.state = state;
             this.remainingMinutes = remainingMinutes;
+            this.remainingMs = Math.max(0L, remainingMs);
         }
     }
 
@@ -486,16 +493,18 @@ public final class ClimateAutomationEngine {
             }
             if (confirmedActive.contains(id)) {
                 int remMin = 0;
+                long remMs = 0L;
                 if (rule.delayMinutes > 0) {
                     Long actAt = ruleActivatedAtMs.get(id);
                     if (actAt != null && actAt > 0) {
-                        long remMs = Math.max(0L, (rule.delayMinutes * 60_000L) - Math.max(0L, nowMs - actAt));
+                        remMs = Math.max(0L, (rule.delayMinutes * 60_000L) - Math.max(0L, nowMs - actAt));
                         remMin = Math.max(1, (int) Math.ceil(remMs / 60_000.0));
                     } else {
                         remMin = rule.delayMinutes;
+                        remMs = rule.delayMinutes * 60_000L;
                     }
                 }
-                map.put(id, new RuleStatus(RuleRunState.ACTIVE, remMin));
+                map.put(id, new RuleStatus(RuleRunState.ACTIVE, remMin, remMs));
                 continue;
             }
             if (manualOverridesThisDrive.contains(id)) {
@@ -522,10 +531,11 @@ public final class ClimateAutomationEngine {
                 map.put(id, new RuleStatus(RuleRunState.WAITING_TEMP, 0));
                 continue;
             }
-            int startRem = remainingStartDelayMinutes(
-                    rule, effectiveStartDelayBase(id, driveReadySinceMs), nowMs);
+            long startBase = effectiveStartDelayBase(id, driveReadySinceMs);
+            int startRem = remainingStartDelayMinutes(rule, startBase, nowMs);
             if (startRem > 0) {
-                map.put(id, new RuleStatus(RuleRunState.WAITING_START_DELAY, startRem));
+                long startRemMs = startBase + (rule.startDelayMinutes * 60_000L) - nowMs;
+                map.put(id, new RuleStatus(RuleRunState.WAITING_START_DELAY, startRem, startRemMs));
                 continue;
             }
             if (firedThisDrive.contains(id)

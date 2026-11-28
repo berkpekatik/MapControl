@@ -12,24 +12,24 @@ import com.mapcontrol.R
 
 /**
  * Uyarı şeridi (§10, karma çözüm): koyu cam, ince kehribar kenar, kehribar nokta; en çok iki madde ve "+N". Yalnızca arabada
- * görünmeyen şeyler içindir ([MiniAlerts]: motor suyu / akü, düşük lastik psi ile, yakıt kapağı, yakıt az, bakım, kötü hava; bu
+ * görünmeyen şeyler içindir ([StripAlerts]: motor suyu / akü, düşük lastik psi ile, yakıt kapağı, yakıt az, bakım, kötü hava; bu
  * önem sırasıyla); hiç madde yoksa şerit hiç
  * görünmez. Yükseklik [HEIGHT_DP] (sürüşte basılabilir); her madde kendi dokunma alanıdır, dokunuş [onTap]'e gider ("+N" için
- * null). Sahne'de aracın altında, mini göstergede uyarı satırında aynı görünüşle kullanılır.
+ * null). Sahne'de aracın altında kullanılır.
  *
  * Sürüşte ([setDriving]) kenar ışığı biraz güçlenir; yanıp sönme yoktur. Görünüm statiktir: yalnızca veri değişince çizilir.
  */
 internal class StageStrip(
     context: Context,
-    private val onTap: (MiniAlerts.Item?) -> Unit,
+    private val onTap: (StripAlerts.Item?) -> Unit,
 ) : LinearLayout(context) {
 
     private val dot = View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
     private val labels = Array(StageNotices.MAX_VISIBLE) { label() }
     private val seps = Array(StageNotices.MAX_VISIBLE - 1) { sahneText(context, TEXT_SP, Sahne.INK_3, 400).apply { text = "·" } }
     private val more = label().apply { setTextColor(Sahne.INK_3) }
-    private var items: List<MiniAlerts.Item> = emptyList()
-    private var named: List<MiniAlerts.Item> = emptyList()
+    private var items: List<StripAlerts.Item> = emptyList()
+    private var named: List<StripAlerts.Item> = emptyList()
     private var texts: List<String> = emptyList()
     private var driving: Boolean? = null
 
@@ -63,7 +63,7 @@ internal class StageStrip(
     }
 
     /** Maddeler ve metinleri ([stripText] ile aynı sırada). Aynı liste gelirse hiçbir şey yapılmaz. */
-    fun bind(all: List<MiniAlerts.Item>, text: (MiniAlerts.Item) -> String) {
+    fun bind(all: List<StripAlerts.Item>, text: (StripAlerts.Item) -> String) {
         val t = all.map(text)
         if (all == items && t == texts) return
         items = all
@@ -82,7 +82,7 @@ internal class StageStrip(
             l.text = t[i]
             l.setTextColor(Sahne.INK)
             // Yakıt az bir eylemdir (dokununca benzinlik araması): sonunda küçük ok.
-            val chev = if (item.kind == MiniAlerts.Kind.FUEL_LOW) chevron() else null
+            val chev = if (item.kind == StripAlerts.Kind.FUEL_LOW) chevron() else null
             l.setCompoundDrawablesRelative(null, null, chev, null)
             l.contentDescription = t[i]
             l.setOnClickListener { onTap(item) }
@@ -125,31 +125,31 @@ internal class StageStrip(
 }
 
 /**
- * Şerit maddesinin kısa metni (Sahne ve mini gösterge ortak): "Akü zayıf 11,4 V", "Arka sol 23 psi",
+ * Şerit maddesinin kısa metni (Sahne): "Akü zayıf 11,4 V", "Arka sol 23 psi",
  * "Yakıt kapağı açık", "Bakıma 800 km", "Yakıt az" (şeritte sonunda ok: dokununca benzinlik), "Hava kalitesi kötü". Lastikte teker bilinmiyorsa yalnızca psi, psi de yoksa genel metin.
  */
-internal fun stripText(context: Context, a: MiniAlerts.Item): String = when (a.kind) {
-    MiniAlerts.Kind.TIRE -> {
+internal fun stripText(context: Context, a: StripAlerts.Item): String = when (a.kind) {
+    StripAlerts.Kind.TIRE -> {
         val bar = a.tireLow?.bar
         val wheel = a.tireLow?.wheel?.let { STRIP_WHEELS.getOrNull(it) }
         when {
             bar != null && wheel != null -> context.getString(R.string.launcher_strip_tire_wheel, context.getString(wheel), TireDecode.psi(bar))
-            bar != null -> context.getString(R.string.launcher_mini_alert_tire_psi, TireDecode.psi(bar))
+            bar != null -> context.getString(R.string.launcher_strip_tire_psi, TireDecode.psi(bar))
             wheel != null -> context.getString(R.string.launcher_tire_wheel_warning, context.getString(wheel))
-            else -> context.getString(R.string.launcher_mini_alert_tire)
+            else -> context.getString(R.string.launcher_strip_tire)
         }
     }
-    MiniAlerts.Kind.ENGINE_HOT -> context.getString(R.string.launcher_health_hot)
-    MiniAlerts.Kind.BATTERY_LOW -> a.batteryV?.let { context.getString(R.string.launcher_strip_battery_low, it) }
+    StripAlerts.Kind.ENGINE_HOT -> context.getString(R.string.launcher_health_hot)
+    StripAlerts.Kind.BATTERY_LOW -> a.batteryV?.let { context.getString(R.string.launcher_strip_battery_low, it) }
         ?: context.getString(R.string.launcher_health_battery_low)
-    MiniAlerts.Kind.BATTERY_HIGH -> a.batteryV?.let { context.getString(R.string.launcher_strip_battery_high, it) }
+    StripAlerts.Kind.BATTERY_HIGH -> a.batteryV?.let { context.getString(R.string.launcher_strip_battery_high, it) }
         ?: context.getString(R.string.launcher_health_battery_high)
-    MiniAlerts.Kind.FUEL_CAP -> context.getString(R.string.launcher_strip_fuel_cap)
-    MiniAlerts.Kind.FUEL_LOW -> context.getString(R.string.launcher_mini_alert_fuel)
-    MiniAlerts.Kind.SERVICE_OVERDUE -> context.getString(R.string.launcher_mini_alert_service_overdue)
-    MiniAlerts.Kind.SERVICE_NEAR -> a.serviceKm?.let { context.getString(R.string.launcher_mini_alert_service_km, it) }
-        ?: context.getString(R.string.launcher_mini_alert_service)
-    MiniAlerts.Kind.AIR_BAD -> context.getString(R.string.launcher_strip_air)
+    StripAlerts.Kind.FUEL_CAP -> context.getString(R.string.launcher_strip_fuel_cap)
+    StripAlerts.Kind.FUEL_LOW -> context.getString(R.string.launcher_strip_fuel_low)
+    StripAlerts.Kind.SERVICE_OVERDUE -> context.getString(R.string.launcher_strip_service_overdue)
+    StripAlerts.Kind.SERVICE_NEAR -> a.serviceKm?.let { context.getString(R.string.launcher_strip_service_km, it) }
+        ?: context.getString(R.string.launcher_strip_service)
+    StripAlerts.Kind.AIR_BAD -> context.getString(R.string.launcher_strip_air)
 }
 
 private val STRIP_WHEELS = listOf(R.string.launcher_tire_fl, R.string.launcher_tire_fr, R.string.launcher_tire_rl, R.string.launcher_tire_rr)

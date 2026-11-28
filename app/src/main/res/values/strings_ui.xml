@@ -282,6 +282,7 @@
     <string name="dialog_accept">I accept</string>
     <string name="dialog_decline">I decline</string>
     <string name="dialog_back">Back</string>
+    <string name="dialog_confirm">Confirm</string>
     <string name="dialog_auto_select">Auto select</string>
     <string name="dialog_yes_pull">Yes, pull</string>
     <string name="dialog_restart">Restart</string>
@@ -444,6 +445,8 @@
     <string name="camera360_usb_auto_note">With the ignition on and a USB drive plugged in, records automatically with these settings.</string>
     <string name="camera360_turn_cam">Side camera on cluster with turn signal</string>
     <string name="camera360_turn_cam_note">When cluster projection is on, the left or right camera appears at the top of the cluster as soon as you signal.</string>
+    <string name="camera360_turn_cam_warn_title">Experimental feature</string>
+    <string name="camera360_turn_cam_warn_msg">TURN SIGNAL CAMERAS MAY CAUSE FREEZING, STUTTERING AND THE SCREEN TURNING OFF. IF THIS HAPPENS, RESTART THE HEAD UNIT TO RECOVER.\n\nIN THE CURRENT VERSION THIS FEATURE IS EXPERIMENTAL AND NOT RECOMMENDED. USE WITH CAUTION.</string>
     <string name="camera360_turn_cam_starting">Camera starting…</string>
     <string name="camera360_turn_cam_flat">Flat view</string>
     <string name="camera360_turn_cam_flat_note">Reduces the fisheye look of the side camera. Uses a little more CPU.</string>
@@ -998,13 +1001,13 @@
     <string name="climate_auto_cond_lt">Turn on below %1$d°C</string>
     <string name="climate_auto_cond_lte">Turn on at or below %1$d°C</string>
     <string name="climate_auto_rule_status_active">● Active • Continuous</string>
-    <string name="climate_auto_rule_status_active_countdown">● Active • %1$d min left</string>
+    <string name="climate_auto_rule_status_active_countdown">● Active • %1$s left</string>
     <string name="climate_auto_rule_status_completed">● Completed • Time elapsed</string>
     <string name="climate_auto_rule_status_manual_off">● Paused • Manually turned off</string>
     <string name="climate_auto_rule_status_off">○ Off</string>
     <string name="climate_auto_rule_status_waiting_temp">● Standby • Waiting for threshold</string>
     <string name="climate_auto_rule_status_waiting_vehicle">● Standby • Waiting for ignition</string>
-    <string name="climate_auto_rule_status_waiting_start_delay">• Opens in %1$d min</string>
+    <string name="climate_auto_rule_status_waiting_start_delay">• Opens in %1$s</string>
     <string name="climate_auto_rule_status_waiting_engine">● Waiting for engine start</string>
     <string name="climate_auto_rule_status_activating">● Activating…</string>
     <string name="climate_auto_tab_start_now">Start: Now</string>
@@ -1199,4 +1202,30 @@
     <string name="climate_auto_windshield_mode_fan">Mode: Fan</string>
     <string name="climate_auto_windshield_mode_heater">Mode: Heater</string>
     <string name="climate_auto_windshield_mode_heater_toast">Only works on vehicles with a heated front windshield (e.g. Jaecoo)</string>
+    <!-- Service mode -->
+    <string name="service_mode_title">Service Mode</string>
+    <string name="service_mode_desc">Hides apps without uninstalling them before a service visit. System apps of the car are left alone; only apps installed later are hidden (Apps &gt; Local list). To restore, put a file named %1$s in the root of a USB drive, write your password in it and plug the drive in.</string>
+    <string name="service_mode_button">SERVICE MODE</string>
+    <string name="service_mode_not_owner">Service mode requires MapControl to be installed as device owner.</string>
+    <string name="service_mode_danger_title">WARNING</string>
+    <string name="service_mode_danger_msg">YOU DO THIS **ENTIRELY AT YOUR OWN RISK.** THE DEVELOPER **STRONGLY ADVISES AGAINST** THIS METHOD.\n\nSTRONGLY RECOMMENDED: BEFORE GOING TO THE SERVICE, USE **SYSTEM &gt; FACTORY RESET**.\n\n**WHEN YOU PLUG IN A USB DRIVE WITH THE PASSWORD YOU CREATE,** THE APPS WILL BE RESTORED.\n\n**DO YOU CONFIRM?**</string>
+    <string name="service_mode_danger_confirm">I CONFIRM</string>
+    <string name="service_mode_loading">Scanning apps…</string>
+    <string name="service_mode_list_title">Apps to hide (%1$d)</string>
+    <string name="service_mode_list_note">System apps of the car are left alone; only apps installed later are hidden (Apps &gt; Local list).</string>
+    <string name="service_mode_list_empty">No apps to hide.</string>
+    <string name="service_mode_list_continue">Continue</string>
+    <string name="service_mode_password_title">Set a password</string>
+    <string name="service_mode_password_msg">To restore the apps, create a file named **%1$s** in the root of a USB drive, write this password in it and plug the drive into the car.</string>
+    <string name="service_mode_password_serial">If you forget the password, write the vehicle serial number in the file instead: **%1$s**</string>
+    <string name="service_mode_password_hint">Password</string>
+    <string name="service_mode_password_repeat_hint">Password (again)</string>
+    <string name="service_mode_password_too_short">The password must be at least %1$d characters.</string>
+    <string name="service_mode_password_mismatch">The passwords do not match.</string>
+    <string name="service_mode_activate">Turn on service mode</string>
+    <string name="service_mode_applying">Applying…</string>
+    <string name="service_mode_activated_toast">Service mode on: %1$d apps hidden.</string>
+    <string name="service_mode_unlocked_toast">Service mode off, apps restored. Restart the car to bring back the MapControl icon.</string>
+    <string name="service_mode_restart_title">Service mode off</string>
+    <string name="service_mode_restart_message">Apps have been restored. Turn the car off and on once so the MapControl icon shows up on the home screen again.</string>
 </resources>

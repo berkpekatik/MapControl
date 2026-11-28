@@ -121,8 +121,275 @@ public class DialogHelper {
         dialog.show();
     }
 
+    /**
+     * Onay düğmesi {@code seconds} saniye kilitli kalan uyarı penceresi (düğmede geri sayım görünür).
+     * Dışarı dokunarak kapanmaz; İptal ya da Geri tuşu {@code onCancel}'ı, onay {@code onConfirm}'ı çalıştırır.
+     * İkisinden tam olarak biri, bir kez çağrılır.
+     */
+    public static void showTimedConfirm(Context context, String title, String message, int seconds,
+            Runnable onConfirm, Runnable onCancel) {
+        showTimedConfirm(context, title, message, seconds, null, false, onConfirm, onCancel);
+    }
+
+    /**
+     * {@code danger} iken başlık ve onay düğmesi kırmızıdır (geri alınması zor işlemler için).
+     * {@code confirmLabelOrNull} null ise "Onayla" yazar.
+     */
+    public static void showTimedConfirm(Context context, String title, String message, int seconds,
+            String confirmLabelOrNull, boolean danger, Runnable onConfirm, Runnable onCancel) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        LinearLayout mainContainer = createBaseContainer(context);
+        LinearLayout titleContainer = createTitleContainer(context, danger ? "\u26A0  " + title : title, null);
+        if (danger) {
+            ((TextView) titleContainer.getChildAt(0)).setTextColor(UiStyles.color(context, R.color.statusErrorBright));
+        }
+        mainContainer.addView(titleContainer);
+        LinearLayout contentContainer = createContentContainer(context);
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.addView(createMessage(context, message));
+        contentContainer.addView(scrollView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        mainContainer.addView(contentContainer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        final boolean[] confirmed = {false};
+        String confirmLabel = confirmLabelOrNull != null ? confirmLabelOrNull : context.getString(R.string.dialog_confirm);
+        builder.setView(mainContainer);
+        builder.setPositiveButton(confirmLabel, (d, w) -> confirmed[0] = true);
+        builder.setNegativeButton(R.string.wifi_cancel, (d, w) -> d.dismiss());
+        builder.setCancelable(true);
+        AlertDialog dialog = builder.create();
+        dialog.setCanceledOnTouchOutside(false);
+        styleDialog(dialog, danger);
+
+        android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+        final int[] left = {Math.max(0, seconds)};
+        Runnable tick = new Runnable() {
+            @Override
+            public void run() {
+                android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                if (positive == null) {
+                    return;
+                }
+                if (left[0] <= 0) {
+                    positive.setText(confirmLabel);
+                    positive.setEnabled(true);
+                    positive.setAlpha(1f);
+                    return;
+                }
+                positive.setText(confirmLabel + " (" + left[0] + ")");
+                positive.setEnabled(false);
+                positive.setAlpha(0.5f);
+                left[0]--;
+                handler.postDelayed(this, 1000);
+            }
+        };
+        dialog.setOnDismissListener(d -> {
+            handler.removeCallbacks(tick);
+            if (confirmed[0]) {
+                onConfirm.run();
+            } else {
+                onCancel.run();
+            }
+        });
+        dialog.show();
+        // styleDialog OnShowListener'ı düğmeleri boyadıktan sonra geri sayım başlar.
+        tick.run();
+    }
+
+    /** Salt okunur uygulama listesi satırı. */
+    public static final class AppRow {
+        public final android.graphics.drawable.Drawable icon;
+        public final String label;
+        public final String packageName;
+
+        public AppRow(android.graphics.drawable.Drawable icon, String label, String packageName) {
+            this.icon = icon;
+            this.label = label;
+            this.packageName = packageName;
+        }
+    }
+
+    /**
+     * Yalnızca görüntülenen (seçim yok) uygulama listesi; altında {@code note}. Liste boşsa {@code emptyText} gösterilir ve
+     * devam düğmesi kapalıdır. Dışarı dokunarak kapanmaz; {@code onContinue} ya da {@code onCancel} tam bir kez çağrılır.
+     */
+    public static void showAppListConfirm(Context context, String title, String note, String emptyText,
+            java.util.List<AppRow> rows, int continueRes, Runnable onContinue, Runnable onCancel) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        LinearLayout mainContainer = createBaseContainer(context);
+        mainContainer.addView(createTitleContainer(context, title, null));
+        LinearLayout contentContainer = createContentContainer(context);
+
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        float density = context.getResources().getDisplayMetrics().density;
+        int iconPx = Math.round(40 * density);
+        if (rows.isEmpty()) {
+            list.addView(createMessage(context, emptyText));
+        }
+        for (AppRow row : rows) {
+            LinearLayout line = new LinearLayout(context);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            line.setPadding(0, Math.round(6 * density), 0, Math.round(6 * density));
+            android.widget.ImageView icon = new android.widget.ImageView(context);
+            if (row.icon != null) {
+                icon.setImageDrawable(row.icon);
+            }
+            LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconPx, iconPx);
+            iconLp.rightMargin = Math.round(14 * density);
+            line.addView(icon, iconLp);
+            LinearLayout texts = new LinearLayout(context);
+            texts.setOrientation(LinearLayout.VERTICAL);
+            TextView label = new TextView(context);
+            label.setText(row.label);
+            label.setTextSize(16);
+            label.setTextColor(UiStyles.color(context, R.color.textPrimary));
+            texts.addView(label);
+            TextView pkg = new TextView(context);
+            pkg.setText(row.packageName);
+            pkg.setTextSize(12);
+            pkg.setTextColor(UiStyles.color(context, R.color.textHint));
+            texts.addView(pkg);
+            line.addView(texts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            list.addView(line);
+        }
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.addView(list);
+        int maxHeight = Math.round(context.getResources().getDisplayMetrics().heightPixels * 0.45f);
+        contentContainer.addView(scrollView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, rows.size() > 6 ? maxHeight : LinearLayout.LayoutParams.WRAP_CONTENT));
+        if (note != null) {
+            TextView noteView = createMessage(context, note);
+            noteView.setTextSize(13);
+            noteView.setTextColor(UiStyles.color(context, R.color.textHint));
+            noteView.setPadding(0, Math.round(10 * density), 0, 0);
+            contentContainer.addView(noteView);
+        }
+        mainContainer.addView(contentContainer);
+
+        final boolean[] confirmed = {false};
+        builder.setView(mainContainer);
+        builder.setPositiveButton(continueRes, (d, w) -> confirmed[0] = true);
+        builder.setNegativeButton(R.string.wifi_cancel, (d, w) -> d.dismiss());
+        builder.setCancelable(true);
+        AlertDialog dialog = builder.create();
+        dialog.setCanceledOnTouchOutside(false);
+        styleDialog(dialog);
+        dialog.setOnDismissListener(d -> {
+            if (confirmed[0]) {
+                onContinue.run();
+            } else {
+                onCancel.run();
+            }
+        });
+        dialog.show();
+        android.widget.Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        if (positive != null && rows.isEmpty()) {
+            positive.setEnabled(false);
+            positive.setAlpha(0.5f);
+        }
+    }
+
+    /**
+     * Şifre + tekrar penceresi. Şifre {@code minLength}'ten kısaysa ya da iki alan farklıysa pencere kapanmaz, hata yazar.
+     * {@code onSave} girilen şifreyle, iptalde {@code onCancel} çağrılır (tam biri, bir kez).
+     */
+    public static void showPasswordSetup(Context context, String title, String message, int minLength,
+            int saveRes, StringConsumer onSave, Runnable onCancel) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        LinearLayout mainContainer = createBaseContainer(context);
+        mainContainer.addView(createTitleContainer(context, title, null));
+        LinearLayout contentContainer = createContentContainer(context);
+        contentContainer.addView(createMessage(context, message));
+        android.widget.EditText first = createPasswordField(context, R.string.service_mode_password_hint);
+        android.widget.EditText second = createPasswordField(context, R.string.service_mode_password_repeat_hint);
+        contentContainer.addView(first);
+        contentContainer.addView(second);
+        TextView error = new TextView(context);
+        error.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
+        error.setTextSize(14);
+        error.setVisibility(android.view.View.GONE);
+        contentContainer.addView(error);
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.addView(contentContainer);
+        mainContainer.addView(scrollView);
+
+        final String[] saved = {null};
+        builder.setView(mainContainer);
+        builder.setPositiveButton(saveRes, null);
+        builder.setNegativeButton(R.string.wifi_cancel, (d, w) -> d.dismiss());
+        builder.setCancelable(true);
+        AlertDialog dialog = builder.create();
+        dialog.setCanceledOnTouchOutside(false);
+        styleDialog(dialog);
+        dialog.setOnDismissListener(d -> {
+            if (saved[0] != null) {
+                onSave.accept(saved[0]);
+            } else {
+                onCancel.run();
+            }
+        });
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            // Ekran klavyesi açılınca alanlar görünür kalsın.
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String a = first.getText().toString().trim();
+            String b = second.getText().toString().trim();
+            if (a.length() < minLength) {
+                error.setText(context.getString(R.string.service_mode_password_too_short, minLength));
+                error.setVisibility(android.view.View.VISIBLE);
+                return;
+            }
+            if (!a.equals(b)) {
+                error.setText(R.string.service_mode_password_mismatch);
+                error.setVisibility(android.view.View.VISIBLE);
+                return;
+            }
+            saved[0] = a;
+            dialog.dismiss();
+        });
+    }
+
+    private static android.widget.EditText createPasswordField(Context context, int hintRes) {
+        android.widget.EditText field = new android.widget.EditText(context);
+        field.setHint(hintRes);
+        field.setSingleLine(true);
+        field.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        field.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        field.setHintTextColor(UiStyles.color(context, R.color.textHint));
+        return field;
+    }
+
     /** Tek düğmeli bilgi penceresi. */
     public static void showInfo(Context context, String title, String message) {
+        AlertDialog dialog = buildInfo(context, title, message);
+        dialog.show();
+    }
+
+    /**
+     * Etkinlik olmadan (yayın alıcısından) her şeyin üstünde bilgi penceresi. Üstte gösterme izni yoksa ya da pencere
+     * eklenemezse false döner; çağıran başka yolla (Toast) bildirmeli. Ana iş parçacığında çağrılmalı.
+     */
+    public static boolean showOverlayInfo(Context context, String title, String message) {
+        Context app = context.getApplicationContext();
+        if (!android.provider.Settings.canDrawOverlays(app)) return false;
+        try {
+            Context themed = new android.view.ContextThemeWrapper(app, R.style.Theme_MapControl);
+            AlertDialog dialog = buildInfo(themed, title, message);
+            if (dialog.getWindow() == null) return false;
+            dialog.getWindow().setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+            dialog.show();
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private static AlertDialog buildInfo(Context context, String title, String message) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LinearLayout mainContainer = createBaseContainer(context);
         mainContainer.addView(createTitleContainer(context, title, null));
@@ -134,7 +401,7 @@ public class DialogHelper {
         builder.setCancelable(true);
         AlertDialog dialog = builder.create();
         styleDialog(dialog);
-        dialog.show();
+        return dialog;
     }
 
     private static void showResponsibilityDialog(
@@ -316,17 +583,27 @@ public class DialogHelper {
     }
 
     private static void styleDialog(AlertDialog dialog) {
+        styleDialog(dialog, false);
+    }
+
+    /** {@code danger}: onay düğmesi kırmızı zemin, beyaz yazı. */
+    private static void styleDialog(AlertDialog dialog, boolean danger) {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(UiStyles.color(dialog.getContext(), R.color.surfaceColor)));
         }
         dialog.setOnShowListener(dialogInterface -> {
             android.widget.Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if (positiveButton != null) {
-                positiveButton.setTextColor(UiStyles.color(dialog.getContext(), R.color.textPrimary));
+                positiveButton.setTextColor(danger ? 0xFFFFFFFF : UiStyles.color(dialog.getContext(), R.color.textPrimary));
                 positiveButton.setTextSize(16);
                 UiStyles.setFontStyle(positiveButton, android.graphics.Typeface.BOLD);
                 android.graphics.drawable.GradientDrawable positiveBg = new android.graphics.drawable.GradientDrawable();
-                positiveBg.setColor(UiStyles.color(dialog.getContext(), R.color.buttonPrimary));
+                positiveBg.setColor(UiStyles.color(dialog.getContext(), danger ? R.color.statusError : R.color.buttonPrimary));
+                if (danger) {
+                    // Material teması düğmeyi kendi rengiyle boyar (tint); kırmızı görünsün diye tint de kırmızı.
+                    positiveButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                            UiStyles.color(dialog.getContext(), R.color.statusError)));
+                }
                 positiveBg.setCornerRadius(12);
                 positiveButton.setBackground(positiveBg);
             }

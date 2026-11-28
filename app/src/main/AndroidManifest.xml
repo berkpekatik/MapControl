@@ -98,6 +98,7 @@
         tools:ignore="ProtectedPermissions" />
     <!-- http(s) linkleri açan tarayıcı / harita uygulamalarını görmek (Android 11+ paket görünürlüğü) -->
     <queries>
+        <package android:name="com.mapcontrol.ai" />
         <package android:name="com.desaysv.materialvehicle" />
         <package android:name="com.desaysv.materialvehicle.t19c" />
         <package android:name="com.desaysv.materialvehicle.t19c.ev" />
@@ -122,6 +123,13 @@
         </intent>
     </queries>
     
+    <!-- Sesli asistan (com.mapcontrol.ai) köprüsü: yalnızca aynı anahtarla imzalı uygulama bağlanır. -->
+    <permission
+        android:name="com.mapcontrol.permission.ASSISTANT"
+        android:protectionLevel="signature" />
+    <!-- Asistanın yüzen mikrofon servisini (aynı izinle korunur) direksiyon ses tuşuyla başlatmak için. -->
+    <uses-permission android:name="com.mapcontrol.permission.ASSISTANT" />
+
     <application
         android:name=".MapControlApplication"
         android:allowBackup="true"
@@ -223,36 +231,8 @@
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         </activity>
 
-        <!-- Mini gösterge: bölünmüş ekranın bir yarısında (960 x ~610) açılan, boyutu değişebilen ayrı ekran (ana ekran
-             bölünemez). Uygulama listesi simgesi aşağıdaki alias'ta (yalnız launcher modunda); serbest pencere (freeform) bölmesinde seçilebilir. Kendi görev
-             ilişkisi (taskAffinity) ana ekranla ve MapControl'la aynı göreve karışmasın diye. -->
-        <activity
-            android:name="com.mapcontrol.launcher.MiniDashActivity"
-            android:exported="true"
-            android:label="Mini gösterge"
-            android:launchMode="singleTask"
-            android:taskAffinity="com.mapcontrol.minidash"
-            android:resizeableActivity="true"
-            android:supportsPictureInPicture="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
-            android:theme="@style/Theme.Sahne.DriveHalf" />
-
-        <!-- Mini göstergenin uygulama listesi simgesi: varsayılan KAPALI; yalnız MapControl launcher modu açıkken
-             LauncherModeManager etkinleştirir (MiniDashEntry). Bölünmüş ekran etkinliği bileşen adıyla açar, simgeye bağlı değil. -->
-        <activity-alias
-            android:name="com.mapcontrol.launcher.MiniDashLauncherAlias"
-            android:targetActivity="com.mapcontrol.launcher.MiniDashActivity"
-            android:enabled="false"
-            android:exported="true"
-            android:label="Mini gösterge">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <!-- Sürüş ekranının harita yarısı, harita uygulaması yokken ("+ Harita ekle"; DriveScreen). Yalnız bölünmüş ekran başlatıcısı
-             açar; kendi görev ilişkisi, uygulama listesinde simgesi yok. -->
+        <!-- "+ Harita ekle": harita uygulaması seçilmemişken Navigasyon kartından tam ekran açılır; kendi görev ilişkisi,
+             uygulama listesinde simgesi yok. -->
         <activity
             android:name="com.mapcontrol.ui.activity.DriveMapPickerActivity"
             android:exported="false"
@@ -308,6 +288,21 @@
             android:permission="android.permission.DUMP"
             android:exported="true" />
 
+        <!-- Servis modu son çare: adb ile kapatır (USB okunamazsa). DUMP: yalnızca adb shell gönderebilir. -->
+        <receiver
+            android:name=".admin.ServiceModeOffReceiver"
+            android:permission="android.permission.DUMP"
+            android:exported="true" />
+        <!-- Servis modu: USB takılınca kilit dosyasını arar (mod kapalıyken hiçbir şey yapmaz). -->
+        <receiver
+            android:name=".admin.ServiceModeUsbReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+                <data android:scheme="file" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".service.BootReceiver"
             android:enabled="true"
@@ -319,6 +314,18 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
+
+        <!-- iFlytek sonsuz döngü koruması: yalnızca DNS'e dokunan yerel VPN (dışarıya trafik gitmez).
+             iFlytek sesli asistanı açılışta flamesdev.iflytekauto.cn cevabıyla çöküp sürekli yeniden başlıyor;
+             bu servis yalnızca o alan adına NXDOMAIN döner. Device owner always-on olarak kurar. Bkz. net/IflytekLoopGuard. -->
+        <service
+            android:name=".net.IflytekLoopGuardVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".service.RecordingService"
@@ -353,6 +360,15 @@
             </intent-filter>
         </service>
         
+        <!-- Sesli asistan köprüsü (AssistantBridgeService): araç komutları ve eşleşme token'ı. -->
+        <service
+            android:name=".ai.AssistantBridgeService"
+            android:exported="true"
+            android:permission="com.mapcontrol.permission.ASSISTANT">
+            <intent-filter>
+                <action android:name="com.mapcontrol.ai.BIND_ASSISTANT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

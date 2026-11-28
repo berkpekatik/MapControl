@@ -868,4 +868,48 @@ public final class UiStyles {
         button.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0);
         button.setCompoundDrawablePadding(0);
     }
+
+    /** Araçta parmakla rahat basılan anahtar boyutu (dp). Küçük/büyük gelirse buradan ayarla. */
+    public static final int LARGE_SWITCH_WIDTH_DP = 64;
+    public static final int LARGE_SWITCH_HEIGHT_DP = 36;
+    private static final int LARGE_SWITCH_KNOB_INSET_DP = 4;
+    private static final int TOGGLE_ROW_MIN_HEIGHT_DP = 64;
+
+    /** Ayarlar kartlarındaki launcher tarzı anahtarın büyük hali; Switch/SwitchCompat yerine kullanılır. */
+    public static android.widget.CompoundButton createLargeSwitch(Context context) {
+        float density = context.getResources().getDisplayMetrics().density;
+        androidx.appcompat.widget.AppCompatCheckBox sw = new androidx.appcompat.widget.AppCompatCheckBox(context);
+        SwitchDrawable drawable = new SwitchDrawable(density,
+                LARGE_SWITCH_WIDTH_DP, LARGE_SWITCH_HEIGHT_DP, LARGE_SWITCH_KNOB_INSET_DP);
+        drawable.setColors(color(context, R.color.oemAccent),
+                color(context, R.color.switchTrackOff), color(context, R.color.switchKnob));
+        androidx.core.widget.CompoundButtonCompat.setButtonTintList(sw, null);
+        sw.setButtonDrawable(drawable);
+        sw.setBackground(null);
+        sw.setPadding(0, 0, 0, 0);
+        sw.setMinimumHeight(Math.round(48 * density));
+        sw.setGravity(Gravity.CENTER_VERTICAL);
+        return sw;
+    }
+
+    /**
+     * Satırın tamamını anahtarın dokunma alanı yapar: satıra basınca anahtar değişir,
+     * basılı geri bildirim gösterilir. Anahtar devre dışıyken satır da tepki vermez.
+     */
+    public static void makeToggleRow(View row, android.widget.CompoundButton sw) {
+        float density = row.getResources().getDisplayMetrics().density;
+        row.setMinimumHeight(Math.round(TOGGLE_ROW_MIN_HEIGHT_DP * density));
+        row.setClickable(true);
+        row.setFocusable(true);
+        android.util.TypedValue tv = new android.util.TypedValue();
+        if (row.getContext().getTheme().resolveAttribute(
+                android.R.attr.selectableItemBackground, tv, true)) {
+            row.setForeground(ContextCompat.getDrawable(row.getContext(), tv.resourceId));
+        }
+        row.setOnClickListener(v -> {
+            if (sw.isEnabled()) {
+                sw.toggle();
+            }
+        });
+    }
 }

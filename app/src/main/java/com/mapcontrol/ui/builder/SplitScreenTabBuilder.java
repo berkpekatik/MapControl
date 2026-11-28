@@ -230,8 +230,7 @@ public class SplitScreenTabBuilder {
             name.setTextColor(UiStyles.color(context, R.color.textSecondary));
         } else {
             AppIconHelper.apply(icon, SplitSlot.packageOf(pkg));
-            name.setText(SplitSlot.isComponent(pkg)
-                    ? context.getString(R.string.launcher_mini_title) : labelOf(pkg));
+            name.setText(labelOf(pkg));
             name.setTextColor(UiStyles.color(context, R.color.textPrimary));
         }
     }
@@ -244,10 +243,10 @@ public class SplitScreenTabBuilder {
         }
     }
 
-    /** Kullanıcı uygulaması ya da kendi Mini göstergemiz. */
+    /** Kullanıcı uygulaması (eski sürümden kalan bileşen seçimi, ör. Mini gösterge, geçersiz). */
     private boolean isSlotValid(String slot) {
-        if (SplitSlot.isComponent(slot)) {
-            return SplitSlot.isMiniDash(slot, context.getPackageName());
+        if (!SplitSlot.isAllowed(slot, context.getPackageName())) {
+            return false;
         }
         return isUserApp(slot);
     }
@@ -281,18 +280,11 @@ public class SplitScreenTabBuilder {
                 Toast.makeText(context, R.string.projection_list_failed, Toast.LENGTH_SHORT).show();
                 return;
             }
-            // Mini gösterge bir launcher özelliğidir: yalnız MapControl launcher modu açıkken seçilebilir.
-            boolean mini = com.mapcontrol.util.LauncherModeManager.isEnabled(context);
-            int off = mini ? 1 : 0;
-            String[] items = new String[rows.size() + off];
+            String[] items = new String[rows.size()];
             List<String> packages = new ArrayList<>();
-            if (mini) {
-                items[0] = context.getString(R.string.launcher_mini_title);
-                packages.add(SplitSlot.miniDash(context.getPackageName()));
-            }
             for (int i = 0; i < rows.size(); i++) {
                 ProjectionTargetApps.Row r = rows.get(i);
-                items[i + off] = r.label + " (" + r.packageName + ")";
+                items[i] = r.label + " (" + r.packageName + ")";
                 packages.add(r.packageName);
             }
             String title = context.getString(R.string.split_pick_title, slot + 1, rows.size());

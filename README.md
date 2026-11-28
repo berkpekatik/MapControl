@@ -37,11 +37,13 @@ Launcher, sürüş hafızası, otomasyon, gösterge ekranı ve daha fazlası, te
 | 📲 **Aktar** | Aynı ağdaki telefon/bilgisayardan dosya yükleme ve APK kurma (QR ile erişim) |
 | 🗂️ **Dosyalar** | USB ve dahili depolamada gezinme; APK yükleme, silme, İndirilenler'e kopyalama |
 | 🔊 **Karşılama ve ses** | Açılış sesi/ekranı, ekolayzer |
-| 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
+| 📦 **Uygulamalar, Wi-Fi ve Bluetooth** | Uygulama yönetimi ve uygulama izinlerini araç ekranından açıp kapatma, ağ tarama ve bağlanma, araç çalışınca son telefona otomatik bağlanma |
 | 🔙 **Yüzen menü** | Başka uygulama öndeyken sürüklenebilir geri tuşu; göstergeye yansıtma ve açık uygulamaları kapatma |
 | 🧩 **Menü kurulumu** | İlk açılışta hangi özelliklerin menüde görüneceğini seçtiren kurulum sihirbazı *(beta)* |
 | 📱 **Telefon eşleme** | Yolculuk ve araç verisini telefon uygulamasına aktarır *(şu an yalnızca test kullanıcılarına açık)* |
 | 🛠️ **Ana ekran ikon onarımı** | Jaecoo launcher'ında çoğalan MapControl ikonlarını tek tuşla temizler |
+| 🧰 **Servis modu** | Servise giderken sonradan yüklenen uygulamaları silmeden gizler; `mapcontrol-unlock.txt` şifre dosyalı USB bellek takılınca geri getirir |
+| 🗣️ **iFlytek döngü düzeltmesi** | Wi-Fi açıkken sürekli çöküp yeniden başlayan iFlytek asistanını yerel DNS korumasıyla durdurur *(isteğe bağlı, varsayılan kapalı)* |
 | 🐞 **Log Kaydını Geliştiriciye Gönder** | Donma, Bluetooth kopması ya da ekran resetlenmesinde, onaydan sonra sistem kayıtlarını maskeleyip eşleşmiş hesaba gönderir |
 
 ---

@@ -1,10 +1,7 @@
 package com.mapcontrol.ui.activity
 
 import android.app.Activity
-import android.content.Intent
-import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
@@ -16,13 +13,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.mapcontrol.R
 import com.mapcontrol.launcher.DriveMapPrefs
-import com.mapcontrol.launcher.DrivePolicy
-import com.mapcontrol.launcher.DriveScreen
 import com.mapcontrol.launcher.FreeformCaption
 import com.mapcontrol.launcher.GlassDrawable
 import com.mapcontrol.launcher.LauncherTheme
 import com.mapcontrol.launcher.MapApp
 import com.mapcontrol.launcher.MapAppPrefs
+import com.mapcontrol.launcher.MapPickerPolicy
 import com.mapcontrol.launcher.Sahne
 import com.mapcontrol.launcher.SahneGround
 import com.mapcontrol.launcher.ThemeMode
@@ -33,11 +29,11 @@ import com.mapcontrol.launcher.setTint
 import com.mapcontrol.util.SplitScreenLauncher
 
 /**
- * Sürüş ekranının harita yarısı, harita uygulaması yokken ([DriveScreen]): "+ Harita ekle". Kurulu harita seçenekleri ([MapApp];
+ * "+ Harita ekle": harita uygulaması seçilmemişken Navigasyon kartından tam ekran açılır. Kurulu harita seçenekleri ([MapApp];
  * Google / Yandex) ve `geo:` açabilen diğer navigasyon uygulamaları büyük kartlar olarak listelenir. Seçim kaydedilir (kartın seçimi ya
- * da "diğer" [DriveMapPrefs]) ve seçilen uygulama bu pencerenin yerinde (aynı sınırlar) açılır, seçici kapanır.
+ * da "diğer" [DriveMapPrefs]) ve seçilen uygulama tam ekran açılır, seçici kapanır.
  *
- * Yalnız MapControl derlemesinde (bölünmüş ekran başlatıcısı burada); serbest pencere başlığı her zaman gizlenir.
+ * Yalnız MapControl derlemesinde (tam ekran taşıma burada); serbest pencere başlığı her zaman gizlenir.
  */
 class DriveMapPickerActivity : Activity() {
 
@@ -63,7 +59,7 @@ class DriveMapPickerActivity : Activity() {
     private fun build() {
         root.removeAllViews()
         val installed = MapAppPrefs.installedSet(this)
-        val choices = DrivePolicy.pickerChoices(
+        val choices = MapPickerPolicy.pickerChoices(
             MapApp.ORDER.map { it.packageName }.filter { it in installed },
             DriveMapPrefs.geoApps(this),
             packageName,
@@ -152,48 +148,20 @@ class DriveMapPickerActivity : Activity() {
         pkg
     }
 
-    /** singleTask: açık seçiciye yeni istek gelirse (sürüş yarısı ↔ tam ekran) ekstralar güncellensin. */
-    override fun onNewIntent(intent: android.content.Intent?) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-    }
-
-    /** Seçim kaydedilir; uygulama bu pencerenin sınırlarında açılır, seçici kapanır. */
+    /** Seçim kaydedilir; uygulama tam ekran açılır, seçici kapanır. */
     private fun choose(pkg: String) {
         if (launching) return
-        val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return
+        if (packageManager.getLaunchIntentForPackage(pkg) == null) return
         launching = true
         DriveMapPrefs.choose(this, pkg)
-        if (intent.getBooleanExtra(EXTRA_FULL_SCREEN, false)) {
-            // Navigasyon kartından tek başına açıldı: harita bölmesiz tam ekran (sürüş ekranı işareti yok).
-            SplitScreenLauncher.mapFullScreen(this, pkg) { result ->
-                Log.i(TAG, "picked (full) -> $result")
-                launching = false
-                finishAndRemoveTask()
-            }
-            return
-        }
-        DriveScreen.onMapChosen(pkg)
-        // currentWindowMetrics API 30; minSdk 29 olduğu için A10 ünitelerde eski yoldan ölç.
-        val bounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager.currentWindowMetrics.bounds
-        } else {
-            @Suppress("DEPRECATION")
-            android.util.DisplayMetrics().let { m ->
-                windowManager.defaultDisplay.getRealMetrics(m)
-                Rect(0, 0, m.widthPixels, m.heightPixels)
-            }
-        }
-        SplitScreenLauncher.launchInto(this, pkg, intent, Rect(bounds)) { result ->
+        SplitScreenLauncher.mapFullScreen(this, pkg) { result ->
             Log.i(TAG, "picked -> $result")
             launching = false
-            if (result == SplitScreenLauncher.Result.STARTED) finishAndRemoveTask()
+            finishAndRemoveTask()
         }
     }
 
     companion object {
-        /** Seçici sürüş ekranı yarısı değil, tek başına açıldı: seçilen harita tam ekran açılır. */
-        const val EXTRA_FULL_SCREEN = "drive_map_picker_full"
         private const val TAG = "DriveMapPicker"
         private const val CARD_DP = 200
         private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT

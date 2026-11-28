@@ -282,8 +282,15 @@ class MediaSourcePickTest {
         // 10 Kasım araç logu: eski ses uygulamasında neden 8 radyoyu açmıyor; aracın kendi başlatıcısı 13 gönderiyor.
         for (radio in listOf(8, 9, 10, 24)) assertEquals(13, MediaSourcePick.openReason(radio, oldAudioApp = true))
         assertEquals(8, MediaSourcePick.openReason(OemAudioSource.BT_MUSIC, oldAudioApp = true))
-        assertEquals(8, MediaSourcePick.openReason(3, oldAudioApp = true)) // USB değişmez
         assertEquals(8, MediaSourcePick.openReason(9, oldAudioApp = false)) // svaudioapp: 8 araçta doğrulandı
+        assertEquals(8, MediaSourcePick.openReason(OemAudioSource.BT_MUSIC, oldAudioApp = false))
+    }
+
+    @Test fun usbOpenReasonIsBootResumeOnEveryAudioApp() {
+        // 25 Kasım Jaecoo: neden 8 ("cards_start") USB'yi açmıyor; USB modülü yalnız boot_resume/mode ile çalar.
+        for (old in listOf(true, false)) {
+            for (usb in listOf(2, 3, 4)) assertEquals(6, MediaSourcePick.openReason(usb, oldAudioApp = old))
+        }
     }
 }
 

@@ -27,8 +27,7 @@
     <string name="launcher_fn_open_settings">Open settings</string>
     <string name="launcher_fn_split_start">Start</string>
     <string name="launcher_fn_split_starting">Starting…</string>
-    <string name="launcher_fn_split_drive">Mini dashboard + %1$s</string>
-    <string name="launcher_fn_split_drive_map">Mini dashboard + map</string>
+    <string name="launcher_fn_split_pick">Choose two apps</string>
     <string name="launcher_fn_cluster_start">Mirror</string>
     <string name="launcher_fn_cluster_stop">Stop</string>
     <string name="launcher_fn_cluster_no_target">No target app chosen</string>

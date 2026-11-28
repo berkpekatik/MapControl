@@ -1048,16 +1048,36 @@ public class Camera360TabBuilder {
         extras.setVisibility(com.mapcontrol.dvr.TurnCamera.INSTANCE.isEnabled(context) ? View.VISIBLE : View.GONE);
 
         int amber = 0xFFFFB020;
+        java.util.function.Consumer<Boolean> apply = enabled -> {
+            com.mapcontrol.dvr.TurnCamera.INSTANCE.setEnabled(context, enabled);
+            // Servis henüz başlamadıysa da ayar hemen etkili olsun (başlamışsa bir şey yapmaz).
+            com.mapcontrol.dvr.TurnCamera.INSTANCE.start(context);
+            extras.setVisibility(enabled ? View.VISIBLE : View.GONE);
+            if (!enabled) com.mapcontrol.dvr.TurnCamera.INSTANCE.stopPreview();
+        };
+        UiStyles.BinarySegmentHandle[] turnCamHandle = new UiStyles.BinarySegmentHandle[1];
         card.addView(turnCamRow(iconBadge(R.drawable.ic_mdi_camera, amber, withAlpha(amber, 0x2A), 52, 28, true),
                 R.string.camera360_turn_cam, R.string.camera360_turn_cam_note,
                 com.mapcontrol.dvr.TurnCamera.INSTANCE.isEnabled(context),
                 enabled -> {
-                    com.mapcontrol.dvr.TurnCamera.INSTANCE.setEnabled(context, enabled);
-                    // Servis henüz başlamadıysa da ayar hemen etkili olsun (başlamışsa bir şey yapmaz).
-                    com.mapcontrol.dvr.TurnCamera.INSTANCE.start(context);
-                    extras.setVisibility(enabled ? View.VISIBLE : View.GONE);
-                    if (!enabled) com.mapcontrol.dvr.TurnCamera.INSTANCE.stopPreview();
-                }));
+                    if (!enabled) {
+                        apply.accept(false);
+                        return;
+                    }
+                    // Deneysel: her açışta 5 sn zorunlu uyarı; onaylanmazsa anahtar Hayır'a döner.
+                    turnCamHandle[0].setInteractionEnabled(false);
+                    com.mapcontrol.util.DialogHelper.showTimedConfirm(context,
+                            context.getString(R.string.camera360_turn_cam_warn_title),
+                            context.getString(R.string.camera360_turn_cam_warn_msg), 5,
+                            () -> {
+                                turnCamHandle[0].setInteractionEnabled(true);
+                                apply.accept(true);
+                            },
+                            () -> {
+                                turnCamHandle[0].setInteractionEnabled(true);
+                                turnCamHandle[0].syncVisualWithoutCommit(false);
+                            });
+                }, turnCamHandle));
         card.addView(extras, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -1248,6 +1268,13 @@ public class Camera360TabBuilder {
 
     private LinearLayout turnCamRow(View lead, int titleRes, int noteRes, boolean initial,
                                     java.util.function.Consumer<Boolean> onCommit) {
+        return turnCamRow(lead, titleRes, noteRes, initial, onCommit, null);
+    }
+
+    /** {@code handleOut} verilirse segment tutamacı ilk elemana yazılır (onay iptalinde geri almak için). */
+    private LinearLayout turnCamRow(View lead, int titleRes, int noteRes, boolean initial,
+                                    java.util.function.Consumer<Boolean> onCommit,
+                                    UiStyles.BinarySegmentHandle[] handleOut) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -1280,9 +1307,11 @@ public class Camera360TabBuilder {
         LinearLayout toggle = new LinearLayout(context);
         toggle.setOrientation(LinearLayout.VERTICAL);
         row.addView(toggle, new LinearLayout.LayoutParams(dp(220), LinearLayout.LayoutParams.WRAP_CONTENT));
-        UiStyles.addBinarySegmentedControl(context, toggle, "",
+        UiStyles.BinarySegmentHandle handle = UiStyles.addBinarySegmentedControl(context, toggle, "",
                 context.getString(R.string.common_yes), context.getString(R.string.common_no),
-                "", "", initial, onCommit).hideHelp();
+                "", "", initial, onCommit);
+        handle.hideHelp();
+        if (handleOut != null) handleOut[0] = handle;
         return row;
     }
 

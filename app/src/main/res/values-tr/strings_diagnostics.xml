@@ -23,4 +23,7 @@
     <string name="diag_oem_icons_run">Onar</string>
     <string name="diag_oem_icons_done">Araç ana ekranı ikonları onarıldı.</string>
     <string name="diag_oem_icons_failed">İkonlar onarılamadı.</string>
+    <string name="diag_iflytek_loop_title">iFlytek döngü düzeltmesi</string>
+    <string name="diag_iflytek_loop_help_on">iFlytek sesli asistanının açılışta sürekli çöküp yeniden başlamasını (sonsuz döngü) önler. Yalnızca hatalı sunucu adresi (flamesdev.iflytekauto.cn) araç içinde engellenir; araçtan dışarıya trafik gitmez. Durum çubuğunda VPN anahtar simgesi görünebilir.</string>
+    <string name="diag_iflytek_loop_help_off">Kapalı: Wi-Fi açıkken iFlytek sesli asistanı açılışta tekrar tekrar çöküp yeniden başlayabilir.</string>
 </resources>

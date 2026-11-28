@@ -47,4 +47,11 @@
     <string name="launcher_sport_summary_max">Maks</string>
     <string name="launcher_sport_summary_time">Süre</string>
     <string name="launcher_sport_summary_title">Sürüş özeti</string>
+    <!-- Uyarı şeridi (StripAlerts). -->
+    <string name="launcher_strip_tire">Lastik basıncı düşük</string>
+    <string name="launcher_strip_tire_psi" formatted="true">Lastik düşük %1$d psi</string>
+    <string name="launcher_strip_fuel_low">Yakıt az</string>
+    <string name="launcher_strip_service">Bakım yaklaştı</string>
+    <string name="launcher_strip_service_km" formatted="true">Bakıma %1$d km</string>
+    <string name="launcher_strip_service_overdue">Bakım zamanı geçti</string>
 </resources>

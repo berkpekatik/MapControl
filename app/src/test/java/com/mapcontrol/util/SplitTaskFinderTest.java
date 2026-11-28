@@ -14,7 +14,7 @@ public class SplitTaskFinderTest {
     @Test
     public void picksLatestTaskOfPackage() {
         String log = "11-07 11:10:09.091   503   784 I wm_resume_activity: [0,126535323,1071,ru.yandex.yandexmaps/.SplashScreen]\n"
-                + "11-07 11:10:10.000   503   784 I wm_resume_activity: [0,5555,1080,com.mapcontrol/com.mapcontrol.launcher.MiniDashActivity]\n"
+                + "11-07 11:10:10.000   503   784 I wm_resume_activity: [0,5555,1080,com.mapcontrol/com.mapcontrol.ui.activity.MainActivity]\n"
                 + "11-07 11:10:28.036   503   635 I wm_new_intent: [0,99,1000215,ru.yandex.yandexmaps/.app.MapActivity,android.intent.action.MAIN,NULL,NULL,270663680]\n"
                 + "11-07 11:10:29.036   503   635 I wm_resume_activity: [0,1,1081,com.other/.Main]\n";
         assertEquals(1000215, SplitTaskFinder.lastTaskId(log, YX));

@@ -27,8 +27,7 @@
     <string name="launcher_fn_open_settings">Ayarları aç</string>
     <string name="launcher_fn_split_start">Başlat</string>
     <string name="launcher_fn_split_starting">Başlatılıyor…</string>
-    <string name="launcher_fn_split_drive">Mini gösterge + %1$s</string>
-    <string name="launcher_fn_split_drive_map">Mini gösterge + harita</string>
+    <string name="launcher_fn_split_pick">İki uygulama seçin</string>
     <string name="launcher_fn_cluster_start">Yansıt</string>
     <string name="launcher_fn_cluster_stop">Durdur</string>
     <string name="launcher_fn_cluster_no_target">Hedef uygulama seçilmedi</string>

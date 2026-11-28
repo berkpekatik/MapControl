@@ -95,6 +95,12 @@ public final class MapControlVDBusKeyBridge {
             }
 
             @Override
+            public void onAssistantKey() {
+                boolean sent = com.mapcontrol.ai.AssistantLauncher.listen(app);
+                logToBroadcast(app, sent ? "Direksiyon ses tuşu: asistan dinliyor" : "Direksiyon ses tuşu: asistan başlatılamadı");
+            }
+
+            @Override
             public void onAlertTone() {
                 AlertSoundHelper.playSoftAlert(app, msg -> logToBroadcast(app, msg));
             }

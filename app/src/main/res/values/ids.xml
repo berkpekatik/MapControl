@@ -13,4 +13,6 @@
     <item name="boot_splash_wordmark" type="id"/>
     <item name="boot_splash_tagline" type="id"/>
     <item name="boot_splash_bar" type="id"/>
+    <item name="climate_action_increase" type="id"/>
+    <item name="climate_action_decrease" type="id"/>
 </resources>

@@ -65,7 +65,9 @@ public final class AccessibilityKeeper {
      */
     public static boolean ensure(Context context, String reason) {
         Context app = context.getApplicationContext();
-        if (!canWrite(app) || GlobalBackService.isRegisteredInSystemAccessibilitySettings(app)) {
+        if (!canWrite(app) || GlobalBackService.isRegisteredInSystemAccessibilitySettings(app)
+                || com.mapcontrol.admin.ServiceMode.isActive(app)) {
+            // Servis modunda hizmet bilerek listeden çıkarıldı; geri eklenmez.
             return false;
         }
         long now = SystemClock.uptimeMillis();
@@ -96,6 +98,49 @@ public final class AccessibilityKeeper {
             DiagJournal.event("erisilebilirlik", "hizmet geri eklenemedi: " + e);
             return false;
         }
+    }
+
+    /**
+     * Hizmetimizi listeden çıkarır (servis modu). Bileşen doğrudan kapatılırsa sistem hizmeti zorla durdurur ve "çöktü"
+     * sayar; sonra yeniden bağlamaz. Listeden çıkarmak temiz ayrılmadır. Yazma izni yoksa false.
+     */
+    public static boolean removeSelf(Context context) {
+        Context app = context.getApplicationContext();
+        if (!canWrite(app)) {
+            return false;
+        }
+        try {
+            String current = Settings.Secure.getString(app.getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            String updated = withoutService(current);
+            if (updated.equals(current == null ? "" : current)) {
+                return true;
+            }
+            Settings.Secure.putString(app.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated);
+            DiagJournal.event("erisilebilirlik", "hizmet servis modu icin listeden cikarildi");
+            return true;
+        } catch (RuntimeException e) {
+            DiagJournal.event("erisilebilirlik", "hizmet listeden cikarilamadi: " + e);
+            return false;
+        }
+    }
+
+    /** ':' ile ayrılmış listeden hizmetimizi çıkarır. */
+    static String withoutService(@Nullable String current) {
+        if (current == null || "null".equals(current.trim())) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String raw : current.split(":")) {
+            String id = raw.trim();
+            // Çıkarırken paket adına bakılmaz: hangi applicationId ile yazılmış olursa olsun eski kayıt temizlenir.
+            if (id.isEmpty() || id.endsWith("service.GlobalBackService")) {
+                continue;
+            }
+            if (out.length() > 0) out.append(':');
+            out.append(id);
+        }
+        return out.toString();
     }
 
     private static boolean canWrite(Context context) {

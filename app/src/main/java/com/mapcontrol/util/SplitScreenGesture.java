@@ -2,7 +2,6 @@ package com.mapcontrol.util;
 
 /**
  * Araç sisteminin {@code android.intent.action.car_system_gesture_mode} yayınındaki kaydırma kodları.
- * Kodlar MyCar'ın {@code M6.onReceive} tablosundan doğrulanmıştır.
  *
  * <p>Kod = parmak sayısı * 100 + yön. Yön: sol 0, sağ 1, aşağı 2, yukarı 3.
  */

@@ -17,12 +17,30 @@ public final class MapControlApplication extends Application {
     private static final long CRASH_RECORDING_TIMEOUT_MS = 3_000L;
 
     private int lastNightModeUiBits = -1;
+    private boolean featuresStarted;
 
     @Override
     public void onCreate() {
         super.onCreate();
         GlitchTip.start(this);
         com.mapcontrol.util.DiagJournal.init(this);
+        if (com.mapcontrol.admin.ServiceMode.isActive(this)) {
+            // Servis modu: süreç yalnızca USB / adb çözme alıcısı için uyandı; hiçbir özellik başlamaz.
+            com.mapcontrol.util.DiagJournal.event("servis", "surec uyku modunda basladi");
+            return;
+        }
+        startFeatures();
+    }
+
+    /**
+     * Uygulama özelliklerinin süreç başlangıcı. Normalde {@link #onCreate}'te; servis modu çözülünce uyku modunda başlamış
+     * süreçte bir kez çağrılır (süreç öldürülmez: yeni bağlanan erişilebilirlik hizmeti "çöktü" sayılmasın).
+     */
+    public void startFeatures() {
+        if (featuresStarted) {
+            return;
+        }
+        featuresStarted = true;
         com.mapcontrol.util.MainLoopShield.install();
         finishRecordingOnCrash();
         com.mapcontrol.util.ProcessExitLog.reportAsync(this);
@@ -32,7 +50,7 @@ public final class MapControlApplication extends Application {
         com.mapcontrol.launcher.HomeScreenPrefs.applyClimateScale(this);
         ClusterTrackRelay.install(this);
         try {
-            com.mapcontrol.launcher.DriveScreen.INSTANCE.recoverStale(this);
+            com.mapcontrol.launcher.MapLaunch.INSTANCE.recoverStale(this);
         } catch (Throwable ignored) {
         }
         int nightPref = getSharedPreferences("MapControlPrefs", MODE_PRIVATE)

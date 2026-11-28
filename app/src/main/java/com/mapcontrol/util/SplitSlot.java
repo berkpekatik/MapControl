@@ -10,11 +10,6 @@ import androidx.annotation.Nullable;
  */
 public final class SplitSlot {
 
-    /** Mini gösterge activity sınıfı. */
-    public static final String MINI_DASH_CLASS = "com.mapcontrol.launcher.MiniDashActivity";
-    /** Sürüş ekranının harita yarısı, harita uygulaması seçilmemişken: "+ Harita ekle" seçicisi. */
-    public static final String MAP_PICKER_CLASS = "com.mapcontrol.ui.activity.DriveMapPickerActivity";
-
     private SplitSlot() {
     }
 
@@ -52,46 +47,13 @@ public final class SplitSlot {
         return pkg + "/" + cls;
     }
 
-    /** Kendi paketimizdeki Mini gösterge kutusu. */
-    @NonNull
-    public static String miniDash(@NonNull String selfPackage) {
-        return component(selfPackage, MINI_DASH_CLASS);
-    }
-
-    /** Kutu, kendi paketimizdeki Mini gösterge bileşeni mi. */
-    public static boolean isMiniDash(@Nullable String slot, @NonNull String selfPackage) {
-        return isComponent(slot)
-                && selfPackage.equals(packageOf(slot))
-                && MINI_DASH_CLASS.equals(classOf(slot));
-    }
-
-    /** Kendi paketimizdeki harita seçici kutusu (sürüş ekranı). */
-    @NonNull
-    public static String mapPicker(@NonNull String selfPackage) {
-        return component(selfPackage, MAP_PICKER_CLASS);
-    }
-
-    /** Kutu, kendi paketimizdeki harita seçici bileşeni mi. */
-    public static boolean isMapPicker(@Nullable String slot, @NonNull String selfPackage) {
-        return isComponent(slot)
-                && selfPackage.equals(packageOf(slot))
-                && MAP_PICKER_CLASS.equals(classOf(slot));
-    }
-
-    /** Kutu kendi etkinliklerimizden biri mi (Mini gösterge ya da harita seçici; görevleri bizim, yeniden açılabilir). */
-    public static boolean isOwn(@Nullable String slot, @NonNull String selfPackage) {
-        return isMiniDash(slot, selfPackage) || isMapPicker(slot, selfPackage);
-    }
-
     /**
-     * Başlatılabilir mi: düz paket kendi paketimiz olamaz; bileşen yalnız kendi Mini göstergemiz ya da harita seçicimiz olabilir.
+     * Başlatılabilir mi: düz paket adı olmalı ve kendi paketimiz olamaz. Bileşen dizesi ("pkg/cls") geçersizdir; eski sürümlerde
+     * kaydedilmiş Mini gösterge seçimi böylece boş sayılır.
      */
     public static boolean isAllowed(@Nullable String slot, @NonNull String selfPackage) {
-        if (slot == null || slot.isEmpty()) {
+        if (slot == null || slot.isEmpty() || isComponent(slot)) {
             return false;
-        }
-        if (isComponent(slot)) {
-            return isOwn(slot, selfPackage);
         }
         return !slot.equals(selfPackage);
     }

@@ -27,7 +27,7 @@ import com.mapcontrol.R
  * Uyarılar (§10, son karar): araç çiziminde görünen şey yazıyla tekrar edilmez (kapı / bagaj / kaput açılır, cam ve tavan
  * buz mavisi); düşük lastikte o tekerde ince kehribar halka. Arabanın altındaki tek şerit ([StageStrip]) yalnızca arabada
  * görünmeyenler içindir: motor suyu sıcak / akü, düşük lastik (psi ile), yakıt kapağı açık, yakıt az (dokununca benzinlik
- * araması), bakım yaklaştı, kötü hava ([MiniAlerts], bu önem sırasıyla); hiçbiri yoksa şerit hiç görünmez. Şeride ya da araca dokununca araç detayı ([CarDetailSheet]).
+ * araması), bakım yaklaştı, kötü hava ([StripAlerts], bu önem sırasıyla); hiçbiri yoksa şerit hiç görünmez. Şeride ya da araca dokununca araç detayı ([CarDetailSheet]).
  *
  * Menzilin altında ince yakıt çubuğu ve yüzde (azalınca kehribar). Zemin (§11): ışık havuzu ve gölgeler, çalan şarkının kapak
  * rengini çok hafif alan ortam ışığı (şarkı başına bir kez küçük kopyadan hesaplanır, yumuşak geçiş) ve araç üstünde dijital
@@ -202,27 +202,6 @@ class SahneStage(private val activity: Activity, private val portraitLayout: Boo
 
     /** Düzenleme modunda sahne dokunulmaz (yalnızca yuvalar düzenlenir). */
     var locked = false
-
-    /**
-     * false: menzil omzu (ve veri beklerken yerindeki iskelet) gizlenir; araç yalnızca kilit hapını ve şerit payını gözetir.
-     * Mini gösterge menzil ile yakıtı kendi üst satırında büyük gösterir (mini gösterge etkinliği); ana ekranda hep true.
-     */
-    internal var showRange = true
-        set(value) {
-            if (field == value) return
-            field = value
-            fitKey = emptyList()
-            applyWaiting()
-            requestLayout()
-        }
-
-    /** Mini gösterge: veri yokken kilit hapı da gizli (tek bekleme satırı "Araç verisi bekleniyor" kalır). */
-    internal var hideLockWhileWaiting = false
-        set(value) {
-            if (field == value) return
-            field = value
-            applyWaiting()
-        }
 
     /** Spor ekranının araç modülü için açık parçalar ve camlar (her araç özetinde; [animate] ilk özetten sonra). */
     internal var onCar: ((parts: Set<CarPart>, windows: Collection<BodyPart>, sunroof: Boolean, animate: Boolean) -> Unit)? = null
@@ -437,11 +416,11 @@ class SahneStage(private val activity: Activity, private val portraitLayout: Boo
     }
 
     private fun applyWaiting() {
-        rangeBlock.visibility = if (!showRange) View.GONE else if (waiting) View.INVISIBLE else View.VISIBLE
+        rangeBlock.visibility = if (waiting) View.INVISIBLE else View.VISIBLE
         // Veri yokken gri iskelet çubuğu çizilmez (boş gri blok gibi görünüyordu); "Araç verisi bekleniyor" notu yeter.
         skeleton.visibility = View.GONE
         waitNote.visibility = if (waiting) View.VISIBLE else View.GONE
-        lockChip.visibility = if (waiting && hideLockWhileWaiting) View.INVISIBLE else View.VISIBLE
+        lockChip.visibility = View.VISIBLE
     }
 
     /** Arabada yanan parçalar (§10 genel kural): yakıt kapağı açıkken kapak, motor suyu / akü uyarısında kaput. */
@@ -454,10 +433,10 @@ class SahneStage(private val activity: Activity, private val portraitLayout: Boo
         )
     }
 
-    /** Şerit: motor suyu / akü, düşük lastik, yakıt kapağı, yakıt az, bakım, kötü hava ([MiniAlerts]); veri beklenirken gizli. Sürüşte kenar ışığı güçlü. */
+    /** Şerit: motor suyu / akü, düşük lastik, yakıt kapağı, yakıt az, bakım, kötü hava ([StripAlerts]); veri beklenirken gizli. Sürüşte kenar ışığı güçlü. */
     private fun bindStrip() {
         val s = vehicle.summary
-        val list = if (waiting || s == null) emptyList() else MiniAlerts.build(
+        val list = if (waiting || s == null) emptyList() else StripAlerts.build(
             tireAlert = s.tireAlert, tireLow = s.tireLow, lowFuel = s.lowFuel,
             serviceKm = trip.serviceKm, serviceDays = trip.serviceDays, pm25In = trip.pm25In,
             batteryV = trip.batteryV, batteryHighHeld = trip.batteryHighHeld, fuelCapOpen = s.fuelCapOpen,
@@ -470,9 +449,9 @@ class SahneStage(private val activity: Activity, private val portraitLayout: Boo
     }
 
     /** Şerit dokunuşu: yakıt azda en yakın istasyon araması (Yandex, yoksa genel harita); diğerlerinde araç detayı. */
-    private fun onStripTap(item: MiniAlerts.Item?) {
+    private fun onStripTap(item: StripAlerts.Item?) {
         if (locked) return
-        if (item?.kind == MiniAlerts.Kind.FUEL_LOW) openNearestStation(activity) else openDetail()
+        if (item?.kind == StripAlerts.Kind.FUEL_LOW) openNearestStation(activity) else openDetail()
     }
 
     /** Araç detayı: tek sayfa; düzenleme modunda ya da etkinlik kapanırken açılmaz. */
@@ -630,16 +609,16 @@ class SahneStage(private val activity: Activity, private val portraitLayout: Boo
             rangeRow.measuredWidth - rangeNumber.measuredWidth + rangeNumber.paint.measureText("000").toInt() + 1,
             fuelRow.measuredWidth - fuelText.measuredWidth + fuelText.paint.measureText(activity.getString(R.string.launcher_percent, 100)).toInt() + 1,
         )
-        val rangeRight = if (showRange) side + maxOf(rangeBlock.measuredWidth, reserve) else side
+        val rangeRight = side + maxOf(rangeBlock.measuredWidth, reserve)
         val cTop = chipTop(w)
         val chipLeft = w - side - lockChip.measuredWidth
         val bottom = if (portraitLayout && !stripShown()) h else stripTop(h)
         val maxBottom = bottom - context.dp(CAR_STRIP_GAP_DP)
-        val key = listOf(w, h, if (showRange) 1 else 0, rTop, rangeRight, rangeBlock.measuredHeight, chipLeft, cTop + lockChip.measuredHeight, maxBottom)
+        val key = listOf(w, h, rTop, rangeRight, rangeBlock.measuredHeight, chipLeft, cTop + lockChip.measuredHeight, maxBottom)
         if (key == fitKey) return
         fitKey = key
         val obstacles = listOfNotNull(
-            if (showRange) StageFit.Box(side.toFloat(), rTop.toFloat(), rangeRight.toFloat(), (rTop + rangeBlock.measuredHeight).toFloat()) else null,
+            StageFit.Box(side.toFloat(), rTop.toFloat(), rangeRight.toFloat(), (rTop + rangeBlock.measuredHeight).toFloat()),
             StageFit.Box(chipLeft.toFloat(), cTop.toFloat(), (w - side).toFloat(), (cTop + lockChip.measuredHeight).toFloat()),
         )
         if (vertical) {

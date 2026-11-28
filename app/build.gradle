@@ -44,8 +44,8 @@ android {
         applicationId "com.mapcontrol"
         minSdk 29
         targetSdk 28
-        versionCode 30
-        versionName "1.5.3"
+        versionCode 31
+        versionName "1.5.4"
         buildConfigField 'String', 'GIT_SHA', groovy.json.JsonOutput.toJson(gitSha())
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'GLITCHTIP_DSN', groovy.json.JsonOutput.toJson(readSetting('GLITCHTIP_DSN') ?: '')

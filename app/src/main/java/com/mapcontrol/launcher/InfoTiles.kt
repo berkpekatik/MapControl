@@ -206,8 +206,7 @@ class AppShortcutTile(
     /** Uygulamayı varsayılan ekranda açar. Java yardımcısı senkron olduğu için arka planda çalışır. */
     private fun launch(pkg: String) {
         executor.runSafely {
-            // Sürüş ekranından yarıda kalmış harita tam ekran açılır (yoksa ana ekranın üstünde yarım pencere gelirdi).
-            if (!DriveScreen.openLeftover(context, pkg)) AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0)
+            AppLaunchHelper.launchAppOnDisplay(context, pkg, Display.DEFAULT_DISPLAY, 0)
         }
     }
 

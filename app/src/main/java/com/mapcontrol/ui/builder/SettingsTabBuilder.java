@@ -98,7 +98,11 @@ public class SettingsTabBuilder {
         createBootServiceSection(grid);
         createBootUiSection(grid);
         createLanguageSection(grid);
+        if (com.mapcontrol.net.IflytekLoopGuard.isAvailable(context)) {
+            createIflytekLoopSection(createSettingsCard(settingsTabContent));
+        }
         createDiagnosticsSection(createSettingsCard(settingsTabContent));
+        createServiceModeSection(createSettingsCard(settingsTabContent));
 
         Button advancedToggle = new Button(context);
         advancedToggle.setText(R.string.ui_advanced_show);
@@ -345,6 +349,140 @@ public class SettingsTabBuilder {
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             lp3.setMargins(16, 0, 16, 8);
             parentContainer.addView(repair, lp3);
+        }
+    }
+
+    /**
+     * iFlytek döngü düzeltmesi (ayrı kart, Tanılama'nın üstünde): iFlytek sesli asistanı açılışta sonsuz
+     * çök-başla döngüsüne giriyor. Yalnızca iFlytek'li ve MapControl'ın device owner olduğu araçlarda görünür.
+     */
+    private void createIflytekLoopSection(android.view.ViewGroup parent) {
+        UiStyles.addBinarySegmentedControl(context, parent,
+                context.getString(R.string.diag_iflytek_loop_title),
+                context.getString(R.string.common_on), context.getString(R.string.common_off),
+                context.getString(R.string.diag_iflytek_loop_help_on),
+                context.getString(R.string.diag_iflytek_loop_help_off),
+                com.mapcontrol.net.IflytekLoopGuard.isEnabled(context),
+                on -> com.mapcontrol.net.IflytekLoopGuard.setEnabled(context, on));
+    }
+
+    /**
+     * Servis modu: büyük kırmızı düğme → 5 sn kilitli tehlike onayı → gizlenecek uygulamalar (salt görüntü) → şifre →
+     * uygula. Ayrıntı: SERVIS-MODU.md.
+     */
+    private void createServiceModeSection(LinearLayout parentContainer) {
+        TextView title = new TextView(context);
+        title.setText(R.string.service_mode_title);
+        UiStyles.setTextSize(title, R.dimen.text_size_medium);
+        title.setTextColor(UiStyles.color(context, R.color.statusErrorBright));
+        UiStyles.setFontStyle(title, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, 8);
+        parentContainer.addView(title, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView desc = new TextView(context);
+        desc.setText(context.getString(R.string.service_mode_desc, com.mapcontrol.admin.ServiceMode.UNLOCK_FILE));
+        UiStyles.setTextSize(desc, R.dimen.text_size_small);
+        desc.setTextColor(UiStyles.color(context, R.color.textHint));
+        desc.setPadding(0, 0, 0, 8);
+        parentContainer.addView(desc, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        final Button button = new Button(context);
+        button.setText(R.string.service_mode_button);
+        UiStyles.styleOemButton(button, UiStyles.color(context, R.color.statusError));
+        button.setTextColor(0xFFFFFFFF);
+        UiStyles.setFontStyle(button, android.graphics.Typeface.BOLD);
+        button.setOnClickListener(v -> startServiceModeFlow(button));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(16, 8, 16, 8);
+        parentContainer.addView(button, lp);
+    }
+
+    private void startServiceModeFlow(Button button) {
+        if (!com.mapcontrol.admin.ServiceMode.isDeviceOwner(context)) {
+            com.mapcontrol.util.DialogHelper.showInfo(context, context.getString(R.string.service_mode_title),
+                    context.getString(R.string.service_mode_not_owner));
+            return;
+        }
+        button.setEnabled(false);
+        Runnable reenable = () -> button.setEnabled(true);
+        com.mapcontrol.util.DialogHelper.showTimedConfirm(context,
+                context.getString(R.string.service_mode_danger_title),
+                context.getString(R.string.service_mode_danger_msg), 5,
+                context.getString(R.string.service_mode_danger_confirm), true,
+                () -> loadServiceModeApps(button, reenable),
+                reenable);
+    }
+
+    /** Liste arka planda bir kez çıkarılır; gösterilen liste aynen {@code activate}'e gider. */
+    private void loadServiceModeApps(Button button, Runnable reenable) {
+        button.setText(R.string.service_mode_loading);
+        new Thread(() -> {
+            java.util.List<com.mapcontrol.admin.ServiceMode.AppEntry> apps =
+                    com.mapcontrol.admin.ServiceMode.collectHideable(context);
+            handler.post(() -> {
+                button.setText(R.string.service_mode_button);
+                java.util.List<com.mapcontrol.util.DialogHelper.AppRow> rows = new java.util.ArrayList<>();
+                for (com.mapcontrol.admin.ServiceMode.AppEntry e : apps) {
+                    rows.add(new com.mapcontrol.util.DialogHelper.AppRow(e.icon, e.label, e.packageName));
+                }
+                com.mapcontrol.util.DialogHelper.showAppListConfirm(context,
+                        context.getString(R.string.service_mode_list_title, apps.size()),
+                        context.getString(R.string.service_mode_list_note),
+                        context.getString(R.string.service_mode_list_empty),
+                        rows, R.string.service_mode_list_continue,
+                        () -> askServiceModePassword(button, apps, reenable),
+                        reenable);
+            });
+        }, "ServiceModeList").start();
+    }
+
+    private void askServiceModePassword(Button button, java.util.List<com.mapcontrol.admin.ServiceMode.AppEntry> apps,
+                                        Runnable reenable) {
+        String serial = com.mapcontrol.admin.ServiceMode.vehicleSerial();
+        String message = context.getString(R.string.service_mode_password_msg, com.mapcontrol.admin.ServiceMode.UNLOCK_FILE);
+        if (serial != null) {
+            message += "\n\n" + context.getString(R.string.service_mode_password_serial, serial);
+        }
+        com.mapcontrol.util.DialogHelper.showPasswordSetup(context,
+                context.getString(R.string.service_mode_password_title), message,
+                com.mapcontrol.admin.ServiceMode.MIN_PASSWORD_LENGTH, R.string.service_mode_activate,
+                password -> {
+                    button.setText(R.string.service_mode_applying);
+                    new Thread(() -> {
+                        int hidden = com.mapcontrol.admin.ServiceMode.activate(context, apps, password);
+                        handler.post(() -> {
+                            button.setText(R.string.service_mode_button);
+                            reenable.run();
+                            if (hidden < 0) {
+                                com.mapcontrol.util.DialogHelper.showInfo(context,
+                                        context.getString(R.string.service_mode_title),
+                                        context.getString(R.string.service_mode_not_owner));
+                                return;
+                            }
+                            Toast.makeText(context, context.getString(R.string.service_mode_activated_toast, hidden),
+                                    Toast.LENGTH_LONG).show();
+                            leaveToHome();
+                            // Uyku: MapControl'ın arka plan özellikleri (yüzen tuş, bildirimler, gösterge...) dursun.
+                            com.mapcontrol.admin.ServiceMode.killSelfSoon(3500);
+                        });
+                    }, "ServiceModeApply").start();
+                },
+                reenable);
+    }
+
+    /** Mod açıldı: aracın kendi ana ekranına dön, MapControl penceresini kapat. */
+    private void leaveToHome() {
+        try {
+            context.startActivity(new android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_HOME)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException ignored) {
+        }
+        if (context instanceof android.app.Activity) {
+            ((android.app.Activity) context).finishAndRemoveTask();
         }
     }
 

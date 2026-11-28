@@ -723,8 +723,10 @@ internal class ClimateControl(
         private const val SYNC_SHOW_MS = 900L
         private const val TINT_FADE_MS = 200L
 
-        private const val ACTION_INCREASE = 0x1C01
-        private const val ACTION_DECREASE = 0x1C02
+        // Özel erişilebilirlik aksiyon id'si kaynak id'si (R.id) olmalı; düz sayı (0x1C01) addAction'da
+        // "Invalid standard action id" ile çöker (GlitchTip #2480).
+        private val ACTION_INCREASE get() = R.id.climate_action_increase
+        private val ACTION_DECREASE get() = R.id.climate_action_decrease
 
         // Düşük alfalı renk tonları (aşağı serin mavi, yukarı sıcak turuncu, fan mavi) temadan gelir: LauncherTheme.DOCK_TINT_*.
         private val TINT_COOL get() = LauncherTheme.DOCK_TINT_COOL
